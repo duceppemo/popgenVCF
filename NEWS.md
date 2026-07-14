@@ -1,5 +1,8 @@
 # popgenVCF 0.9.0 development
 
+- Added `write_pca_publication_artifacts()` as the first publication-output implementation.
+- Added canonical PCA coordinate and variance tables, PDF/SVG/PNG scatterplots, manuscript methods text, captions, figure source data, and validation records.
+- Added strict sample, eigenvalue, variance, and artifact existence validation for PCA publication outputs.
 - Added opt-in registry declarations for required module artifacts.
 - Enforced artifact namespaces, required identifiers, optional file existence, and duplicate-free accumulation after module execution.
 - Added the combined artifact manifest to `execute_analysis_registry()` output while preserving legacy modules with no declarations.
