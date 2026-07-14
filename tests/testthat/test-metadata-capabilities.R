@@ -70,7 +70,11 @@ test_that("metadata capabilities distinguish workflow modes", {
 
   incomplete_spatial <- data.table::copy(spatial)
   incomplete_spatial[2, latitude := NA_real_]
-  expect_false(popgenVCF:::metadata_capabilities(incomplete_spatial, TRUE)$coordinates)
+  expect_true(popgenVCF:::metadata_capabilities(incomplete_spatial, TRUE)$coordinates)
+
+  no_usable_coordinates <- data.table::copy(spatial)
+  no_usable_coordinates[, `:=`(latitude = NA_real_, longitude = NA_real_)]
+  expect_false(popgenVCF:::metadata_capabilities(no_usable_coordinates, TRUE)$coordinates)
 
   none <- popgenVCF:::metadata_capabilities(sample_only, FALSE)
   expect_false(none$metadata_supplied)
