@@ -41,12 +41,19 @@ read_config <- function(path) {
 validate_config <- function(cfg) {
   if (is.null(cfg$schema_version)) cfg$schema_version <- "1.0"
   if (!identical(as.character(cfg$schema_version), "1.0")) stopf("Unsupported configuration schema_version: %s", as.character(cfg$schema_version))
-  if (is.null(cfg$input$vcf) || is.null(cfg$output$directory)) stop("VCF and output directory are required", call. = FALSE)
-  if (!file.exists(cfg$input$vcf)) stopf("VCF not found: %s", cfg$input$vcf)
-  if (!is.null(cfg$input$metadata) && nzchar(as.character(cfg$input$metadata)) && !file.exists(cfg$input$metadata)) {
-    stopf("Metadata not found: %s", cfg$input$metadata)
+  if (is.null(cfg$input[["vcf"]]) || is.null(cfg$output[["directory"]])) stop("VCF and output directory are required", call. = FALSE)
+  if (!file.exists(cfg$input[["vcf"]])) stopf("VCF not found: %s", cfg$input[["vcf"]])
+
+  metadata_path <- cfg$input[["metadata"]]
+  if (!is.null(metadata_path)) {
+    metadata_path <- as.character(metadata_path)[1L]
+    if (!nzchar(metadata_path)) {
+      metadata_path <- NULL
+    } else if (!file.exists(metadata_path)) {
+      stopf("Metadata not found: %s", metadata_path)
+    }
   }
-  if (is.null(cfg$input$metadata) || !nzchar(as.character(cfg$input$metadata))) cfg$input$metadata <- NULL
+  cfg$input[["metadata"]] <- metadata_path
 
   vals <- c(cfg$qc$maf, cfg$qc$max_variant_missing, cfg$qc$max_sample_missing, cfg$qc$ld_r2)
   if (any(!is.finite(vals)) || any(vals < 0) || any(vals > 1)) stop("QC proportions must be between zero and one", call. = FALSE)
