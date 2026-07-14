@@ -35,46 +35,56 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
   analysis$inputs$ids <- ids
 
   if (is.null(metadata)) metadata <- metadata_from_samples(ids$sample)
+  hs <- stage(
+    "sample identity validation and QC",
+    harmonize_samples(
+      gds, ids, metadata, cfg$qc$max_sample_missing,
+      metadata_supplied = metadata_supplied
+    )
+  )
+  sample_ids <- hs$sample_ids
+  metadata <- hs$metadata
   capabilities <- metadata_capabilities(metadata, metadata_supplied)
   analysis$inputs$metadata <- metadata
   analysis$inputs$metadata_supplied <- metadata_supplied
   analysis$inputs$capabilities <- capabilities
-
-  hs <- stage("sample harmonization and QC", harmonize_samples(gds, ids, metadata, cfg$qc$max_sample_missing))
-  sample_ids <- hs$sample_ids
-  metadata <- hs$metadata
   analysis$samples$ids <- sample_ids
   analysis$samples$metadata <- metadata
   analysis$samples$qc <- hs$qc
+  analysis$samples$metadata_match <- hs$metadata_match
   write_tsv(hs$qc, file.path(dirs$tables, "01_sample_QC.tsv"))
+  write_tsv(hs$metadata_match, file.path(dirs$tables, "02_sample_metadata_match.tsv"))
 
   if (isTRUE(capabilities$population)) {
-    participation <- metadata[!is.na(population), .(
+    participation <- metadata[, .(
       n_samples = .N, used_PCA = TRUE, used_diversity = TRUE,
       used_FST = .N >= 2, used_AMOVA = TRUE, used_DAPC = TRUE
     ), by = population]
     analysis$samples$participation <- participation
-    write_tsv(participation, file.path(dirs$tables, "02_population_participation.tsv"))
+    write_tsv(participation, file.path(dirs$tables, "03_population_participation.tsv"))
     palette <- population_palette(metadata$population)
-    write_tsv(data.table::data.table(population = names(palette), colour = unname(palette)),
-              file.path(dirs$tables, "03_population_colors.tsv"))
+    write_tsv(
+      data.table::data.table(population = names(palette), colour = unname(palette)),
+      file.path(dirs$tables, "04_population_colors.tsv")
+    )
   }
 
   vq <- stage("variant QC audit", variant_qc(gds, sample_ids, ids, cfg$qc$maf, 0.2))
   qc_snps <- vq[pass_combined, snp_id]
   analysis$variants$audit <- vq
   analysis$variants$qc_ids <- qc_snps
-  final_snps <- stage("exact SNPRelate LD pruning",
-                      ld_prune_exact(gds, sample_ids, cfg$qc$maf,
-                                     cfg$compute$threads, cfg$compute$seed))
+  final_snps <- stage(
+    "exact SNPRelate LD pruning",
+    ld_prune_exact(gds, sample_ids, cfg$qc$maf, cfg$compute$threads, cfg$compute$seed)
+  )
   analysis$variants$ld_ids <- final_snps
   validate_analysis(analysis, "ordination")
   qc <- qc_reports(vq, final_snps)
   analysis$variants$reports <- qc
-  write_tsv(qc$variant, file.path(dirs$tables, "04_variant_QC.tsv"))
-  write_tsv(qc$independent, file.path(dirs$tables, "05_QC_independent_counts.tsv"))
-  write_tsv(qc$sequential, file.path(dirs$tables, "06_QC_sequential_counts.tsv"))
-  write_tsv(data.table::data.table(snp_id = final_snps), file.path(dirs$tables, "07_LD_pruned_SNPs.tsv"))
+  write_tsv(qc$variant, file.path(dirs$tables, "05_variant_QC.tsv"))
+  write_tsv(qc$independent, file.path(dirs$tables, "06_QC_independent_counts.tsv"))
+  write_tsv(qc$sequential, file.path(dirs$tables, "07_QC_sequential_counts.tsv"))
+  write_tsv(data.table::data.table(snp_id = final_snps), file.path(dirs$tables, "08_LD_pruned_SNPs.tsv"))
   plot_qc_reports(qc, hs$qc, cfg, dirs)
 
   capability_table <- analysis_capability_table(registry, capabilities)
@@ -93,18 +103,15 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
     analysis <- executed$analysis
     context <- executed$context
     analysis <- record_analysis_timing(analysis, "analysis registry", proc.time()[["elapsed"]] - registry_start)
-    analysis <- record_analysis_message(analysis, "SUCCESS", "analysis registry",
-                                        paste("executed", length(executed$order), "module(s)"))
+    analysis <- record_analysis_message(
+      analysis, "SUCCESS", "analysis registry",
+      paste("executed", length(executed$order), "module(s)")
+    )
     analysis <- set_analysis_result(analysis, "execution_order", executed$order)
   } else {
     analysis <- set_analysis_result(analysis, "execution_order", character())
-    analysis <- record_analysis_message(
-      analysis, "INFO", "analysis registry",
-      if (metadata_supplied) "no metadata-compatible analysis modules were enabled" else
-        "metadata not supplied; completed VCF-only QC workflow"
-    )
-    log_msg(if (metadata_supplied) "No metadata-compatible analysis modules enabled" else
-              "No metadata supplied: population and spatial analyses skipped", level = "INFO")
+    analysis <- record_analysis_message(analysis, "INFO", "analysis registry", "no compatible analysis modules were enabled")
+    log_msg("No compatible analysis modules enabled after QC", level = "INFO")
   }
 
   write_tsv(list_analyses(registry), file.path(dirs$root, "analysis_module_contracts.tsv"))
@@ -112,9 +119,12 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
   if (length(validations)) {
     validation_table <- data.table::rbindlist(lapply(names(validations), function(nm) {
       v <- validations[[nm]]
-      data.table::data.table(module = nm, valid = isTRUE(v$valid),
-        errors = paste(v$errors, collapse = "; "), warnings = paste(v$warnings, collapse = "; "),
-        metrics = paste(sprintf("%s=%s", names(v$metrics), unlist(v$metrics)), collapse = "; "))
+      data.table::data.table(
+        module = nm, valid = isTRUE(v$valid),
+        errors = paste(v$errors, collapse = "; "),
+        warnings = paste(v$warnings, collapse = "; "),
+        metrics = paste(sprintf("%s=%s", names(v$metrics), unlist(v$metrics)), collapse = "; ")
+      )
     }), fill = TRUE)
     write_tsv(validation_table, file.path(dirs$root, "analysis_validation.tsv"))
   }
