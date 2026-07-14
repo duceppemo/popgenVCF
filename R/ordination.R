@@ -4,10 +4,15 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads) {
   npc <- min(n_pcs, ncol(z$eigenvect))
   scores <- data.table::data.table(sample = z$sample.id)
   for (i in seq_len(npc)) scores[[paste0("PC", i)]] <- z$eigenvect[, i]
-  data.table::set(scores, j = "population",
-                  value = metadata$population[match(scores$sample, metadata$sample)])
-  variance <- data.table::data.table(PC = paste0("PC", seq_len(npc)),
-                                     proportion = z$varprop[seq_len(npc)], percent = 100 * z$varprop[seq_len(npc)])
+  if ("population" %in% names(metadata)) {
+    data.table::set(scores, j = "population",
+                    value = metadata$population[match(scores$sample, metadata$sample)])
+  }
+  variance <- data.table::data.table(
+    PC = paste0("PC", seq_len(npc)),
+    proportion = z$varprop[seq_len(npc)],
+    percent = 100 * z$varprop[seq_len(npc)]
+  )
   list(scores = scores, variance = variance, object = z)
 }
 
@@ -15,16 +20,31 @@ plot_pca <- function(pca, cfg, dirs) {
   fmts <- cfg$output$figure_formats; dpi <- cfg$output$dpi
   label <- cfg$output$label_samples
   do_label <- identical(label, "all") || (identical(label, "auto") && nrow(pca$scores) <= 60L)
-  pal <- population_palette(pca$scores$population)
-  for (pair in list(c(1,2), c(1,3), c(2,3))) {
+  has_population <- "population" %in% names(pca$scores) && any(!is.na(pca$scores$population))
+  pal <- if (has_population) population_palette(pca$scores$population) else NULL
+  for (pair in list(c(1, 2), c(1, 3), c(2, 3))) {
     if (max(pair) > nrow(pca$variance)) next
     x <- paste0("PC", pair[1]); y <- paste0("PC", pair[2])
-    p <- ggplot2::ggplot(pca$scores, ggplot2::aes(x = .data[[x]], y = .data[[y]], colour = population)) +
-      ggplot2::geom_point(size = 2.7, alpha = .85) + ggplot2::scale_colour_manual(values = pal) +
-      ggplot2::labs(title = "Principal component analysis",
-                    x = sprintf("%s (%.2f%%)", x, pca$variance$percent[pair[1]]),
-                    y = sprintf("%s (%.2f%%)", y, pca$variance$percent[pair[2]]), colour = "Population") + theme_publication()
-    if (do_label) p <- p + ggrepel::geom_text_repel(ggplot2::aes(label = sample), size = 2.5, max.overlaps = 30, show.legend = FALSE)
+    mapping <- if (has_population) {
+      ggplot2::aes(x = .data[[x]], y = .data[[y]], colour = population)
+    } else {
+      ggplot2::aes(x = .data[[x]], y = .data[[y]])
+    }
+    p <- ggplot2::ggplot(pca$scores, mapping) +
+      ggplot2::geom_point(size = 2.7, alpha = .85) +
+      ggplot2::labs(
+        title = "Principal component analysis",
+        x = sprintf("%s (%.2f%%)", x, pca$variance$percent[pair[1]]),
+        y = sprintf("%s (%.2f%%)", y, pca$variance$percent[pair[2]]),
+        colour = "Population"
+      ) + theme_publication()
+    if (has_population) p <- p + ggplot2::scale_colour_manual(values = pal)
+    if (do_label) {
+      p <- p + ggrepel::geom_text_repel(
+        ggplot2::aes(label = sample), size = 2.5,
+        max.overlaps = 30, show.legend = FALSE
+      )
+    }
     save_plot(p, sprintf("07_PCA_PC%d_PC%d", pair[1], pair[2]), dirs, fmts, 8, 6, dpi)
   }
 }
@@ -35,27 +55,43 @@ run_ibs <- function(gds, sample_ids, snp_ids, metadata, threads) {
   sim <- as.matrix(z$ibs); rownames(sim) <- colnames(sim) <- z$sample.id
   dist <- 1 - sim
   m <- stats::cmdscale(stats::as.dist(dist), k = min(2L, nrow(dist) - 1L), eig = TRUE)
-  points <- data.table::data.table(sample = rownames(m$points), MDS1 = m$points[,1],
-                                   MDS2 = if (ncol(m$points) > 1L) m$points[,2] else 0)
-  data.table::set(points, j = "population",
-                  value = metadata$population[match(points$sample, metadata$sample)])
+  points <- data.table::data.table(
+    sample = rownames(m$points), MDS1 = m$points[, 1],
+    MDS2 = if (ncol(m$points) > 1L) m$points[, 2] else 0
+  )
+  if ("population" %in% names(metadata)) {
+    data.table::set(points, j = "population",
+                    value = metadata$population[match(points$sample, metadata$sample)])
+  }
   list(similarity = sim, distance = dist, mds = points, eig = m$eig)
 }
 
 plot_ibs <- function(ibs, cfg, dirs) {
   fmts <- cfg$output$figure_formats; dpi <- cfg$output$dpi
-  p <- ggplot2::ggplot(ibs$mds, ggplot2::aes(MDS1, MDS2, colour = population)) + ggplot2::geom_point(size = 2.7) +
-    ggplot2::scale_colour_manual(values = population_palette(ibs$mds$population)) +
-    ggplot2::labs(title = "MDS of IBS distance", colour = "Population") + theme_publication()
+  has_population <- "population" %in% names(ibs$mds) && any(!is.na(ibs$mds$population))
+  mapping <- if (has_population) {
+    ggplot2::aes(MDS1, MDS2, colour = population)
+  } else {
+    ggplot2::aes(MDS1, MDS2)
+  }
+  p <- ggplot2::ggplot(ibs$mds, mapping) +
+    ggplot2::geom_point(size = 2.7) +
+    ggplot2::labs(title = "MDS of IBS distance", colour = "Population") +
+    theme_publication()
+  if (has_population) {
+    p <- p + ggplot2::scale_colour_manual(values = population_palette(ibs$mds$population))
+  }
   save_plot(p, "08_IBS_MDS", dirs, fmts, 8, 6, dpi)
   n <- nrow(ibs$distance)
   if (n <= 300L) {
     ord <- stats::hclust(stats::as.dist(ibs$distance), method = "average")$order
     long <- data.table::as.data.table(as.table(ibs$distance[ord, ord, drop = FALSE]))
     data.table::setnames(long, c("sample_y", "sample_x", "distance"))
-    p2 <- ggplot2::ggplot(long, ggplot2::aes(sample_x, sample_y, fill = distance)) + ggplot2::geom_raster() +
-      ggplot2::scale_fill_viridis_c() + ggplot2::labs(title = "Pairwise IBS distance", x = NULL, y = NULL, fill = "1 - IBS") +
-      theme_publication() + ggplot2::theme(axis.text = ggplot2::element_blank(), axis.ticks = ggplot2::element_blank())
+    p2 <- ggplot2::ggplot(long, ggplot2::aes(sample_x, sample_y, fill = distance)) +
+      ggplot2::geom_raster() + ggplot2::scale_fill_viridis_c() +
+      ggplot2::labs(title = "Pairwise IBS distance", x = NULL, y = NULL, fill = "1 - IBS") +
+      theme_publication() +
+      ggplot2::theme(axis.text = ggplot2::element_blank(), axis.ticks = ggplot2::element_blank())
     save_plot(p2, "09_IBS_heatmap", dirs, fmts, 8, 8, dpi)
   }
 }
