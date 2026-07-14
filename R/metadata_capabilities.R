@@ -3,7 +3,7 @@ metadata_capabilities <- function(metadata, metadata_supplied = TRUE) {
   has_population <- "population" %in% columns &&
     all(!is.na(metadata$population) & nzchar(metadata$population))
   has_coordinates <- all(c("latitude", "longitude") %in% columns) &&
-    all(stats::complete.cases(metadata[, c("latitude", "longitude"), with = FALSE]))
+    any(stats::complete.cases(metadata[, c("latitude", "longitude"), with = FALSE]))
   list(
     metadata_supplied = isTRUE(metadata_supplied),
     sample = "sample" %in% columns,
@@ -34,13 +34,13 @@ analysis_capability_table <- function(registry, capabilities) {
       "metadata not supplied; population annotations unavailable"
     }
     reason[coordinate_modules] <- if (isTRUE(capabilities$metadata_supplied)) {
-      "complete population and coordinate annotations unavailable"
+      "population and/or usable coordinates unavailable"
     } else {
       "metadata not supplied; spatial annotations unavailable"
     }
   } else if (!isTRUE(capabilities$coordinates)) {
     enabled <- setdiff(enabled, coordinate_modules)
-    reason[coordinate_modules] <- "complete latitude/longitude annotations unavailable"
+    reason[coordinate_modules] <- "no complete latitude/longitude pairs available"
   }
 
   if (!isTRUE(capabilities$metadata_supplied)) {
