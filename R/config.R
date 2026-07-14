@@ -53,7 +53,10 @@ validate_config <- function(cfg) {
       stopf("Metadata not found: %s", metadata_path)
     }
   }
-  cfg$input[["metadata"]] <- metadata_path
+  # Assign through single-bracket replacement so a NULL value remains an
+  # explicitly named list element. Using [[<- NULL removes the element and
+  # makes `$metadata` partially match `metadata_header`.
+  cfg$input["metadata"] <- list(metadata_path)
 
   vals <- c(cfg$qc$maf, cfg$qc$max_variant_missing, cfg$qc$max_sample_missing, cfg$qc$ld_r2)
   if (any(!is.finite(vals)) || any(vals < 0) || any(vals > 1)) stop("QC proportions must be between zero and one", call. = FALSE)
