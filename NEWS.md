@@ -1,8 +1,9 @@
 # popgenVCF 0.9.0 development
 
-- Added first-class VCF-only execution when no metadata file is supplied.
+- Added first-class VCF-only execution with PCA and IBS/MDS driven directly by VCF sample IDs.
 - Made `sample` the only mandatory metadata column and retained arbitrary additional columns.
-- Added capability-driven module selection for sample-only, population, and spatial metadata modes.
+- Added exact metadata-to-VCF sample identity validation, VCF-order alignment, and a sample matching report.
+- Added capability-driven module selection for VCF-only, sample annotation, population, and spatial metadata modes.
 - Added `analysis_capabilities.tsv` with explicit availability and skip reasons for every registered module.
 - Added transparent support for `.vcf` and `.vcf.gz` inputs.
 - Added automatic reuse or creation of Tabix/CSI indexes for BGZF-compressed VCF files.
