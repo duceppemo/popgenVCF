@@ -16,21 +16,25 @@ require_vcf_tool <- function(tool) {
   unname(path)
 }
 
+vcf_index_path <- function(vcf) {
+  if (file.exists(paste0(vcf, ".tbi"))) return(paste0(vcf, ".tbi"))
+  if (file.exists(paste0(vcf, ".csi"))) return(paste0(vcf, ".csi"))
+  NA_character_
+}
+
 vcf_index_is_valid <- function(vcf, bcftools = require_vcf_tool("bcftools")) {
-  if (!file.exists(paste0(vcf, ".tbi")) && !file.exists(paste0(vcf, ".csi"))) {
-    return(FALSE)
-  }
+  if (is.na(vcf_index_path(vcf))) return(FALSE)
   result <- vcf_command_status(bcftools, c("index", "--nrecords", shQuote(vcf)))
   identical(result$status, 0L)
 }
 
 #' Prepare a VCF input for analysis
 #'
-#' Accepts an uncompressed `.vcf` or compressed `.vcf.gz`. Plain VCF files and
-#' non-BGZF gzip files are converted to an indexed BGZF copy in `cache_dir`.
-#' A valid existing Tabix/CSI index is reused. When a BGZF input is writable and
-#' lacks an index, the index is created beside the original file; otherwise an
-#' indexed cached copy is created.
+#' Accepts an uncompressed `.vcf` or compressed `.vcf.gz`. Plain VCF files,
+#' ordinary gzip files, and compressed files that cannot be indexed are sorted
+#' and converted to an indexed BGZF copy in `cache_dir`. A valid existing
+#' Tabix/CSI index is reused. When an existing BGZF input is writable and lacks
+#' an index, a Tabix index is created beside the original file.
 #'
 #' @param vcf Path to a `.vcf` or `.vcf.gz` file.
 #' @param cache_dir Directory for normalized cached inputs.
@@ -55,41 +59,48 @@ prepare_vcf_input <- function(vcf, cache_dir, force = FALSE) {
 
   compressed <- grepl("\\.vcf\\.gz$", vcf, ignore.case = TRUE)
   if (compressed && !isTRUE(force) && vcf_index_is_valid(vcf, bcftools)) {
-    index <- if (file.exists(paste0(vcf, ".tbi"))) paste0(vcf, ".tbi") else paste0(vcf, ".csi")
-    return(list(path = vcf, index = index, source = vcf, normalized = FALSE))
+    return(list(
+      path = vcf,
+      index = vcf_index_path(vcf),
+      source = vcf,
+      normalized = FALSE
+    ))
   }
 
-  if (compressed && !isTRUE(force)) {
-    input_dir <- dirname(vcf)
-    can_write_index <- file.access(input_dir, 2L) == 0L
-    if (can_write_index) {
-      indexed <- vcf_command_status(
-        bcftools,
-        c("index", "--tbi", "--force", shQuote(vcf))
-      )
-      if (identical(indexed$status, 0L) && vcf_index_is_valid(vcf, bcftools)) {
-        return(list(
-          path = vcf,
-          index = paste0(vcf, ".tbi"),
-          source = vcf,
-          normalized = FALSE
-        ))
-      }
+  if (compressed && !isTRUE(force) && file.access(dirname(vcf), 2L) == 0L) {
+    indexed <- vcf_command_status(
+      bcftools,
+      c("index", "--tbi", "--force", shQuote(vcf))
+    )
+    if (identical(indexed$status, 0L) && vcf_index_is_valid(vcf, bcftools)) {
+      return(list(
+        path = vcf,
+        index = vcf_index_path(vcf),
+        source = vcf,
+        normalized = FALSE
+      ))
     }
   }
 
   normalized <- file.path(cache_dir, "input.normalized.vcf.gz")
   index <- paste0(normalized, ".tbi")
-  if (isTRUE(force) || !file.exists(normalized) || !file.exists(index)) {
+  source_info <- file.info(vcf)
+  normalized_info <- if (file.exists(normalized)) file.info(normalized) else NULL
+  cache_current <- !is.null(normalized_info) &&
+    !is.na(normalized_info$mtime) &&
+    normalized_info$mtime >= source_info$mtime &&
+    vcf_index_is_valid(normalized, bcftools)
+
+  if (isTRUE(force) || !cache_current) {
     unlink(c(normalized, index, paste0(normalized, ".csi")), force = TRUE)
-    converted <- vcf_command_status(
+    sorted <- vcf_command_status(
       bcftools,
-      c("view", "--output-type", "z", "--output", shQuote(normalized), shQuote(vcf))
+      c("sort", "--output-type", "z", "--output", shQuote(normalized), shQuote(vcf))
     )
-    if (!identical(converted$status, 0L) || !file.exists(normalized)) {
+    if (!identical(sorted$status, 0L) || !file.exists(normalized)) {
       stop(
-        "Failed to convert VCF to BGZF with bcftools: ",
-        paste(converted$output, collapse = "\n"),
+        "Failed to sort and BGZF-compress VCF with bcftools: ",
+        paste(sorted$output, collapse = "\n"),
         call. = FALSE
       )
     }
@@ -109,5 +120,5 @@ prepare_vcf_input <- function(vcf, cache_dir, force = FALSE) {
   if (!vcf_index_is_valid(normalized, bcftools)) {
     stop("The normalized VCF index could not be validated: ", normalized, call. = FALSE)
   }
-  list(path = normalized, index = index, source = vcf, normalized = TRUE)
+  list(path = normalized, index = vcf_index_path(normalized), source = vcf, normalized = TRUE)
 }
