@@ -12,6 +12,23 @@ test_that("default PCA module declares complete publication artifacts", {
   expect_true(module$artifacts_must_exist)
 })
 
+test_that("plot saving omits raster-only dpi for vector devices", {
+  out <- tempfile("plot-output-")
+  dirs <- list(figures = file.path(out, "figures"))
+  dir.create(dirs$figures, recursive = TRUE)
+  p <- ggplot2::ggplot(data.frame(x = 1:3, y = 1:3), ggplot2::aes(x, y)) +
+    ggplot2::geom_point()
+
+  expect_silent(popgenVCF:::save_plot(p, "device_test", dirs, c("pdf", "png"), dpi = 150L))
+  expect_true(file.exists(file.path(dirs$figures, "device_test.pdf")))
+  expect_true(file.exists(file.path(dirs$figures, "device_test.png")))
+
+  if (requireNamespace("svglite", quietly = TRUE)) {
+    expect_silent(popgenVCF:::save_plot(p, "device_test", dirs, "svg", dpi = 150L))
+    expect_true(file.exists(file.path(dirs$figures, "device_test.svg")))
+  }
+})
+
 test_that("PCA and IBS plots support VCF-only data without population metadata", {
   out <- tempfile("ordination-output-")
   dirs <- list(figures = file.path(out, "figures"))
