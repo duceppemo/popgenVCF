@@ -42,7 +42,8 @@ register_analysis <- function(registry, name, run, requires = character(), enabl
     name = name, run = run, requires = requires, enabled = enabled,
     description = as.character(description)[1], validate = validate,
     outputs = unique(as.character(outputs)), references = as.character(references),
-    resource_class = resource_class, contract_version = as.character(contract_version)[1]
+    resource_class = resource_class, contract_version = as.character(contract_version)[1],
+    artifacts = character(), artifacts_must_exist = FALSE
   )
   registry
 }
@@ -60,6 +61,8 @@ list_analyses <- function(registry) {
       requires = paste(x$requires, collapse = ","),
       description = x$description,
       outputs = paste(x$outputs, collapse = ","),
+      artifacts = paste(x$artifacts %||% character(), collapse = ","),
+      artifacts_must_exist = isTRUE(x$artifacts_must_exist),
       resource_class = x$resource_class,
       contract_version = x$contract_version,
       references = paste(x$references, collapse = "; ")
@@ -104,15 +107,21 @@ resolve_analysis_order <- function(registry, config, selected = NULL) {
 
 #' Execute registered analysis modules
 #'
+#' Module runners may optionally return an `artifacts` element containing a
+#' `PopgenVCFArtifactManifest`. Declared artifacts are validated after the
+#' statistical result and accumulated into the returned manifest.
+#'
 #' @param analysis A `PopgenVCFAnalysis` object.
 #' @param context Runtime context shared by module runners.
 #' @param registry A `PopgenVCFRegistry` object.
 #' @param selected Optional module names.
-#' @return A list containing updated `analysis`, `context`, and execution `order`.
+#' @return A list containing updated `analysis`, `context`, execution `order`,
+#'   and the combined `artifacts` manifest.
 #' @export
 execute_analysis_registry <- function(analysis, context, registry, selected = NULL) {
   validate_analysis(analysis, "ordination")
   order <- resolve_analysis_order(registry, analysis$config, selected)
+  artifacts <- new_artifact_manifest()
   for (name in order) {
     module <- registry$modules[[name]]
     t0 <- proc.time()[["elapsed"]]
@@ -129,6 +138,16 @@ execute_analysis_registry <- function(analysis, context, registry, selected = NU
     }
     validation <- module$validate(candidate$results[[module$outputs[[1]]]], candidate, context)
     assert_module_validation(validation, name)
+
+    module_artifacts <- module_artifact_manifest(out)
+    validate_module_artifacts(
+      module_name = name,
+      declared = module$artifacts %||% character(),
+      manifest = module_artifacts,
+      must_exist = isTRUE(module$artifacts_must_exist)
+    )
+    artifacts <- append_artifact_manifest(artifacts, module_artifacts)
+
     candidate$results$validation <- candidate$results$validation %||% list()
     candidate$results$validation[[name]] <- validation
     analysis <- candidate
@@ -136,5 +155,5 @@ execute_analysis_registry <- function(analysis, context, registry, selected = NU
     analysis <- record_analysis_message(analysis, "SUCCESS", name, "completed and validated")
     validate_analysis(analysis)
   }
-  list(analysis = analysis, context = context, order = order)
+  list(analysis = analysis, context = context, order = order, artifacts = artifacts)
 }

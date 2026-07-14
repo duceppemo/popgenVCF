@@ -1,5 +1,8 @@
 # popgenVCF 0.9.0 development
 
+- Added opt-in registry declarations for required module artifacts.
+- Enforced artifact namespaces, required identifiers, optional file existence, and duplicate-free accumulation after module execution.
+- Added the combined artifact manifest to `execute_analysis_registry()` output while preserving legacy modules with no declarations.
 - Added canonical `PopgenVCFArtifact` and `PopgenVCFArtifactManifest` contracts.
 - Added stable artifact identifiers, publication-time file existence checks, duplicate detection, and machine-readable manifest tables.
 - Added tests and documentation for the artifact API that will underpin report, supplementary, validation, and provenance outputs.
