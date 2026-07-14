@@ -1,0 +1,12 @@
+.git
+.github
+.Rcheck
+.Rhistory
+.Rproj.user
+*.Rcheck
+*.tar.gz
+*.zip
+validation-results
+coverage.xml
+pkgdown
+site
