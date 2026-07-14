@@ -1,18 +1,88 @@
-name: scientific-validation
+name: Scientific validation
+
 on:
   push:
-    paths: ["R/**", "tests/**", "validation/**", "inst/extdata/validation/**"]
+    branches: [main]
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
-  deterministic:
+  scientific-validation:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: r-lib/actions/setup-r@v2
-      - uses: r-lib/actions/setup-r-dependencies@v2
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
         with:
-          extra-packages: any::rcmdcheck
-      - run: R CMD INSTALL .
-      - run: Rscript -e 'x <- popgenVCF::run_scientific_validation(integration=TRUE); print(x$checks); stopifnot(x$passed)'
-      - run: Rscript -e 'x <- popgenVCF::run_population_structure_validation(integration=TRUE); print(x$checks); stopifnot(x$passed)'
+          r-version: release
+          use-public-rspm: true
+
+      - name: Set up Pandoc
+        uses: r-lib/actions/setup-pandoc@v2
+
+      - name: Install package dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: |
+            any::BiocManager
+            any::rcmdcheck
+          needs: check
+
+      - name: Install popgenVCF
+        run: R CMD INSTALL .
+
+      - name: Run deterministic validation suites
+        shell: Rscript {0}
+        run: |
+          dir.create("validation-artifacts", showWarnings = FALSE)
+
+          core <- popgenVCF::run_scientific_validation(
+            integration = TRUE,
+            threads = 4
+          )
+
+          structure <- popgenVCF::run_population_structure_validation(
+            integration = TRUE
+          )
+
+          data.table::fwrite(
+            core$checks,
+            "validation-artifacts/scientific-validation.tsv",
+            sep = "\t"
+          )
+
+          data.table::fwrite(
+            structure$checks,
+            "validation-artifacts/population-structure-validation.tsv",
+            sep = "\t"
+          )
+
+          writeLines(
+            capture.output(sessionInfo()),
+            "validation-artifacts/session-info.txt"
+          )
+
+          print(core$checks)
+          print(structure$checks)
+
+          stopifnot(core$passed, structure$passed)
+
+      - name: Upload validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scientific-validation-${{ github.sha }}
+          path: validation-artifacts/
+          if-no-files-found: warn
+          retention-days: 30
