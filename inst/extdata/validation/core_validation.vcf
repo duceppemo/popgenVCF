@@ -1,0 +1,14 @@
+##fileformat=VCFv4.2
+##contig=<ID=1,length=1000000>
+##contig=<ID=2,length=1000000>
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	A1	A2	A3	A4	B1	B2	B3	B4
+1	100	v1	A	G	60	PASS	.	GT	0/0	0/0	0/0	0/0	1/1	1/1	1/1	1/1
+1	200	v2_duplicate_v1	C	T	60	PASS	.	GT	0/0	0/0	0/0	0/0	1/1	1/1	1/1	1/1
+1	300	v3	G	A	60	PASS	.	GT	0/0	0/0	1/1	1/1	0/0	0/0	1/1	1/1
+1	400	v4	T	C	60	PASS	.	GT	0/0	1/1	0/0	1/1	0/0	1/1	0/0	1/1
+1	500	v5_high_missing	A	C	60	PASS	.	GT	0/0	0/1	0/0	0/1	./.	./.	0/1	0/1
+1	600	v6_monomorphic	G	T	60	PASS	.	GT	0/0	0/0	0/0	0/0	0/0	0/0	0/0	0/0
+2	100	v7	A	T	60	PASS	.	GT	0/0	0/0	1/1	1/1	1/1	1/1	0/0	0/0
+2	200	v8_duplicate_v7	C	G	60	PASS	.	GT	0/0	0/0	1/1	1/1	1/1	1/1	0/0	0/0
+2	300	v9	T	G	60	PASS	.	GT	0/0	1/1	0/0	1/1	1/1	0/0	1/1	0/0

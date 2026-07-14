@@ -1,0 +1,22 @@
+schema_version: "1.0"
+datasets:
+  core_synthetic:
+    enabled: true
+    bundled: true
+    vcf: inst/extdata/validation/core_validation.vcf
+    metadata: inst/extdata/validation/core_validation_metadata.tsv
+    purpose: deterministic QC, LD, diversity, PCA, IBS, and FST validation
+  local_representative:
+    enabled: false
+    bundled: false
+    vcf: null
+    metadata: null
+    license: private
+    purpose: application-specific validation supplied outside the package
+  public_reference:
+    enabled: false
+    bundled: false
+    download_url: null
+    sha256: null
+    license: null
+    purpose: independently licensed public real-data validation

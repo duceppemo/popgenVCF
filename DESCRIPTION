@@ -1,0 +1,59 @@
+Package: popgenVCF
+Type: Package
+Title: Population Genomics Toolkit for VCF Data
+Version: 0.8.3
+Authors@R: c(
+    person(given = "Marc-Olivier", family = "Duceppe",
+           role = c("aut", "cre"),
+           email = "duceppemo@users.noreply.github.com")
+    )
+Author: Marc-Olivier Duceppe [aut, cre]
+Maintainer: Marc-Olivier Duceppe <duceppemo@users.noreply.github.com>
+Description: A modular command-line toolkit and R application programming
+    interface for reproducible population-genomic analysis of diploid,
+    biallelic single-nucleotide polymorphism data stored in Variant Call
+    Format (VCF) files. The toolkit performs sample and variant quality control,
+    fixed-parameter linkage-disequilibrium pruning with 'SNPRelate', genetic
+    diversity summaries, principal component analysis, identity-by-state
+    analyses, neighbour-joining trees, Weir-Cockerham FST, discriminant analysis
+    of principal components, analysis of molecular variance, Mantel tests,
+    isolation-by-distance analysis, external 'ADMIXTURE' cross-validation,
+    chromosome-specific analyses, chromosome-block bootstrap confidence
+    intervals, and manuscript-oriented reporting.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: false
+Depends:
+    R (>= 4.3)
+Imports:
+    ade4,
+    adegenet,
+    ape,
+    data.table,
+    digest,
+    gdsfmt,
+    ggplot2,
+    ggrepel,
+    parallel,
+    poppr,
+    rmarkdown,
+    scales,
+    SNPRelate,
+    stats,
+    utils,
+    vegan,
+    viridisLite,
+    yaml
+Suggests:
+    clue,
+    covr,
+    hierfstat,
+    LEA,
+    knitr,
+    patchwork,
+    pkgdown,
+    svglite,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+SystemRequirements: Pandoc (optional, for manuscript reports), ADMIXTURE (optional), fastStructure (optional)
+RoxygenNote: 7.3.2

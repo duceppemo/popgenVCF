@@ -1,0 +1,9 @@
+#!/usr/bin/env Rscript
+suppressPackageStartupMessages(library(popgenVCF))
+tryCatch(
+  popgenVCF::cli_main(),
+  error = function(e) {
+    message("popgenVCF: ", conditionMessage(e))
+    quit(save = "no", status = 1L)
+  }
+)

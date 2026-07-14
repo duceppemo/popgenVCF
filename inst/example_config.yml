@@ -1,0 +1,70 @@
+schema_version: "1.0"
+input:
+  vcf: /path/to/cohort_filtered.vcf.gz
+  metadata: /path/to/pop_map.tsv
+  metadata_header: auto
+  geographic_columns: [latitude, longitude]
+output:
+  directory: /path/to/popgen_results
+  figure_formats: [pdf, png]
+  dpi: 600
+  label_samples: auto
+compute:
+  threads: 8
+  seed: 42
+  force_gds: false
+qc:
+  maf: 0.05
+  max_variant_missing: 0.20
+  max_sample_missing: 0.20
+  ld_r2: 0.20
+  ld_slide_max_bp: .inf
+  ld_slide_max_n: 50
+  ld_start_pos: first
+analyses:
+  n_pcs: 10
+  dapc: true
+  dapc_k: 2:10
+  dapc_cross_validation: true
+  amova: true
+  mantel: true
+  isolation_by_distance: true
+  chromosome_specific: true
+  chromosome_min_snps: 100
+  bootstrap:
+    enabled: true
+    replicates: 500
+    unit: chromosome
+  structure:
+    replicates: 3
+    seeds: null
+    reproducibility_rmse: 0.05
+    minimum_cluster_correlation: 0.90
+  admixture:
+    enabled: false
+    executable: admixture
+    plink_prefix: /path/to/cohort
+    k: 2:10
+    threads: 8
+    cv_folds: 5
+    q_sample_file: /path/to/plink_sample_order.txt
+  faststructure:
+    enabled: false
+    structure_executable: structure.py
+    choosek_executable: chooseK.py
+    plink_prefix: /path/to/cohort
+    k: 2:10
+    q_sample_file: /path/to/plink_sample_order.txt
+  snmf:
+    enabled: false
+    geno_file: /path/to/cohort.geno
+    q_sample_file: /path/to/geno_sample_order.txt
+    k: 2:10
+    repetitions: 5
+    entropy: true
+report:
+  enabled: true
+  title: Population genomics analysis
+  author: Marc-Olivier Duceppe
+# Population-structure reproducibility settings are nested under analyses.structure.
+# External fastStructure and sNMF modules are disabled unless explicitly enabled.

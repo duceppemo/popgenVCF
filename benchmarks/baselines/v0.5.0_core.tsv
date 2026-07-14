@@ -1,0 +1,2 @@
+samples	snps	label	elapsed_seconds	approximate_peak_mb	timestamp
+100	10000	synthetic_100_samples_10000_snps	0.065	37.1001281738281	2026-07-13T22:43:21-0400

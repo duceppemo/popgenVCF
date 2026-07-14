@@ -1,0 +1,9 @@
+citHeader("To cite popgenVCF in publications use:")
+
+bibentry(
+  bibtype = "Manual",
+  title = "popgenVCF: Population Genomics Toolkit for VCF Data",
+  author = person("Marc-Olivier", "Duceppe"),
+  year = "2026",
+  note = "R package version 0.8.0"
+)

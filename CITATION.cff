@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+title: "popgenVCF: Population Genomics Toolkit for VCF Data"
+message: "Please cite this software and the underlying statistical methods used in your analysis."
+type: software
+authors:
+  - family-names: Duceppe
+    given-names: Marc-Olivier
+version: 0.8.3
+license: MIT
+repository-code: "https://github.com/duceppemo/popgenVCF"
+url: "https://github.com/duceppemo/popgenVCF"

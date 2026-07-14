@@ -1,0 +1,9 @@
+schema_version: "1.0"
+missingness_abs: 0
+allele_frequency_abs: 1.0e-12
+heterozygosity_abs: 1.0e-12
+ibs_abs: 1.0e-8
+pca_variance_rel: 1.0e-6
+pca_scores_abs: 1.0e-6
+fst_abs: 1.0e-6
+mantel_abs: 1.0e-6

@@ -1,0 +1,17 @@
+^\.github$
+^_pkgdown\.yml$
+^containers$
+^nextflow$
+^install_popgenVCF\.R$
+^popgenVCF\.R$
+^.*\.zip$
+^\.git$
+^\.gitignore$
+
+^scripts$
+^benchmarks$
+^validation$
+^docs$
+^CONTRIBUTING\.md$
+^CODE_OF_CONDUCT\.md$
+^CITATION\.cff$

@@ -1,0 +1,24 @@
+url: https://duceppemo.github.io/popgenVCF/
+template:
+  bootstrap: 5
+reference:
+  - title: Pipeline
+    contents:
+      - run_pipeline
+      - cli_main
+  - title: Analysis state
+    contents:
+      - new_popgen_vcf_analysis
+      - is_popgen_vcf_analysis
+      - validate_analysis
+      - set_analysis_result
+      - get_analysis_result
+  - title: Configuration
+    contents:
+      - default_config
+      - read_config
+      - validate_config
+  - title: Reporting and external tools
+    contents:
+      - render_report
+      - run_admixture_cv

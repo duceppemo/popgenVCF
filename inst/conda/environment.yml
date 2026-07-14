@@ -1,0 +1,61 @@
+name: popgenvcf
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  # Keep the Conda solve focused on a modern R runtime, CRAN packages, and
+  # stable command-line tools. Bioconductor packages are installed afterward
+  # with BiocManager so their release is matched to this R version.
+  - r-base>=4.5,<4.6
+  - r-biocmanager
+
+  # Required CRAN dependencies declared by popgenVCF.
+  - r-ade4
+  - r-adegenet
+  - r-ape
+  - r-data.table
+  - r-digest
+  - r-ggplot2
+  - r-ggrepel
+  - r-poppr
+  - r-rmarkdown
+  - r-scales
+  - r-vegan
+  - r-viridislite
+  - r-yaml
+
+  # Optional R analyses, testing, documentation, and development tools.
+  - r-clue
+  - r-covr
+  - r-hierfstat
+  - r-knitr
+  - r-patchwork
+  - r-pkgdown
+  - r-remotes
+  - r-svglite
+  - r-testthat>=3
+
+  # Stable external population-genetics and VCF utilities.
+  - plink
+  - plink2
+  - admixture
+  - bcftools
+  - htslib
+  - vcftools
+
+  # Report and package-check utilities that solve cleanly in Conda.
+  # A complete TeX installation should be supplied by the operating system
+  # or a future container image rather than mixed into this environment.
+  - pandoc
+  - qpdf
+  - tidy-html5
+
+  # Build/runtime utilities for R packages installed from source.
+  - make
+  - compilers
+  - pkg-config
+  - git
+  - curl
+  - unzip
+  - zip

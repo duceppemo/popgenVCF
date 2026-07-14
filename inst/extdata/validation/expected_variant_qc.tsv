@@ -1,0 +1,10 @@
+variant_id	chromosome	position	alternate_allele_frequency	maf	missing_rate	pass_maf_0.05	pass_missing_0.20	pass_combined
+v1	1	100	0.5	0.5	0	TRUE	TRUE	TRUE
+v2_duplicate_v1	1	200	0.5	0.5	0	TRUE	TRUE	TRUE
+v3	1	300	0.5	0.5	0	TRUE	TRUE	TRUE
+v4	1	400	0.5	0.5	0	TRUE	TRUE	TRUE
+v5_high_missing	1	500	0.3333333333333333	0.3333333333333333	0.25	TRUE	FALSE	FALSE
+v6_monomorphic	1	600	0	0	0	FALSE	TRUE	FALSE
+v7	2	100	0.5	0.5	0	TRUE	TRUE	TRUE
+v8_duplicate_v7	2	200	0.5	0.5	0	TRUE	TRUE	TRUE
+v9	2	300	0.5	0.5	0	TRUE	TRUE	TRUE

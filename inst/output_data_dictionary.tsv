@@ -1,0 +1,45 @@
+Output	Description
+01_sample_QC.tsv	Per-sample missingness and retention decision.
+02_population_participation.tsv	Population sample sizes and eligibility for each analysis.
+03_population_colors.tsv	Stable population-to-colour mapping used by figures.
+04_variant_QC.tsv	Per-variant MAF, missingness, genomic coordinates, and filter flags.
+05_QC_independent_counts.tsv	Independent counts passing each QC criterion.
+06_QC_sequential_counts.tsv	Sequential SNP retention and removals.
+07_LD_pruned_SNPs.tsv	Final SNP set produced by the fixed SNPRelate pruning call.
+08_sample_diversity.tsv	Per-sample genotype call and observed heterozygosity statistics.
+09_population_diversity.tsv	Population-level observed and expected heterozygosity, FIS, MAF, and polymorphism.
+10_population_locus_diversity.tsv	Auditable population-by-locus diversity statistics.
+11_diversity_bootstrap_CI.tsv	Chromosome-block bootstrap confidence intervals for Ho and He.
+12_PCA_scores.tsv	Sample principal-component coordinates.
+13_PCA_variance.tsv	Variance explained by exported PCs.
+14_IBS_similarity.tsv	Pairwise IBS similarity matrix.
+15_IBS_distance.tsv	Pairwise 1-IBS distance matrix.
+16_IBS_MDS.tsv	MDS coordinates derived from IBS distance.
+17_global_FST.tsv	Global Weir-Cockerham FST.
+18_pairwise_FST.tsv	Raw pairwise population Weir-Cockerham FST, including negative estimates.
+19_pairwise_FST_matrix.tsv	Symmetric pairwise FST matrix.
+20_pairwise_FST_bootstrap_CI.tsv	Chromosome-block bootstrap confidence intervals for pairwise FST.
+21_DAPC_diagnostics.tsv	DAPC K, retained PCs, discriminant axes, and available diagnostics.
+22_DAPC_coordinates_K*.tsv	Sample DAPC coordinates for each requested K.
+23_AMOVA_components.tsv	AMOVA variance components.
+24_AMOVA_phi_statistics.tsv	AMOVA Phi statistics.
+25_Mantel_IBD_summary.tsv	Mantel statistic, permutation p-value, and IBD regression summary.
+26_IBD_pairs.tsv	Pairwise genetic and geographic distances.
+27_ADMIXTURE_CV.tsv	ADMIXTURE cross-validation error by K.
+28_ADMIXTURE_Q_K*.tsv	External ADMIXTURE ancestry proportions matched to explicit sample order.
+chromosome_summary.tsv	Per-chromosome SNP counts, global FST, and PC1 variance.
+run_manifest.tsv	Input hashes, settings, sample/SNP counts, and fixed LD configuration.
+stage_timings.tsv	Elapsed runtime for each pipeline stage.
+analysis_results.rds	Serialized complete result object used for report regeneration.
+
+analysis_summary.tsv	run	One-row summary of the serialized PopgenVCFAnalysis state
+analysis_module_contracts.tsv	Run root	Registered module contracts, dependencies, outputs, references, resource classes, and contract versions
+analysis_validation.tsv	Run root	Per-module validation status, warnings, errors, and numerical metrics
+21_DAPC_diagnostics.tsv	DAPC model dimensions, assignment accuracy, and replicate stability by K
+22b_DAPC_membership_K*.tsv	DAPC posterior membership matrix for each K
+22c_DAPC_reproducibility_K*.tsv	Label-aligned DAPC replicate reproducibility metrics
+27_ADMIXTURE_CV.tsv	ADMIXTURE cross-validation error by K
+29_fastStructure_runs.tsv	fastStructure execution status and output files
+29_fastStructure_Q_K*.tsv	fastStructure ancestry membership matrices
+30_sNMF_cross_entropy.tsv	sNMF cross-entropy diagnostics by K and repetition
+30_sNMF_Q_K*.tsv	sNMF ancestry membership matrices

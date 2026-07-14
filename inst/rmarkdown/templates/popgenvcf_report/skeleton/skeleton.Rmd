@@ -1,0 +1,118 @@
+---
+title: "`r params$title`"
+author: "`r params$author`"
+date: "`r format(Sys.Date(), '%Y-%m-%d')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+params:
+  results_rds: null
+  title: Population genomics analysis
+  author: ""
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+r <- readRDS(params$results_rds)
+if (inherits(r, "PopgenVCFAnalysis")) {
+  a <- r
+  r <- c(
+    list(
+      metadata = a$samples$metadata,
+      qc_snps = a$variants$qc_ids,
+      final_snps = a$variants$ld_ids,
+      qc = a$variants$reports
+    ),
+    a$results
+  )
+}
+```
+
+# Executive summary
+
+The analysis retained **`r nrow(r$metadata)` samples** from **`r data.table::uniqueN(r$metadata$population)` populations**, with **`r length(r$qc_snps)` QC-passing SNPs** and **`r length(r$final_snps)` LD-pruned SNPs**.
+
+The global Weir-Cockerham $F_{ST}$ estimate was **`r sprintf('%.4f', r$fst$global)`**.
+
+# Quality control
+
+```{r}
+knitr::kable(r$qc$sequential, digits=2)
+```
+
+# Genetic diversity
+
+```{r}
+knitr::kable(r$diversity$population, digits=4)
+```
+
+# Principal component analysis
+
+```{r}
+knitr::kable(head(r$pca$scores, 20), digits=4)
+```
+
+# Population differentiation
+
+```{r}
+knitr::kable(r$fst$long, digits=4)
+```
+
+# DAPC
+
+```{r}
+if (!is.null(r$dapc)) knitr::kable(r$dapc$diagnostics, digits=4)
+```
+
+# AMOVA
+
+```{r}
+if (!is.null(r$amova)) {
+  knitr::kable(r$amova$components, digits=4)
+  knitr::kable(r$amova$phi, digits=4)
+}
+```
+
+# Mantel test and isolation by distance
+
+```{r}
+if (!is.null(r$ibd)) knitr::kable(r$ibd$summary, digits=4)
+```
+
+# ADMIXTURE cross-validation
+
+```{r}
+if (!is.null(r$admixture_cv)) knitr::kable(r$admixture_cv, digits=6)
+```
+
+# Chromosome-specific results
+
+```{r}
+if (!is.null(r$chromosome_summary)) knitr::kable(r$chromosome_summary, digits=4)
+```
+
+# Reproducibility
+
+This report was generated from the serialized pipeline result object. Exact input hashes, settings, package versions, and stage runtimes are stored alongside the report.
+
+## Population-structure reproducibility
+
+```{r}
+if (!is.null(r$dapc) && "replicate_max_rmse" %in% names(r$dapc$diagnostics)) {
+  knitr::kable(r$dapc$diagnostics[, c("K", "assignment_accuracy", "replicate_max_rmse")], digits=4)
+}
+```
+
+## fastStructure
+
+```{r}
+if (!is.null(r$faststructure) && !is.null(r$faststructure$runs)) knitr::kable(r$faststructure$runs)
+```
+
+## sNMF
+
+```{r}
+if (!is.null(r$snmf) && !is.null(r$snmf$diagnostics)) knitr::kable(r$snmf$diagnostics, digits=6)
+```
