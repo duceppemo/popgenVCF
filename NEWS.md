@@ -1,5 +1,13 @@
 # popgenVCF 0.9.0 development
 
+- Added first-class VCF-only execution with PCA and IBS/MDS driven directly by VCF sample IDs.
+- Made `sample` the only mandatory metadata column and retained arbitrary additional columns.
+- Added exact metadata-to-VCF sample identity validation, VCF-order alignment, and a sample matching report.
+- Added capability-driven module selection for VCF-only, sample annotation, population, and spatial metadata modes.
+- Added `analysis_capabilities.tsv` with explicit availability and skip reasons for every registered module.
+- Added transparent support for `.vcf` and `.vcf.gz` inputs.
+- Added automatic reuse or creation of Tabix/CSI indexes for BGZF-compressed VCF files.
+- Added cached `bcftools sort -Oz` normalization for plain VCF, ordinary gzip, unsorted, and read-only compressed inputs.
 - Added `write_pca_publication_artifacts()` as the first publication-output implementation.
 - Added canonical PCA coordinate and variance tables, PDF/SVG/PNG scatterplots, manuscript methods text, captions, figure source data, and validation records.
 - Added strict sample, eigenvalue, variance, and artifact existence validation for PCA publication outputs.

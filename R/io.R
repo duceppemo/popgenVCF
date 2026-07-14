@@ -7,20 +7,63 @@ read_metadata <- function(path, header = "auto") {
                        no = FALSE, false = FALSE, stopf("Invalid metadata_header: %s", header))
   x <- data.table::fread(path, sep = sep, header = use_header, data.table = TRUE, showProgress = FALSE)
   if (!use_header) {
-    if (ncol(x) < 2L) stop("Headerless metadata requires at least two columns", call. = FALSE)
-    data.table::setnames(x, 1:2, c("sample", "population"))
+    if (ncol(x) < 1L) stop("Headerless metadata requires at least one column", call. = FALSE)
+    data.table::setnames(x, 1L, "sample")
+    if (ncol(x) >= 2L) data.table::setnames(x, 2L, "population")
   } else {
     nm <- tolower(gsub("[^a-z0-9]+", "_", names(x)))
     data.table::setnames(x, nm)
     sc <- intersect(c("sample", "sample_id", "id", "individual", "individual_id"), names(x))[1]
-    pc <- intersect(c("population", "pop", "group", "site"), names(x))[1]
-    if (is.na(sc) || is.na(pc)) stop("Metadata must contain sample and population columns", call. = FALSE)
-    data.table::setnames(x, c(sc, pc), c("sample", "population"))
+    if (is.na(sc)) stop("Metadata must contain a sample column", call. = FALSE)
+    data.table::setnames(x, sc, "sample")
+    pc <- intersect(c("population", "pop"), names(x))[1]
+    if (!is.na(pc) && !identical(pc, "population")) data.table::setnames(x, pc, "population")
   }
-  x[, `:=`(sample = as.character(sample), population = as.character(population))]
-  x <- x[nzchar(sample) & nzchar(population)]
-  if (anyDuplicated(x$sample)) stopf("Duplicate metadata sample IDs: %s", paste(unique(x$sample[duplicated(x$sample)]), collapse = ", "))
+  x[, sample := as.character(sample)]
+  x <- x[nzchar(sample)]
+  if ("population" %in% names(x)) {
+    x[, population := as.character(population)]
+    x[!nzchar(population), population := NA_character_]
+  }
+  for (nm in intersect(c("latitude", "longitude"), names(x))) {
+    x[, (nm) := suppressWarnings(as.numeric(get(nm)))]
+  }
+  if (anyDuplicated(x$sample)) {
+    stopf("Duplicate metadata sample IDs: %s", paste(unique(x$sample[duplicated(x$sample)]), collapse = ", "))
+  }
   x
+}
+
+metadata_from_samples <- function(sample_ids) {
+  data.table::data.table(sample = as.character(sample_ids))
+}
+
+validate_metadata_sample_ids <- function(metadata, vcf_sample_ids) {
+  metadata_ids <- as.character(metadata$sample)
+  vcf_sample_ids <- as.character(vcf_sample_ids)
+  unknown <- setdiff(metadata_ids, vcf_sample_ids)
+  missing <- setdiff(vcf_sample_ids, metadata_ids)
+  if (length(unknown) || length(missing)) {
+    parts <- character()
+    if (length(unknown)) {
+      parts <- c(parts, paste0(
+        "metadata IDs absent from VCF: ", paste(utils::head(unknown, 20L), collapse = ", "),
+        if (length(unknown) > 20L) " ..." else ""
+      ))
+    }
+    if (length(missing)) {
+      parts <- c(parts, paste0(
+        "VCF samples absent from metadata: ", paste(utils::head(missing, 20L), collapse = ", "),
+        if (length(missing) > 20L) " ..." else ""
+      ))
+    }
+    stop(
+      "Metadata sample IDs must match the VCF sample IDs exactly; ",
+      paste(parts, collapse = "; "),
+      call. = FALSE
+    )
+  }
+  metadata[match(vcf_sample_ids, sample)]
 }
 
 cache_manifest <- function(vcf, conversion = list(method = "biallelic.only")) {
@@ -62,15 +105,41 @@ get_gds_ids <- function(gds) {
        allele = gdsfmt::read.gdsn(gdsfmt::index.gdsn(gds, "snp.allele")))
 }
 
-harmonize_samples <- function(gds, ids, metadata, max_missing) {
-  common <- ids$sample[ids$sample %in% metadata$sample]
-  if (length(common) < 2L) stop("Fewer than two matched VCF/metadata samples", call. = FALSE)
-  geno <- SNPRelate::snpgdsGetGeno(gds, sample.id = common, snpfirstdim = FALSE, verbose = FALSE)
-  missing <- rowMeans(is.na(geno)); rm(geno)
-  meta <- metadata[match(common, sample)]
-  qc <- data.table::data.table(sample = common, population = meta$population,
-                               missing_rate = missing, retained = missing <= max_missing)
+harmonize_samples <- function(gds, ids, metadata, max_missing,
+                              metadata_supplied = TRUE) {
+  vcf_samples <- as.character(ids$sample)
+  if (isTRUE(metadata_supplied)) {
+    metadata <- validate_metadata_sample_ids(metadata, vcf_samples)
+  } else {
+    metadata <- metadata_from_samples(vcf_samples)
+  }
+
+  geno <- SNPRelate::snpgdsGetGeno(
+    gds, sample.id = vcf_samples, snpfirstdim = FALSE, verbose = FALSE
+  )
+  missing <- rowMeans(is.na(geno))
+  rm(geno)
+  population <- if ("population" %in% names(metadata)) {
+    metadata$population
+  } else rep(NA_character_, length(vcf_samples))
+  qc <- data.table::data.table(
+    sample = vcf_samples,
+    population = population,
+    missing_rate = missing,
+    retained = missing <= max_missing
+  )
   keep <- qc[retained, sample]
   if (length(keep) < 2L) stop("Sample QC retained fewer than two samples", call. = FALSE)
-  list(sample_ids = keep, metadata = meta[sample %in% keep][match(keep, sample)], qc = qc)
+  retained_metadata <- metadata[match(keep, sample)]
+  list(
+    sample_ids = keep,
+    metadata = retained_metadata,
+    qc = qc,
+    metadata_match = data.table::data.table(
+      sample = vcf_samples,
+      present_in_vcf = TRUE,
+      present_in_metadata = isTRUE(metadata_supplied),
+      retained_after_qc = vcf_samples %in% keep
+    )
+  )
 }

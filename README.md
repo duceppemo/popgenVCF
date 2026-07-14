@@ -2,82 +2,28 @@
 
 > **Scientifically correct. Reproducible by design. Publication ready by default.**
 
-**popgenVCF** is a modular R toolkit and command-line application for population-genomic analysis of diploid, biallelic SNP VCF files. It combines deterministic QC, validated statistical modules, external population-structure engines, publication-quality outputs, and reproducible execution through Conda or containers.
+**popgenVCF** is a modular R toolkit and command-line application for population-genomic analysis of diploid, biallelic SNP VCF files. It supports VCF-only quality control and sample-level analyses, analyses with population metadata, and spatial analyses when geographic coordinates are available.
 
 > Development series: **0.9.0**. Interfaces and output schemas may still evolve before 1.0.
 
 ## Highlights
 
-- Canonical YAML configuration and command-line interface.
-- Exact, audited SNPRelate QC and LD-pruning semantics.
-- PCA, IBS/MDS, diversity, FST, DAPC, ADMIXTURE, fastStructure, and LEA/sNMF integration.
-- Label-switching-aware ancestry-matrix comparison and replicate consensus.
-- Scientific validation against hand calculations and independent implementations.
-- Publication artifact contracts for tables, figures, methods, captions, validation, and provenance.
-- Reproducible Conda environment and validated GHCR container.
-- GitHub Actions package checks, numerical validation, coverage, container smoke tests, SBOM, and provenance.
+- Accepts `.vcf` and `.vcf.gz` input.
+- Automatically sorts, BGZF-compresses, and Tabix-indexes input when required.
+- Runs PCA, IBS/MDS, QC, filtering, and LD pruning directly from VCF sample IDs without metadata.
+- Validates metadata sample IDs against the VCF before attaching any annotations.
+- Detects which analyses are possible from the available metadata columns.
+- Performs exact audited SNPRelate QC and LD pruning.
+- Provides diversity, FST, DAPC, population-structure, AMOVA, Mantel, and isolation-by-distance workflows when their requirements are met.
+- Produces publication artifacts, validation records, and reproducible container images.
 
 ## Recommended installation: Docker
-
-The published image contains popgenVCF, R, matched Bioconductor packages, PLINK 1.9/2, ADMIXTURE, bcftools, tabix, vcftools, Pandoc, and the other dependencies used by the validated workflow.
-
-### 1. Install Docker
-
-Install Docker Engine or Docker Desktop and verify it is available:
-
-```bash
-docker --version
-```
-
-### 2. Pull the image
-
-The development image built from `main` is:
 
 ```bash
 docker pull ghcr.io/duceppemo/popgenvcf:latest
 ```
 
-`latest` and `main` track the current validated development branch. For a publication or archived analysis, prefer a version tag such as `v0.9.0` when available:
-
-```bash
-docker pull ghcr.io/duceppemo/popgenvcf:v0.9.0
-```
-
-A commit-specific `sha-...` image is the most precise choice when reproducing an exact development snapshot.
-
-If GHCR requires authentication, create a GitHub personal access token with `read:packages`, then run:
-
-```bash
-echo "$GITHUB_TOKEN" | docker login ghcr.io -u duceppemo --password-stdin
-```
-
-### 3. Prepare a working directory
-
-Keep the configuration, VCF, metadata, and outputs under one host directory so they can all be mounted into the container:
-
-```text
-analysis/
-├── analysis.yml
-├── cohort.vcf.gz
-├── cohort.vcf.gz.tbi
-├── metadata.tsv
-└── results/
-```
-
-Paths written in `analysis.yml` must use the **container path**, not the host path. When the host directory is mounted at `/data`, use entries such as:
-
-```yaml
-input:
-  vcf: /data/cohort.vcf.gz
-  metadata: /data/metadata.tsv
-
-output:
-  directory: /data/results
-```
-
-### 4. Generate a default configuration
-
-From the host analysis directory:
+Generate a default configuration from your analysis directory:
 
 ```bash
 docker run --rm \
@@ -86,32 +32,7 @@ docker run --rm \
   --write-config /data/analysis.yml
 ```
 
-Edit `analysis.yml` on the host before running the analysis.
-
-### 5. Run popgenVCF
-
-```bash
-docker run --rm \
-  -v "$PWD:/data" \
-  ghcr.io/duceppemo/popgenvcf:latest \
-  --config /data/analysis.yml
-```
-
-The image entrypoint already invokes popgenVCF, so do not add `Rscript` or the script name.
-
-For a machine with a fixed CPU allocation, limit Docker and set the same thread count in the YAML:
-
-```bash
-docker run --rm \
-  --cpus 8 \
-  -v "$PWD:/data" \
-  ghcr.io/duceppemo/popgenvcf:latest \
-  --config /data/analysis.yml
-```
-
-### 6. Avoid root-owned output files on Linux
-
-Docker normally runs as root inside the container. To create results owned by the current host user:
+Run the analysis:
 
 ```bash
 docker run --rm \
@@ -122,179 +43,223 @@ docker run --rm \
   --config /data/analysis.yml
 ```
 
-The mounted directory must be writable by that user.
+Paths in `analysis.yml` must use container paths such as `/data/cohort.vcf.gz`, not host paths.
 
-### 7. Run the scientific validation suites
+## VCF input
 
-The image is validated while it is built, but the tests can also be rerun locally:
+The input may be:
 
-```bash
-docker run --rm \
-  ghcr.io/duceppemo/popgenvcf:latest \
-  Rscript -e 'x <- popgenVCF::run_scientific_validation(integration = TRUE, threads = 4); print(x$checks); stopifnot(x$passed)'
+- an uncompressed `.vcf`;
+- a BGZF-compressed `.vcf.gz` with `.tbi` or `.csi`;
+- a BGZF-compressed `.vcf.gz` without an index;
+- an ordinary gzip-compressed `.vcf.gz`;
+- an unsorted VCF.
+
+popgenVCF reuses a valid existing index. When a writable BGZF file lacks an index, it creates the `.tbi` beside the source. Otherwise it creates a coordinate-sorted BGZF copy and Tabix index in the analysis cache using `bcftools sort -Oz` and `bcftools index --tbi`.
+
+```yaml
+input:
+  vcf: /data/cohort.vcf.gz
 ```
 
-```bash
-docker run --rm \
-  ghcr.io/duceppemo/popgenvcf:latest \
-  Rscript -e 'x <- popgenVCF::run_population_structure_validation(integration = TRUE); print(x$checks); stopifnot(x$passed)'
+## Workflow modes
+
+### 1. VCF-only mode
+
+A metadata file is optional:
+
+```yaml
+input:
+  vcf: /data/cohort.vcf.gz
+  metadata: null
 ```
 
-### 8. Open a shell or R session in the image
+The sample names stored in the VCF are the canonical sample identifiers. Without metadata, popgenVCF performs:
 
-The entrypoint permits direct passthrough to `bash`, `sh`, `R`, and `Rscript`:
+- sample and variant QC;
+- allele-frequency, MAF, missingness, and heterozygosity summaries;
+- filtering audits and exact LD pruning;
+- PCA;
+- IBS/MDS and related sample-level ordination or distance outputs;
+- external ancestry/structure analyses when their own required inputs are configured.
 
-```bash
-docker run --rm -it \
-  -v "$PWD:/data" \
-  ghcr.io/duceppemo/popgenvcf:latest \
-  bash
+Population and spatial modules are skipped because the necessary annotations are unavailable. The reasons are recorded in `analysis_capabilities.tsv`, and the workflow exits successfully.
+
+### 2. Sample metadata mode
+
+A metadata file may add descriptive columns such as location, collection date, sex, or species. PCA and IBS/MDS do not require this file; metadata only annotates their samples and plots.
+
+### 3. Population metadata mode
+
+Adding a complete `population` column enables population diversity, FST, DAPC, AMOVA, and population-level summaries.
+
+### 4. Spatial metadata mode
+
+Adding valid `latitude` and `longitude` columns enables Mantel tests, isolation by distance, geographic figures, and other spatial modules. Samples without coordinates are excluded only from the spatial calculation; the module must still meet its minimum number of complete coordinate pairs.
+
+## Metadata file format
+
+Metadata should normally be a tab-delimited file with a header. Comma-delimited and whitespace-delimited input are also detected. Column names are normalized to lowercase snake case.
+
+### Sample identity contract
+
+When a metadata file is supplied, its `sample` column must match the VCF sample names **exactly**.
+
+popgenVCF enforces all of the following before any downstream analysis:
+
+- every metadata sample ID must exist in the VCF;
+- every VCF sample ID must occur exactly once in the metadata;
+- duplicate metadata sample IDs are rejected;
+- metadata rows are reordered to the VCF sample order before annotations are attached;
+- matching is case-sensitive and whitespace is not silently altered inside identifiers.
+
+A mismatch is a fatal input error because silently dropping or misaligning samples could attach population, location, or other metadata to the wrong individual.
+
+Every run with metadata writes:
+
+```text
+tables/02_sample_metadata_match.tsv
 ```
 
-```bash
-docker run --rm -it \
-  ghcr.io/duceppemo/popgenvcf:latest \
-  R
+This records the VCF sample IDs, metadata presence, and post-QC retention state.
+
+### Required columns
+
+Only one column is mandatory when a metadata file is supplied:
+
+| Column | Required | Type | Description |
+|---|:---:|---|---|
+| `sample` | Yes | text | Identifier matching a VCF sample exactly. Aliases such as `sample_id`, `id`, `individual`, and `individual_id` are accepted. |
+
+### Recognized optional columns
+
+| Column | Required | Type | Used by |
+|---|:---:|---|---|
+| `population` | No | text | Population diversity, FST, DAPC, AMOVA, population summaries, and plot colours. Alias `pop` is accepted. |
+| `latitude` | No | numeric decimal degrees | Mantel, isolation by distance, maps, and spatial analyses. |
+| `longitude` | No | numeric decimal degrees | Mantel, isolation by distance, maps, and spatial analyses. |
+| `location` | No | text | Reports, labels, and descriptive summaries. |
+| `collection_date` | No | text/date | Reports and future temporal analyses. |
+| `sex` | No | text | Descriptive summaries and future stratified analyses. |
+| `species` | No | text | Reports and multi-taxon metadata. |
+| `group` | No | text | User-defined grouping retained for custom or future modules. |
+
+Additional columns are accepted and carried through the analysis object and outputs. Unknown columns are not discarded.
+
+### Sample-only example
+
+```text
+sample	location	collection_date
+Sample01	Ottawa	2025-06-01
+Sample02	Ottawa	2025-06-03
+Sample03	Montreal	2025-06-10
 ```
 
-### 9. Record the exact image used
+This adds labels and descriptive annotations to QC, PCA, IBS/MDS, and other sample-level analyses. Population-dependent modules are skipped.
 
-For reproducible publication records, save the immutable image digest:
+### Population example without coordinates
 
-```bash
-docker image inspect \
-  ghcr.io/duceppemo/popgenvcf:latest \
-  --format '{{index .RepoDigests 0}}'
+```text
+sample	population	location
+Sample01	Ontario	Ottawa
+Sample02	Ontario	Ottawa
+Sample03	Quebec	Montreal
+Sample04	Quebec	Montreal
 ```
 
-Record this digest with the analysis configuration and popgenVCF result manifest.
+This enables population modules, but spatial analyses are skipped because no complete coordinate pairs are available.
 
-### Docker troubleshooting
+### Full or partial spatial example
 
-**Permission denied writing results:** use `--user "$(id -u):$(id -g)" -e HOME=/tmp`, or correct host-directory permissions.
+```text
+sample	population	latitude	longitude	location
+Sample01	Ontario	45.4215	-75.6972	Ottawa
+Sample02	Ontario	45.4200	-75.6900	Ottawa
+Sample03	Quebec	45.5019	-73.5674	Montreal
+Sample04	Quebec	NA	NA	Montreal
+```
 
-**Input file not found:** confirm the file is inside the mounted host directory and that the YAML uses `/data/...` paths.
+Missing coordinates are allowed. Spatial modules use samples with complete latitude/longitude pairs and must still satisfy their module-specific minimum sample requirements. The other analyses continue to use all retained samples.
 
-**Image pull denied:** authenticate to GHCR or confirm the package visibility is public.
+## Analysis requirements
 
-**Out of memory:** increase Docker Desktop memory or reduce configured threads and concurrent external jobs.
+| Analysis | VCF only | `sample` metadata | complete `population` | usable coordinates |
+|---|:---:|:---:|:---:|:---:|
+| Sample and variant QC | Yes | Optional |  |  |
+| Filtering and LD pruning | Yes | Optional |  |  |
+| PCA | Yes | Optional |  |  |
+| IBS/MDS | Yes | Optional |  |  |
+| ADMIXTURE / fastStructure / sNMF | Yes* | Optional |  |  |
+| Population diversity |  | Yes | Yes |  |
+| FST |  | Yes | Yes |  |
+| DAPC |  | Yes | Yes |  |
+| AMOVA |  | Yes | Yes |  |
+| Mantel / isolation by distance |  | Yes | Usually | Yes |
+| Geographic plots and spatial modules |  | Yes | Optional | Yes |
 
-**SELinux systems:** add `:Z` to the mount, for example `-v "$PWD:/data:Z"`.
+`*` External engines also require their configured executable and method-specific input files.
+
+## Capability reporting
+
+Every run writes:
+
+```text
+analysis_capabilities.tsv
+```
+
+This table records each registered module, whether it was available, and why it was skipped. Examples include:
+
+- `available from VCF sample IDs`;
+- `metadata not supplied; population annotations unavailable`;
+- `complete population annotations unavailable`;
+- `no complete latitude/longitude pairs available`.
+
+Explicitly requested unavailable modules are skipped with a warning rather than causing unrelated analyses to fail.
+
+## Example configuration
+
+```yaml
+input:
+  vcf: /data/cohort.vcf.gz
+  metadata: /data/metadata.tsv
+  metadata_header: auto
+
+output:
+  directory: /data/results
+
+compute:
+  threads: 8
+  seed: 42
+
+qc:
+  maf: 0.05
+  max_sample_missing: 0.20
+
+report:
+  enabled: true
+```
+
+For VCF-only operation, remove `metadata` or set it to `null`.
 
 ## Conda/Mamba installation
-
-Docker is the easiest reproducible route. For development, HPC modules, or direct R access, create the layered Conda environment from the repository.
 
 ```bash
 git clone https://github.com/duceppemo/popgenVCF.git
 cd popgenVCF
-
 conda config --set channel_priority strict
 mamba env create --file inst/conda/environment.yml
 conda activate popgenvcf
-
 Rscript inst/scripts/install-bioconductor.R
 R CMD INSTALL .
 bash inst/scripts/verify-environment.sh
 ```
 
-The core environment intentionally excludes fastStructure because its Python dependency stack conflicts with modern R/Bioconductor builds on some platforms. Install it separately when needed:
-
-```bash
-mamba env create --file inst/conda/faststructure-environment.yml
-conda activate popgenvcf-faststructure
-bash inst/scripts/install-faststructure.sh
-```
-
-## Command-line use without Docker
-
-Generate a configuration:
-
-```bash
-Rscript popgenVCF.R --write-config analysis.yml
-```
-
-Run an analysis:
-
-```bash
-Rscript popgenVCF.R --config analysis.yml
-```
-
-## R API
-
-```r
-analysis <- popgenVCF::run_pipeline("analysis.yml")
-summary(analysis)
-
-pca <- popgenVCF::get_analysis_result(analysis, "pca")
-fst <- popgenVCF::get_analysis_result(analysis, "fst")
-popgenVCF::validate_analysis(analysis)
-```
-
-## Analysis registry and artifact contracts
-
-Analyses are registered modules with declared dependencies, results, validation, resource class, references, and optional publication artifacts.
-
-```r
-registry <- popgenVCF::default_analysis_registry()
-popgenVCF::list_analyses(registry)
-```
-
-Publication-enabled modules return a `PopgenVCFArtifactManifest` containing stable identifiers for machine-readable tables, figures, methods, captions, source data, supplementary outputs, validation records, and provenance.
-
-## Fixed QC contract
-
-The default LD-pruning behavior is intentionally fixed and independently audited:
-
-```r
-SNPRelate::snpgdsLDpruning(
-  gds,
-  sample.id = sample_ids,
-  maf = maf_threshold,
-  missing.rate = 0.2,
-  method = "corr",
-  ld.threshold = sqrt(0.2),
-  slide.max.bp = Inf,
-  slide.max.n = 50L,
-  start.pos = "first",
-  autosome.only = FALSE,
-  num.thread = min(requested_threads, 4L),
-  verbose = FALSE
-)
-```
-
-The package separately audits allele frequency, MAF, sample and variant missingness, and the final retained LD marker set.
-
 ## Scientific validation
 
 ```r
-core <- popgenVCF::run_scientific_validation(
-  integration = TRUE,
-  threads = 4
-)
-
-structure <- popgenVCF::run_population_structure_validation(
-  integration = TRUE
-)
-
+core <- popgenVCF::run_scientific_validation(integration = TRUE, threads = 4)
+structure <- popgenVCF::run_population_structure_validation(integration = TRUE)
 stopifnot(core$passed, structure$passed)
-```
-
-## Repository layout
-
-```text
-popgenVCF/
-├── R/                  Package and analysis modules
-├── inst/scripts/       Installed launchers and environment checks
-├── inst/conda/         Core and optional Conda specifications
-├── inst/extdata/       Tiny deterministic fixtures
-├── tests/testthat/     Unit, contract, and numerical tests
-├── validation/         Independent reference validation
-├── docker/             Container entrypoint
-├── Dockerfile          Production image definition
-├── nextflow/           Nextflow DSL2 wrapper
-├── docs/               Charter, architecture, roadmap, and guides
-└── .github/workflows/  Package, validation, coverage, and GHCR CI
 ```
 
 ## Project documentation
@@ -306,8 +271,7 @@ popgenVCF/
 - [Style guide](docs/STYLE_GUIDE.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Contributing](CONTRIBUTING.md)
-- [Code of conduct](CODE_OF_CONDUCT.md)
 
 ## License
 
-popgenVCF is released under the MIT License. External programs retain their own licenses; in particular, review ADMIXTURE licensing terms before redistribution or commercial use.
+popgenVCF is released under the MIT License. External programs retain their own licenses.
