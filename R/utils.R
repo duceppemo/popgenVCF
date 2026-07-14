@@ -110,8 +110,15 @@ save_plot <- function(p, stem, dirs, formats = c("pdf", "png"), width = 8, heigh
       log_msg("Skipping SVG output because svglite is unavailable", level = "WARNING")
       next
     }
-    ggplot2::ggsave(path, p, width = width, height = height, dpi = if (fmt == "png") dpi else NULL,
-                    device = if (fmt == "svg") svglite::svglite else fmt)
+    args <- list(
+      filename = path,
+      plot = p,
+      width = width,
+      height = height,
+      device = if (fmt == "svg") svglite::svglite else fmt
+    )
+    if (identical(fmt, "png")) args$dpi <- dpi
+    do.call(ggplot2::ggsave, args)
   }
   invisible(TRUE)
 }
