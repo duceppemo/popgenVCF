@@ -47,8 +47,6 @@ test_that("ordinary gzip VCF is normalized to indexed BGZF", {
 
   input <- file(plain, "rb")
   output <- gzfile(compressed, "wb")
-  on.exit(close(input), add = TRUE)
-  on.exit(close(output), add = TRUE)
   writeBin(readBin(input, "raw", n = file.info(plain)$size), output)
   close(input)
   close(output)
