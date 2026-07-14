@@ -102,6 +102,11 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
     executed <- execute_analysis_registry(analysis, context, registry, selected_available)
     analysis <- executed$analysis
     context <- executed$context
+    analysis$artifacts <- executed$artifacts
+    artifact_table <- artifact_manifest_table(executed$artifacts)
+    if (nrow(artifact_table)) {
+      write_tsv(artifact_table, file.path(dirs$root, "analysis_artifacts.tsv"))
+    }
     analysis <- record_analysis_timing(analysis, "analysis registry", proc.time()[["elapsed"]] - registry_start)
     analysis <- record_analysis_message(
       analysis, "SUCCESS", "analysis registry",
@@ -109,6 +114,7 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
     )
     analysis <- set_analysis_result(analysis, "execution_order", executed$order)
   } else {
+    analysis$artifacts <- new_artifact_manifest()
     analysis <- set_analysis_result(analysis, "execution_order", character())
     analysis <- record_analysis_message(analysis, "INFO", "analysis registry", "no compatible analysis modules were enabled")
     log_msg("No compatible analysis modules enabled after QC", level = "INFO")
