@@ -19,8 +19,16 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
 
   metadata <- stage("metadata import", read_metadata(cfg$input$metadata, cfg$input$metadata_header))
   analysis$inputs$metadata <- metadata
+  prepared_vcf <- stage(
+    "VCF preparation",
+    prepare_vcf_input(cfg$input$vcf, file.path(dirs$cache, "vcf"))
+  )
+  analysis$inputs$vcf_source <- prepared_vcf$source
+  analysis$inputs$vcf_path <- prepared_vcf$path
+  analysis$inputs$vcf_index <- prepared_vcf$index
+  analysis$inputs$vcf_normalized <- prepared_vcf$normalized
   gds_path <- file.path(dirs$cache, "genotypes.gds")
-  gds <- stage("GDS preparation", prepare_gds(cfg$input$vcf, gds_path, cfg$compute$force_gds))
+  gds <- stage("GDS preparation", prepare_gds(prepared_vcf$path, gds_path, cfg$compute$force_gds))
   analysis$inputs$gds_path <- gds_path
   on.exit(try(SNPRelate::snpgdsClose(gds), silent = TRUE), add = TRUE)
   ids <- get_gds_ids(gds)
