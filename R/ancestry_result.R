@@ -8,7 +8,8 @@
 #' @param replicate Positive replicate identifier.
 #' @param seed Integer random seed, or `NA_integer_` when unavailable.
 #' @param metrics Named numeric fit metrics such as cross-validation error,
-#'   marginal likelihood, or cross-entropy.
+#'   marginal likelihood, or cross-entropy. An empty numeric vector is valid
+#'   when a backend does not report a fit metric.
 #' @param converged Logical convergence status, or `NA` when unavailable.
 #' @param runtime_seconds Nonnegative runtime in seconds, or `NA_real_`.
 #' @param provenance Named list of executable, version, command, input, and
@@ -53,7 +54,8 @@ validate_ancestry_replicate <- function(x, tolerance = 1e-6) {
   if (any(x$q < -tolerance) || any(x$q > 1 + tolerance)) stop("Q-matrix entries must lie in [0, 1]", call. = FALSE)
   if (any(abs(rowSums(x$q) - 1) > tolerance)) stop("Q-matrix rows must sum to one", call. = FALSE)
   if (is.na(x$replicate) || x$replicate < 1L) stop("replicate must be a positive integer", call. = FALSE)
-  if (!is.numeric(x$metrics) || is.null(names(x$metrics)) || any(!nzchar(names(x$metrics))) || any(!is.finite(x$metrics))) stop("metrics must be a finite named numeric vector", call. = FALSE)
+  if (!is.numeric(x$metrics) || any(!is.finite(x$metrics))) stop("metrics must be a finite numeric vector", call. = FALSE)
+  if (length(x$metrics) && (is.null(names(x$metrics)) || any(!nzchar(names(x$metrics))))) stop("non-empty metrics must be named", call. = FALSE)
   if (!is.na(x$runtime_seconds) && (!is.finite(x$runtime_seconds) || x$runtime_seconds < 0)) stop("runtime_seconds must be nonnegative or NA", call. = FALSE)
   if (!is.list(x$provenance)) stop("provenance must be a list", call. = FALSE)
   invisible(x)
