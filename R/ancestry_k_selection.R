@@ -155,7 +155,8 @@ ancestry_stability_lookup <- function(consensus) {
 }
 
 ancestry_lookup_stability <- function(tab, backend_name, k_value) {
-  hit <- tab[backend == backend_name & k == k_value, stability]
+  if (!nrow(tab)) return(NA_real_)
+  hit <- tab[tab$backend == backend_name & tab$k == k_value, stability]
   if (length(hit)) hit[[1L]] else NA_real_
 }
 
