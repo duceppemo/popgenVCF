@@ -8,12 +8,13 @@
 - Added automatic backend-aware K selection with replicate intervals, plateau detection, stability weighting, cross-backend voting, recommendation confidence, and manuscript-ready text.
 - Added a unified ancestry backend plugin contract, runtime backend discovery, deterministic task scheduling, canonical parsing, execution records, and `run_ancestry()` adapters for ADMIXTURE, fastStructure, and sNMF.
 - Added backend-neutral ancestry publication artifacts with metadata-optional ancestry barplots, uncertainty and stability diagnostics, K-selection curves, PDF/SVG/PNG figures, figure source tables, manuscript text, captions, validation records, and strict artifact manifests.
+- Added validated canonical result contracts for PCA, IBS/MDS, neighbour-joining trees, diversity, FST, AMOVA, DAPC, and isolation by distance, including provenance, parameters, metadata, validation, artifact manifests, stable table accessors, legacy adapters, and deterministic RDS serialization.
 
 # popgenVCF 0.9.0 development
 
 - Completed migration of every built-in analysis to `PopgenVCFModuleSpec` descriptors; the default registry is now fully descriptor-driven.
 - Added descriptors for diversity, neighbour-joining trees, ADMIXTURE, fastStructure, sNMF, and chromosome-specific analyses while preserving all existing contracts and behavior.
-- Migrated FST registration to a self-contained `fst_module_spec()` descriptor while preserving Weir-Cockerham estimates, confidence intervals, output schemas, and population-metadata requirements.
+- Migrated FST registration to a self-contained `fst_module_spec()` descriptor while preserving Weir-Cockerman estimates, confidence intervals, output schemas, and population-metadata requirements.
 - Migrated IBS/MDS registration to a self-contained `ibs_module_spec()` descriptor while preserving VCF-only execution and downstream tree/IBD dependencies.
 - Migrated PCA registration to a self-contained `pca_module_spec()` descriptor that owns execution, validation, references, resources, outputs, and publication artifacts.
 - Added first-class VCF-only execution with PCA and IBS/MDS driven directly by VCF sample IDs.
