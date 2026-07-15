@@ -13,7 +13,15 @@ test_that("typed core results validate and expose stable tables", {
   rownames(sim) <- colnames(sim) <- ids
   ibs <- new_ibs_result(sim)
   expect_s3_class(ibs, "PopgenVCFIBSResult")
-  expect_equal(nrow(core_result_table(ibs)), 9L)
+  ibs_table <- core_result_table(ibs)
+  expect_equal(nrow(ibs_table), 9L)
+  expect_equal(unique(ibs_table$sample_1), ids)
+  expect_equal(unique(ibs_table$sample_2), ids)
+
+  unnamed_ibs <- new_ibs_result(diag(2))
+  unnamed_table <- core_result_table(unnamed_ibs)
+  expect_equal(unnamed_table$sample_1, c("1", "2", "1", "2"))
+  expect_equal(unnamed_table$sample_2, c("1", "1", "2", "2"))
 
   diversity <- new_diversity_result(data.frame(population = c("A", "B"), Ho = c(.2, .3)))
   fst <- new_fst_result(.12, data.frame(population_1 = "A", population_2 = "B", fst = .12))
