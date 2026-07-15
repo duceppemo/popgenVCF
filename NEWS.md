@@ -9,6 +9,7 @@
 - Added a unified ancestry backend plugin contract, runtime backend discovery, deterministic task scheduling, canonical parsing, execution records, and `run_ancestry()` adapters for ADMIXTURE, fastStructure, and sNMF.
 - Added backend-neutral ancestry publication artifacts with metadata-optional ancestry barplots, uncertainty and stability diagnostics, K-selection curves, PDF/SVG/PNG figures, figure source tables, manuscript text, captions, validation records, and strict artifact manifests.
 - Added validated canonical result contracts for PCA, IBS/MDS, neighbour-joining trees, diversity, FST, AMOVA, DAPC, and isolation by distance, including provenance, parameters, metadata, validation, artifact manifests, stable table accessors, legacy adapters, and deterministic RDS serialization.
+- Added a unified Quarto report engine with deterministic section discovery and ordering, canonical result tables, reproducibility metadata, report plans, section manifests, artifact registration, source-only operation without Quarto, and optional HTML/PDF rendering.
 
 # popgenVCF 0.9.0 development
 
