@@ -34,6 +34,7 @@ Imports:
     gdsfmt,
     ggplot2,
     ggrepel,
+    jsonlite,
     parallel,
     poppr,
     rmarkdown,
@@ -47,11 +48,13 @@ Imports:
 Suggests:
     clue,
     covr,
+    DT,
     hierfstat,
     LEA,
     knitr,
     patchwork,
     pkgdown,
+    plotly,
     svglite,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
