@@ -42,10 +42,7 @@ default_analysis_registry <- function() {
     description = "Neighbour-joining tree from IBS distance",
     validate = validate_tree_result,
     outputs = "tree", references = "Saitou and Nei 1987")
-  r <- register_analysis(r, "fst", run_module_fst,
-    description = "Global and pairwise Weir-Cockerham FST",
-    validate = validate_fst_result, outputs = c("fst", "fst_ci"),
-    references = "Weir and Cockerham 1984", resource_class = "heavy")
+  r <- register_analysis_module(r, fst_module_spec())
   r <- register_analysis(r, "dapc", run_module_dapc, requires = "diversity",
     enabled = function(cfg) isTRUE(cfg$analyses$dapc),
     description = "Discriminant analysis of principal components",
