@@ -173,7 +173,24 @@ core_result_table <- function(x) {
   p <- x$payload
   out <- switch(x$analysis,
     pca = data.table::as.data.table(p$coordinates),
-    ibs = data.table::as.data.table(as.table(p$similarity))[, .(sample_1 = Var1, sample_2 = Var2, similarity = N)],
+    ibs = {
+      similarity <- p$similarity
+      sample_1 <- rownames(similarity)
+      sample_2 <- colnames(similarity)
+      if (is.null(sample_1)) sample_1 <- as.character(seq_len(nrow(similarity)))
+      if (is.null(sample_2)) sample_2 <- as.character(seq_len(ncol(similarity)))
+      grid <- expand.grid(
+        sample_1 = sample_1,
+        sample_2 = sample_2,
+        KEEP.OUT.ATTRS = FALSE,
+        stringsAsFactors = FALSE
+      )
+      data.table::data.table(
+        sample_1 = grid$sample_1,
+        sample_2 = grid$sample_2,
+        similarity = as.vector(similarity)
+      )
+    },
     tree = data.table::data.table(newick = if (requireNamespace("ape", quietly = TRUE) && inherits(p$tree, "phylo")) ape::write.tree(p$tree) else as.character(p$tree)),
     diversity = data.table::as.data.table(p$statistics),
     fst = data.table::as.data.table(p$pairwise),
