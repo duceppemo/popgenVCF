@@ -1,0 +1,119 @@
+name: Scientific release archive
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Archive release identifier
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scientific-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: |
+            any::rcmdcheck
+            any::knitr
+          needs: check
+
+      - uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Install popgenVCF
+        run: R CMD INSTALL .
+
+      - name: Resolve release identity
+        id: identity
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            value="pr-${{ github.event.pull_request.number }}-${GITHUB_SHA::12}"
+          elif [[ -n "${{ inputs.release_id }}" ]]; then
+            value="${{ inputs.release_id }}"
+          else
+            value="${GITHUB_REF_NAME}"
+          fi
+          echo "value=${value}" >> "$GITHUB_OUTPUT"
+
+      - name: Download latest published archive
+        id: baseline
+        shell: bash
+        run: |
+          mkdir -p baseline-download baseline
+          tag="$(gh release list --limit 1 --json tagName --jq '.[0].tagName // empty')"
+          if [[ -n "$tag" ]] && gh release download "$tag" \
+              --pattern 'scientific-benchmark-archive.tar.gz' \
+              --dir baseline-download; then
+            tar -xzf baseline-download/scientific-benchmark-archive.tar.gz -C baseline
+            echo "path=baseline/archive" >> "$GITHUB_OUTPUT"
+            echo "release=$tag" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=" >> "$GITHUB_OUTPUT"
+            echo "release=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build archive and regression report
+        env:
+          POPGENVCF_RELEASE_ID: ${{ steps.identity.outputs.value }}
+        run: |
+          Rscript scripts/build_release_benchmark_archive.R \
+            benchmark-release "${{ steps.baseline.outputs.path }}"
+
+      - name: Package archive
+        shell: bash
+        run: |
+          tar -czf scientific-benchmark-archive.tar.gz \
+            -C benchmark-release archive
+          tar -czf scientific-regression-report.tar.gz \
+            -C benchmark-release report release_benchmark_summary.tsv
+          sha256sum scientific-benchmark-archive.tar.gz \
+            scientific-regression-report.tar.gz > scientific-release-SHA256SUMS.txt
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: scientific-release-${{ steps.identity.outputs.value }}
+          path: |
+            scientific-benchmark-archive.tar.gz
+            scientific-regression-report.tar.gz
+            scientific-release-SHA256SUMS.txt
+            benchmark-release/release_benchmark_summary.tsv
+            benchmark-release/report/regression_report.html
+            benchmark-release/report/regression_report.qmd
+            benchmark-release/report/release_comparison.tsv
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Attach assets to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          gh release upload "${GITHUB_REF_NAME}" \
+            scientific-benchmark-archive.tar.gz \
+            scientific-regression-report.tar.gz \
+            scientific-release-SHA256SUMS.txt \
+            --clobber
