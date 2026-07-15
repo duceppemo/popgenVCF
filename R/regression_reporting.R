@@ -1,7 +1,7 @@
 #' Compare two archived release benchmark records
 #'
 #' @param current,baseline `PopgenVCFReleaseBenchmarkRecord` objects.
-#' @return A validated `PopgenVCFReleaseComparison`.
+#' @return A `PopgenVCFReleaseComparison`.
 #' @export
 compare_release_benchmarks <- function(current, baseline) {
   validate_release_benchmark_record(current)
@@ -37,20 +37,12 @@ compare_release_benchmarks <- function(current, baseline) {
     )
   })
   details <- data.table::rbindlist(rows, fill = TRUE)
-  status <- if (nrow(details) && any(details$status %in% c("failed", "error"))) {
-    "failed"
-  } else {
-    "passed"
-  }
+  status <- if (nrow(details) && any(details$status %in% c("failed", "error"))) "failed" else "passed"
   structure(list(
-    schema_version = "1.0",
-    current_release = current$release,
-    baseline_release = baseline$release,
-    status = status,
-    common_components = common,
-    current_only = current_only,
-    baseline_only = baseline_only,
-    details = details
+    schema_version = "1.0", current_release = current$release,
+    baseline_release = baseline$release, status = status,
+    common_components = common, current_only = current_only,
+    baseline_only = baseline_only, details = details
   ), class = "PopgenVCFReleaseComparison")
 }
 
@@ -81,24 +73,21 @@ release_comparison_table <- function(x) {
 #' @return A `PopgenVCFReleaseBenchmarkRecord`.
 #' @export
 latest_release_benchmark <- function(archive, exclude = character()) {
-  if (!inherits(archive, "PopgenVCFBenchmarkArchive")) {
-    stop("archive is invalid", call. = FALSE)
-  }
+  if (!inherits(archive, "PopgenVCFBenchmarkArchive")) stop("archive is invalid", call. = FALSE)
   releases <- setdiff(names(archive$records), as.character(exclude))
   if (!length(releases)) stop("archive contains no eligible releases", call. = FALSE)
-  versions <- sub("^v", "", releases)
-  parsed <- suppressWarnings(lapply(versions, package_version))
-  valid <- vapply(parsed, function(x) !inherits(x, "try-error"), logical(1L))
-  if (all(valid)) {
-    return(archive$records[[releases[[order(vapply(parsed, as.character, character(1L)), decreasing = TRUE)[1L]]]]])
+  parsed <- lapply(sub("^v", "", releases), function(x) tryCatch(package_version(x), error = identity))
+  if (all(vapply(parsed, inherits, logical(1L), "numeric_version"))) {
+    latest <- Reduce(function(a, b) if (a >= b) a else b, parsed)
+    index <- which(vapply(parsed, function(x) identical(x, latest), logical(1L)))[1L]
+    return(archive$records[[releases[[index]]]])
   }
   records <- archive$records[releases]
   created <- vapply(records, `[[`, character(1L), "created_at")
   records[[order(created, decreasing = TRUE)[1L]]]
 }
 
-regression_report_qmd <- function(archive, comparison = NULL, title) {
-  releases <- benchmark_archive_table(archive)
+regression_report_qmd <- function(comparison = NULL, title) {
   comparison_code <- if (is.null(comparison)) {
     "No baseline comparison was supplied."
   } else {
@@ -112,11 +101,12 @@ regression_report_qmd <- function(archive, comparison = NULL, title) {
   }
   paste0(
     "---\ntitle: ", dQuote(title), "\nformat:\n  html:\n    toc: true\n    embed-resources: true\nexecute:\n  echo: false\n---\n\n",
+    "```{r}\nreport_data <- readRDS('report_data.rds')\nreleases_table <- report_data$releases_table\ncomparison_table <- report_data$comparison_table\n```\n\n",
     "# Scientific regression archive\n\n",
     "This report summarizes the immutable, checksummed popgenVCF benchmark archive.\n\n",
     "## Archived releases\n\n```{r}\nknitr::kable(releases_table)\n```\n\n",
     comparison_code,
-    "\n## Archive integrity\n\nAll files are recorded in `manifest.tsv` with SHA256 checksums.\n\n",
+    "\n## Archive integrity\n\nAll archived files are recorded in `manifest.tsv` with SHA256 checksums.\n\n",
     "## Reproducibility\n\nRelease records retain Git identity, package version, container digest, datasets, parameters, environment, and complete canonical benchmark components.\n"
   )
 }
@@ -152,21 +142,16 @@ write_regression_report <- function(
                releases_table = releases_table, comparison_table = comparison_table),
           data_path, version = 3)
   qmd_path <- file.path(output_dir, "regression_report.qmd")
-  writeLines(c(
-    "```{r}",
-    "report_data <- readRDS('report_data.rds')",
-    "releases_table <- report_data$releases_table",
-    "comparison_table <- report_data$comparison_table",
-    "```",
-    regression_report_qmd(archive, comparison, title)
-  ), qmd_path)
+  writeLines(regression_report_qmd(comparison, title), qmd_path)
   html_path <- file.path(output_dir, "regression_report.html")
   rendered <- FALSE
   if (isTRUE(render) && nzchar(Sys.which("quarto"))) {
-    status <- system2("quarto", c("render", basename(qmd_path), "--output", basename(html_path)),
-                      stdout = TRUE, stderr = TRUE, wd = output_dir)
+    old <- setwd(output_dir)
+    on.exit(setwd(old), add = TRUE)
+    output <- system2("quarto", c("render", basename(qmd_path), "--output", basename(html_path)),
+                      stdout = TRUE, stderr = TRUE)
     rendered <- file.exists(html_path)
-    if (!rendered) warning(paste(status, collapse = "\n"), call. = FALSE)
+    if (!rendered) warning(paste(output, collapse = "\n"), call. = FALSE)
   }
   list(qmd = qmd_path, html = if (rendered) html_path else NA_character_,
        releases = releases_path, comparison = comparison_path, data = data_path,
