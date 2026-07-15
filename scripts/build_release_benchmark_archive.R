@@ -6,12 +6,14 @@ baseline_dir <- if (length(args) >= 2L && nzchar(args[[2L]])) args[[2L]] else NA
 release_id <- Sys.getenv("POPGENVCF_RELEASE_ID", unset = Sys.getenv("GITHUB_REF_NAME", unset = "development"))
 git_sha <- Sys.getenv("GITHUB_SHA", unset = "unknown")
 container_digest <- Sys.getenv("POPGENVCF_CONTAINER_DIGEST", unset = NA_character_)
+golden_store_dir <- Sys.getenv("POPGENVCF_GOLDEN_STORE", unset = "")
 
 suppressPackageStartupMessages(library(popgenVCF))
 
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 archive_dir <- file.path(output_dir, "archive")
 report_dir <- file.path(output_dir, "report")
+dir.create(report_dir, recursive = TRUE, showWarnings = FALSE)
 
 archive <- if (!is.na(baseline_dir) && dir.exists(baseline_dir) &&
                file.exists(file.path(baseline_dir, "archive.rds"))) {
@@ -35,16 +37,36 @@ performance <- run_performance_benchmark(new_performance_benchmark_spec(
   metadata = list(profile = "release-smoke")
 ))
 
+golden <- NULL
+if (nzchar(golden_store_dir)) {
+  if (!dir.exists(golden_store_dir)) {
+    stop("POPGENVCF_GOLDEN_STORE does not exist: ", golden_store_dir, call. = FALSE)
+  }
+  golden_store <- read_golden_store(golden_store_dir, verify = TRUE)
+  golden <- compare_golden_outputs(list(
+    scientific_validation = core$checks,
+    population_structure_validation = structure_validation$checks
+  ), golden_store)
+  data.table::fwrite(
+    golden_output_table(golden),
+    file.path(report_dir, "golden_output_comparison.tsv"),
+    sep = "\t"
+  )
+}
+
+components <- list(
+  scientific_validation = core$checks,
+  population_structure_validation = structure_validation$checks,
+  performance = performance
+)
+if (!is.null(golden)) components$golden_outputs <- golden
+
 record <- new_release_benchmark_record(
   release = release_id,
   package_version = as.character(utils::packageVersion("popgenVCF")),
   git_sha = git_sha,
   container_digest = container_digest,
-  components = list(
-    scientific_validation = core$checks,
-    population_structure_validation = structure_validation$checks,
-    performance = performance
-  ),
+  components = components,
   provenance = list(
     workflow = Sys.getenv("GITHUB_WORKFLOW", unset = "local"),
     run_id = Sys.getenv("GITHUB_RUN_ID", unset = NA_character_),
@@ -52,7 +74,11 @@ record <- new_release_benchmark_record(
   ),
   environment = performance_environment_fingerprint(),
   datasets = list(synthetic_fixture = "package-embedded"),
-  parameters = list(threads = 2L, performance_iterations = 5L)
+  parameters = list(
+    threads = 2L,
+    performance_iterations = 5L,
+    golden_store = if (nzchar(golden_store_dir)) normalizePath(golden_store_dir) else NA_character_
+  )
 )
 
 comparison <- NULL
@@ -72,6 +98,7 @@ summary <- data.table::data.table(
   git_sha = git_sha,
   scientific_validation_passed = isTRUE(core$passed),
   population_structure_passed = isTRUE(structure_validation$passed),
+  golden_output_status = if (is.null(golden)) "not-configured" else golden$status,
   comparison_status = if (is.null(comparison)) "no-baseline" else comparison$status,
   archive_verified = isTRUE(verify_benchmark_archive(archive_dir))
 )
@@ -79,6 +106,9 @@ data.table::fwrite(summary, file.path(output_dir, "release_benchmark_summary.tsv
 
 if (!isTRUE(core$passed) || !isTRUE(structure_validation$passed)) {
   stop("scientific release validation failed", call. = FALSE)
+}
+if (!is.null(golden) && identical(golden$status, "failed")) {
+  stop("golden-output regression validation failed", call. = FALSE)
 }
 if (!is.null(comparison) && identical(comparison$status, "failed")) {
   stop("release regression comparison failed", call. = FALSE)
