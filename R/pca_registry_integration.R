@@ -1,10 +1,3 @@
-pca_publication_artifact_names <- function() {
-  c(
-    "coordinates", "variance", "pc1_pc2_pdf", "pc1_pc2_svg",
-    "pc1_pc2_png", "methods", "caption", "validation", "figure_source"
-  )
-}
-
 run_module_pca <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
   pca <- run_pca(
@@ -43,13 +36,7 @@ default_analysis_registry <- function() {
     validate = validate_diversity_result,
     outputs = c("diversity", "diversity_ci"),
     references = "Nei 1987", resource_class = "heavy")
-  r <- register_analysis(r, "pca", run_module_pca,
-    description = "Principal component analysis",
-    validate = validate_pca_result,
-    references = "Patterson et al. 2006", resource_class = "heavy")
-  r <- register_analysis_artifacts(
-    r, "pca", pca_publication_artifact_names(), must_exist = TRUE
-  )
+  r <- register_analysis_module(r, pca_module_spec())
   r <- register_analysis(r, "ibs", run_module_ibs,
     description = "IBS matrices and multidimensional scaling",
     validate = validate_ibs_result,
