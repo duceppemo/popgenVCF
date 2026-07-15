@@ -18,12 +18,13 @@
 - Added repeatable performance regression benchmarks with warmups, robust runtime summaries, approximate memory and temporary-disk accounting, thread-scaling diagnostics, machine fingerprints, baseline compatibility checks, configurable regression thresholds, gating and informational modes, stable tables, and baseline serialization.
 - Added append-only scientific regression archives with canonical release records, component digests, provenance and environment metadata, release manifests, checksum verification, stable TSV/JSON/RDS exports, duplicate protection, and corruption detection.
 - Added release-to-release comparison and Quarto regression reports plus GitHub Actions automation that downloads the latest published archive, appends the current immutable record, publishes workflow artifacts, and attaches checksummed archives and reports to tagged GitHub Releases.
+- Added golden-output scientific regression stores with exact, tolerant numeric, matrix, eigenspace, label-switching-aware ancestry, and manifest comparison modes, explicit gating versus diagnostic roles, approved replacement metadata, SHA256 verification, and optional release-certification integration.
 
 # popgenVCF 0.9.0 development
 
 - Completed migration of every built-in analysis to `PopgenVCFModuleSpec` descriptors; the default registry is now fully descriptor-driven.
 - Added descriptors for diversity, neighbour-joining trees, ADMIXTURE, fastStructure, sNMF, and chromosome-specific analyses while preserving all existing contracts and behavior.
-- Migrated FST registration to a self-contained `fst_module_spec()` descriptor while preserving Weir-Cockerham estimates, confidence intervals, output schemas, and population-metadata requirements.
+- Migrated FST registration to a self-contained `fst_module_spec()` descriptor while preserving Weir-Cockerram estimates, confidence intervals, output schemas, and population-metadata requirements.
 - Migrated IBS/MDS registration to a self-contained `ibs_module_spec()` descriptor while preserving VCF-only execution and downstream tree/IBD dependencies.
 - Migrated PCA registration to a self-contained `pca_module_spec()` descriptor that owns execution, validation, references, resources, outputs, and publication artifacts.
 - Added first-class VCF-only execution with PCA and IBS/MDS driven directly by VCF sample IDs.
