@@ -3,6 +3,8 @@
 - Added canonical backend-independent ancestry replicate and result contracts for ADMIXTURE, fastStructure, and sNMF.
 - Enforced sample identity, Q-matrix simplex constraints, replicate uniqueness, fit metrics, convergence, runtime, and provenance.
 - Added stable replicate-summary and long-form Q-matrix tables for downstream consensus, plotting, and reporting.
+- Added Hungarian ancestry-replicate alignment with correlation, cosine similarity, permutation matrices, RMSD, and alignment diagnostics.
+- Added consensus ancestry estimates with mean and median Q matrices, empirical confidence intervals, per-cell variance, cluster stability, sample uncertainty, and global replicate stability.
 
 # popgenVCF 0.9.0 development
 
