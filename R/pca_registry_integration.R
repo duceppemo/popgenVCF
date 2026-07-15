@@ -30,44 +30,24 @@ run_module_pca <- function(analysis, context) {
 #' @return A populated `PopgenVCFRegistry`.
 #' @export
 default_analysis_registry <- function() {
-  r <- new_analysis_registry()
-  r <- register_analysis(r, "diversity", run_module_diversity,
-    description = "Sample, population, and locus diversity",
-    validate = validate_diversity_result,
-    outputs = c("diversity", "diversity_ci"),
-    references = "Nei 1987", resource_class = "heavy")
-  r <- register_analysis_module(r, pca_module_spec())
-  r <- register_analysis_module(r, ibs_module_spec())
-  r <- register_analysis(r, "tree", run_module_tree, requires = "ibs",
-    description = "Neighbour-joining tree from IBS distance",
-    validate = validate_tree_result,
-    outputs = "tree", references = "Saitou and Nei 1987")
-  r <- register_analysis_module(r, fst_module_spec())
-  r <- register_analysis_module(r, dapc_module_spec())
-  r <- register_analysis_module(r, amova_module_spec())
-  r <- register_analysis_module(r, ibd_module_spec())
-  r <- register_analysis(r, "admixture", run_module_admixture,
-    enabled = function(cfg) isTRUE(cfg$analyses$admixture$enabled),
-    description = "External ADMIXTURE cross-validation",
-    validate = validate_admixture_result,
-    outputs = "admixture_cv", references = "Alexander et al. 2009",
-    resource_class = "external")
-  r <- register_analysis(r, "faststructure", run_module_faststructure,
-    enabled = function(cfg) isTRUE(cfg$analyses$faststructure$enabled),
-    description = "External fastStructure ancestry inference",
-    validate = validate_population_structure_result,
-    outputs = "faststructure", references = "Raj et al. 2014",
-    resource_class = "external")
-  r <- register_analysis(r, "snmf", run_module_snmf,
-    enabled = function(cfg) isTRUE(cfg$analyses$snmf$enabled),
-    description = "LEA sNMF ancestry inference",
-    validate = validate_population_structure_result,
-    outputs = "snmf", references = "Frichot et al. 2014",
-    resource_class = "external")
-  r <- register_analysis(r, "chromosome", run_module_chromosome,
-    enabled = function(cfg) isTRUE(cfg$analyses$chromosome_specific),
-    description = "Chromosome-specific PCA and FST",
-    validate = validate_chromosome_result,
-    outputs = "chromosome_summary", resource_class = "heavy")
-  r
+  modules <- list(
+    diversity_module_spec(),
+    pca_module_spec(),
+    ibs_module_spec(),
+    tree_module_spec(),
+    fst_module_spec(),
+    dapc_module_spec(),
+    amova_module_spec(),
+    ibd_module_spec(),
+    admixture_module_spec(),
+    faststructure_module_spec(),
+    snmf_module_spec(),
+    chromosome_module_spec()
+  )
+
+  registry <- new_analysis_registry()
+  for (module in modules) {
+    registry <- register_analysis_module(registry, module)
+  }
+  registry
 }
