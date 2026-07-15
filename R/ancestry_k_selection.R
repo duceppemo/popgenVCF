@@ -75,7 +75,7 @@ select_ancestry_k <- function(x, metric = NULL, direction = NULL,
     plateau_k <- best_k
     if (best_idx > 1L) {
       first_small <- which(tab$k[-1L] <= best_k & tab$relative_improvement[-1L] < plateau_fraction)
-      if (length(first_small)) plateau_k <- tab$k[first_small[[1L]]]
+      if (length(first_small)) plateau_k <- tab$k[first_small[[1L]] + 1L]
     }
     stable_candidates <- which(tab$k <= best_k & !is.na(tab$stability) & tab$stability >= stability_threshold)
     recommended_k <- if (length(stable_candidates)) {
