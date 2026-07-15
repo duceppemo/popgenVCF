@@ -175,6 +175,7 @@ compare_performance_baseline <- function(observed, baseline,
   if (!compatible && !isTRUE(allow_incompatible)) {
     stop("performance fingerprints differ; cross-host comparison is disabled", call. = FALSE)
   }
+  regression_thresholds <- observed$thresholds
   merged <- merge(observed$summary, baseline$summary, by = "threads",
                   suffixes = c("_observed", "_baseline"))
   metrics <- data.table::rbindlist(list(
@@ -189,7 +190,7 @@ compare_performance_baseline <- function(observed, baseline,
     baseline == 0, data.table::fifelse(observed == 0, 0, Inf),
     (observed - baseline) / baseline
   )]
-  metrics[, allowed_relative_change := unname(observed$thresholds[metric])]
+  metrics[, allowed_relative_change := unname(regression_thresholds[metric])]
   metrics[, regressed := relative_change > allowed_relative_change]
   status <- if (isTRUE(gating) && any(metrics$regressed)) "failed" else "passed"
   structure(list(
