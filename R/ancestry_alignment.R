@@ -41,7 +41,8 @@ align_ancestry_replicate <- function(target, reference, tolerance = 1e-6) {
   correlation_scaled <- (correlation + 1) / 2
   similarity <- (cosine + correlation_scaled) / 2
   similarity[!is.finite(similarity)] <- 0
-  similarity <- pmax(0, pmin(1, similarity))
+  similarity[similarity < 0] <- 0
+  similarity[similarity > 1] <- 1
 
   permutation <- as.integer(clue::solve_LSAP(similarity, maximum = TRUE))
   aligned_q <- target_q[, permutation, drop = FALSE]
