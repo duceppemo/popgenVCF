@@ -37,10 +37,7 @@ default_analysis_registry <- function() {
     outputs = c("diversity", "diversity_ci"),
     references = "Nei 1987", resource_class = "heavy")
   r <- register_analysis_module(r, pca_module_spec())
-  r <- register_analysis(r, "ibs", run_module_ibs,
-    description = "IBS matrices and multidimensional scaling",
-    validate = validate_ibs_result,
-    references = "Zheng et al. 2012", resource_class = "heavy")
+  r <- register_analysis_module(r, ibs_module_spec())
   r <- register_analysis(r, "tree", run_module_tree, requires = "ibs",
     description = "Neighbour-joining tree from IBS distance",
     validate = validate_tree_result,

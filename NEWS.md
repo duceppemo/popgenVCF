@@ -1,5 +1,6 @@
 # popgenVCF 0.9.0 development
 
+- Migrated IBS/MDS registration to a self-contained `ibs_module_spec()` descriptor while preserving VCF-only execution and downstream tree/IBD dependencies.
 - Migrated PCA registration to a self-contained `pca_module_spec()` descriptor that owns execution, validation, references, resources, outputs, and publication artifacts.
 - Added first-class VCF-only execution with PCA and IBS/MDS driven directly by VCF sample IDs.
 - Made `sample` the only mandatory metadata column and retained arbitrary additional columns.
