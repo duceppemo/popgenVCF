@@ -59,18 +59,27 @@ jobs:
           fi
           echo "value=${value}" >> "$GITHUB_OUTPUT"
 
-      - name: Download latest published archive
+      - name: Download latest prior published archive
         id: baseline
         shell: bash
         run: |
           mkdir -p baseline-download baseline
-          tag="$(gh release list --limit 1 --json tagName --jq '.[0].tagName // empty')"
-          if [[ -n "$tag" ]] && gh release download "$tag" \
-              --pattern 'scientific-benchmark-archive.tar.gz' \
-              --dir baseline-download; then
+          selected=""
+          while IFS= read -r tag; do
+            [[ -z "$tag" ]] && continue
+            [[ "$tag" == "${GITHUB_REF_NAME}" ]] && continue
+            rm -f baseline-download/scientific-benchmark-archive.tar.gz
+            if gh release download "$tag" \
+                --pattern 'scientific-benchmark-archive.tar.gz' \
+                --dir baseline-download; then
+              selected="$tag"
+              break
+            fi
+          done < <(gh release list --limit 20 --json tagName --jq '.[].tagName')
+          if [[ -n "$selected" ]]; then
             tar -xzf baseline-download/scientific-benchmark-archive.tar.gz -C baseline
             echo "path=baseline/archive" >> "$GITHUB_OUTPUT"
-            echo "release=$tag" >> "$GITHUB_OUTPUT"
+            echo "release=$selected" >> "$GITHUB_OUTPUT"
           else
             echo "path=" >> "$GITHUB_OUTPUT"
             echo "release=" >> "$GITHUB_OUTPUT"
@@ -112,6 +121,9 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
         run: |
+          if ! gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release create "${GITHUB_REF_NAME}" --verify-tag --generate-notes
+          fi
           gh release upload "${GITHUB_REF_NAME}" \
             scientific-benchmark-archive.tar.gz \
             scientific-regression-report.tar.gz \
