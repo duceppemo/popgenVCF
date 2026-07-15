@@ -99,6 +99,25 @@ test_that("external-reference tables retain scientific labels", {
   expect_match(tab$interpretation, "heterozygosity")
 })
 
+test_that("external-reference specifications integrate with benchmark suites", {
+  dataset <- new_benchmark_dataset(
+    id = "external_fixture", scale = "tiny",
+    loader = function() list(value = c(a = 1, b = 2))
+  )
+  comparison <- new_external_reference_spec(
+    id = "external_fixture_comparison", analysis = "qc",
+    reference_tool = "independent fixture",
+    observed = function(x) x$value,
+    reference = function(x) x$value
+  )
+  benchmark <- external_reference_benchmark_spec(comparison, dataset)
+  suite <- run_benchmark_suite(new_benchmark_registry(list(benchmark)))
+
+  expect_true(suite$passed)
+  expect_equal(benchmark_suite_table(suite)$status, "passed")
+  expect_equal(suite$results[[1]]$category, "external")
+})
+
 test_that("external-reference contracts reject malformed specifications", {
   expect_error(
     new_external_reference_spec(
