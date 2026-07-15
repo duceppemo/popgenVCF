@@ -17,6 +17,7 @@
 - Added a dependency-aware registry of established reference adapters for SNPRelate, PLINK 2, hierfstat, adegenet, poppr, pegas, vegan, ADMIXTURE, fastStructure, and LEA/sNMF, including tool-version discovery and CI-safe precomputed-output contracts.
 - Added repeatable performance regression benchmarks with warmups, robust runtime summaries, approximate memory and temporary-disk accounting, thread-scaling diagnostics, machine fingerprints, baseline compatibility checks, configurable regression thresholds, gating and informational modes, stable tables, and baseline serialization.
 - Added append-only scientific regression archives with canonical release records, component digests, provenance and environment metadata, release manifests, checksum verification, stable TSV/JSON/RDS exports, duplicate protection, and corruption detection.
+- Added release-to-release comparison and Quarto regression reports plus GitHub Actions automation that downloads the latest published archive, appends the current immutable record, publishes workflow artifacts, and attaches checksummed archives and reports to tagged GitHub Releases.
 
 # popgenVCF 0.9.0 development
 
