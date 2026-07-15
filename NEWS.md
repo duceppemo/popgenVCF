@@ -16,6 +16,7 @@
 - Added systematic external-reference comparison contracts with exact, numeric, matrix, eigenspace, and label-switching-aware Q-matrix modes, dependency-aware skips, transparent equivalence versus diagnostic roles, and benchmark integration.
 - Added a dependency-aware registry of established reference adapters for SNPRelate, PLINK 2, hierfstat, adegenet, poppr, pegas, vegan, ADMIXTURE, fastStructure, and LEA/sNMF, including tool-version discovery and CI-safe precomputed-output contracts.
 - Added repeatable performance regression benchmarks with warmups, robust runtime summaries, approximate memory and temporary-disk accounting, thread-scaling diagnostics, machine fingerprints, baseline compatibility checks, configurable regression thresholds, gating and informational modes, stable tables, and baseline serialization.
+- Added append-only scientific regression archives with canonical release records, component digests, provenance and environment metadata, release manifests, checksum verification, stable TSV/JSON/RDS exports, duplicate protection, and corruption detection.
 
 # popgenVCF 0.9.0 development
 
