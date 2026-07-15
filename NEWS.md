@@ -1,3 +1,9 @@
+# popgenVCF 0.10.0 development
+
+- Added canonical backend-independent ancestry replicate and result contracts for ADMIXTURE, fastStructure, and sNMF.
+- Enforced sample identity, Q-matrix simplex constraints, replicate uniqueness, fit metrics, convergence, runtime, and provenance.
+- Added stable replicate-summary and long-form Q-matrix tables for downstream consensus, plotting, and reporting.
+
 # popgenVCF 0.9.0 development
 
 - Completed migration of every built-in analysis to `PopgenVCFModuleSpec` descriptors; the default registry is now fully descriptor-driven.
