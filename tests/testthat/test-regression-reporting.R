@@ -61,7 +61,10 @@ test_that("regression reports support source-only generation", {
 })
 
 test_that("invalid report and comparison inputs fail clearly", {
-  expect_error(compare_release_benchmarks(list(), list()), "release")
+  expect_error(
+    compare_release_benchmarks(list(), list()),
+    "PopgenVCFReleaseBenchmarkRecord"
+  )
   expect_error(latest_release_benchmark(new_benchmark_archive()), "no eligible")
   expect_error(write_regression_report(list(), tempfile(), render = FALSE), "invalid")
 })
