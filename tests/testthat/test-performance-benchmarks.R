@@ -31,6 +31,16 @@ test_that("performance measurements produce stable summaries", {
   expect_equal(names(tab)[1:2], c("id", "fingerprint_id"))
 })
 
+test_that("zero-resolution timings produce finite baseline scaling metrics", {
+  scaling <- popgenVCF:::performance_scaling_metrics(
+    runtime = c(0, 0, 0.01), threads = c(1L, 2L, 4L)
+  )
+  expect_equal(scaling$speedup[1L], 1)
+  expect_equal(scaling$scaling_efficiency[1L], 1)
+  expect_false(any(is.nan(scaling$speedup)))
+  expect_false(any(is.nan(scaling$scaling_efficiency)))
+})
+
 test_that("baseline comparisons detect gating and informational regressions", {
   fingerprint <- list(host = "fixture")
   make_result <- function(runtime, memory = 10, disk = 1, gating = TRUE) {
