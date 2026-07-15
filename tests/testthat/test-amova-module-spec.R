@@ -19,7 +19,7 @@ test_that("AMOVA module descriptor owns the complete registry contract", {
 test_that("built-in registry reflects the AMOVA descriptor", {
   spec <- amova_module_spec()
   registry <- default_analysis_registry()
-  entry <- registry$analyses$amova
+  entry <- registry$modules$amova
 
   expect_identical(entry$requires, spec$requires)
   expect_identical(entry$outputs, spec$outputs)
