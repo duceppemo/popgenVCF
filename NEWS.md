@@ -14,6 +14,7 @@
 - Added first-class benchmark datasets, specifications, registries, results, and suites with numerical tolerances, runtime/memory/disk budgets, dependency-aware skips, deterministic execution, stable summaries, and serialization.
 - Added a versioned benchmark dataset catalogue with embedded CI fixtures, local and remote sources, deterministic cache paths, SHA256 verification, atomic fetch-on-demand, offline reuse, filtering, resource annotations, and planned 1000 Genomes, HGDP, and HapMap reference subsets.
 - Added systematic external-reference comparison contracts with exact, numeric, matrix, eigenspace, and label-switching-aware Q-matrix modes, dependency-aware skips, transparent equivalence versus diagnostic roles, and benchmark integration.
+- Added a dependency-aware registry of established reference adapters for SNPRelate, PLINK 2, hierfstat, adegenet, poppr, pegas, vegan, ADMIXTURE, fastStructure, and LEA/sNMF, including tool-version discovery and CI-safe precomputed-output contracts.
 
 # popgenVCF 0.9.0 development
 
