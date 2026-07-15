@@ -106,6 +106,23 @@ performance_summary_stats <- function(values) {
     min = min(values), max = max(values))
 }
 
+performance_scaling_metrics <- function(runtime, threads) {
+  runtime <- as.numeric(runtime)
+  threads <- as.integer(threads)
+  base_threads <- min(threads)
+  base_index <- which(threads == base_threads)[1L]
+  base_runtime <- runtime[[base_index]]
+
+  speedup <- rep(NA_real_, length(runtime))
+  positive <- runtime > 0
+  if (base_runtime > 0) speedup[positive] <- base_runtime / runtime[positive]
+  speedup[[base_index]] <- 1
+
+  efficiency <- speedup / (threads / base_threads)
+  efficiency[[base_index]] <- 1
+  list(speedup = speedup, scaling_efficiency = efficiency)
+}
+
 #' Run a performance benchmark
 #' @param spec A `PopgenVCFPerformanceSpec`.
 #' @param fingerprint Optional environment fingerprint.
@@ -143,11 +160,10 @@ run_performance_benchmark <- function(spec, fingerprint = performance_environmen
       disk_median_mb = disk[["median"]], disk_mad_mb = disk[["mad"]]
     )
   }, by = threads]
-  base_threads <- min(summary$threads)
-  base_runtime <- summary[summary$threads == base_threads, runtime_median][1L]
+  scaling <- performance_scaling_metrics(summary$runtime_median, summary$threads)
   summary[, `:=`(
-    speedup = base_runtime / runtime_median,
-    scaling_efficiency = (base_runtime / runtime_median) / (threads / base_threads)
+    speedup = scaling$speedup,
+    scaling_efficiency = scaling$scaling_efficiency
   )]
   structure(list(
     schema_version = "1.0", id = spec$id,
