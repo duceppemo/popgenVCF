@@ -12,15 +12,16 @@ test_that("ancestry publication artifacts are complete without metadata", {
   out <- tempfile("ancestry-publication-")
   manifest <- write_ancestry_publication_artifacts(consensus, out)
   tab <- artifact_manifest_table(manifest)
+  ids <- paste(tab$module, tab$name, sep = "::")
 
   expect_true(all(file.exists(tab$path)))
   expect_true(all(c(
     "ancestry::q_table", "ancestry::barplot_pdf",
     "ancestry::uncertainty_pdf", "ancestry::stability_pdf",
     "ancestry::validation"
-  ) %in% tab$id))
+  ) %in% ids))
   source <- data.table::fread(file.path(out, "source_data", "ancestry_admixture_K2_figure_source.tsv"))
-  expect_equal(source$sample_id |> sort(), sample_ids)
+  expect_equal(sort(source$sample_id), sample_ids)
   expect_false("population" %in% names(source))
 })
 
@@ -45,11 +46,12 @@ test_that("population metadata and K selection add grouped and model-selection a
     consensus, out, metadata = metadata, k_selection = selection
   )
   tab <- artifact_manifest_table(manifest)
+  ids <- paste(tab$module, tab$name, sep = "::")
 
   expect_true(all(c(
     "ancestry::k_selection_source", "ancestry::k_selection_pdf",
     "ancestry::k_selection_svg", "ancestry::k_selection_png"
-  ) %in% tab$id))
+  ) %in% ids))
   source <- data.table::fread(file.path(out, "source_data", "ancestry_admixture_K3_figure_source.tsv"))
   expect_true("population" %in% names(source))
   expect_equal(sort(unique(source$population)), c("A", "B"))
