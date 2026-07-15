@@ -1,5 +1,6 @@
 # popgenVCF 0.9.0 development
 
+- Migrated PCA registration to a self-contained `pca_module_spec()` descriptor that owns execution, validation, references, resources, outputs, and publication artifacts.
 - Added first-class VCF-only execution with PCA and IBS/MDS driven directly by VCF sample IDs.
 - Made `sample` the only mandatory metadata column and retained arbitrary additional columns.
 - Added exact metadata-to-VCF sample identity validation, VCF-order alignment, and a sample matching report.
@@ -27,39 +28,3 @@
 - Added resolved-environment export and verification guidance.
 
 # popgenVCF 0.8.3
-
-- Fixed label-switching assignment when cluster correlations are negative.
-- Added finite-value validation before solving cluster assignments.
-- Added regression tests for negative, shifted, and non-finite similarity matrices.
-
-# popgenVCF 0.8.3
-
-- Added a complete Conda/Mamba environment specification for R, Bioconductor, external population-structure engines, reporting tools, and development dependencies.
-- Added an environment verification script and reproducibility/export instructions.
-- Documented fastStructure Python 3.10 constraints and ADMIXTURE licensing considerations.
-- Established the Conda specification as the dependency source for future Docker and Apptainer images.
-
-# popgenVCF 0.8.0
-
-- Added label-switching-aware membership comparison and replicate reproducibility metrics.
-- Added validated DAPC membership outputs, multi-seed reproducibility, and K diagnostics.
-- Added optional fastStructure and LEA/sNMF integrations with explicit input-order checks.
-- Added deterministic population-structure validation fixtures.
-- Added unified K-selection helpers and stronger structure-module contracts.
-
-# popgenVCF 0.7.3
-
-- Replaced fragile PCA eigenspace ordering validation with direct eigen-equation residual checks.
-- Reclassified hand-calculated and hierfstat FST comparisons as transparent cross-method diagnostics.
-- Added a gating FST internal-consistency check without weakening numerical tolerances.
-- Added `pca_eigen_residuals()` and regression tests for PCA covariance consistency.
-
-# popgenVCF 0.7.2
-
-- Replaced the invalid assumption that SNPRelate PCA must equal a generic
-  standardized-dosage SVD. PCA execution is now validated against an explicit
-  eigen-equation residual check using the covariance matrix returned by SNPRelate.
-- Reclassified hand-calculated and hierfstat FST comparisons as transparent
-  cross-method diagnostics rather than exact-equivalence gates.
-- Added a gating FST internal-consistency check without weakening numerical
-  tolerances.
