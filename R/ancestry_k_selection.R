@@ -19,9 +19,9 @@
 #' @return A validated `PopgenVCFKSelection` object.
 #' @export
 select_ancestry_k <- function(x, metric = NULL, direction = NULL,
-#'                             consensus = NULL, confidence = 0.95,
-#'                             plateau_fraction = 0.01,
-#'                             stability_threshold = 0.95) {
+                              consensus = NULL, confidence = 0.95,
+                              plateau_fraction = 0.01,
+                              stability_threshold = 0.95) {
   reps <- if (inherits(x, "PopgenVCFAncestryResult")) {
     validate_ancestry_result(x)
     x$replicates
@@ -72,13 +72,11 @@ select_ancestry_k <- function(x, metric = NULL, direction = NULL,
 
     best_idx <- which.max(tab$objective)
     best_k <- tab$k[[best_idx]]
-    eligible <- which(tab$k <= best_k & (is.na(tab$relative_improvement) | tab$relative_improvement >= plateau_fraction))
-    plateau_k <- if (length(eligible)) max(tab$k[eligible]) else best_k
+    plateau_k <- best_k
     if (best_idx > 1L) {
       first_small <- which(tab$k[-1L] <= best_k & tab$relative_improvement[-1L] < plateau_fraction)
       if (length(first_small)) plateau_k <- tab$k[first_small[[1L]]]
     }
-    candidate_idx <- match(plateau_k, tab$k)
     stable_candidates <- which(tab$k <= best_k & !is.na(tab$stability) & tab$stability >= stability_threshold)
     recommended_k <- if (length(stable_candidates)) {
       stable_on_plateau <- stable_candidates[tab$k[stable_candidates] >= plateau_k]
@@ -156,8 +154,8 @@ ancestry_stability_lookup <- function(consensus) {
   }))
 }
 
-ancestry_lookup_stability <- function(tab, backend, k) {
-  hit <- tab[backend == ..backend & k == ..k, stability]
+ancestry_lookup_stability <- function(tab, backend_name, k_value) {
+  hit <- tab[backend == backend_name & k == k_value, stability]
   if (length(hit)) hit[[1L]] else NA_real_
 }
 
