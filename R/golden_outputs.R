@@ -25,11 +25,14 @@ new_golden_spec <- function(id, mode = "exact", absolute_tolerance = 0,
                             relative_tolerance = 0, role = "gating",
                             metadata = list()) {
   id <- golden_scalar_string(id, "id")
+  if (!grepl("^[A-Za-z0-9_.-]+$", id)) {
+    stop("id may contain only letters, numbers, dot, underscore, and hyphen", call. = FALSE)
+  }
   mode <- match.arg(mode, c("exact", "numeric", "matrix", "eigenspace", "q_matrix", "manifest"))
   role <- match.arg(role, c("gating", "diagnostic"))
   tolerance <- c(absolute = as.numeric(absolute_tolerance), relative = as.numeric(relative_tolerance))
-  if (anyNA(tolerance) || any(!is.finite(tolerance)) || any(tolerance < 0)) {
-    stop("tolerances must be nonnegative finite values", call. = FALSE)
+  if (length(tolerance) != 2L || anyNA(tolerance) || any(!is.finite(tolerance)) || any(tolerance < 0)) {
+    stop("tolerances must be nonnegative finite scalar values", call. = FALSE)
   }
   metadata <- golden_named_list(metadata, "metadata")
   structure(list(schema_version = "1.0", id = id, mode = mode,
@@ -95,28 +98,48 @@ register_golden_entry <- function(store, entry, replace = FALSE) {
 #' @export
 validate_golden_entry <- function(x) {
   if (!inherits(x, "PopgenVCFGoldenEntry")) stop("x must be a PopgenVCFGoldenEntry", call. = FALSE)
-  if (!inherits(x$spec, "PopgenVCFGoldenSpec")) stop("golden entry spec is invalid", call. = FALSE)
+  if (!identical(x$schema_version, "1.0")) stop("unsupported golden entry schema", call. = FALSE)
+  if (!inherits(x$spec, "PopgenVCFGoldenSpec") || !identical(x$spec$schema_version, "1.0")) {
+    stop("golden entry spec is invalid", call. = FALSE)
+  }
   expected <- digest::digest(x$value, algo = "sha256", serialize = TRUE)
   if (!identical(expected, x$value_digest)) stop("golden entry digest mismatch", call. = FALSE)
   invisible(x)
 }
 
 golden_numeric_metrics <- function(observed, expected, abs_tol, rel_tol) {
-  observed <- as.numeric(observed); expected <- as.numeric(expected)
+  observed <- as.numeric(observed)
+  expected <- as.numeric(expected)
   if (length(observed) != length(expected)) {
     return(list(passed = FALSE, max_absolute_difference = Inf,
                 max_relative_difference = Inf, message = "length mismatch"))
   }
-  delta <- abs(observed - expected)
-  scale <- pmax(abs(expected), .Machine$double.eps)
+  if (!length(observed)) {
+    return(list(passed = TRUE, max_absolute_difference = 0,
+                max_relative_difference = 0, message = "empty numeric outputs"))
+  }
+  same_missing <- identical(is.na(observed), is.na(expected))
+  finite <- !is.na(observed) & !is.na(expected)
+  if (!same_missing || any(!is.finite(observed[finite])) || any(!is.finite(expected[finite]))) {
+    return(list(passed = FALSE, max_absolute_difference = Inf,
+                max_relative_difference = Inf, message = "missingness or finiteness mismatch"))
+  }
+  if (!any(finite)) {
+    return(list(passed = TRUE, max_absolute_difference = 0,
+                max_relative_difference = 0, message = "matching missing outputs"))
+  }
+  delta <- abs(observed[finite] - expected[finite])
+  scale <- pmax(abs(expected[finite]), .Machine$double.eps)
   relative <- delta / scale
-  passed <- all(is.na(delta) == FALSE) && all(delta <= abs_tol | relative <= rel_tol)
-  list(passed = passed, max_absolute_difference = max(delta, na.rm = TRUE),
-       max_relative_difference = max(relative, na.rm = TRUE), message = "numeric comparison")
+  passed <- all(delta <= abs_tol | relative <= rel_tol)
+  list(passed = passed, max_absolute_difference = max(delta),
+       max_relative_difference = max(relative), message = "numeric comparison")
 }
 
 golden_compare_value <- function(spec, observed, expected) {
-  mode <- spec$mode; abs_tol <- spec$tolerance[["absolute"]]; rel_tol <- spec$tolerance[["relative"]]
+  mode <- spec$mode
+  abs_tol <- spec$tolerance[["absolute"]]
+  rel_tol <- spec$tolerance[["relative"]]
   if (mode %in% c("exact", "manifest")) {
     same <- identical(observed, expected)
     return(list(passed = same, max_absolute_difference = if (same) 0 else Inf,
@@ -133,14 +156,14 @@ golden_compare_value <- function(spec, observed, expected) {
   }
   if (mode == "eigenspace") {
     comparison <- compare_pca_subspaces(observed, expected)
-    metric <- min(comparison$canonical_correlations)
+    metric <- comparison$minimum
     return(list(passed = is.finite(metric) && (1 - metric) <= abs_tol,
                 max_absolute_difference = 1 - metric, max_relative_difference = NA_real_,
                 message = paste(comparison$canonical_correlations, collapse = ",")))
   }
   if (mode == "q_matrix") {
     comparison <- compare_q_matrices(observed, expected)
-    metric <- comparison$max_absolute_difference
+    metric <- comparison$maximum_absolute_difference
     return(list(passed = is.finite(metric) && metric <= abs_tol,
                 max_absolute_difference = metric, max_relative_difference = NA_real_,
                 message = paste(comparison$permutation, collapse = ",")))
@@ -160,20 +183,22 @@ compare_golden_outputs <- function(observed, store, ids = names(store$entries)) 
   ids <- as.character(ids)
   rows <- lapply(ids, function(id) {
     entry <- store$entries[[id]]
-    if (is.null(entry)) return(data.table::data.table(id = id, mode = NA_character_, role = NA_character_,
-      status = "skipped", passed = NA, max_absolute_difference = NA_real_,
-      max_relative_difference = NA_real_, message = "golden entry not found"))
+    if (is.null(entry)) return(data.table::data.table(
+      id = id, mode = NA_character_, role = NA_character_, status = "skipped", passed = NA,
+      max_absolute_difference = NA_real_, max_relative_difference = NA_real_,
+      message = "golden entry not found"))
     validate_golden_entry(entry)
-    if (is.null(observed[[id]])) return(data.table::data.table(id = id, mode = entry$spec$mode,
-      role = entry$spec$role, status = "skipped", passed = NA,
+    if (is.null(observed[[id]])) return(data.table::data.table(
+      id = id, mode = entry$spec$mode, role = entry$spec$role, status = "skipped", passed = NA,
       max_absolute_difference = NA_real_, max_relative_difference = NA_real_,
       message = "observed output not supplied"))
     result <- tryCatch(golden_compare_value(entry$spec, observed[[id]], entry$value), error = identity)
-    if (inherits(result, "error")) return(data.table::data.table(id = id, mode = entry$spec$mode,
-      role = entry$spec$role, status = "error", passed = FALSE,
+    if (inherits(result, "error")) return(data.table::data.table(
+      id = id, mode = entry$spec$mode, role = entry$spec$role, status = "error", passed = FALSE,
       max_absolute_difference = Inf, max_relative_difference = Inf,
       message = conditionMessage(result)))
-    data.table::data.table(id = id, mode = entry$spec$mode, role = entry$spec$role,
+    data.table::data.table(
+      id = id, mode = entry$spec$mode, role = entry$spec$role,
       status = if (result$passed) "passed" else "failed", passed = result$passed,
       max_absolute_difference = result$max_absolute_difference,
       max_relative_difference = result$max_relative_difference, message = result$message)
@@ -215,25 +240,28 @@ write_golden_store <- function(store, path, overwrite = FALSE) {
   if (dir.exists(path) && !isTRUE(overwrite)) stop("golden store directory already exists", call. = FALSE)
   if (dir.exists(path)) unlink(path, recursive = TRUE, force = TRUE)
   dir.create(file.path(path, "entries"), recursive = TRUE)
+  root <- normalizePath(path)
   files <- character()
   for (entry in store$entries) {
     validate_golden_entry(entry)
-    file <- file.path(path, "entries", paste0(entry$spec$id, ".rds"))
-    saveRDS(entry, file, version = 3); files <- c(files, file)
+    file <- file.path(root, "entries", paste0(entry$spec$id, ".rds"))
+    saveRDS(entry, file, version = 3)
+    files <- c(files, file)
   }
-  saveRDS(store, file.path(path, "store.rds"), version = 3)
-  data.table::fwrite(golden_output_table(store), file.path(path, "entries.tsv"), sep = "\t")
-  jsonlite::write_json(store$metadata, file.path(path, "metadata.json"), auto_unbox = TRUE,
+  saveRDS(store, file.path(root, "store.rds"), version = 3)
+  data.table::fwrite(golden_output_table(store), file.path(root, "entries.tsv"), sep = "\t")
+  jsonlite::write_json(store$metadata, file.path(root, "metadata.json"), auto_unbox = TRUE,
                        pretty = TRUE, null = "null", na = "null")
-  files <- c(files, file.path(path, "store.rds"), file.path(path, "entries.tsv"),
-             file.path(path, "metadata.json"))
+  files <- c(files, file.path(root, "store.rds"), file.path(root, "entries.tsv"),
+             file.path(root, "metadata.json"))
+  normalized_files <- normalizePath(files)
   manifest <- data.table::data.table(
-    path = substring(files, nchar(normalizePath(path)) + 2L),
-    size_bytes = file.info(files)$size,
-    sha256 = vapply(files, digest::digest, character(1L), algo = "sha256", file = TRUE)
+    path = substring(normalized_files, nchar(root) + 2L),
+    size_bytes = file.info(normalized_files)$size,
+    sha256 = vapply(normalized_files, digest::digest, character(1L), algo = "sha256", file = TRUE)
   )
-  data.table::fwrite(manifest, file.path(path, "manifest.tsv"), sep = "\t")
-  invisible(normalizePath(path))
+  data.table::fwrite(manifest, file.path(root, "manifest.tsv"), sep = "\t")
+  invisible(root)
 }
 
 #' @rdname write_golden_store
@@ -257,7 +285,9 @@ verify_golden_store <- function(path) {
     file <- file.path(path, manifest$path[[i]])
     if (!file.exists(file)) stop("golden store file is missing: ", manifest$path[[i]], call. = FALSE)
     actual <- digest::digest(file, algo = "sha256", file = TRUE)
-    if (!identical(actual, manifest$sha256[[i]])) stop("golden store checksum mismatch: ", manifest$path[[i]], call. = FALSE)
+    if (!identical(actual, manifest$sha256[[i]])) {
+      stop("golden store checksum mismatch: ", manifest$path[[i]], call. = FALSE)
+    }
   }
   invisible(TRUE)
 }
