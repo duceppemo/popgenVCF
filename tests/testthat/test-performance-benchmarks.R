@@ -24,7 +24,8 @@ test_that("performance measurements produce stable summaries", {
   expect_true(all(result$summary$runtime_median >= 0))
   expect_true(all(result$summary$disk_median_mb > 0))
   expect_equal(result$summary$speedup[1L], 1)
-  expect_equal(result$fingerprint_id, digest::digest(fingerprint, "sha256", serialize = TRUE))
+  expect_equal(result$fingerprint_id,
+               digest::digest(fingerprint, algo = "sha256", serialize = TRUE))
 
   tab <- performance_benchmark_table(result)
   expect_equal(names(tab)[1:2], c("id", "fingerprint_id"))
@@ -35,7 +36,7 @@ test_that("baseline comparisons detect gating and informational regressions", {
   make_result <- function(runtime, memory = 10, disk = 1, gating = TRUE) {
     structure(list(
       schema_version = "1.0", id = "fixture", fingerprint = fingerprint,
-      fingerprint_id = digest::digest(fingerprint, "sha256", serialize = TRUE),
+      fingerprint_id = digest::digest(fingerprint, algo = "sha256", serialize = TRUE),
       measurements = data.table::data.table(),
       summary = data.table::data.table(
         threads = 1L, runtime_median = runtime, runtime_mad = 0,
@@ -64,7 +65,7 @@ test_that("baseline comparisons detect gating and informational regressions", {
 test_that("incompatible machines are rejected unless explicitly permitted", {
   make_result <- function(host) structure(list(
     schema_version = "1.0", id = "fixture", fingerprint = list(host = host),
-    fingerprint_id = digest::digest(list(host = host), "sha256", serialize = TRUE),
+    fingerprint_id = digest::digest(list(host = host), algo = "sha256", serialize = TRUE),
     measurements = data.table::data.table(),
     summary = data.table::data.table(
       threads = 1L, runtime_median = 1, runtime_mad = 0,
