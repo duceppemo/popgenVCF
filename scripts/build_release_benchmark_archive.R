@@ -13,6 +13,7 @@ suppressPackageStartupMessages(library(popgenVCF))
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 archive_dir <- file.path(output_dir, "archive")
 report_dir <- file.path(output_dir, "report")
+dir.create(report_dir, recursive = TRUE, showWarnings = FALSE)
 
 archive <- if (!is.na(baseline_dir) && dir.exists(baseline_dir) &&
                file.exists(file.path(baseline_dir, "archive.rds"))) {
@@ -48,7 +49,7 @@ if (nzchar(golden_store_dir)) {
   ), golden_store)
   data.table::fwrite(
     golden_output_table(golden),
-    file.path(output_dir, "golden_output_comparison.tsv"),
+    file.path(report_dir, "golden_output_comparison.tsv"),
     sep = "\t"
   )
 }
