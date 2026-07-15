@@ -45,11 +45,7 @@ default_analysis_registry <- function() {
   r <- register_analysis_module(r, fst_module_spec())
   r <- register_analysis_module(r, dapc_module_spec())
   r <- register_analysis_module(r, amova_module_spec())
-  r <- register_analysis(r, "ibd", run_module_ibd, requires = "ibs",
-    enabled = function(cfg) isTRUE(cfg$analyses$mantel) || isTRUE(cfg$analyses$isolation_by_distance),
-    description = "Mantel test and isolation by distance",
-    validate = validate_ibd_result,
-    references = c("Mantel 1967", "Rousset 1997"))
+  r <- register_analysis_module(r, ibd_module_spec())
   r <- register_analysis(r, "admixture", run_module_admixture,
     enabled = function(cfg) isTRUE(cfg$analyses$admixture$enabled),
     description = "External ADMIXTURE cross-validation",
