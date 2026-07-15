@@ -44,11 +44,7 @@ default_analysis_registry <- function() {
     outputs = "tree", references = "Saitou and Nei 1987")
   r <- register_analysis_module(r, fst_module_spec())
   r <- register_analysis_module(r, dapc_module_spec())
-  r <- register_analysis(r, "amova", run_module_amova, requires = "diversity",
-    enabled = function(cfg) isTRUE(cfg$analyses$amova),
-    description = "Analysis of molecular variance",
-    validate = validate_amova_result,
-    references = "Excoffier et al. 1992", resource_class = "heavy")
+  r <- register_analysis_module(r, amova_module_spec())
   r <- register_analysis(r, "ibd", run_module_ibd, requires = "ibs",
     enabled = function(cfg) isTRUE(cfg$analyses$mantel) || isTRUE(cfg$analyses$isolation_by_distance),
     description = "Mantel test and isolation by distance",
