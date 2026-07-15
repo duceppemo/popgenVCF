@@ -43,11 +43,7 @@ default_analysis_registry <- function() {
     validate = validate_tree_result,
     outputs = "tree", references = "Saitou and Nei 1987")
   r <- register_analysis_module(r, fst_module_spec())
-  r <- register_analysis(r, "dapc", run_module_dapc, requires = "diversity",
-    enabled = function(cfg) isTRUE(cfg$analyses$dapc),
-    description = "Discriminant analysis of principal components",
-    validate = validate_dapc_result,
-    references = "Jombart et al. 2010", resource_class = "heavy")
+  r <- register_analysis_module(r, dapc_module_spec())
   r <- register_analysis(r, "amova", run_module_amova, requires = "diversity",
     enabled = function(cfg) isTRUE(cfg$analyses$amova),
     description = "Analysis of molecular variance",
