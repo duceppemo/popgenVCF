@@ -24,7 +24,7 @@
 
 - Completed migration of every built-in analysis to `PopgenVCFModuleSpec` descriptors; the default registry is now fully descriptor-driven.
 - Added descriptors for diversity, neighbour-joining trees, ADMIXTURE, fastStructure, sNMF, and chromosome-specific analyses while preserving all existing contracts and behavior.
-- Migrated FST registration to a self-contained `fst_module_spec()` descriptor while preserving Weir-Cockerram estimates, confidence intervals, output schemas, and population-metadata requirements.
+- Migrated FST registration to a self-contained `fst_module_spec()` descriptor while preserving Weir-Cockerham estimates, confidence intervals, output schemas, and population-metadata requirements.
 - Migrated IBS/MDS registration to a self-contained `ibs_module_spec()` descriptor while preserving VCF-only execution and downstream tree/IBD dependencies.
 - Migrated PCA registration to a self-contained `pca_module_spec()` descriptor that owns execution, validation, references, resources, outputs, and publication artifacts.
 - Added first-class VCF-only execution with PCA and IBS/MDS driven directly by VCF sample IDs.
