@@ -1,6 +1,7 @@
 S3method(print,PopgenVCFAnalysis)
 S3method(print,PopgenVCFModuleSpec)
 S3method(summary,PopgenVCFAnalysis)
+export(amova_module_spec)
 export(benchmark_stage)
 export(cli_main)
 export(dapc_module_spec)
