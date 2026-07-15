@@ -118,7 +118,7 @@ save_plot <- function(p, stem, dirs, formats = c("pdf", "png"), width = 8, heigh
       device = if (fmt == "svg") svglite::svglite else fmt
     )
     if (identical(fmt, "png")) args$dpi <- dpi
-    do.call(ggplot2::ggsave, args)
+    suppressMessages(do.call(ggplot2::ggsave, args))
   }
   invisible(TRUE)
 }
