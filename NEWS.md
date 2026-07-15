@@ -12,6 +12,7 @@
 - Added a unified Quarto report engine with deterministic section discovery and ordering, canonical result tables, reproducibility metadata, report plans, section manifests, artifact registration, source-only operation without Quarto, and optional HTML/PDF rendering.
 - Added an interactive dashboard layer with overview cards, searchable tables, optional Plotly PCA and ancestry views, transparent scientific-quality scoring, JSON/TSV provenance exports, and a compressed reproducibility bundle.
 - Added first-class benchmark datasets, specifications, registries, results, and suites with numerical tolerances, runtime/memory/disk budgets, dependency-aware skips, deterministic execution, stable summaries, and serialization.
+- Added a versioned benchmark dataset catalogue with embedded CI fixtures, local and remote sources, deterministic cache paths, SHA256 verification, atomic fetch-on-demand, offline reuse, filtering, resource annotations, and planned 1000 Genomes, HGDP, and HapMap reference subsets.
 
 # popgenVCF 0.9.0 development
 
