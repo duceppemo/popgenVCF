@@ -7,6 +7,7 @@
 - Added consensus ancestry estimates with mean and median Q matrices, empirical confidence intervals, per-cell variance, cluster stability, sample uncertainty, and global replicate stability.
 - Added automatic backend-aware K selection with replicate intervals, plateau detection, stability weighting, cross-backend voting, recommendation confidence, and manuscript-ready text.
 - Added a unified ancestry backend plugin contract, runtime backend discovery, deterministic task scheduling, canonical parsing, execution records, and `run_ancestry()` adapters for ADMIXTURE, fastStructure, and sNMF.
+- Added backend-neutral ancestry publication artifacts with metadata-optional ancestry barplots, uncertainty and stability diagnostics, K-selection curves, PDF/SVG/PNG figures, figure source tables, manuscript text, captions, validation records, and strict artifact manifests.
 
 # popgenVCF 0.9.0 development
 
