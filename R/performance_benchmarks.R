@@ -6,42 +6,41 @@ performance_scalar_string <- function(x, label) {
 }
 
 #' Capture a performance benchmark environment fingerprint
-#'
 #' @return A named list describing the current runtime and host.
 #' @export
 performance_environment_fingerprint <- function() {
   info <- Sys.info()
-  cpu <- tryCatch(parallel::detectCores(logical = FALSE), error = function(e) NA_integer_)
-  logical_cpu <- tryCatch(parallel::detectCores(logical = TRUE), error = function(e) NA_integer_)
+  physical <- tryCatch(parallel::detectCores(logical = FALSE), error = function(e) NA_integer_)
+  logical <- tryCatch(parallel::detectCores(logical = TRUE), error = function(e) NA_integer_)
   list(
     schema_version = "1.0",
     os = unname(info[["sysname"]] %||% .Platform$OS.type),
     release = unname(info[["release"]] %||% NA_character_),
     machine = unname(info[["machine"]] %||% R.version$arch),
-    r_version = as.character(getRversion()),
-    platform = R.version$platform,
-    physical_cores = as.integer(cpu),
-    logical_cores = as.integer(logical_cpu),
+    r_version = as.character(getRversion()), platform = R.version$platform,
+    physical_cores = as.integer(physical), logical_cores = as.integer(logical),
     blas = extSoftVersion()[["BLAS"]] %||% NA_character_
   )
 }
 
 performance_fingerprint_id <- function(x) {
-  if (!is.list(x)) stop("fingerprint must be a named list", call. = FALSE)
+  if (!is.list(x) || (length(x) && is.null(names(x)))) {
+    stop("fingerprint must be a named list", call. = FALSE)
+  }
   digest::digest(x, algo = "sha256", serialize = TRUE)
 }
 
 #' Create a performance benchmark specification
 #'
 #' @param id Stable benchmark identifier.
-#' @param runner Function accepting `threads` and returning any value.
+#' @param runner Function accepting `threads` and returning any value. The
+#'   temporary directory is exposed through `POPGENVCF_PERFORMANCE_TEMP`.
 #' @param threads Integer thread counts to benchmark.
 #' @param warmup Number of unrecorded warmup iterations.
 #' @param iterations Number of measured iterations per thread count.
 #' @param seed Deterministic base seed.
-#' @param runtime_regression Relative runtime increase allowed versus baseline.
-#' @param memory_regression Relative memory increase allowed versus baseline.
-#' @param disk_regression Relative temporary-disk increase allowed versus baseline.
+#' @param runtime_regression,memory_regression,disk_regression Allowed relative
+#'   increases versus a baseline.
 #' @param gating Whether detected regressions should fail the comparison.
 #' @param metadata Additional named metadata.
 #' @return A validated `PopgenVCFPerformanceSpec`.
@@ -56,12 +55,12 @@ new_performance_benchmark_spec <- function(
   if (!length(threads) || anyNA(threads) || any(threads < 1L)) {
     stop("threads must contain positive integers", call. = FALSE)
   }
-  warmup <- as.integer(warmup)
-  iterations <- as.integer(iterations)
-  seed <- as.integer(seed)
+  warmup <- as.integer(warmup); iterations <- as.integer(iterations); seed <- as.integer(seed)
   if (length(warmup) != 1L || is.na(warmup) || warmup < 0L) stop("warmup must be nonnegative", call. = FALSE)
   if (length(iterations) != 1L || is.na(iterations) || iterations < 1L) stop("iterations must be positive", call. = FALSE)
-  thresholds <- c(runtime_regression, memory_regression, disk_regression)
+  thresholds <- c(runtime_seconds = runtime_regression,
+                  peak_memory_mb = memory_regression,
+                  temporary_disk_mb = disk_regression)
   if (anyNA(thresholds) || any(!is.finite(thresholds)) || any(thresholds < 0)) {
     stop("regression thresholds must be nonnegative finite values", call. = FALSE)
   }
@@ -71,10 +70,7 @@ new_performance_benchmark_spec <- function(
   structure(list(
     schema_version = "1.0", id = id, runner = runner, threads = threads,
     warmup = warmup, iterations = iterations, seed = seed,
-    thresholds = c(runtime_seconds = runtime_regression,
-                   peak_memory_mb = memory_regression,
-                   temporary_disk_mb = disk_regression),
-    gating = isTRUE(gating), metadata = metadata
+    thresholds = thresholds, gating = isTRUE(gating), metadata = metadata
   ), class = "PopgenVCFPerformanceSpec")
 }
 
@@ -82,13 +78,20 @@ measure_performance_once <- function(runner, threads, seed) {
   set.seed(seed)
   temp <- tempfile("popgenvcf-performance-")
   dir.create(temp, recursive = TRUE)
-  on.exit(unlink(temp, recursive = TRUE, force = TRUE), add = TRUE)
-  before <- gc(reset = TRUE)
+  old_temp <- Sys.getenv("POPGENVCF_PERFORMANCE_TEMP", unset = NA_character_)
+  Sys.setenv(POPGENVCF_PERFORMANCE_TEMP = temp)
+  on.exit({
+    if (is.na(old_temp)) Sys.unsetenv("POPGENVCF_PERFORMANCE_TEMP") else
+      Sys.setenv(POPGENVCF_PERFORMANCE_TEMP = old_temp)
+    unlink(temp, recursive = TRUE, force = TRUE)
+  }, add = TRUE)
+  invisible(gc(reset = TRUE))
   started <- proc.time()[["elapsed"]]
   value <- runner(threads = threads)
   elapsed <- proc.time()[["elapsed"]] - started
-  after <- gc()
-  memory_mb <- max(after[, "max used"] * after[, "cell size"] / 1024^2, na.rm = TRUE)
+  memory <- gc()
+  mb_column <- if ("(Mb)" %in% colnames(memory)) "(Mb)" else colnames(memory)[ncol(memory)]
+  memory_mb <- sum(memory[, mb_column], na.rm = TRUE)
   files <- list.files(temp, recursive = TRUE, full.names = TRUE, all.files = TRUE, no.. = TRUE)
   disk_mb <- if (length(files)) sum(file.info(files)$size, na.rm = TRUE) / 1024^2 else 0
   list(value = value, runtime_seconds = as.numeric(elapsed),
@@ -99,21 +102,20 @@ performance_summary_stats <- function(values) {
   values <- as.numeric(values)
   c(median = stats::median(values), mad = stats::mad(values, constant = 1),
     q05 = unname(stats::quantile(values, 0.05, names = FALSE)),
-    q95 = unname(stats::quantile(values, 0.95, names = FALSE)), min = min(values), max = max(values))
+    q95 = unname(stats::quantile(values, 0.95, names = FALSE)),
+    min = min(values), max = max(values))
 }
 
 #' Run a performance benchmark
-#'
 #' @param spec A `PopgenVCFPerformanceSpec`.
 #' @param fingerprint Optional environment fingerprint.
 #' @return A `PopgenVCFPerformanceResult`.
 #' @export
 run_performance_benchmark <- function(spec, fingerprint = performance_environment_fingerprint()) {
   if (!inherits(spec, "PopgenVCFPerformanceSpec")) stop("spec is invalid", call. = FALSE)
-  rows <- list()
-  index <- 0L
+  rows <- list(); index <- 0L
   for (thread_count in spec$threads) {
-    for (i in seq_len(spec$warmup)) {
+    if (spec$warmup > 0L) for (i in seq_len(spec$warmup)) {
       invisible(measure_performance_once(spec$runner, thread_count, spec$seed + i - 1L))
     }
     for (i in seq_len(spec$iterations)) {
@@ -141,22 +143,21 @@ run_performance_benchmark <- function(spec, fingerprint = performance_environmen
       disk_median_mb = disk[["median"]], disk_mad_mb = disk[["mad"]]
     )
   }, by = threads]
-  single <- summary[threads == min(threads), runtime_median][1L]
+  base_threads <- min(summary$threads)
+  base_runtime <- summary[summary$threads == base_threads, runtime_median][1L]
   summary[, `:=`(
-    speedup = single / runtime_median,
-    scaling_efficiency = (single / runtime_median) / (threads / min(threads))
+    speedup = base_runtime / runtime_median,
+    scaling_efficiency = (base_runtime / runtime_median) / (threads / base_threads)
   )]
   structure(list(
     schema_version = "1.0", id = spec$id,
     fingerprint = fingerprint, fingerprint_id = performance_fingerprint_id(fingerprint),
     measurements = measurements, summary = summary,
-    thresholds = spec$thresholds, gating = spec$gating,
-    metadata = spec$metadata
+    thresholds = spec$thresholds, gating = spec$gating, metadata = spec$metadata
   ), class = "PopgenVCFPerformanceResult")
 }
 
 #' Compare a performance result with a baseline
-#'
 #' @param observed,baseline Performance results with matching identifiers.
 #' @param allow_incompatible Permit comparison across different fingerprints.
 #' @param gating Optional override for regression gating.
@@ -174,9 +175,8 @@ compare_performance_baseline <- function(observed, baseline,
   if (!compatible && !isTRUE(allow_incompatible)) {
     stop("performance fingerprints differ; cross-host comparison is disabled", call. = FALSE)
   }
-  merged <- merge(
-    observed$summary, baseline$summary, by = "threads", suffixes = c("_observed", "_baseline")
-  )
+  merged <- merge(observed$summary, baseline$summary, by = "threads",
+                  suffixes = c("_observed", "_baseline"))
   metrics <- data.table::rbindlist(list(
     merged[, .(threads, metric = "runtime_seconds", observed = runtime_median_observed,
                baseline = runtime_median_baseline)],
@@ -185,10 +185,11 @@ compare_performance_baseline <- function(observed, baseline,
     merged[, .(threads, metric = "temporary_disk_mb", observed = disk_median_mb_observed,
                baseline = disk_median_mb_baseline)]
   ))
-  metrics[, relative_change := fifelse(baseline == 0,
-    fifelse(observed == 0, 0, Inf), (observed - baseline) / baseline)]
-  threshold <- observed$thresholds
-  metrics[, allowed_relative_change := unname(threshold[metric])]
+  metrics[, relative_change := data.table::fifelse(
+    baseline == 0, data.table::fifelse(observed == 0, 0, Inf),
+    (observed - baseline) / baseline
+  )]
+  metrics[, allowed_relative_change := unname(observed$thresholds[metric])]
   metrics[, regressed := relative_change > allowed_relative_change]
   status <- if (isTRUE(gating) && any(metrics$regressed)) "failed" else "passed"
   structure(list(
@@ -200,24 +201,27 @@ compare_performance_baseline <- function(observed, baseline,
 }
 
 #' Convert performance objects to stable tables
-#'
 #' @param x A performance result or comparison.
 #' @return A data table.
 #' @export
 performance_benchmark_table <- function(x) {
   if (inherits(x, "PopgenVCFPerformanceResult")) {
-    return(data.table::copy(x$summary)[, `:=`(id = x$id, fingerprint_id = x$fingerprint_id)][,
-      c("id", "fingerprint_id", setdiff(names(.SD), c("id", "fingerprint_id"))), with = FALSE])
+    tab <- data.table::copy(x$summary)
+    tab[, `:=`(id = x$id, fingerprint_id = x$fingerprint_id)]
+    data.table::setcolorder(tab, c("id", "fingerprint_id",
+                                  setdiff(names(tab), c("id", "fingerprint_id"))))
+    return(tab[])
   }
   if (inherits(x, "PopgenVCFPerformanceComparison")) {
-    return(data.table::copy(x$comparisons)[, `:=`(id = x$id, status = x$status,
-                                                  compatible = x$compatible, gating = x$gating)])
+    tab <- data.table::copy(x$comparisons)
+    tab[, `:=`(id = x$id, status = x$status,
+               compatible = x$compatible, gating = x$gating)]
+    return(tab[])
   }
   stop("x must be a performance result or comparison", call. = FALSE)
 }
 
 #' Save and read performance benchmark baselines
-#'
 #' @param x A `PopgenVCFPerformanceResult`.
 #' @param path RDS path.
 #' @return `path` for saving, or the validated result for reading.
@@ -232,6 +236,8 @@ save_performance_baseline <- function(x, path) {
 #' @export
 read_performance_baseline <- function(path) {
   x <- readRDS(path)
-  if (!inherits(x, "PopgenVCFPerformanceResult")) stop("file does not contain a performance result", call. = FALSE)
+  if (!inherits(x, "PopgenVCFPerformanceResult")) {
+    stop("file does not contain a performance result", call. = FALSE)
+  }
   x
 }
