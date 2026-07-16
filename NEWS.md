@@ -20,6 +20,7 @@
 - Added release-to-release comparison and Quarto regression reports plus GitHub Actions automation that downloads the latest published archive, appends the current immutable record, publishes workflow artifacts, and attaches checksummed archives and reports to tagged GitHub Releases.
 - Added golden-output scientific regression stores with exact, tolerant numeric, matrix, eigenspace, label-switching-aware ancestry, and manifest comparison modes, explicit gating versus diagnostic roles, approved replacement metadata, SHA256 verification, and optional release-certification integration.
 - Added canonical reproducible analysis projects with software and RNG identity, checksummed input records, embedded canonical results, portable `.popgenvcf` bundles, integrity verification, reopening without recomputation, and project-to-project change reports.
+- Added optional unique metadata sample aliases while retaining immutable VCF IDs in `vcf_sample` provenance fields, and normalized unbounded LD windows to `.Machine$integer.max` before calling SNPRelate.
 
 # popgenVCF 0.9.0 development
 
