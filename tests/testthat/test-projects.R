@@ -70,6 +70,18 @@ test_that("tampered bundles fail verification", {
   expect_error(verify_popgenvcf_project(path), "checksum mismatch")
 })
 
+test_that("projects support an empty typed input manifest", {
+  project <- new_popgenvcf_project(
+    "no-inputs",
+    project_id = "00000000-0000-0000-0000-000000000006"
+  )
+  expect_equal(nrow(project$inputs), 0L)
+  expect_identical(
+    names(project$inputs),
+    c("role", "path", "exists", "size_bytes", "sha256")
+  )
+})
+
 test_that("invalid project inputs fail clearly", {
   expect_error(new_popgenvcf_project("x", inputs = data.frame(path = "x")),
                "inputs must contain")
