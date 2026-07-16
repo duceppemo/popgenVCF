@@ -13,18 +13,26 @@ Create validated FAIR metadata for a reproducible popgenVCF project and export
 RO-Crate, CodeMeta, DataCite JSON, CITATION.cff, and checksummed bundle manifests.
 }
 \usage{
-new_fair_creator(name, orcid = NA_character_, affiliation = NA_character_,
-  email = NA_character_)
+new_fair_creator(
+  name,
+  orcid = NA_character_,
+  affiliation = NA_character_,
+  email = NA_character_
+)
 
 fair_identifier(project, artifact_id = NULL)
 
-new_fair_metadata(project, title = project$name,
+new_fair_metadata(
+  project,
+  title = project$name,
   description = "Reproducible population-genomics analysis",
-  creators = list(), license = "MIT",
+  creators = list(),
+  license = "MIT",
   keywords = c("population genetics", "VCF", "reproducibility"),
   publisher = "popgenVCF",
   publication_year = as.integer(format(Sys.Date(), "%Y")),
-  rights_uri = NA_character_)
+  rights_uri = NA_character_
+)
 
 validate_fair_metadata(x)
 
