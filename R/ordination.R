@@ -2,11 +2,12 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads) {
   z <- SNPRelate::snpgdsPCA(gds, sample.id = sample_ids, snp.id = snp_ids,
                             autosome.only = FALSE, num.thread = threads, verbose = FALSE)
   npc <- min(n_pcs, ncol(z$eigenvect))
-  scores <- data.table::data.table(sample = z$sample.id)
+  public_ids <- public_sample_ids(metadata, z$sample.id)
+  scores <- data.table::data.table(sample = public_ids, vcf_sample = z$sample.id)
   for (i in seq_len(npc)) scores[[paste0("PC", i)]] <- z$eigenvect[, i]
   if ("population" %in% names(metadata)) {
     data.table::set(scores, j = "population",
-                    value = metadata$population[match(scores$sample, metadata$sample)])
+                    value = metadata$population[match(scores$vcf_sample, metadata$sample)])
   }
   variance <- data.table::data.table(
     PC = paste0("PC", seq_len(npc)),
@@ -52,16 +53,21 @@ plot_pca <- function(pca, cfg, dirs) {
 run_ibs <- function(gds, sample_ids, snp_ids, metadata, threads) {
   z <- SNPRelate::snpgdsIBS(gds, sample.id = sample_ids, snp.id = snp_ids,
                             autosome.only = FALSE, num.thread = threads, verbose = FALSE)
-  sim <- as.matrix(z$ibs); rownames(sim) <- colnames(sim) <- z$sample.id
+  sim <- as.matrix(z$ibs)
+  original_ids <- as.character(z$sample.id)
+  public_ids <- public_sample_ids(metadata, original_ids)
+  rownames(sim) <- colnames(sim) <- public_ids
   dist <- 1 - sim
   m <- stats::cmdscale(stats::as.dist(dist), k = min(2L, nrow(dist) - 1L), eig = TRUE)
   points <- data.table::data.table(
-    sample = rownames(m$points), MDS1 = m$points[, 1],
+    sample = rownames(m$points),
+    vcf_sample = original_ids[match(rownames(m$points), public_ids)],
+    MDS1 = m$points[, 1],
     MDS2 = if (ncol(m$points) > 1L) m$points[, 2] else 0
   )
   if ("population" %in% names(metadata)) {
     data.table::set(points, j = "population",
-                    value = metadata$population[match(points$sample, metadata$sample)])
+                    value = metadata$population[match(points$vcf_sample, metadata$sample)])
   }
   list(similarity = sim, distance = dist, mds = points, eig = m$eig)
 }
