@@ -24,6 +24,7 @@
 - Added validated provenance DAGs with deterministic lineage traversal and a canonical sample identity model supporting aliases, individuals, families, replicates, and explicit display ordering while preserving immutable VCF keys.
 - Added immutable artifact lineage with checksummed execution and artifact identities, explicit producer/consumer relationships, content verification, project-bundle embedding, and TSV/JSON/GraphML/DOT exports.
 - Added FAIR research-object metadata and checksummed RO-Crate, CodeMeta, DataCite JSON, CITATION.cff, ORCID-aware creator, license, stable URN, and project-bundle exports.
+- Added the Phase 7 publication companion foundation with journal-style profiles, generated methods/software/parameter/caption sources, immutable artifact copying, optional FAIR and project inclusion, and checksummed portable publication directories.
 
 # popgenVCF 0.9.0 development
 
