@@ -31,11 +31,11 @@ read_metadata <- function(path, header = "auto") {
   if (anyDuplicated(x$sample)) {
     stopf("Duplicate metadata sample IDs: %s", paste(unique(x$sample[duplicated(x$sample)]), collapse = ", "))
   }
-  x
+  normalize_sample_aliases(x)
 }
 
 metadata_from_samples <- function(sample_ids) {
-  data.table::data.table(sample = as.character(sample_ids))
+  normalize_sample_aliases(data.table::data.table(sample = as.character(sample_ids)))
 }
 
 validate_metadata_sample_ids <- function(metadata, vcf_sample_ids) {
@@ -113,6 +113,8 @@ harmonize_samples <- function(gds, ids, metadata, max_missing,
   } else {
     metadata <- metadata_from_samples(vcf_samples)
   }
+  metadata <- normalize_sample_aliases(metadata)
+  public_samples <- public_sample_ids(metadata, vcf_samples)
 
   geno <- SNPRelate::snpgdsGetGeno(
     gds, sample.id = vcf_samples, snpfirstdim = FALSE, verbose = FALSE
@@ -123,23 +125,28 @@ harmonize_samples <- function(gds, ids, metadata, max_missing,
     metadata$population
   } else rep(NA_character_, length(vcf_samples))
   qc <- data.table::data.table(
-    sample = vcf_samples,
+    sample = public_samples,
+    vcf_sample = vcf_samples,
+    alias = metadata$alias,
     population = population,
     missing_rate = missing,
     retained = missing <= max_missing
   )
-  keep <- qc[retained, sample]
-  if (length(keep) < 2L) stop("Sample QC retained fewer than two samples", call. = FALSE)
-  retained_metadata <- metadata[match(keep, sample)]
+  keep_vcf <- qc[retained, vcf_sample]
+  if (length(keep_vcf) < 2L) stop("Sample QC retained fewer than two samples", call. = FALSE)
+  retained_metadata <- metadata[match(keep_vcf, sample)]
   list(
-    sample_ids = keep,
+    sample_ids = keep_vcf,
+    sample_labels = public_sample_ids(retained_metadata, keep_vcf),
     metadata = retained_metadata,
     qc = qc,
     metadata_match = data.table::data.table(
-      sample = vcf_samples,
+      sample = public_samples,
+      vcf_sample = vcf_samples,
+      alias = metadata$alias,
       present_in_vcf = TRUE,
       present_in_metadata = isTRUE(metadata_supplied),
-      retained_after_qc = vcf_samples %in% keep
+      retained_after_qc = vcf_samples %in% keep_vcf
     )
   )
 }
