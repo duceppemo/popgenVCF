@@ -1,42 +1,11 @@
 normalize_sample_aliases <- function(metadata) {
-  x <- data.table::copy(data.table::as.data.table(metadata))
-  if (!"sample" %in% names(x)) stop("metadata must contain a sample column", call. = FALSE)
-  x[, sample := as.character(sample)]
-  if (!"alias" %in% names(x)) x[, alias := NA_character_]
-  x[, alias := trimws(as.character(alias))]
-  x[is.na(alias) | !nzchar(alias), alias := NA_character_]
-
-  duplicate_aliases <- unique(x[!is.na(alias) & duplicated(alias), alias])
-  if (length(duplicate_aliases)) {
-    stop(
-      "Metadata aliases must be unique: ",
-      paste(duplicate_aliases, collapse = ", "),
-      call. = FALSE
-    )
-  }
-
-  x[, display_sample := data.table::fifelse(is.na(alias), sample, alias)]
-  duplicate_display <- unique(x[duplicated(display_sample), display_sample])
-  if (length(duplicate_display)) {
-    stop(
-      paste0(
-        "Aliases and original sample IDs must resolve to globally unique public names: ",
-        paste(duplicate_display, collapse = ", ")
-      ),
-      call. = FALSE
-    )
-  }
+  x <- new_sample_identity(metadata)
+  x[, display_sample := public_sample]
   x[]
 }
 
 public_sample_ids <- function(metadata, vcf_sample_ids) {
-  metadata <- normalize_sample_aliases(metadata)
-  vcf_sample_ids <- as.character(vcf_sample_ids)
-  index <- match(vcf_sample_ids, metadata$sample)
-  if (anyNA(index)) {
-    stop("Cannot resolve public sample names for IDs absent from metadata", call. = FALSE)
-  }
-  metadata$display_sample[index]
+  resolve_sample_identity(metadata, vcf_sample_ids)
 }
 
 relabel_sample_matrix <- function(x, metadata) {
