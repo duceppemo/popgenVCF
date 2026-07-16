@@ -28,7 +28,7 @@ publication_style <- function(style = "generic") {
     if (length(missing)) stop("publication style is missing: ", paste(missing, collapse = ", "), call. = FALSE)
     return(style)
   }
-  key <- tolower(gsub("[^a-z0-9]+", "_", as.character(style)[1L]))
+  key <- gsub("[^a-z0-9]+", "_", tolower(as.character(style)[1L]))
   profiles <- publication_style_profiles()
   if (!key %in% names(profiles)) stop("unknown publication style: ", style, call. = FALSE)
   profiles[[key]]
@@ -128,7 +128,7 @@ publication_caption_table <- function(artifacts, style) {
     category == "table", paste(style$table_prefix, sequence),
     default = paste(style$supplementary_prefix, sequence))]
   artifacts[, caption := paste0(label, ". ", ifelse(is.na(name) | !nzchar(name), id, name),
-                              ". Generated from the immutable popgenVCF artifact record `", id, "`." )]
+                              ". Generated from the immutable popgenVCF artifact record `", id, "`.")]
   artifacts[, .(id, category, label, caption)]
 }
 
