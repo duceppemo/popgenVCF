@@ -281,11 +281,6 @@ validate_fair_bundle <- function(directory) {
                 "CITATION.cff", "fair-metadata.rds", "fair-manifest.tsv")
   missing <- required[!file.exists(file.path(directory, required))]
   if (length(missing)) stop("FAIR bundle is missing: ", paste(missing, collapse = ", "), call. = FALSE)
-  metadata <- readRDS(file.path(directory, "fair-metadata.rds"))
-  validate_fair_metadata(metadata)
-  invisible(lapply(c("ro-crate-metadata.json", "codemeta.json", "datacite.json"), function(path) {
-    jsonlite::read_json(file.path(directory, path), simplifyVector = FALSE)
-  }))
   manifest <- data.table::fread(file.path(directory, "fair-manifest.tsv"))
   for (i in seq_len(nrow(manifest))) {
     path <- file.path(directory, manifest$path[[i]])
@@ -293,6 +288,11 @@ validate_fair_bundle <- function(directory) {
     actual <- digest::digest(path, algo = "sha256", file = TRUE)
     if (!identical(actual, manifest$sha256[[i]])) stop("FAIR checksum mismatch: ", manifest$path[[i]], call. = FALSE)
   }
+  metadata <- readRDS(file.path(directory, "fair-metadata.rds"))
+  validate_fair_metadata(metadata)
+  invisible(lapply(c("ro-crate-metadata.json", "codemeta.json", "datacite.json"), function(path) {
+    jsonlite::read_json(file.path(directory, path), simplifyVector = FALSE)
+  }))
   TRUE
 }
 
