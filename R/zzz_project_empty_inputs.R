@@ -10,8 +10,10 @@ new_popgenvcf_project <- function(
     package_version = tryCatch(as.character(utils::packageVersion("popgenVCF")),
                                error = function(e) NA_character_),
     git_sha = Sys.getenv("GITHUB_SHA", unset = NA_character_)) {
-  inputs <- data.table::as.data.table(inputs)
-  if (!nrow(inputs) && !ncol(inputs)) {
+  # Preserve character vectors so the original constructor can convert named
+  # input paths into checksummed records. Only a genuinely empty object is
+  # replaced by the typed zero-row manifest.
+  if (length(inputs) == 0L) {
     inputs <- data.table::data.table(
       role = character(),
       path = character(),
