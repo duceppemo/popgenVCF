@@ -3,7 +3,8 @@ compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids) {
                                    snpfirstdim = FALSE, verbose = FALSE)
   called <- rowSums(!is.na(geno)); het <- rowSums(geno == 1, na.rm = TRUE)
   sample <- data.table::data.table(
-    sample = sample_ids,
+    sample = public_sample_ids(metadata, sample_ids),
+    vcf_sample = sample_ids,
     population = metadata[match(sample_ids, sample), population],
     loci_called = called,
     missing_rate = ifelse(ncol(geno) > 0, 1 - called / ncol(geno), NA_real_),

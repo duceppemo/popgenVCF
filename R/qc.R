@@ -104,11 +104,10 @@ ld_prune_exact <- function(gds, sample_ids, maf_threshold, threads, seed) {
   set.seed(seed)
 
   # Some SNPRelate releases coerce slide.max.bp to a 32-bit integer. Passing
-  # Inf then becomes NA and disables the intended comparison window. The
-  # largest positive integer is the API-safe representation of an unbounded
-  # genomic window for VCF coordinates while preserving slide.max.bp = Inf
-  # semantics from the public popgenVCF configuration.
-  effective_slide_max_bp <- .Machine$integer.max
+  # Inf then becomes NA and can trigger an error or disable the intended
+  # comparison window. Normalize the unbounded public setting before crossing
+  # the SNPRelate API boundary.
+  effective_slide_max_bp <- normalize_ld_window_bp(Inf)
 
   z <- SNPRelate::snpgdsLDpruning(
     gds,
@@ -126,9 +125,6 @@ ld_prune_exact <- function(gds, sample_ids, maf_threshold, threads, seed) {
   )
   out <- unique(unlist(z, use.names = FALSE))
   if (!length(out)) stop("LD pruning retained no SNPs", call. = FALSE)
-  # SNPRelate requires snp.id to be a plain atomic vector. Do not attach
-  # custom attributes here: is.vector() becomes FALSE when non-name
-  # attributes are present, and downstream SNPRelate calls reject the IDs.
   as.vector(out)
 }
 

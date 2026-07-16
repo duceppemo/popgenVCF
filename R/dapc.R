@@ -1,6 +1,6 @@
 genlight_from_gds <- function(geno, sample_ids, metadata) {
   gl <- adegenet::as.genlight(geno)
-  adegenet::indNames(gl) <- sample_ids
+  adegenet::indNames(gl) <- public_sample_ids(metadata, sample_ids)
   adegenet::pop(gl) <- factor(metadata[match(sample_ids, sample), population])
   gl
 }
@@ -27,6 +27,7 @@ extract_dapc_membership <- function(model, sample_ids) {
 
 run_dapc_analysis <- function(geno, sample_ids, metadata, k_values, seed,
                               cross_validate = TRUE, replicate_seeds = seed) {
+  public_ids <- public_sample_ids(metadata, sample_ids)
   gl <- genlight_from_gds(geno, sample_ids, metadata)
   max_pca <- max(2L, min(nrow(geno) - 1L, 100L))
   diagnostics <- list(); models <- list(); replicate_membership <- list()
@@ -53,7 +54,7 @@ run_dapc_analysis <- function(geno, sample_ids, metadata, k_values, seed,
         }
       }
       model <- adegenet::dapc(gl, pop = grp, n.pca = n_pca, n.da = n_da)
-      membership <- extract_dapc_membership(model, sample_ids)
+      membership <- extract_dapc_membership(model, public_ids)
       reps[[as.character(rep_seed)]] <- membership
       if (is.null(primary)) primary <- list(model = model, groups = grp, cv = cv,
                                             n_pca = n_pca, n_da = n_da,
@@ -62,7 +63,8 @@ run_dapc_analysis <- function(geno, sample_ids, metadata, k_values, seed,
     }
     model <- primary$model; grp <- primary$groups
     coord <- data.table::as.data.table(model$ind.coord, keep.rownames = "sample")
-    data.table::set(coord, j = "population", value = metadata$population[match(coord$sample, metadata$sample)])
+    coord[, vcf_sample := sample_ids[match(sample, public_ids)]]
+    data.table::set(coord, j = "population", value = metadata$population[match(coord$vcf_sample, metadata$sample)])
     data.table::set(coord, j = "cluster", value = as.character(grp))
     reproducibility <- if (length(reps) > 1L) structure_reproducibility(reps) else NULL
     assignment_accuracy <- classification_accuracy_permutation(grp, truth)
