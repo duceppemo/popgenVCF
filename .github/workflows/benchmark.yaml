@@ -5,6 +5,7 @@ on:
     paths:
       - 'R/**'
       - 'benchmarks/**'
+      - '.github/workflows/benchmark.yaml'
 jobs:
   benchmark:
     runs-on: ubuntu-latest
@@ -15,7 +16,20 @@ jobs:
         with:
           extra-packages: any::remotes
       - name: Install package
-        run: R CMD INSTALL .
+        id: install
+        shell: bash
+        run: |
+          set +e
+          R CMD INSTALL . > install.log 2>&1
+          status=$?
+          cat install.log
+          exit "$status"
+      - name: Upload installation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-install-log
+          path: install.log
       - name: Run quick benchmark
         env:
           POPGENVCF_BENCHMARK_QUICK: 'true'
