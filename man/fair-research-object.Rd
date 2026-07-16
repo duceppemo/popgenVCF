@@ -30,7 +30,7 @@ new_fair_metadata(
   license = "MIT",
   keywords = c("population genetics", "VCF", "reproducibility"),
   publisher = "popgenVCF",
-  publication_year = as.integer(format(Sys.Date(), "%Y")),
+  publication_year = as.integer(format(Sys.Date(), "\%Y")),
   rights_uri = NA_character_
 )
 
