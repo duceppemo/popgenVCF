@@ -1,11 +1,12 @@
 test_that("analysis narratives distinguish scientific interpretations", {
-  project <- new_popgenvcf_project("Narratives", project_id = "00000000-0000-0000-0000-000000000068")
-  project$results <- list(
+  results <- list(
     pca = structure(list(variance = c(0.31, 0.18), parameters = list(method = "SNPRelate")), class = "PopgenVCFPCAResult"),
     ibs = structure(list(method = "SNPRelate IBS"), class = "PopgenVCFIBSResult"),
     fst = structure(list(method = "Weir and Cockerham 1984"), class = "PopgenVCFFSTResult"),
     dapc = structure(list(parameters = list(n_pca = 20L, n_da = 2L)), class = "PopgenVCFDAPCResult")
   )
+  project <- new_popgenvcf_project("Narratives", results = results,
+    project_id = "00000000-0000-0000-0000-000000000068")
   narratives <- publication_analysis_narratives(project)
   expect_equal(nrow(narratives), 4L)
   expect_setequal(narratives$kind, c("pca", "ibs", "fst", "dapc"))
@@ -16,8 +17,9 @@ test_that("analysis narratives distinguish scientific interpretations", {
 })
 
 test_that("ancestry narratives preserve model-based interpretation", {
-  project <- new_popgenvcf_project("Ancestry", project_id = "00000000-0000-0000-0000-000000000069")
-  project$results <- list(ancestry = structure(list(backend = "ADMIXTURE", selected_k = 3L), class = "PopgenVCFAncestryResult"))
+  results <- list(ancestry = structure(list(backend = "ADMIXTURE", selected_k = 3L), class = "PopgenVCFAncestryResult"))
+  project <- new_popgenvcf_project("Ancestry", results = results,
+    project_id = "00000000-0000-0000-0000-000000000069")
   narrative <- publication_analysis_narratives(project)
   expect_match(narrative$method, "ADMIXTURE")
   expect_match(narrative$method, "K = 3")
@@ -35,11 +37,12 @@ test_that("metadata-poor projects return an empty narrative table", {
 })
 
 test_that("publication bundles write narratives and bibliography", {
-  project <- new_popgenvcf_project("Publication narratives", project_id = "00000000-0000-0000-0000-000000000071")
-  project$results <- list(
+  results <- list(
     pca = structure(list(variance = c(0.4, 0.2)), class = "PopgenVCFPCAResult"),
     fst = structure(list(), class = "PopgenVCFFSTResult")
   )
+  project <- new_popgenvcf_project("Publication narratives", results = results,
+    project_id = "00000000-0000-0000-0000-000000000071")
   directory <- tempfile("publication-narratives-")
   generate_publication_bundle(project, directory, include_project = FALSE, include_fair = FALSE)
   expect_true(file.exists(file.path(directory, "manuscript", "analysis-narratives.tsv")))
