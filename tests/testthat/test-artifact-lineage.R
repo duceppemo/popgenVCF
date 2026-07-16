@@ -65,6 +65,24 @@ test_that("lineage exports machine-readable and graph formats", {
   expect_true(any(grepl("dot$", out)))
 })
 
+test_that("artifact manifests convert directly to immutable lineage", {
+  file <- tempfile(fileext = ".tsv"); writeLines("sample\tvalue", file)
+  manifest <- new_artifact_manifest(list(new_analysis_artifact(
+    module = "pca", name = "scores", type = "table", path = file,
+    format = "tsv"
+  )))
+  executions <- list(
+    new_lineage_execution("exec:pca", "pca"),
+    new_lineage_execution("exec:report", "report")
+  )
+  lineage <- popgenVCF:::artifact_lineage_from_manifest(
+    manifest, executions,
+    consumers = list("pca::scores" = "exec:report")
+  )
+  expect_equal(lineage_artifact_table(lineage)$producer, "exec:pca")
+  expect_equal(lineage_artifact_table(lineage)$consumers, "exec:report")
+})
+
 test_that("lineage can be embedded in portable projects", {
   lineage <- new_artifact_lineage(
     list(new_lineage_execution("exec:pca", "pca")),
