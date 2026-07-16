@@ -21,6 +21,7 @@
 - Added golden-output scientific regression stores with exact, tolerant numeric, matrix, eigenspace, label-switching-aware ancestry, and manifest comparison modes, explicit gating versus diagnostic roles, approved replacement metadata, SHA256 verification, and optional release-certification integration.
 - Added canonical reproducible analysis projects with software and RNG identity, checksummed input records, embedded canonical results, portable `.popgenvcf` bundles, integrity verification, reopening without recomputation, and project-to-project change reports.
 - Added optional unique metadata sample aliases while retaining immutable VCF IDs in `vcf_sample` provenance fields, and normalized unbounded LD windows to `.Machine$integer.max` before calling SNPRelate.
+- Added validated provenance DAGs with deterministic lineage traversal and a canonical sample identity model supporting aliases, individuals, families, replicates, and explicit display ordering while preserving immutable VCF keys.
 
 # popgenVCF 0.9.0 development
 
