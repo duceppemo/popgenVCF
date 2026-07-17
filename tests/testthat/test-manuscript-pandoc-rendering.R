@@ -1,5 +1,5 @@
 test_that("pandoc rendering arguments are deterministic", {
-  project <- new_popgenvcf_project("pandoc-test", tempfile())
+  project <- new_popgenvcf_project("pandoc-test")
   manuscript <- new_manuscript(project, title = "Pandoc test")
   directory <- tempfile()
   write_manuscript(manuscript, directory)
@@ -11,7 +11,7 @@ test_that("pandoc rendering arguments are deterministic", {
 })
 
 test_that("dry-run rendering records command without requiring pandoc", {
-  project <- new_popgenvcf_project("pandoc-dry", tempfile())
+  project <- new_popgenvcf_project("pandoc-dry")
   manuscript <- new_manuscript(project, title = "Pandoc dry run")
   directory <- tempfile()
   write_manuscript(manuscript, directory)
@@ -23,7 +23,7 @@ test_that("dry-run rendering records command without requiring pandoc", {
 })
 
 test_that("missing pandoc fails clearly outside dry-run", {
-  project <- new_popgenvcf_project("pandoc-missing", tempfile())
+  project <- new_popgenvcf_project("pandoc-missing")
   manuscript <- new_manuscript(project, title = "Pandoc missing")
   directory <- tempfile()
   write_manuscript(manuscript, directory)
