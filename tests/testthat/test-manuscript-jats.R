@@ -1,0 +1,37 @@
+test_that("JATS rendering is deterministic and escaped", {
+  project <- new_popgenvcf_project("jats-test")
+  authors <- data.frame(name = "Ada Lovelace", affiliation = "Analytical & Genomics", email = "ada@example.org", orcid = "0000-0000-0000-0001", corresponding = TRUE)
+  manuscript <- new_manuscript(project, title = "Population <genomics>", authors = authors,
+    abstract = "A & B", keywords = c("genomics", "population"))
+  first <- render_manuscript_jats(manuscript)
+  second <- render_manuscript_jats(manuscript)
+  expect_identical(first, second)
+  expect_true(any(grepl("Population &lt;genomics&gt;", first, fixed = TRUE)))
+  expect_true(any(grepl("Analytical &amp; Genomics", first, fixed = TRUE)))
+  expect_true(validate_manuscript_jats(first))
+})
+
+test_that("JATS writer creates records and detects corruption", {
+  project <- new_popgenvcf_project("jats-write")
+  manuscript <- new_manuscript(project, title = "JATS write")
+  directory <- tempfile()
+  write_manuscript(manuscript, directory)
+  record <- write_manuscript_jats(directory)
+  expect_s3_class(record, "PopgenVCFJATSRecord")
+  expect_true(file.exists(file.path(directory, "jats", "manuscript.xml")))
+  expect_true(file.exists(file.path(directory, "jats", "jats-record.json")))
+  expect_true(file.exists(file.path(directory, "jats", "jats-manifest.tsv")))
+  expect_true(validate_manuscript_jats(record))
+  writeLines("corrupt", record$path)
+  expect_error(validate_manuscript_jats(record), "checksum mismatch")
+})
+
+test_that("JATS overwrite protection is explicit", {
+  project <- new_popgenvcf_project("jats-overwrite")
+  manuscript <- new_manuscript(project, title = "JATS overwrite")
+  directory <- tempfile()
+  write_manuscript(manuscript, directory)
+  write_manuscript_jats(directory)
+  expect_error(write_manuscript_jats(directory), "already exists")
+  expect_s3_class(write_manuscript_jats(directory, overwrite = TRUE), "PopgenVCFJATSRecord")
+})
