@@ -78,7 +78,7 @@ manuscript_render_reference <- function(row) {
 
 manuscript_reference_section <- function(manuscript, category) {
   refs <- manuscript_cross_reference_table(manuscript)
-  refs <- refs[category == ..category]
+  refs <- refs[refs[["category"]] == category]
   if (!nrow(refs)) return("None recorded.")
   unlist(lapply(seq_len(nrow(refs)), function(i) manuscript_render_reference(refs[i])), use.names = FALSE)
 }
