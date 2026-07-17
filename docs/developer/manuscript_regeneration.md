@@ -29,3 +29,5 @@ The plan is an impact-analysis artifact. It does not regenerate prose, interpret
 ## Output bundle
 
 `write_manuscript_regeneration_plan()` writes JSON, Markdown, TSV, and a SHA256 manifest. Existing output is protected unless `overwrite = TRUE`, and written bundles can be revalidated for corruption.
+
+The planner uses deterministic base-R indexing internally and converts the finalized result to a data table only at the API boundary.
