@@ -1,6 +1,7 @@
 test_that("graphical abstract specifications are deterministic", {
   project <- new_popgenvcf_project("graphical-abstract-test")
-  manuscript <- new_manuscript(project, title = "Population structure", abstract = "Abstract", authors = list())
+  manuscript <- new_manuscript(project, title = "Population structure", abstract = "Abstract",
+                               authors = data.frame(name = "Test Author", stringsAsFactors = FALSE))
   asset <- tempfile(fileext = ".png")
   writeBin(charToRaw("immutable-figure"), asset)
   panels <- list(list(artifact_id = "figure:pca", path = asset, label = "A", role = "input"))
@@ -16,7 +17,8 @@ test_that("graphical abstract specifications are deterministic", {
 
 test_that("strict validation exposes incomplete author inputs", {
   project <- new_popgenvcf_project("graphical-abstract-test")
-  manuscript <- new_manuscript(project, title = "Population structure", abstract = "Abstract", authors = list())
+  manuscript <- new_manuscript(project, title = "Population structure", abstract = "Abstract",
+                               authors = data.frame(name = "Test Author", stringsAsFactors = FALSE))
   x <- new_graphical_abstract(manuscript)
   expect_true(validate_graphical_abstract(x, strict = FALSE))
   expect_error(validate_graphical_abstract(x, strict = TRUE), "Incomplete graphical abstract")
@@ -24,7 +26,8 @@ test_that("strict validation exposes incomplete author inputs", {
 
 test_that("duplicate identities and checksum changes are rejected", {
   project <- new_popgenvcf_project("graphical-abstract-test")
-  manuscript <- new_manuscript(project, title = "Population structure", abstract = "Abstract", authors = list())
+  manuscript <- new_manuscript(project, title = "Population structure", abstract = "Abstract",
+                               authors = data.frame(name = "Test Author", stringsAsFactors = FALSE))
   asset <- tempfile(fileext = ".svg")
   writeLines("<svg/>", asset)
   panels <- list(
@@ -40,7 +43,8 @@ test_that("duplicate identities and checksum changes are rejected", {
 
 test_that("graphical abstract bundles are written and protected", {
   project <- new_popgenvcf_project("graphical-abstract-test")
-  manuscript <- new_manuscript(project, title = "Population structure", abstract = "Abstract", authors = list())
+  manuscript <- new_manuscript(project, title = "Population structure", abstract = "Abstract",
+                               authors = data.frame(name = "Test Author", stringsAsFactors = FALSE))
   asset <- tempfile(fileext = ".png")
   writeBin(charToRaw("asset"), asset)
   x <- new_graphical_abstract(manuscript,
