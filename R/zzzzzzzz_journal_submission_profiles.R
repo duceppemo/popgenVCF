@@ -5,7 +5,7 @@ journal_profile_roles <- function(x, label) {
 }
 
 journal_profile_filenames <- function(x) {
-  if (is.null(x)) return(character())
+  if (is.null(x) || !length(x)) return(character())
   if (!is.character(x) || is.null(names(x)) || any(!nzchar(names(x))) || any(!nzchar(x))) {
     stop("filenames must be a named character vector", call. = FALSE)
   }
@@ -56,8 +56,8 @@ journal_profile_requirements <- function(required_sections, optional_sections,
     table_max = journal_profile_limit(table_max, "table_max"),
     supplementary_max = journal_profile_limit(supplementary_max, "supplementary_max")
   )
-  if (!is.na(limits$keyword_max) && limits$keyword_min > limits$keyword_max) stop("keyword_min cannot exceed keyword_max", call. = FALSE)
-  if (!is.na(limits$highlight_max) && limits$highlight_min > limits$highlight_max) stop("highlight_min cannot exceed highlight_max", call. = FALSE)
+  if (!is.na(limits$keyword_min) && !is.na(limits$keyword_max) && limits$keyword_min > limits$keyword_max) stop("keyword_min cannot exceed keyword_max", call. = FALSE)
+  if (!is.na(limits$highlight_min) && !is.na(limits$highlight_max) && limits$highlight_min > limits$highlight_max) stop("highlight_min cannot exceed highlight_max", call. = FALSE)
   list(
     sections = sections,
     declarations = journal_profile_values(required_declarations, "required_declarations"),
