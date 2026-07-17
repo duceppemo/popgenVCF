@@ -145,7 +145,7 @@ manuscript_artifact_index <- function(manuscript, category) {
     id <- manuscript_text(tab$id[[i]], paste0(category, "_", i))
     destination <- manuscript_text(tab$destination[[i]] %||% tab$path[[i]], "not copied")
     caption <- labels[[id]] %||% manuscript_text(tab$name[[i]], id)
-    paste0("- **", id, "** — ", caption, " (`", destination, "`)")
+    paste0("- **", id, "** -- ", caption, " (`", destination, "`)")
   }, character(1L))
 }
 
@@ -209,7 +209,7 @@ write_manuscript <- function(manuscript, directory, overwrite = FALSE) {
     size_bytes = file.info(files)$size,
     sha256 = vapply(files, digest::digest, character(1L), algo = "sha256", file = TRUE)
   )
-  data.table::setorder(manifest, path)
+  data.table::setorderv(manifest, "path")
   data.table::fwrite(manifest, file.path(directory, "manuscript-manifest.tsv"), sep = "\t")
   validate_manuscript(directory)
   invisible(normalizePath(directory, winslash = "/"))
