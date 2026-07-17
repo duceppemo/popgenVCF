@@ -118,55 +118,59 @@ new_manuscript_regeneration_plan <- function(manuscript_id, revision_id, depende
 #' @return A deterministic data table.
 #' @export
 manuscript_regeneration_table <- function(x) {
-  deps <- regeneration_dependencies(x$dependencies)
-  changes <- regeneration_changes(x$changes)
+  deps <- as.data.frame(regeneration_dependencies(x$dependencies), stringsAsFactors = FALSE)
+  changes <- as.data.frame(regeneration_changes(x$changes), stringsAsFactors = FALSE)
   sections <- sort(unique(deps$section_id))
-  result <- data.table::data.table(
+  result <- data.frame(
     section_id = sections,
-    state = "unaffected",
-    reason = "No changed dependency",
-    source_changes = ""
+    state = rep("unaffected", length(sections)),
+    reason = rep("No changed dependency", length(sections)),
+    source_changes = rep("", length(sections)),
+    stringsAsFactors = FALSE
   )
+
   changed_ids <- sort(changes$dependency_id)
-  direct <- deps[deps$dependency_type == "input" & deps$dependency_id %in% changed_ids, ]
+  direct <- deps[deps$dependency_type == "input" & deps$dependency_id %in% changed_ids, , drop = FALSE]
+  policy_rank <- c(regenerate = 1L, manual_review = 2L, blocked = 3L)
+  policy_state <- c(regenerate = "affected", manual_review = "manual_review", blocked = "blocked")
+
   for (section_name in sort(unique(direct$section_id))) {
-    rows <- direct[direct$section_id == section_name, ]
-    policy_rank <- c(regenerate = 1L, manual_review = 2L, blocked = 3L)
+    rows <- direct[direct$section_id == section_name, , drop = FALSE]
     chosen <- rows$policy[[which.max(unname(policy_rank[rows$policy]))]]
-    state <- switch(chosen, regenerate = "affected", manual_review = "manual_review", blocked = "blocked")
     ids <- sort(unique(rows$dependency_id))
-    result[result$section_id == section_name, `:=`(
-      state = state,
-      reason = paste0("Direct changed input: ", paste(ids, collapse = ", ")),
-      source_changes = paste(ids, collapse = ";")
-    )]
+    index <- match(section_name, result$section_id)
+    result$state[[index]] <- unname(policy_state[[chosen]])
+    result$reason[[index]] <- paste0("Direct changed input: ", paste(ids, collapse = ", "))
+    result$source_changes[[index]] <- paste(ids, collapse = ";")
   }
-  section_edges <- deps[deps$dependency_type == "section", ]
-  changed_state <- function(value) value %in% c("affected", "manual_review", "blocked")
+
+  section_edges <- deps[deps$dependency_type == "section", , drop = FALSE]
+  state_rank <- c(unaffected = 0L, affected = 1L, manual_review = 2L, blocked = 3L)
+
   repeat {
     previous <- result$state
     for (i in seq_len(nrow(section_edges))) {
       upstream <- section_edges$dependency_id[[i]]
       downstream <- section_edges$section_id[[i]]
-      upstream_row <- result[result$section_id == upstream, ]
-      if (!nrow(upstream_row) || !changed_state(upstream_row$state[[1L]])) next
-      policy <- section_edges$policy[[i]]
-      propagated <- switch(policy, regenerate = "affected", manual_review = "manual_review", blocked = "blocked")
-      rank <- c(unaffected = 0L, affected = 1L, manual_review = 2L, blocked = 3L)
-      current <- result[result$section_id == downstream, state]
-      if (rank[[propagated]] >= rank[[current]]) {
-        inherited <- upstream_row$source_changes[[1L]]
-        result[result$section_id == downstream, `:=`(
-          state = propagated,
-          reason = paste0("Depends on changed section: ", upstream),
-          source_changes = inherited
-        )]
+      upstream_index <- match(upstream, result$section_id)
+      downstream_index <- match(downstream, result$section_id)
+      if (is.na(upstream_index) || is.na(downstream_index)) next
+      if (!result$state[[upstream_index]] %in% c("affected", "manual_review", "blocked")) next
+
+      propagated <- unname(policy_state[[section_edges$policy[[i]]]])
+      current <- result$state[[downstream_index]]
+      if (state_rank[[propagated]] >= state_rank[[current]]) {
+        result$state[[downstream_index]] <- propagated
+        result$reason[[downstream_index]] <- paste0("Depends on changed section: ", upstream)
+        result$source_changes[[downstream_index]] <- result$source_changes[[upstream_index]]
       }
     }
     if (identical(previous, result$state)) break
   }
-  data.table::setorderv(result, "section_id")
-  result
+
+  result <- result[order(result$section_id), , drop = FALSE]
+  rownames(result) <- NULL
+  data.table::as.data.table(result)
 }
 
 #' Validate a manuscript regeneration plan or written directory
