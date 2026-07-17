@@ -57,7 +57,7 @@ write_journal_profile(profile, directory, overwrite = FALSE)
   \item{required_companions}{Required companion document names.}
   \item{title_max_chars, abstract_max_words, keyword_min, keyword_max}{Title, abstract, and keyword limits.}
   \item{highlight_min, highlight_max, highlight_max_chars}{Highlight constraints.}
-  \item{graphical_abstract}{Whether a graphical abstract is required.}
+  \item{graphical_abstract}{A logical requirement when constructing a profile, or an optional graphical abstract specification when validating a submission.}
   \item{figure_max, table_max, supplementary_max}{Maximum artifact counts.}
   \item{allowed_figure_extensions}{Allowed figure filename extensions.}
   \item{filename_pattern}{Optional regular expression for submission filenames.}
@@ -68,7 +68,6 @@ write_journal_profile(profile, directory, overwrite = FALSE)
   \item{profile}{A validated journal profile.}
   \item{manuscript}{A validated canonical manuscript.}
   \item{companions}{Optional submission companion record.}
-  \item{graphical_abstract}{Optional graphical abstract specification.}
   \item{strict}{Whether failed requirements raise an error.}
   \item{directory}{Parent output directory.}
   \item{overwrite}{Whether an existing profile directory may be replaced.}
