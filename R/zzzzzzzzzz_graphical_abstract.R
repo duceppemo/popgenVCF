@@ -131,7 +131,7 @@ write_graphical_abstract <- function(graphical_abstract, directory, overwrite = 
   )
   if (!length(graphical_abstract$panels)) brief <- c(brief, "[AUTHOR ASSET SELECTION REQUIRED]")
   for (panel in graphical_abstract$panels) {
-    brief <- c(brief, paste0(panel$order, ". `", panel$artifact_id, "` — ", panel$filename))
+    brief <- c(brief, paste0(panel$order, ". `", panel$artifact_id, "` - ", panel$filename))
   }
   writeLines(brief, file.path(out, "graphical-abstract-brief.md"), useBytes = TRUE)
   invisible(normalizePath(out, winslash = "/", mustWork = TRUE))
