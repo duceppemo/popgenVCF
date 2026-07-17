@@ -36,11 +36,11 @@ regeneration_dependencies <- function(x) {
     stop("policy must be regenerate, manual_review, or blocked", call. = FALSE)
   }
   section_nodes <- unique(x$section_id)
-  unknown_sections <- x[dependency_type == "section" & !dependency_id %in% section_nodes, dependency_id]
+  unknown_sections <- x[x$dependency_type == "section" & !x$dependency_id %in% section_nodes, dependency_id]
   if (length(unknown_sections)) {
     stop("section dependencies reference unknown sections: ", paste(sort(unique(unknown_sections)), collapse = ", "), call. = FALSE)
   }
-  edges <- x[dependency_type == "section", .(from = dependency_id, to = section_id)]
+  edges <- x[x$dependency_type == "section", .(from = dependency_id, to = section_id)]
   if (nrow(edges)) {
     remaining <- sort(unique(c(edges$from, edges$to)))
     indegree <- setNames(integer(length(remaining)), remaining)
@@ -51,7 +51,7 @@ regeneration_dependencies <- function(x) {
       node <- queue[[1L]]
       queue <- queue[-1L]
       visited <- c(visited, node)
-      targets <- sort(edges[from == node, to])
+      targets <- sort(edges[edges$from == node, to])
       for (target in targets) {
         indegree[[target]] <- indegree[[target]] - 1L
         if (indegree[[target]] == 0L) queue <- sort(c(queue, target))
@@ -94,7 +94,7 @@ new_manuscript_regeneration_plan <- function(manuscript_id, revision_id, depende
                                              changes, generator_id = "popgenVCF-manuscript") {
   dependencies <- regeneration_dependencies(dependencies)
   changes <- regeneration_changes(changes)
-  known_inputs <- dependencies[dependency_type == "input", unique(dependency_id)]
+  known_inputs <- dependencies[dependencies$dependency_type == "input", unique(dependency_id)]
   unknown <- setdiff(changes$dependency_id, known_inputs)
   if (length(unknown)) stop("changes reference unknown input dependencies: ", paste(unknown, collapse = ", "), call. = FALSE)
   payload <- list(
@@ -127,36 +127,36 @@ manuscript_regeneration_table <- function(x) {
     reason = "No changed dependency",
     source_changes = ""
   )
-  changed <- sort(changes$dependency_id)
-  direct <- deps[dependency_type == "input" & dependency_id %in% changed]
-  for (section in sort(unique(direct$section_id))) {
-    rows <- direct[section_id == section]
+  changed_ids <- sort(changes$dependency_id)
+  direct <- deps[deps$dependency_type == "input" & deps$dependency_id %in% changed_ids, ]
+  for (section_name in sort(unique(direct$section_id))) {
+    rows <- direct[direct$section_id == section_name, ]
     policy_rank <- c(regenerate = 1L, manual_review = 2L, blocked = 3L)
-    chosen <- names(which.max(policy_rank[rows$policy]))
+    chosen <- rows$policy[[which.max(unname(policy_rank[rows$policy]))]]
     state <- switch(chosen, regenerate = "affected", manual_review = "manual_review", blocked = "blocked")
     ids <- sort(unique(rows$dependency_id))
-    result[section_id == section, `:=`(
+    result[result$section_id == section_name, `:=`(
       state = state,
       reason = paste0("Direct changed input: ", paste(ids, collapse = ", ")),
       source_changes = paste(ids, collapse = ";")
     )]
   }
-  section_edges <- deps[dependency_type == "section"]
+  section_edges <- deps[deps$dependency_type == "section", ]
   changed_state <- function(value) value %in% c("affected", "manual_review", "blocked")
   repeat {
     previous <- result$state
     for (i in seq_len(nrow(section_edges))) {
       upstream <- section_edges$dependency_id[[i]]
       downstream <- section_edges$section_id[[i]]
-      upstream_row <- result[section_id == upstream]
+      upstream_row <- result[result$section_id == upstream, ]
       if (!nrow(upstream_row) || !changed_state(upstream_row$state[[1L]])) next
       policy <- section_edges$policy[[i]]
       propagated <- switch(policy, regenerate = "affected", manual_review = "manual_review", blocked = "blocked")
       rank <- c(unaffected = 0L, affected = 1L, manual_review = 2L, blocked = 3L)
-      current <- result[section_id == downstream, state]
+      current <- result[result$section_id == downstream, state]
       if (rank[[propagated]] >= rank[[current]]) {
         inherited <- upstream_row$source_changes[[1L]]
-        result[section_id == downstream, `:=`(
+        result[result$section_id == downstream, `:=`(
           state = propagated,
           reason = paste0("Depends on changed section: ", upstream),
           source_changes = inherited
@@ -197,7 +197,7 @@ validate_manuscript_regeneration_plan <- function(x, strict = FALSE) {
   expected <- digest::digest(x[setdiff(names(x), "digest")], algo = "sha256", serialize = TRUE)
   if (!identical(expected, x$digest)) stop("regeneration plan digest mismatch", call. = FALSE)
   if (isTRUE(strict) && any(x$plan$state == "blocked")) {
-    stop("blocked manuscript sections require resolution: ", paste(x$plan[state == "blocked", section_id], collapse = ", "), call. = FALSE)
+    stop("blocked manuscript sections require resolution: ", paste(x$plan[x$plan$state == "blocked", section_id], collapse = ", "), call. = FALSE)
   }
   invisible(TRUE)
 }
