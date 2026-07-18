@@ -1,7 +1,7 @@
 Package: popgenVCF
 Type: Package
 Title: Population Genomics Toolkit for VCF Data
-Version: 0.8.3
+Version: 0.10.0
 Authors@R: c(
     person(given = "Marc-Olivier", family = "Duceppe",
            role = c("aut", "cre"),
@@ -19,7 +19,9 @@ Description: A modular command-line toolkit and R application programming
     of principal components, analysis of molecular variance, Mantel tests,
     isolation-by-distance analysis, external 'ADMIXTURE' cross-validation,
     chromosome-specific analyses, chromosome-block bootstrap confidence
-    intervals, and manuscript-oriented reporting.
+    intervals, manuscript-oriented reporting, and deterministic execution with
+    dependency-aware failure propagation, checkpoints, bounded retries, and
+    elapsed-time budgets.
 License: MIT + file LICENSE
 URL: https://duceppemo.github.io/popgenVCF/, https://github.com/duceppemo/popgenVCF
 BugReports: https://github.com/duceppemo/popgenVCF/issues

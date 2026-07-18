@@ -2,7 +2,7 @@
   "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
   "@type": "SoftwareSourceCode",
   "name": "popgenVCF",
-  "version": "0.8.3",
+  "version": "0.10.0",
   "description": "An R package and command-line toolkit for reproducible population-genomic analysis of diploid, biallelic SNP data stored in VCF files.",
   "codeRepository": "https://github.com/duceppemo/popgenVCF",
   "issueTracker": "https://github.com/duceppemo/popgenVCF/issues",

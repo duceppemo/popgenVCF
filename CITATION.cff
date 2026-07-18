@@ -8,7 +8,7 @@ authors:
 repository-code: "https://github.com/duceppemo/popgenVCF"
 url: "https://github.com/duceppemo/popgenVCF"
 license: MIT
-version: 0.8.3
+version: 0.10.0
 date-released: 2026-07-18
 keywords:
   - population genomics

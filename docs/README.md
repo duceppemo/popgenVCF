@@ -5,12 +5,13 @@ This directory is the living blueprint for popgenVCF. Documents are normative un
 ## Governance and direction
 
 - [Project Charter](PROJECT_CHARTER.md) — mission, principles, scientific completion standard, and release standard.
-- [Development Roadmap](ROADMAP.md) — versioned delivery plan from the validated 0.8 foundation through 1.0.
+- [Development Roadmap](ROADMAP.md) — current delivery plan from the validated 0.8 foundation through the 0.10 deterministic-execution programme and the 1.0 release criteria.
 
 ## Technical design
 
-- [Architecture](ARCHITECTURE.md) — shared analysis state, registry, module contract, artifact model, and external-engine boundaries.
+- [Architecture](ARCHITECTURE.md) — shared analysis state, registry, module contract, artifact model, deterministic execution runtime, and external-engine boundaries.
 - [Scientific Validation](SCIENTIFIC_VALIDATION.md) — validation hierarchy, dataset tiers, tolerances, and failure policy.
+- [Execution Timeouts](execution-timeouts.md) — elapsed-time policies, timeout safety boundaries, retry interaction, and recorded metadata.
 
 ## Contributor guidance
 
