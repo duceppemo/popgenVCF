@@ -14,6 +14,69 @@ The roadmap is governed by the [Project Charter](PROJECT_CHARTER.md). Scientific
 - reproducible Conda/Mamba environment;
 - R package CI, coverage, scientific-validation CI, and validated GHCR container publishing.
 
+## Phase 8: deterministic execution and operational reliability
+
+Phase 8 turns the analysis registry into a deterministic, recoverable, and scientifically auditable execution runtime. Every terminal condition must be explicit, preserve valid prior work, reject incomplete outputs, and leave sufficient records for review or safe recovery.
+
+### Completed milestones
+
+- [x] **8.1 — Unified analysis execution engine**
+  - canonical execution planning and module ordering;
+  - shared execution contracts and result validation;
+  - deterministic execution metadata.
+- [x] **8.2 — Dependency-aware failure propagation and execution records**
+  - explicit success, failure, and blocked states;
+  - dependency-aware fail-closed propagation;
+  - auditable execution ledgers.
+- [x] **8.3 — Deterministic checkpoints and resume support**
+  - validated checkpoint objects;
+  - deterministic reconstruction of execution plans;
+  - safe resume without silently changing completed work.
+- [x] **8.4 — Deterministic retry and recovery orchestration**
+  - bounded retry policies;
+  - preserved attempt ledgers;
+  - reuse of validated successful prerequisites;
+  - explicit recovery metadata.
+- [x] **8.5 — Deterministic execution timeouts**
+  - global and named per-module elapsed-time budgets;
+  - fail-closed timeout handling;
+  - `timed_out` final and attempt-ledger states;
+  - retry integration and timeout-policy metadata;
+  - explicit documentation of interruptible-R and external-process boundaries.
+
+### Planned milestones
+
+- [ ] **8.6 — Deterministic cancellation and graceful shutdown**
+  - user- and system-requested cancellation at safe execution boundaries;
+  - explicit `cancelled` ledger states and cancellation metadata;
+  - checkpoint-on-cancel and safe resumability;
+  - clear separation of cancellation, timeout, and failure.
+- [ ] **8.7 — Resource policies and execution admission**
+  - declarative thread, memory, temporary-storage, and process requirements;
+  - conservative admission and concurrency decisions;
+  - explicit resource-unavailable and resource-limit states;
+  - resource-policy provenance in execution metadata.
+- [ ] **8.8 — Supervised external-process execution**
+  - a canonical subprocess runner for PLINK, ADMIXTURE, fastStructure, bcftools, and related tools;
+  - process-level timeouts and process-tree termination;
+  - normalized exit codes, stdout, stderr, command provenance, and cleanup;
+  - deterministic external-tool failure records.
+- [ ] **8.9 — Execution observability and run telemetry**
+  - structured execution events and standardized logging;
+  - module and attempt timing;
+  - warnings, progress, and compact run summaries;
+  - machine-readable timelines and dependency-aware visualizations.
+- [ ] **8.10 — Execution hardening and stable runtime API**
+  - complete state-transition and interaction testing;
+  - checkpoint compatibility and corruption handling;
+  - timeout, retry, cancellation, resource, and subprocess integration tests;
+  - performance regression benchmarks;
+  - versioned execution schemas and stable public documentation.
+
+### Phase 8 completion criterion
+
+Phase 8 is complete when success, validation failure, dependency blocking, timeout, cancellation, resource exhaustion, and external-process failure are deterministic, auditable, fail closed, and resumable where scientifically safe.
+
 ## 0.9: publication-quality analysis platform
 
 ### Architecture and shared artifact contracts
