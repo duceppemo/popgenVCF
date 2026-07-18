@@ -35,6 +35,9 @@ concurrency:
   group: pkgdown-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PKGDOWN_DEST: _pkgdown-site
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -70,19 +73,19 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          Rscript -e 'pkgdown::build_site_github_pages(pkg = ".", clean = TRUE, install = TRUE, new_process = FALSE, examples = FALSE, preview = FALSE, quiet = FALSE)' 2>&1 | tee pkgdown-build.log
+          Rscript -e 'pkgdown::build_site_github_pages(pkg = ".", dest_dir = Sys.getenv("PKGDOWN_DEST"), clean = TRUE, install = TRUE, new_process = FALSE, examples = FALSE, preview = FALSE, quiet = FALSE)' 2>&1 | tee pkgdown-build.log
 
       - name: Validate generated site
         shell: bash
         run: |
           set -euo pipefail
           required=(
-            docs/index.html
-            docs/reference/index.html
-            docs/articles/index.html
-            docs/articles/reproducibility.html
-            docs/articles/containers-and-hpc.html
-            docs/authors.html
+            "$PKGDOWN_DEST/index.html"
+            "$PKGDOWN_DEST/reference/index.html"
+            "$PKGDOWN_DEST/articles/index.html"
+            "$PKGDOWN_DEST/articles/reproducibility.html"
+            "$PKGDOWN_DEST/articles/containers-and-hpc.html"
+            "$PKGDOWN_DEST/authors.html"
           )
           for path in "${required[@]}"; do
             [[ -s "$path" ]] || {
@@ -90,8 +93,8 @@ jobs:
               exit 1
             }
           done
-          grep -q "popgenVCF" docs/index.html
-          grep -q "Computational reproducibility" docs/articles/reproducibility.html
+          grep -q "popgenVCF" "$PKGDOWN_DEST/index.html"
+          grep -q "Computational reproducibility" "$PKGDOWN_DEST/articles/reproducibility.html"
 
       - name: Upload diagnostic site artifact
         if: always()
@@ -99,7 +102,7 @@ jobs:
         with:
           name: pkgdown-diagnostics
           path: |
-            docs/
+            _pkgdown-site/
             pkgdown-build.log
           if-no-files-found: warn
           retention-days: 14
@@ -112,7 +115,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/
+          path: _pkgdown-site/
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
