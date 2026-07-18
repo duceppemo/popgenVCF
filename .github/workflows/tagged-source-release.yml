@@ -1,0 +1,203 @@
+name: Tagged source-package release
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/tagged-source-release.yml'
+      - 'scripts/build_release_manifest.R'
+      - 'scripts/build_scientific_release_integration.R'
+      - 'tests/testthat/test-release-manifest.R'
+      - 'docs/developer/tagged-source-release.md'
+      - 'DESCRIPTION'
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Release identifier; must equal v<DESCRIPTION version>
+        required: false
+        type: string
+      publish:
+        description: Publish assets to the matching GitHub Release
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tagged-source-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+      POPGENVCF_RELEASE_CREATED_AT: '1970-01-01T00:00:00Z'
+
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - name: Set up Pandoc
+        uses: r-lib/actions/setup-pandoc@v2
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Install package dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: |
+            any::rcmdcheck
+            any::knitr
+          needs: check
+
+      - name: Resolve and verify release identity
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_version="$(awk -F': *' '$1 == "Version" {print $2}' DESCRIPTION)"
+          expected_release="v${package_version}"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            release_id="${GITHUB_REF_NAME}"
+            publish=true
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            release_id="${{ inputs.release_id }}"
+            publish="${{ inputs.publish }}"
+            [[ -n "${release_id}" ]] || release_id="${expected_release}"
+          else
+            release_id="${expected_release}"
+            publish=false
+          fi
+
+          if [[ "${release_id}" != "${expected_release}" ]]; then
+            echo "::error::Release identity mismatch: expected ${expected_release}, received ${release_id}"
+            exit 1
+          fi
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF_NAME}" != "${expected_release}" ]]; then
+            echo "::error::Git tag ${GITHUB_REF_NAME} does not match DESCRIPTION version ${package_version}"
+            exit 1
+          fi
+
+          echo "package_version=${package_version}" >> "$GITHUB_OUTPUT"
+          echo "release_id=${release_id}" >> "$GITHUB_OUTPUT"
+          echo "publish=${publish}" >> "$GITHUB_OUTPUT"
+
+      - name: Build source package
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-work/source release-assets
+          R CMD build --no-manual --compact-vignettes=gs+qpdf . \
+            --output=release-work/source
+          tarball="$(find release-work/source -maxdepth 1 -name 'popgenVCF_*.tar.gz' -print -quit)"
+          [[ -n "${tarball}" ]]
+          cp "${tarball}" release-assets/
+          echo "tarball=${tarball}" >> "$GITHUB_OUTPUT"
+
+      - name: Check built source package
+        shell: bash
+        env:
+          _R_CHECK_CRAN_INCOMING_REMOTE_: 'false'
+        run: |
+          set -euo pipefail
+          mkdir -p release-work/check
+          R CMD check \
+            --no-manual \
+            --as-cran \
+            --output=release-work/check \
+            "${{ steps.package.outputs.tarball }}"
+          check_dir="$(find release-work/check -maxdepth 1 -type d -name '*.Rcheck' -print -quit)"
+          [[ -n "${check_dir}" ]]
+          tar -czf release-assets/popgenVCF-check-results.tar.gz \
+            -C release-work/check "$(basename "${check_dir}")"
+
+      - name: Install checked package
+        run: R CMD INSTALL "${{ steps.package.outputs.tarball }}"
+
+      - name: Build scientific release evidence
+        env:
+          POPGENVCF_RELEASE_DATE: '2026-07-18'
+        run: |
+          Rscript scripts/build_scientific_release_integration.R \
+            release-work/scientific-release \
+            "${{ steps.identity.outputs.release_id }}"
+          tar -czf release-assets/popgenVCF-scientific-release.tar.gz \
+            -C release-work/scientific-release .
+          cp release-work/scientific-release/integration-summary.json \
+            release-assets/scientific-release-integration-summary.json
+          cp release-work/scientific-release/determinism-comparison.tsv \
+            release-assets/scientific-release-determinism.tsv
+          cp release-work/scientific-release/run-a/records/scientific-validation.tsv \
+            release-assets/scientific-validation.tsv
+          cp release-work/scientific-release/run-a/records/population-structure-validation.tsv \
+            release-assets/population-structure-validation.tsv
+
+      - name: Record runtime and dependencies
+        shell: Rscript {0}
+        run: |
+          writeLines(capture.output(sessionInfo()), "release-assets/session-info.txt")
+          installed <- as.data.frame(utils::installed.packages()[, c("Package", "Version", "LibPath")])
+          installed <- installed[order(installed$Package, installed$Version, installed$LibPath), ]
+          data.table::fwrite(
+            installed,
+            "release-assets/r-package-manifest.tsv",
+            sep = "\t",
+            quote = FALSE
+          )
+
+      - name: Generate and verify release manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          r_version="$(Rscript -e 'cat(as.character(getRversion()))')"
+          Rscript scripts/build_release_manifest.R \
+            release-assets \
+            popgenVCF \
+            "${{ steps.identity.outputs.package_version }}" \
+            "${{ steps.identity.outputs.release_id }}" \
+            "${{ steps.identity.outputs.release_id }}" \
+            "${GITHUB_SHA}" \
+            "${r_version}" \
+            "${GITHUB_WORKFLOW}" \
+            "${GITHUB_RUN_ID}" \
+            "${GITHUB_RUN_ATTEMPT}"
+
+      - name: Upload rehearsal or release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: popgenVCF-${{ steps.identity.outputs.release_id }}-release-assets
+          path: release-assets/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish GitHub Release
+        if: steps.identity.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.identity.outputs.release_id }}"
+          if ! gh release view "${tag}" >/dev/null 2>&1; then
+            gh release create "${tag}" --verify-tag --generate-notes
+          fi
+          mapfile -d '' assets < <(find release-assets -maxdepth 1 -type f -print0 | sort -z)
+          [[ "${#assets[@]}" -gt 0 ]]
+          gh release upload "${tag}" "${assets[@]}" --clobber
