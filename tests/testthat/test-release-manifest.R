@@ -1,7 +1,12 @@
+release_manifest_script <- function() {
+  installed <- system.file("scripts", "build_release_manifest.R", package = "popgenVCF")
+  if (nzchar(installed)) return(installed)
+  testthat::test_path("..", "..", "inst", "scripts", "build_release_manifest.R")
+}
+
 test_that("release manifests are deterministic and detect tampering", {
-  script <- testthat::test_path("..", "..", "scripts", "build_release_manifest.R")
   environment <- new.env(parent = globalenv())
-  sys.source(script, envir = environment)
+  sys.source(release_manifest_script(), envir = environment)
 
   asset_dir <- tempfile("release-assets-")
   dir.create(file.path(asset_dir, "nested"), recursive = TRUE)
@@ -51,9 +56,8 @@ test_that("release manifests are deterministic and detect tampering", {
 })
 
 test_that("release manifests reject missing and unexpected payload assets", {
-  script <- testthat::test_path("..", "..", "scripts", "build_release_manifest.R")
   environment <- new.env(parent = globalenv())
-  sys.source(script, envir = environment)
+  sys.source(release_manifest_script(), envir = environment)
 
   asset_dir <- tempfile("release-assets-")
   dir.create(asset_dir)
