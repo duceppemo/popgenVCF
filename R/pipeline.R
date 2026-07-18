@@ -109,6 +109,7 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
     context <- executed$context
     analysis$artifacts <- executed$artifacts
     write_tsv(executed$plan$table, file.path(dirs$root, "analysis_execution_plan.tsv"))
+    write_tsv(executed$execution, file.path(dirs$root, "analysis_execution_ledger.tsv"))
     artifact_table <- artifact_manifest_table(executed$artifacts)
     if (nrow(artifact_table)) {
       write_tsv(artifact_table, file.path(dirs$root, "analysis_artifacts.tsv"))
@@ -124,8 +125,16 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
     analysis <- set_analysis_result(analysis, "execution_order", character())
     analysis <- set_analysis_result(
       analysis, "execution_engine",
-      list(backend = "sequential", workers = 1L, waves = 0L, batches = list())
+      list(
+        backend = "sequential", workers = 1L, waves = 0L, batches = list(),
+        status_counts = list(pending = 0L, running = 0L, success = 0L, failed = 0L, blocked = 0L)
+      )
     )
+    empty_plan <- plan_analysis_execution(registry, cfg, character())
+    empty_ledger <- new_execution_ledger(empty_plan, registry, list())
+    analysis <- set_analysis_result(analysis, "execution_ledger", empty_ledger)
+    write_tsv(empty_plan$table, file.path(dirs$root, "analysis_execution_plan.tsv"))
+    write_tsv(empty_ledger, file.path(dirs$root, "analysis_execution_ledger.tsv"))
     analysis <- record_analysis_message(analysis, "INFO", "analysis registry", "no compatible analysis modules were enabled")
     log_msg("No compatible analysis modules enabled after QC", level = "INFO")
   }
