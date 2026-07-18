@@ -12,7 +12,9 @@ test_that("release metadata is synchronized with DESCRIPTION", {
     stderr = TRUE,
     env = paste0("R_METADATA_ROOT=", package_root)
   )
+  status <- attr(output, "status")
+  if (is.null(status)) status <- 0L
 
-  expect_equal(attr(output, "status") %||% 0L, 0L, info = paste(output, collapse = "\n"))
+  expect_equal(status, 0L, info = paste(output, collapse = "\n"))
   expect_true(any(grepl("Release metadata is valid", output, fixed = TRUE)))
 })
