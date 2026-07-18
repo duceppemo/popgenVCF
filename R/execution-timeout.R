@@ -95,8 +95,10 @@ timeout_registry <- function(registry, policy) {
 
 classify_timeout_ledger <- function(ledger) {
   if (!nrow(ledger)) return(ledger)
-  timed_out <- ledger$status == "failed" & grepl("^Execution timeout for module", ledger$error_message)
-  ledger$status[timed_out] <- "timed_out"
+  ledger[
+    status == "failed" & startsWith(error_message, "Execution timeout for module"),
+    status := "timed_out"
+  ]
   ledger
 }
 
