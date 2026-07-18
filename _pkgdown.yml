@@ -1,24 +1,51 @@
 url: https://duceppemo.github.io/popgenVCF/
+
 template:
   bootstrap: 5
-reference:
-  - title: Pipeline
+  bslib:
+    primary: "#1f6f78"
+    base_font:
+      google: Source Sans 3
+    heading_font:
+      google: Source Sans 3
+    code_font:
+      google: Source Code Pro
+
+home:
+  title: popgenVCF
+  description: Reproducible population-genomics analysis for diploid biallelic SNP VCF data.
+
+navbar:
+  structure:
+    left: [intro, reference, articles, news]
+    right: [search, github]
+  components:
+    articles:
+      text: Guides
+      menu:
+        - text: Reproducibility
+          href: articles/reproducibility.html
+        - text: Containers and HPC
+          href: articles/containers-and-hpc.html
+        - text: Tagged releases
+          href: https://github.com/duceppemo/popgenVCF/blob/main/docs/developer/tagged-source-release.md
+    github:
+      icon: fab fa-github
+      href: https://github.com/duceppemo/popgenVCF
+      aria-label: GitHub repository
+
+# Keep the reference index complete by allowing pkgdown to discover every
+# documented topic automatically. A hand-curated index must account for every
+# non-internal topic and is therefore maintained separately from this release.
+
+articles:
+  - title: Reproducibility and deployment
+    navbar: ~
     contents:
-      - run_pipeline
-      - cli_main
-  - title: Analysis state
-    contents:
-      - new_popgen_vcf_analysis
-      - is_popgen_vcf_analysis
-      - validate_analysis
-      - set_analysis_result
-      - get_analysis_result
-  - title: Configuration
-    contents:
-      - default_config
-      - read_config
-      - validate_config
-  - title: Reporting and external tools
-    contents:
-      - render_report
-      - run_admixture_cv
+      - reproducibility
+      - containers-and-hpc
+
+footer:
+  structure:
+    left: developed_by
+    right: built_with

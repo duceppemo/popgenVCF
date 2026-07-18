@@ -21,6 +21,8 @@ Description: A modular command-line toolkit and R application programming
     chromosome-specific analyses, chromosome-block bootstrap confidence
     intervals, and manuscript-oriented reporting.
 License: MIT + file LICENSE
+URL: https://duceppemo.github.io/popgenVCF/, https://github.com/duceppemo/popgenVCF
+BugReports: https://github.com/duceppemo/popgenVCF/issues
 Encoding: UTF-8
 LazyData: false
 Depends:
@@ -57,6 +59,7 @@ Suggests:
     plotly,
     svglite,
     testthat (>= 3.0.0)
+VignetteBuilder: knitr
 Config/testthat/edition: 3
 SystemRequirements: Pandoc (optional, for manuscript reports), ADMIXTURE (optional), fastStructure (optional)
 RoxygenNote: 7.3.2

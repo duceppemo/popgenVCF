@@ -1,0 +1,83 @@
+---
+title: "Containers and HPC deployment"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Containers and HPC deployment}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+popgenVCF supports Docker-compatible OCI images and native Apptainer SIF images. Both deployment paths use the same package code and pinned software environment.
+
+## Docker or Podman
+
+Pull a versioned release:
+
+```bash
+docker pull ghcr.io/duceppemo/popgenvcf:0.8.3
+```
+
+Generate a configuration and run an analysis from the current directory:
+
+```bash
+docker run --rm -v "$PWD:/data" \
+  ghcr.io/duceppemo/popgenvcf:0.8.3 \
+  --write-config /data/analysis.yml
+
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
+  -v "$PWD:/data" \
+  ghcr.io/duceppemo/popgenvcf:0.8.3 \
+  --config /data/analysis.yml
+```
+
+## Apptainer on HPC systems
+
+Convert the published OCI image into a SIF file:
+
+```bash
+apptainer pull popgenvcf.sif \
+  docker://ghcr.io/duceppemo/popgenvcf:0.8.3
+```
+
+Or build from the repository definition:
+
+```bash
+apptainer build popgenvcf.sif Apptainer.def
+```
+
+Run with an explicit bind mount:
+
+```bash
+apptainer run \
+  --bind "$PWD:/data" \
+  popgenvcf.sif \
+  --config /data/analysis.yml
+```
+
+## Scheduler example
+
+A minimal Slurm job can derive CPU allocation from the scheduler:
+
+```bash
+#!/usr/bin/env bash
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=32G
+#SBATCH --time=08:00:00
+
+apptainer run \
+  --bind "$PWD:/data" \
+  popgenvcf.sif \
+  --config /data/analysis.yml
+```
+
+Set the thread count in `analysis.yml` consistently with the scheduler allocation. Avoid requesting more threads than the job receives.
+
+## Verification
+
+The CI pipeline builds and tests the native SIF image. Published OCI images are also pulled back by immutable digest and rerun through package, CLI, and scientific-validation checks.

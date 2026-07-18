@@ -1,0 +1,130 @@
+name: pkgdown
+
+on:
+  pull_request:
+    paths:
+      - "R/**"
+      - "man/**"
+      - "vignettes/**"
+      - "README.md"
+      - "NEWS.md"
+      - "DESCRIPTION"
+      - "NAMESPACE"
+      - "_pkgdown.yml"
+      - ".github/workflows/pkgdown.yml"
+  push:
+    branches: [main]
+    paths:
+      - "R/**"
+      - "man/**"
+      - "vignettes/**"
+      - "README.md"
+      - "NEWS.md"
+      - "DESCRIPTION"
+      - "NAMESPACE"
+      - "_pkgdown.yml"
+      - ".github/workflows/pkgdown.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pkgdown-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PKGDOWN_DEST: _pkgdown-site
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - name: Set up Pandoc
+        uses: r-lib/actions/setup-pandoc@v2
+
+      - name: Install dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: |
+            any::pkgdown
+            any::rmarkdown
+            any::knitr
+          needs: website
+
+      - name: Validate pkgdown configuration
+        shell: Rscript {0}
+        run: |
+          pkgdown::check_pkgdown(".")
+
+      - name: Build pkgdown site
+        shell: bash
+        run: |
+          set -o pipefail
+          Rscript -e 'pkgdown::build_site_github_pages(pkg = ".", dest_dir = Sys.getenv("PKGDOWN_DEST"), clean = TRUE, install = TRUE, new_process = FALSE, examples = FALSE, quiet = FALSE)' 2>&1 | tee pkgdown-build.log
+
+      - name: Validate generated site
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            "$PKGDOWN_DEST/index.html"
+            "$PKGDOWN_DEST/reference/index.html"
+            "$PKGDOWN_DEST/articles/index.html"
+            "$PKGDOWN_DEST/articles/reproducibility.html"
+            "$PKGDOWN_DEST/articles/containers-and-hpc.html"
+            "$PKGDOWN_DEST/authors.html"
+          )
+          for path in "${required[@]}"; do
+            [[ -s "$path" ]] || {
+              echo "::error::Missing or empty pkgdown output: $path"
+              exit 1
+            }
+          done
+          grep -q "popgenVCF" "$PKGDOWN_DEST/index.html"
+          grep -q "Computational reproducibility" "$PKGDOWN_DEST/articles/reproducibility.html"
+
+      - name: Upload diagnostic site artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pkgdown-diagnostics
+          path: |
+            _pkgdown-site/
+            pkgdown-build.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Configure GitHub Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _pkgdown-site/
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
