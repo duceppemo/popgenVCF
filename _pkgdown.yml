@@ -1,6 +1,39 @@
 url: https://duceppemo.github.io/popgenVCF/
+
 template:
   bootstrap: 5
+  bslib:
+    primary: "#1f6f78"
+    base_font:
+      google: Source Sans 3
+    heading_font:
+      google: Source Sans 3
+    code_font:
+      google: Source Code Pro
+
+home:
+  title: popgenVCF
+  description: Reproducible population-genomics analysis for diploid biallelic SNP VCF data.
+
+navbar:
+  structure:
+    left: [intro, reference, articles, news]
+    right: [search, github]
+  components:
+    articles:
+      text: Guides
+      menu:
+        - text: Reproducibility
+          href: articles/reproducibility.html
+        - text: Containers and HPC
+          href: articles/containers-and-hpc.html
+        - text: Tagged releases
+          href: https://github.com/duceppemo/popgenVCF/blob/main/docs/developer/tagged-source-release.md
+    github:
+      icon: fab fa-github
+      href: https://github.com/duceppemo/popgenVCF
+      aria-label: GitHub repository
+
 reference:
   - title: Pipeline
     contents:
@@ -22,3 +55,19 @@ reference:
     contents:
       - render_report
       - run_admixture_cv
+  - title: Scientific validation
+    contents:
+      - starts_with("run_scientific")
+      - starts_with("run_population_structure")
+
+articles:
+  - title: Reproducibility and deployment
+    navbar: ~
+    contents:
+      - reproducibility
+      - containers-and-hpc
+
+footer:
+  structure:
+    left: developed_by
+    right: built_with
