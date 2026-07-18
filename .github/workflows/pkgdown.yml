@@ -61,6 +61,11 @@ jobs:
             any::knitr
           needs: website
 
+      - name: Validate pkgdown configuration
+        shell: Rscript {0}
+        run: |
+          pkgdown::check_pkgdown(".")
+
       - name: Build pkgdown site
         shell: Rscript {0}
         run: |
