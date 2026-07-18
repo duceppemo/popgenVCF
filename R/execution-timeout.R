@@ -16,7 +16,9 @@ new_execution_timeout_policy <- function(default_seconds = Inf,
   if (is.na(default_seconds) || default_seconds <= 0) {
     stop("default_seconds must be positive or Inf", call. = FALSE)
   }
+  module_names <- names(module_seconds)
   module_seconds <- as.numeric(module_seconds)
+  names(module_seconds) <- module_names
   if (length(module_seconds)) {
     if (is.null(names(module_seconds)) || any(!nzchar(names(module_seconds))) ||
         anyDuplicated(names(module_seconds)) || anyNA(module_seconds) ||
