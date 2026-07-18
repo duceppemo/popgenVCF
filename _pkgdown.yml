@@ -27,6 +27,10 @@ navbar:
           href: articles/reproducibility.html
         - text: Containers and HPC
           href: articles/containers-and-hpc.html
+        - text: Development roadmap
+          href: https://github.com/duceppemo/popgenVCF/blob/main/docs/ROADMAP.md
+        - text: Execution timeouts
+          href: https://github.com/duceppemo/popgenVCF/blob/main/docs/execution-timeouts.md
         - text: Tagged releases
           href: https://github.com/duceppemo/popgenVCF/blob/main/docs/developer/tagged-source-release.md
     github:
