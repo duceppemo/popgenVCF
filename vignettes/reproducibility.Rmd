@@ -1,0 +1,52 @@
+---
+title: "Computational reproducibility"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Computational reproducibility}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+popgenVCF records the software, parameters, inputs, and validation evidence needed to reproduce a computational analysis. Reproducibility depends on preserving both the analysis outputs and the exact execution context.
+
+## Recommended archival record
+
+For each analysis, retain:
+
+- the input VCF and metadata checksums;
+- the complete configuration file;
+- the popgenVCF release version or Git commit;
+- the OCI image digest or the resolved conda environment;
+- the generated validation and provenance records;
+- the random seed, thread count, and relevant external-tool versions.
+
+## Immutable container execution
+
+Tagged releases publish an OCI digest. Use the digest rather than a floating tag for archival work:
+
+```bash
+docker pull ghcr.io/duceppemo/popgenvcf@sha256:<digest>
+
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
+  -v "$PWD:/data" \
+  ghcr.io/duceppemo/popgenvcf@sha256:<digest> \
+  --config /data/analysis.yml
+```
+
+The release assets include the canonical digest and machine-readable metadata linking it to the source revision.
+
+## Deterministic and non-deterministic boundaries
+
+popgenVCF fixes and records random seeds where supported, normalizes output ordering, records software versions, and validates scientific reference results. Bit-for-bit identity may still vary where external libraries, floating-point implementations, thread scheduling, compression metadata, or plotting devices differ.
+
+## Scientific boundary
+
+Computational reproducibility demonstrates that the same software and inputs can regenerate materially equivalent outputs. It does not establish that sampling design, marker selection, population definitions, biological assumptions, or scientific interpretation are correct. Those remain responsibilities of the analyst and peer-review process.
+
+The full policy is maintained in [`docs/reproducibility.md`](https://github.com/duceppemo/popgenVCF/blob/main/docs/reproducibility.md).
