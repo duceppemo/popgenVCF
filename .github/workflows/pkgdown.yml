@@ -67,13 +67,10 @@ jobs:
           pkgdown::check_pkgdown(".")
 
       - name: Build pkgdown site
-        shell: Rscript {0}
+        shell: bash
         run: |
-          pkgdown::build_site(
-            new_process = FALSE,
-            install = TRUE,
-            preview = FALSE
-          )
+          set -o pipefail
+          Rscript -e 'pkgdown::build_site_github_pages(pkg = ".", clean = TRUE, install = TRUE, new_process = FALSE, examples = FALSE, preview = FALSE, quiet = FALSE)' 2>&1 | tee pkgdown-build.log
 
       - name: Validate generated site
         shell: bash
@@ -97,11 +94,14 @@ jobs:
           grep -q "Computational reproducibility" docs/articles/reproducibility.html
 
       - name: Upload diagnostic site artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pkgdown-site
-          path: docs/
-          if-no-files-found: error
+          name: pkgdown-diagnostics
+          path: |
+            docs/
+            pkgdown-build.log
+          if-no-files-found: warn
           retention-days: 14
 
       - name: Configure GitHub Pages
