@@ -34,31 +34,9 @@ navbar:
       href: https://github.com/duceppemo/popgenVCF
       aria-label: GitHub repository
 
-reference:
-  - title: Pipeline
-    contents:
-      - run_pipeline
-      - cli_main
-  - title: Analysis state
-    contents:
-      - new_popgen_vcf_analysis
-      - is_popgen_vcf_analysis
-      - validate_analysis
-      - set_analysis_result
-      - get_analysis_result
-  - title: Configuration
-    contents:
-      - default_config
-      - read_config
-      - validate_config
-  - title: Reporting and external tools
-    contents:
-      - render_report
-      - run_admixture_cv
-  - title: Scientific validation
-    contents:
-      - starts_with("run_scientific")
-      - starts_with("run_population_structure")
+# Keep the reference index complete by allowing pkgdown to discover every
+# documented topic automatically. A hand-curated index must account for every
+# non-internal topic and is therefore maintained separately from this release.
 
 articles:
   - title: Reproducibility and deployment
