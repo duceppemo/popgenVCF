@@ -38,6 +38,13 @@ build_release_manifest <- function(asset_dir, package_name, package_version, rel
                                    workflow_run_attempt,
                                    created_at = Sys.getenv("POPGENVCF_RELEASE_CREATED_AT", "1970-01-01T00:00:00Z")) {
   assets <- collect_release_assets(asset_dir)
+  asset_records <- lapply(seq_len(nrow(assets)), function(index) {
+    list(
+      path = assets$path[[index]],
+      size_bytes = assets$size_bytes[[index]],
+      sha256 = assets$sha256[[index]]
+    )
+  })
   list(
     schema_version = "1.0",
     record_type = "popgenvcf_release_manifest",
@@ -46,8 +53,8 @@ build_release_manifest <- function(asset_dir, package_name, package_version, rel
     runtime = list(r_version = r_version),
     workflow = list(name = workflow_name, run_id = workflow_run_id, run_attempt = workflow_run_attempt),
     created_at = created_at,
-    payload_asset_count = nrow(assets),
-    payload_assets = unname(split(assets, seq_len(nrow(assets))))
+    payload_asset_count = length(asset_records),
+    payload_assets = asset_records
   )
 }
 
