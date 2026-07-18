@@ -99,10 +99,16 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
 
   if (length(selected_available)) {
     registry_start <- proc.time()[["elapsed"]]
-    executed <- execute_analysis_registry(analysis, context, registry, selected_available)
+    backend <- if (cfg$compute$threads > 1L && .Platform$OS.type != "windows") "multicore" else "sequential"
+    engine <- new_execution_engine(workers = cfg$compute$threads, backend = backend)
+    executed <- execute_analysis_registry(
+      analysis, context, registry, selected_available,
+      engine = engine
+    )
     analysis <- executed$analysis
     context <- executed$context
     analysis$artifacts <- executed$artifacts
+    write_tsv(executed$plan$table, file.path(dirs$root, "analysis_execution_plan.tsv"))
     artifact_table <- artifact_manifest_table(executed$artifacts)
     if (nrow(artifact_table)) {
       write_tsv(artifact_table, file.path(dirs$root, "analysis_artifacts.tsv"))
@@ -110,12 +116,16 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
     analysis <- record_analysis_timing(analysis, "analysis registry", proc.time()[["elapsed"]] - registry_start)
     analysis <- record_analysis_message(
       analysis, "SUCCESS", "analysis registry",
-      paste("executed", length(executed$order), "module(s)")
+      paste("executed", length(executed$order), "module(s) in", executed$engine$waves, "wave(s)")
     )
     analysis <- set_analysis_result(analysis, "execution_order", executed$order)
   } else {
     analysis$artifacts <- new_artifact_manifest()
     analysis <- set_analysis_result(analysis, "execution_order", character())
+    analysis <- set_analysis_result(
+      analysis, "execution_engine",
+      list(backend = "sequential", workers = 1L, waves = 0L, batches = list())
+    )
     analysis <- record_analysis_message(analysis, "INFO", "analysis registry", "no compatible analysis modules were enabled")
     log_msg("No compatible analysis modules enabled after QC", level = "INFO")
   }

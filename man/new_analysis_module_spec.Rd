@@ -14,6 +14,7 @@ new_analysis_module_spec(
   outputs = name,
   references = character(),
   resource_class = "standard",
+  parallel_safe = FALSE,
   contract_version = "1.0",
   artifacts = character(),
   artifacts_must_exist = FALSE
@@ -33,6 +34,7 @@ register_analysis_module(registry, module)
   \item{outputs}{Declared analysis result names.}
   \item{references}{Scientific references.}
   \item{resource_class}{One of \code{light}, \code{standard}, \code{heavy}, or \code{external}.}
+  \item{parallel_safe}{Whether the module may run concurrently with independent modules without modifying the shared runtime context.}
   \item{contract_version}{Module contract version.}
   \item{artifacts}{Required artifact identifiers without the module prefix.}
   \item{artifacts_must_exist}{Whether artifact files must exist after execution.}
@@ -49,5 +51,5 @@ The print method returns \code{x} invisibly.
 \description{
 A module descriptor owns the complete registry contract for one analysis,
 including execution, dependencies, validation, declared results, scientific
-references, resource class, and publication artifacts.
+references, resource class, parallel-safety declaration, and publication artifacts.
 }
