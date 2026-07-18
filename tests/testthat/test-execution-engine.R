@@ -102,7 +102,10 @@ test_that("parallel-safe modules cannot mutate shared context", {
   expect_error(
     execute_analysis_registry(
       make_engine_analysis(), list(), registry,
-      engine = new_execution_engine(workers = 2L)
+      engine = new_execution_engine(
+        workers = 2L,
+        resource_limits = c(light = 2L, standard = 2L, heavy = 1L, external = 1L)
+      )
     ),
     "modified the shared execution context"
   )
