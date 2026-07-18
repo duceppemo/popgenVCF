@@ -1,0 +1,67 @@
+name: Apptainer
+
+on:
+  pull_request:
+    paths:
+      - "Apptainer.def"
+      - "Dockerfile"
+      - "docker/**"
+      - "DESCRIPTION"
+      - "NAMESPACE"
+      - "R/**"
+      - "inst/conda/**"
+      - "inst/scripts/install-bioconductor.R"
+      - ".github/workflows/apptainer.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apptainer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Apptainer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:apptainer/ppa
+          sudo apt-get update
+          sudo apt-get install -y apptainer
+          apptainer version
+
+      - name: Build SIF image
+        env:
+          APPTAINER_CACHEDIR: ${{ runner.temp }}/apptainer-cache
+          APPTAINER_TMPDIR: ${{ runner.temp }}/apptainer-tmp
+        run: |
+          mkdir -p "$APPTAINER_CACHEDIR" "$APPTAINER_TMPDIR"
+          sudo -E apptainer build popgenvcf.sif Apptainer.def
+
+      - name: Test SIF image
+        run: |
+          apptainer test popgenvcf.sif
+          apptainer exec popgenvcf.sif Rscript -e 'cat(as.character(packageVersion("popgenVCF")), "\n")'
+          apptainer run popgenvcf.sif --help
+          apptainer exec popgenvcf.sif Rscript -e '
+            core <- popgenVCF::run_scientific_validation(integration = TRUE, threads = 4)
+            structure <- popgenVCF::run_population_structure_validation(integration = TRUE)
+            stopifnot(core$passed, structure$passed)
+          '
+
+      - name: Upload SIF smoke-test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: popgenVCF-apptainer-ci
+          path: popgenvcf.sif
+          if-no-files-found: error
+          retention-days: 7

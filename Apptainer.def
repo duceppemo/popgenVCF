@@ -1,0 +1,54 @@
+Bootstrap: docker
+From: condaforge/miniforge3:25.3.0-3
+
+%labels
+    org.opencontainers.image.title popgenVCF
+    org.opencontainers.image.description Reproducible population-genomics toolkit for VCF data
+    org.opencontainers.image.source https://github.com/duceppemo/popgenVCF
+    org.opencontainers.image.licenses MIT
+
+%files
+    . /opt/popgenVCF
+
+%environment
+    export PATH=/opt/conda/envs/popgenvcf/bin:$PATH
+    export CONDA_DEFAULT_ENV=popgenvcf
+    export R_ENVIRON_USER=/dev/null
+    export R_PROFILE_USER=/dev/null
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
+    export HOME=/tmp
+
+%post
+    set -eu
+    mamba env create --file /opt/popgenVCF/inst/conda/environment.yml
+    mamba clean --all --yes
+    export PATH=/opt/conda/envs/popgenvcf/bin:$PATH
+    export CONDA_DEFAULT_ENV=popgenvcf
+    export R_ENVIRON_USER=/dev/null
+    export R_PROFILE_USER=/dev/null
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
+    cd /opt/popgenVCF
+    Rscript inst/scripts/install-bioconductor.R
+    R CMD INSTALL .
+    Rscript -e 'stopifnot(as.character(packageVersion("popgenVCF")) == read.dcf("DESCRIPTION")[1, "Version"])'
+    Rscript -e 'x <- popgenVCF::run_scientific_validation(integration = TRUE, threads = 4); stopifnot(x$passed)'
+    Rscript -e 'x <- popgenVCF::run_population_structure_validation(integration = TRUE); stopifnot(x$passed)'
+    install -m 0755 docker/entrypoint.sh /usr/local/bin/popgenvcf
+    mkdir -p /data
+    chmod 0777 /data
+
+%runscript
+    exec /usr/local/bin/popgenvcf "$@"
+
+%test
+    Rscript -e 'stopifnot(requireNamespace("popgenVCF", quietly = TRUE))'
+    /usr/local/bin/popgenvcf --help >/dev/null
+
+%help
+    popgenVCF Apptainer image
+
+    Bind an analysis directory to /data and pass the regular popgenVCF CLI options:
+
+      apptainer run --bind "$PWD:/data" popgenvcf.sif --config /data/analysis.yml
