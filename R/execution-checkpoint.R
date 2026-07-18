@@ -22,6 +22,14 @@ checkpoint_payload_digest <- function(checkpoint) {
   digest::digest(payload, algo = "sha256", serialize = TRUE)
 }
 
+checkpoint_remaining_plan <- function(full_plan, registry, remaining) {
+  order <- full_plan$order[full_plan$order %in% remaining]
+  waves <- execution_wave_map(registry, order)
+  table <- data.table::copy(full_plan$table[match(order, full_plan$table$module)])
+  table[, wave := unname(waves[module])]
+  structure(list(order = order, waves = waves, table = table), class = "PopgenVCFExecutionPlan")
+}
+
 #' Create an execution checkpoint
 #'
 #' Capture validated execution state so unfinished modules can be resumed without
@@ -188,9 +196,7 @@ resume_analysis_execution <- function(checkpoint, registry,
       execution = execution
     ))
   }
-  remaining_plan <- plan_analysis_execution(
-    registry, checkpoint$analysis$config, selected = remaining
-  )
+  remaining_plan <- checkpoint_remaining_plan(full_plan, registry, remaining)
   resumed <- execute_analysis_plan(
     checkpoint$analysis, checkpoint$context, registry, remaining_plan, engine
   )
