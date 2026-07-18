@@ -73,7 +73,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          Rscript -e 'pkgdown::build_site_github_pages(pkg = ".", dest_dir = Sys.getenv("PKGDOWN_DEST"), clean = TRUE, install = TRUE, new_process = FALSE, examples = FALSE, preview = FALSE, quiet = FALSE)' 2>&1 | tee pkgdown-build.log
+          Rscript -e 'pkgdown::build_site_github_pages(pkg = ".", dest_dir = Sys.getenv("PKGDOWN_DEST"), clean = TRUE, install = TRUE, new_process = FALSE, examples = FALSE, quiet = FALSE)' 2>&1 | tee pkgdown-build.log
 
       - name: Validate generated site
         shell: bash
