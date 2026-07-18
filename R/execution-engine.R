@@ -10,7 +10,9 @@
 #'   `"multicore"` uses forked workers on non-Windows systems.
 #' @param resource_limits Named integer vector giving the maximum concurrent
 #'   modules for `light`, `standard`, `heavy`, and `external` resource classes.
-#' @param fail_fast Stop immediately after the first failed module.
+#' @param fail_fast Stop immediately after the first failed module. When false,
+#'   independent modules continue and descendants of failed modules are marked
+#'   as blocked without being executed.
 #' @return A validated `PopgenVCFExecutionEngine` object.
 #' @export
 new_execution_engine <- function(workers = 1L,
@@ -151,6 +153,50 @@ execution_batches <- function(plan, registry, engine) {
   batches
 }
 
+new_execution_ledger <- function(plan, registry, batches) {
+  batch_map <- stats::setNames(integer(length(plan$order)), plan$order)
+  for (i in seq_along(batches)) batch_map[batches[[i]]] <- i
+  if (!length(plan$order)) {
+    return(data.table::data.table(
+      module = character(), wave = integer(), batch = integer(),
+      requires = character(), resource_class = character(),
+      parallel_safe = logical(), status = character(),
+      elapsed_seconds = numeric(), error_message = character(),
+      blocked_by = character()
+    ))
+  }
+  data.table::rbindlist(lapply(plan$order, function(name) {
+    module <- registry$modules[[name]]
+    data.table::data.table(
+      module = name,
+      wave = unname(plan$waves[[name]]),
+      batch = unname(batch_map[[name]]),
+      requires = paste(module$requires, collapse = ","),
+      resource_class = module$resource_class,
+      parallel_safe = isTRUE(module$parallel_safe),
+      status = "pending",
+      elapsed_seconds = NA_real_,
+      error_message = "",
+      blocked_by = ""
+    )
+  }))
+}
+
+ledger_status <- function(ledger, modules) {
+  stats::setNames(ledger$status[match(modules, ledger$module)], modules)
+}
+
+update_execution_ledger <- function(ledger, module, status,
+                                    elapsed_seconds = NA_real_,
+                                    error_message = "", blocked_by = character()) {
+  row <- match(module, ledger$module)
+  ledger$status[[row]] <- status
+  ledger$elapsed_seconds[[row]] <- elapsed_seconds
+  ledger$error_message[[row]] <- as.character(error_message)[1]
+  ledger$blocked_by[[row]] <- paste(blocked_by, collapse = ",")
+  ledger
+}
+
 run_engine_module <- function(name, analysis, context, registry) {
   module <- registry$modules[[name]]
   t0 <- proc.time()[["elapsed"]]
@@ -206,13 +252,17 @@ merge_parallel_module <- function(analysis, context, execution, validated, regis
 
 #' Execute an analysis plan
 #'
+#' Modules whose prerequisites fail are never executed when `fail_fast` is
+#' false. They are marked as blocked in the returned execution ledger while
+#' dependency-independent modules remain eligible to complete.
+#'
 #' @param analysis A `PopgenVCFAnalysis` object.
 #' @param context Runtime context shared by module runners.
 #' @param registry A `PopgenVCFRegistry` object.
 #' @param plan A plan returned by [plan_analysis_execution()].
 #' @param engine A `PopgenVCFExecutionEngine` object.
-#' @return A list containing updated state, execution order, plan, artifacts,
-#'   and engine metadata.
+#' @return A list containing updated state, successful execution order, plan,
+#'   artifacts, engine metadata, and the module-level `execution` ledger.
 #' @export
 execute_analysis_plan <- function(analysis, context, registry, plan,
                                   engine = new_execution_engine()) {
@@ -225,19 +275,38 @@ execute_analysis_plan <- function(analysis, context, registry, plan,
   validate_analysis(analysis, "ordination")
   artifacts <- new_artifact_manifest()
   batches <- execution_batches(plan, registry, engine)
+  ledger <- new_execution_ledger(plan, registry, batches)
   completed <- character()
 
   for (batch in batches) {
-    merge_batch <- length(batch) > 1L
-    use_parallel <- merge_batch && identical(engine$backend, "multicore")
+    eligible <- character()
+    for (name in batch) {
+      requirements <- intersect(registry$modules[[name]]$requires, plan$order)
+      requirement_status <- ledger_status(ledger, requirements)
+      blocked_by <- names(requirement_status)[requirement_status %in% c("failed", "blocked")]
+      if (length(blocked_by)) {
+        ledger <- update_execution_ledger(ledger, name, "blocked", blocked_by = blocked_by)
+        analysis <- record_analysis_message(
+          analysis, "WARNING", name,
+          paste("blocked by unsuccessful prerequisite(s):", paste(blocked_by, collapse = ", "))
+        )
+      } else {
+        eligible <- c(eligible, name)
+      }
+    }
+    if (!length(eligible)) next
+
+    snapshot_batch <- length(batch) > 1L
+    use_parallel <- length(eligible) > 1L && identical(engine$backend, "multicore")
+    for (name in eligible) ledger <- update_execution_ledger(ledger, name, "running")
     executions <- if (use_parallel) {
       parallel::mclapply(
-        batch, run_engine_module, analysis = analysis, context = context,
-        registry = registry, mc.cores = min(engine$workers, length(batch)),
+        eligible, run_engine_module, analysis = analysis, context = context,
+        registry = registry, mc.cores = min(engine$workers, length(eligible)),
         mc.preschedule = FALSE
       )
     } else {
-      lapply(batch, run_engine_module, analysis = analysis, context = context, registry = registry)
+      lapply(eligible, run_engine_module, analysis = analysis, context = context, registry = registry)
     }
 
     for (execution in executions) {
@@ -246,12 +315,17 @@ execute_analysis_plan <- function(analysis, context, registry, plan,
         error = function(e) e
       )
       if (inherits(validated, "error")) {
+        ledger <- update_execution_ledger(
+          ledger, execution$name, "failed",
+          elapsed_seconds = execution$elapsed,
+          error_message = conditionMessage(validated)
+        )
         analysis <- record_analysis_message(analysis, "ERROR", execution$name, conditionMessage(validated))
         if (engine$fail_fast) stop(validated)
         next
       }
 
-      if (merge_batch) {
+      if (snapshot_batch) {
         analysis <- merge_parallel_module(analysis, context, execution, validated, registry)
       } else {
         analysis <- validated$out$analysis
@@ -264,20 +338,31 @@ execute_analysis_plan <- function(analysis, context, registry, plan,
       }
       artifacts <- append_artifact_manifest(artifacts, validated$artifacts)
       completed <- c(completed, execution$name)
+      ledger <- update_execution_ledger(
+        ledger, execution$name, "success", elapsed_seconds = execution$elapsed
+      )
     }
   }
 
+  status_counts <- as.list(table(factor(
+    ledger$status,
+    levels = c("pending", "running", "success", "failed", "blocked")
+  )))
+  names(status_counts) <- c("pending", "running", "success", "failed", "blocked")
   metadata <- list(
     backend = engine$backend,
     workers = engine$workers,
     resource_limits = engine$resource_limits,
     fail_fast = engine$fail_fast,
     waves = if (length(plan$waves)) max(plan$waves) else 0L,
-    batches = unname(batches)
+    batches = unname(batches),
+    status_counts = status_counts
   )
   analysis <- set_analysis_result(analysis, "execution_engine", metadata)
+  analysis <- set_analysis_result(analysis, "execution_ledger", ledger)
   list(
     analysis = analysis, context = context, order = completed,
-    plan = plan, artifacts = artifacts, engine = metadata
+    plan = plan, artifacts = artifacts, engine = metadata,
+    execution = ledger
   )
 }
