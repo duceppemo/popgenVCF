@@ -1,5 +1,10 @@
 # popgenVCF 0.10.0 development
 
+- Added a unified deterministic analysis execution engine with canonical planning, module ordering, contract validation, and execution metadata.
+- Added dependency-aware failure propagation with explicit success, failed, and blocked states plus auditable execution ledgers.
+- Added validated execution checkpoints, deterministic plan reconstruction, safe resume support, and checkpoint persistence.
+- Added bounded deterministic retry and recovery orchestration with preserved attempt ledgers and validated prerequisite reuse.
+- Added explicit global and per-module elapsed-time budgets, fail-closed timeout handling, `timed_out` ledger states, retry integration, and timeout-policy metadata.
 - Added canonical backend-independent ancestry replicate and result contracts for ADMIXTURE, fastStructure, and sNMF.
 - Enforced sample identity, Q-matrix simplex constraints, replicate uniqueness, fit metrics, convergence, runtime, and provenance.
 - Added stable replicate-summary and long-form Q-matrix tables for downstream consensus, plotting, and reporting.
@@ -59,5 +64,3 @@
 - Isolated fastStructure in an optional Python 3.10 environment and source installer.
 - Removed the nonexistent texlive-inconsolata Conda dependency; TeX is now documented as a system/container layer.
 - Added resolved-environment export and verification guidance.
-
-# popgenVCF 0.8.3
