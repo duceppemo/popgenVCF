@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/tagged-source-release.yml'
       - 'scripts/build_release_manifest.R'
+      - 'inst/scripts/build_release_manifest.R'
       - 'scripts/build_scientific_release_integration.R'
       - 'tests/testthat/test-release-manifest.R'
       - 'docs/developer/tagged-source-release.md'
@@ -105,12 +106,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          package_root="${PWD}"
           mkdir -p release-work/source release-assets
-          R CMD build --no-manual --compact-vignettes=gs+qpdf . \
-            --output=release-work/source
-          tarball="$(find release-work/source -maxdepth 1 -name 'popgenVCF_*.tar.gz' -print -quit)"
+          cd release-work/source
+          R CMD build --no-manual --compact-vignettes=gs+qpdf "${package_root}"
+          tarball="$(find "${PWD}" -maxdepth 1 -name 'popgenVCF_*.tar.gz' -print -quit)"
           [[ -n "${tarball}" ]]
-          cp "${tarball}" release-assets/
+          cp "${tarball}" "${package_root}/release-assets/"
           echo "tarball=${tarball}" >> "$GITHUB_OUTPUT"
 
       - name: Check built source package
