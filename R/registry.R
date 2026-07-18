@@ -23,26 +23,31 @@ new_analysis_registry <- function() {
 #' @param outputs Declared analysis-result names.
 #' @param references Scientific references supporting the module.
 #' @param resource_class One of `light`, `standard`, `heavy`, or `external`.
+#' @param parallel_safe Whether the module can run concurrently with independent
+#'   modules. Parallel-safe modules must not modify the shared runtime context.
 #' @param contract_version Module-contract version.
 #' @return The updated registry.
 #' @export
 register_analysis <- function(registry, name, run, requires = character(), enabled = TRUE,
                               description = "", validate = validate_module_result,
                               outputs = name, references = character(),
-                              resource_class = "standard", contract_version = "1.0") {
+                              resource_class = "standard", parallel_safe = FALSE,
+                              contract_version = "1.0") {
   if (!inherits(registry, "PopgenVCFRegistry")) stop("registry must be a PopgenVCFRegistry", call. = FALSE)
   if (!is.character(name) || length(name) != 1L || !nzchar(name)) stop("module name must be one non-empty string", call. = FALSE)
   if (!is.function(run)) stop("run must be a function", call. = FALSE)
   if (!is.logical(enabled) && !is.function(enabled)) stop("enabled must be logical or a function", call. = FALSE)
   if (!is.function(validate)) stop("validate must be a function", call. = FALSE)
   if (!resource_class %in% c("light", "standard", "heavy", "external")) stop("invalid resource_class", call. = FALSE)
+  if (!is.logical(parallel_safe) || length(parallel_safe) != 1L || is.na(parallel_safe)) stop("parallel_safe must be TRUE or FALSE", call. = FALSE)
   requires <- unique(as.character(requires))
   if (name %in% requires) stop("a module cannot require itself", call. = FALSE)
   registry$modules[[name]] <- list(
     name = name, run = run, requires = requires, enabled = enabled,
     description = as.character(description)[1], validate = validate,
     outputs = unique(as.character(outputs)), references = as.character(references),
-    resource_class = resource_class, contract_version = as.character(contract_version)[1],
+    resource_class = resource_class, parallel_safe = isTRUE(parallel_safe),
+    contract_version = as.character(contract_version)[1],
     artifacts = character(), artifacts_must_exist = FALSE
   )
   registry
@@ -64,6 +69,7 @@ list_analyses <- function(registry) {
       artifacts = paste(x$artifacts %||% character(), collapse = ","),
       artifacts_must_exist = isTRUE(x$artifacts_must_exist),
       resource_class = x$resource_class,
+      parallel_safe = isTRUE(x$parallel_safe),
       contract_version = x$contract_version,
       references = paste(x$references, collapse = "; ")
     )
@@ -115,45 +121,13 @@ resolve_analysis_order <- function(registry, config, selected = NULL) {
 #' @param context Runtime context shared by module runners.
 #' @param registry A `PopgenVCFRegistry` object.
 #' @param selected Optional module names.
+#' @param engine Optional [new_execution_engine()] configuration. When omitted,
+#'   a deterministic single-worker engine preserves historical behavior.
 #' @return A list containing updated `analysis`, `context`, execution `order`,
-#'   and the combined `artifacts` manifest.
+#'   the compiled execution `plan`, and the combined `artifacts` manifest.
 #' @export
-execute_analysis_registry <- function(analysis, context, registry, selected = NULL) {
-  validate_analysis(analysis, "ordination")
-  order <- resolve_analysis_order(registry, analysis$config, selected)
-  artifacts <- new_artifact_manifest()
-  for (name in order) {
-    module <- registry$modules[[name]]
-    t0 <- proc.time()[["elapsed"]]
-    out <- run_stage(name, module$run(analysis, context))
-    if (!is.list(out) || is.null(out$analysis) || is.null(out$context)) {
-      stop("Analysis module '", name, "' returned an invalid result", call. = FALSE)
-    }
-    candidate <- out$analysis
-    context <- out$context
-    missing_outputs <- setdiff(module$outputs, names(candidate$results))
-    if (length(missing_outputs)) {
-      stop("Module '", name, "' did not produce declared output(s): ",
-           paste(missing_outputs, collapse = ", "), call. = FALSE)
-    }
-    validation <- module$validate(candidate$results[[module$outputs[[1]]]], candidate, context)
-    assert_module_validation(validation, name)
-
-    module_artifacts <- module_artifact_manifest(out)
-    validate_module_artifacts(
-      module_name = name,
-      declared = module$artifacts %||% character(),
-      manifest = module_artifacts,
-      must_exist = isTRUE(module$artifacts_must_exist)
-    )
-    artifacts <- append_artifact_manifest(artifacts, module_artifacts)
-
-    candidate$results$validation <- candidate$results$validation %||% list()
-    candidate$results$validation[[name]] <- validation
-    analysis <- candidate
-    analysis <- record_analysis_timing(analysis, name, proc.time()[["elapsed"]] - t0)
-    analysis <- record_analysis_message(analysis, "SUCCESS", name, "completed and validated")
-    validate_analysis(analysis)
-  }
-  list(analysis = analysis, context = context, order = order, artifacts = artifacts)
+execute_analysis_registry <- function(analysis, context, registry, selected = NULL,
+                                      engine = new_execution_engine()) {
+  plan <- plan_analysis_execution(registry, analysis$config, selected)
+  execute_analysis_plan(analysis, context, registry, plan, engine)
 }
