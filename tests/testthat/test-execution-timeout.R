@@ -9,11 +9,20 @@ timeout_test_analysis <- function() {
   analysis
 }
 
+timeout_busy_wait <- function(seconds) {
+  started <- proc.time()[["elapsed"]]
+  value <- 0
+  while ((proc.time()[["elapsed"]] - started) < seconds) {
+    value <- value + sqrt(value + 1)
+  }
+  invisible(value)
+}
+
 timeout_module <- function(name, delay = 0) {
   force(name)
   force(delay)
   function(analysis, context) {
-    if (delay > 0) Sys.sleep(delay)
+    if (delay > 0) timeout_busy_wait(delay)
     analysis <- set_analysis_result(analysis, name, list(module = name))
     list(analysis = analysis, context = context)
   }
@@ -83,7 +92,7 @@ test_that("timeout failures participate in bounded retries", {
     registry, "slow",
     function(analysis, context) {
       attempts$n <- attempts$n + 1L
-      if (attempts$n == 1L) Sys.sleep(0.1)
+      if (attempts$n == 1L) timeout_busy_wait(0.1)
       analysis <- set_analysis_result(analysis, "slow", list(module = "slow"))
       list(analysis = analysis, context = context)
     },
