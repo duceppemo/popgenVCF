@@ -228,8 +228,9 @@ execute_analysis_plan <- function(analysis, context, registry, plan,
   completed <- character()
 
   for (batch in batches) {
-    parallel_batch <- length(batch) > 1L && identical(engine$backend, "multicore")
-    executions <- if (parallel_batch) {
+    merge_batch <- length(batch) > 1L
+    use_parallel <- merge_batch && identical(engine$backend, "multicore")
+    executions <- if (use_parallel) {
       parallel::mclapply(
         batch, run_engine_module, analysis = analysis, context = context,
         registry = registry, mc.cores = min(engine$workers, length(batch)),
@@ -250,8 +251,7 @@ execute_analysis_plan <- function(analysis, context, registry, plan,
         next
       }
 
-      module <- registry$modules[[execution$name]]
-      if (parallel_batch) {
+      if (merge_batch) {
         analysis <- merge_parallel_module(analysis, context, execution, validated, registry)
       } else {
         analysis <- validated$out$analysis
