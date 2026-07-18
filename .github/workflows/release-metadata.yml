@@ -1,0 +1,54 @@
+name: Release metadata
+
+on:
+  pull_request:
+    paths:
+      - "DESCRIPTION"
+      - "CITATION.cff"
+      - "codemeta.json"
+      - "docs/reproducibility.md"
+      - "scripts/validate_release_metadata.R"
+      - ".github/workflows/release-metadata.yml"
+  push:
+    branches: [main]
+    paths:
+      - "DESCRIPTION"
+      - "CITATION.cff"
+      - "codemeta.json"
+      - "docs/reproducibility.md"
+      - "scripts/validate_release_metadata.R"
+      - ".github/workflows/release-metadata.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate release metadata
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - name: Install metadata validators
+        run: |
+          Rscript -e 'install.packages("jsonlite")'
+          python -m pip install --disable-pip-version-check cffconvert
+
+      - name: Validate CFF schema
+        run: cffconvert --validate
+
+      - name: Validate metadata consistency
+        run: Rscript scripts/validate_release_metadata.R
+
+      - name: Validate JSON syntax
+        run: python -m json.tool codemeta.json >/dev/null
