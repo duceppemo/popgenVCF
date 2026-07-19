@@ -6,7 +6,8 @@
 \description{
 Create deterministic supervision policies and run validated external commands
 with resource admission, cooperative cancellation boundaries, timeout
-enforcement, output capture, cleanup, and provenance metadata.
+enforcement, independent output capture, process-tree cleanup, and provenance
+metadata.
 }
 \usage{
 new_external_process_supervision_policy(
@@ -42,13 +43,19 @@ run_supervised_external_command(
 }
 \details{
 Resource admission and pre-launch cancellation are evaluated before executable
-resolution and process launch. Base R timeout enforcement reports timed-out
-commands with the distinct \code{timed_out} state and exit status 124.
-Cancellation is checked again after process completion. The normalized states
-are \code{resource_unavailable}, \code{cancelled}, \code{launch_failed},
-\code{timed_out}, \code{nonzero_exit}, and \code{success}.
+resolution and process launch. Execution uses the \pkg{processx} backend with
+process-tree cleanup enabled. Commands that exceed the elapsed-time limit are
+terminated together with their descendants and receive the distinct
+\code{timed_out} state and normalized exit status 124.
 
-Capture files are registered for cleanup before launch and removed on all return
-paths. Cross-platform descendant-process termination and asynchronous
-mid-process cancellation remain later supervision layers.
+Cancellation is checked again after process completion. Active asynchronous
+mid-process cancellation is intentionally deferred to a later supervision
+layer. The normalized states remain \code{resource_unavailable},
+\code{cancelled}, \code{launch_failed}, \code{timed_out},
+\code{nonzero_exit}, and \code{success}.
+
+Supervision provenance records the backend, resource admission, timeout policy,
+cancellation state, termination reason, and whether process-tree cleanup was
+completed or not required. Timed-out and otherwise unsuccessful commands remain
+fail-closed and cannot represent accepted scientific output.
 }
