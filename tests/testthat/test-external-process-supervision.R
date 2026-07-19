@@ -31,6 +31,7 @@ test_that("resource rejection occurs before launch", {
   )
   expect_identical(result$status, "resource_unavailable")
   expect_true("threads" %in% result$supervision$admission$exceeded)
+  expect_identical(result$supervision$backend, "processx")
   expect_identical(result$supervision$cleanup, "completed")
 })
 
@@ -46,28 +47,79 @@ test_that("pre-launch cancellation fails closed", {
   expect_true(result$supervision$cancellation$requested)
 })
 
-test_that("timeouts receive a distinct state", {
+test_that("timeouts receive a distinct state and cleanup provenance", {
   skip_on_cran()
   script <- supervision_script("Sys.sleep(3)")
   on.exit(unlink(script), add = TRUE)
   result <- run_supervised_external_command(
-    new_external_command(supervised_rscript(), shQuote(script)),
+    new_external_command(supervised_rscript(), script),
     supervision_policy = new_external_process_supervision_policy(timeout_seconds = 1)
   )
   expect_identical(result$status, "timed_out")
   expect_identical(result$exit_status, 124L)
   expect_match(result$error_message, "exceeded timeout")
+  expect_true(result$supervision$termination$requested)
+  expect_identical(result$supervision$termination$reason, "timeout")
+  expect_identical(result$supervision$termination$tree_cleanup, "completed")
 })
 
-test_that("successful supervised commands retain provenance", {
-  script <- supervision_script("cat('supervised-output')")
+test_that("timeout cleanup prevents descendant processes from surviving", {
+  skip_on_cran()
+  marker <- tempfile("descendant-marker-")
+  child <- supervision_script(c(
+    "args <- commandArgs(trailingOnly = TRUE)",
+    "Sys.sleep(2)",
+    "writeLines('survived', args[[1]])"
+  ))
+  parent <- supervision_script(c(
+    sprintf("system2(%s, c(%s, %s), wait = FALSE)",
+      dQuote(supervised_rscript()), dQuote(child), dQuote(marker)),
+    "Sys.sleep(5)"
+  ))
+  on.exit(unlink(c(marker, child, parent), force = TRUE), add = TRUE)
+
+  result <- run_supervised_external_command(
+    new_external_command(supervised_rscript(), parent),
+    supervision_policy = new_external_process_supervision_policy(timeout_seconds = 0.5)
+  )
+  Sys.sleep(2.5)
+
+  expect_identical(result$status, "timed_out")
+  expect_false(file.exists(marker))
+  expect_identical(result$supervision$termination$tree_cleanup, "completed")
+})
+
+test_that("successful supervised commands retain output and provenance", {
+  script <- supervision_script(c(
+    "cat('supervised-output')",
+    "message('supervised-error')"
+  ))
   on.exit(unlink(script), add = TRUE)
   result <- run_supervised_external_command(
-    new_external_command(supervised_rscript(), shQuote(script), label = "supervised-r")
+    new_external_command(supervised_rscript(), script, label = "supervised-r")
   )
   expect_identical(result$status, "success")
-  expect_identical(result$stdout, "supervised-output")
+  expect_match(result$stdout, "supervised-output", fixed = TRUE)
+  expect_match(result$stderr, "supervised-error", fixed = TRUE)
   expect_identical(result$command_fingerprint, result$command$fingerprint)
   expect_identical(result$supervision$admission$status, "admitted")
+  expect_identical(result$supervision$backend, "processx")
+  expect_identical(result$supervision$termination$tree_cleanup, "not_required")
   expect_identical(result$supervision$cleanup, "completed")
+})
+
+test_that("non-zero commands preserve exit status and output", {
+  script <- supervision_script(c(
+    "cat('partial-output')",
+    "message('diagnostic-error')",
+    "quit(status = 7L)"
+  ))
+  on.exit(unlink(script), add = TRUE)
+  result <- run_supervised_external_command(
+    new_external_command(supervised_rscript(), script)
+  )
+  expect_identical(result$status, "nonzero_exit")
+  expect_identical(result$exit_status, 7L)
+  expect_match(result$stdout, "partial-output", fixed = TRUE)
+  expect_match(result$stderr, "diagnostic-error", fixed = TRUE)
 })
