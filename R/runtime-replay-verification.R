@@ -61,18 +61,18 @@ verify_runtime_replay <- function(bundle) {
     if (!identical(execution_modules, attempt_modules)) {
       stop("execution and attempt ledgers contain different module sets", call. = FALSE)
     }
-    for (module in execution_modules) {
-      chain <- attempts[as.character(module) == module][order(attempt)]
+    for (target_module in execution_modules) {
+      chain <- attempts[as.character(attempts$module) == target_module][order(attempt)]
       final <- chain[nrow(chain)]
-      recorded <- execution[as.character(module) == module]
+      recorded <- execution[as.character(execution$module) == target_module]
       if (!identical(as.character(final$status), as.character(recorded$status))) {
-        stop("final attempt status conflicts with execution ledger for module: ", module,
-             call. = FALSE)
+        stop("final attempt status conflicts with execution ledger for module: ",
+             target_module, call. = FALSE)
       }
       if ("attempt" %in% names(execution) &&
           !identical(as.integer(recorded$attempt), max(as.integer(chain$attempt)))) {
-        stop("execution attempt counter conflicts with retry chain for module: ", module,
-             call. = FALSE)
+        stop("execution attempt counter conflicts with retry chain for module: ",
+             target_module, call. = FALSE)
       }
     }
   }
