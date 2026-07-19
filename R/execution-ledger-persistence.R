@@ -2,12 +2,15 @@ execution_ledger_required_columns <- function() {
   c("module", "status")
 }
 
-#' Create a canonical execution ledger
+#' Create a canonical persisted execution ledger
+#'
+#' This constructor is intentionally distinct from the scheduler's internal
+#' `new_execution_ledger(plan, registry, batches)` helper.
 #'
 #' @param ledger A data frame containing execution records.
 #' @return A validated `PopgenVCFExecutionLedger` data table.
 #' @export
-new_execution_ledger <- function(ledger) {
+new_persisted_execution_ledger <- function(ledger) {
   if (!is.data.frame(ledger)) {
     stop("ledger must be a data frame", call. = FALSE)
   }
@@ -45,7 +48,8 @@ validate_execution_ledger <- function(ledger) {
   if (anyDuplicated(as.character(ledger$module))) {
     stop("execution ledger module identities must be unique", call. = FALSE)
   }
-  allowed_status <- c("success", "failed", "cancelled", "skipped")
+  allowed_status <- c("pending", "running", "success", "failed", "blocked",
+                      "cancelled", "skipped")
   if (anyNA(ledger$status) ||
       !all(as.character(ledger$status) %in% allowed_status)) {
     stop("execution ledger contains an unsupported status", call. = FALSE)
@@ -85,7 +89,7 @@ read_execution_ledger_sidecar <- function(path) {
 #' @export
 write_execution_ledger <- function(ledger, path, overwrite = FALSE) {
   if (!inherits(ledger, "PopgenVCFExecutionLedger")) {
-    ledger <- new_execution_ledger(ledger)
+    ledger <- new_persisted_execution_ledger(ledger)
   }
   validate_execution_ledger(ledger)
   path <- normalizePath(path, mustWork = FALSE)
