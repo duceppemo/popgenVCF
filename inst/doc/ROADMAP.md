@@ -43,39 +43,47 @@ Phase 8 turns the analysis registry into a deterministic, recoverable, and scien
   - `timed_out` final and attempt-ledger states;
   - retry integration and timeout-policy metadata;
   - explicit documentation of interruptible-R and external-process boundaries.
-
-### Planned milestones
-
-- [ ] **8.6 — Deterministic cancellation and graceful shutdown**
-  - user- and system-requested cancellation at safe execution boundaries;
-  - explicit `cancelled` ledger states and cancellation metadata;
+- [x] **8.6 — Deterministic cancellation and graceful shutdown**
+  - cooperative cancellation at safe module-launch boundaries;
+  - explicit `cancelled` ledger states and cancellation provenance;
   - checkpoint-on-cancel and safe resumability;
-  - clear separation of cancellation, timeout, and failure.
-- [ ] **8.7 — Resource policies and execution admission**
-  - declarative thread, memory, temporary-storage, and process requirements;
-  - conservative admission and concurrency decisions;
-  - explicit resource-unavailable and resource-limit states;
-  - resource-policy provenance in execution metadata.
-- [ ] **8.8 — Supervised external-process execution**
-  - a canonical subprocess runner for PLINK, ADMIXTURE, fastStructure, bcftools, and related tools;
-  - process-level timeouts and process-tree termination;
-  - normalized exit codes, stdout, stderr, command provenance, and cleanup;
-  - deterministic external-tool failure records.
-- [ ] **8.9 — Execution observability and run telemetry**
-  - structured execution events and standardized logging;
-  - module and attempt timing;
-  - warnings, progress, and compact run summaries;
-  - machine-readable timelines and dependency-aware visualizations.
+  - strict separation of cancellation, timeout, and failure.
+- [x] **8.7 — Resource policies and execution admission**
+  - validated thread, memory, temporary-storage, and process requirements;
+  - deterministic exact-capacity admission and execution batching;
+  - explicit `resource_unavailable` decisions;
+  - resource-policy provenance in execution records.
+- [x] **8.8 — Supervised external-process execution**
+  - canonical immutable command and normalized result contracts;
+  - deterministic workspaces, staged-input manifests, and lifecycle ledgers;
+  - timeout, cancellation, resource admission, and process-tree cleanup;
+  - synchronous and asynchronous `processx` supervision APIs.
+- [x] **8.9 — Portable deterministic concurrent scheduling**
+  - cross-platform `multisession` scheduling for dependency-ready modules;
+  - deterministic L'Ecuyer-CMRG worker RNG streams;
+  - resource-aware dispatch with serial-module exclusivity;
+  - validation and merge in planned module order regardless of completion timing;
+  - dispatch, completion, merge, worker, backend, and scheduler provenance.
+
+### Planned milestone
+
 - [ ] **8.10 — Execution hardening and stable runtime API**
-  - complete state-transition and interaction testing;
-  - checkpoint compatibility and corruption handling;
-  - timeout, retry, cancellation, resource, and subprocess integration tests;
-  - performance regression benchmarks;
-  - versioned execution schemas and stable public documentation.
+  - freeze and document the public execution-runtime surface, including execution, resume, cancellation, resource, subprocess, scheduling, and inspection entry points;
+  - version execution, attempt-ledger, checkpoint, scheduler, resource, process-result, workspace, and lifecycle-event schemas;
+  - define explicit backward-compatibility, migration, and unsupported-future-schema behavior;
+  - add corruption, truncation, checksum, stale-reference, and incompatible-schema handling for checkpoints and persisted execution records;
+  - complete state-transition coverage across success, validation failure, dependency blocking, retry, timeout, cancellation, resource rejection, subprocess failure, and concurrent execution;
+  - add interaction tests for cancellation during asynchronous processes, timeout escalation, retry after process failure, resume after partial concurrent completion, and fail-fast scheduling;
+  - add deterministic replay tests proving stable planned ordering, accepted-result ordering, fingerprints, and ledger semantics across sequential, multicore, and multisession backends;
+  - add concurrency stress tests for worker completion races, equal-time tie-breaking, resource saturation, serial exclusivity, and repeated seeded runs;
+  - establish performance and memory regression benchmarks for planning, ledger growth, checkpoint serialization, process supervision, and scheduler overhead;
+  - audit exported functions, S3 methods, validation helpers, error classes, status names, and metadata fields for consistent naming and stable semantics;
+  - publish a complete execution-runtime reference, lifecycle/state diagrams, compatibility policy, migration guide, and extension guidance for module and external-tool authors;
+  - require the full package, scientific-validation, documentation, release, container, and benchmark matrix to pass before Phase 8 is declared complete.
 
 ### Phase 8 completion criterion
 
-Phase 8 is complete when success, validation failure, dependency blocking, timeout, cancellation, resource exhaustion, and external-process failure are deterministic, auditable, fail closed, and resumable where scientifically safe.
+Phase 8 is complete when success, validation failure, dependency blocking, timeout, cancellation, resource exhaustion, external-process failure, and concurrent execution are deterministic, auditable, fail closed, resumable where scientifically safe, and governed by a documented versioned runtime contract.
 
 ## 0.9: publication-quality analysis platform
 
