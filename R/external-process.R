@@ -42,7 +42,9 @@ new_external_command <- function(executable,
     stop("label must be a non-empty string", call. = FALSE)
   }
 
-  environment <- environment[order(names(environment))]
+  if (length(environment)) {
+    environment <- environment[order(names(environment))]
+  }
   specification <- list(
     executable = executable,
     args = args,
