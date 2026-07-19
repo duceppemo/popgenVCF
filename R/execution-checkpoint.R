@@ -122,6 +122,11 @@ validate_execution_checkpoint <- function(checkpoint, registry = NULL) {
 
 #' Write an execution checkpoint
 #'
+#' The checkpoint is serialized inside a versioned runtime integrity envelope.
+#' A whole-file SHA-256 sidecar protects the serialized bytes, while the envelope
+#' and checkpoint digests independently protect schema compatibility and payload
+#' semantics.
+#'
 #' @param checkpoint A validated execution checkpoint.
 #' @param path Destination `.rds` path.
 #' @param overwrite Whether an existing checkpoint may be replaced.
@@ -129,6 +134,8 @@ validate_execution_checkpoint <- function(checkpoint, registry = NULL) {
 #' @export
 write_execution_checkpoint <- function(checkpoint, path, overwrite = FALSE) {
   validate_execution_checkpoint(checkpoint)
+  envelope <- new_runtime_integrity_envelope("checkpoint", checkpoint)
+  validate_runtime_integrity_envelope(envelope)
   path <- normalizePath(path, mustWork = FALSE)
   checksum_path <- paste0(path, ".sha256")
   if (!overwrite && (file.exists(path) || file.exists(checksum_path))) {
@@ -137,7 +144,7 @@ write_execution_checkpoint <- function(checkpoint, path, overwrite = FALSE) {
   dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
   tmp <- tempfile("execution-checkpoint-", tmpdir = dirname(path), fileext = ".rds")
   on.exit(unlink(tmp), add = TRUE)
-  saveRDS(checkpoint, tmp, version = 3, compress = "xz")
+  saveRDS(envelope, tmp, version = 3, compress = "xz")
   checksum <- digest::digest(file = tmp, algo = "sha256")
   if (!file.rename(tmp, path)) stop("unable to install execution checkpoint", call. = FALSE)
   writeLines(paste(checksum, basename(path)), checksum_path, useBytes = TRUE)
@@ -145,6 +152,10 @@ write_execution_checkpoint <- function(checkpoint, path, overwrite = FALSE) {
 }
 
 #' Read and verify an execution checkpoint
+#'
+#' Validation proceeds from the serialized bytes inward: the SHA-256 sidecar,
+#' readable RDS structure, runtime envelope schema and digest, then checkpoint
+#' invariants and optional registry compatibility.
 #'
 #' @param path Checkpoint `.rds` path.
 #' @param registry Optional registry used for compatibility validation.
@@ -155,10 +166,25 @@ read_execution_checkpoint <- function(path, registry = NULL) {
   if (!file.exists(path) || !file.exists(checksum_path)) {
     stop("checkpoint and SHA-256 sidecar are required", call. = FALSE)
   }
-  expected <- strsplit(readLines(checksum_path, warn = FALSE)[1], "[[:space:]]+")[[1]][1]
+  sidecar <- readLines(checksum_path, warn = FALSE)
+  if (!length(sidecar) || !nzchar(sidecar[[1]])) {
+    stop("execution checkpoint SHA-256 sidecar is malformed", call. = FALSE)
+  }
+  expected <- strsplit(sidecar[[1]], "[[:space:]]+")[[1]][1]
   observed <- digest::digest(file = path, algo = "sha256")
-  if (!identical(expected, observed)) stop("execution checkpoint file checksum mismatch", call. = FALSE)
-  checkpoint <- readRDS(path)
+  if (!identical(expected, observed)) {
+    stop("execution checkpoint file checksum mismatch", call. = FALSE)
+  }
+  envelope <- tryCatch(
+    readRDS(path),
+    error = function(e) {
+      stop("execution checkpoint is unreadable or truncated: ", conditionMessage(e), call. = FALSE)
+    }
+  )
+  if (!inherits(envelope, "PopgenVCFRuntimeEnvelope")) {
+    stop("legacy unwrapped execution checkpoint requires explicit migration", call. = FALSE)
+  }
+  checkpoint <- runtime_integrity_payload(envelope)
   validate_execution_checkpoint(checkpoint, registry = registry)
   checkpoint
 }
