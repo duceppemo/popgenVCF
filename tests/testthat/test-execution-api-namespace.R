@@ -41,8 +41,9 @@ test_that("execution supervision print methods are registered", {
 })
 
 test_that("registered execution objects dispatch their print methods", {
+  rscript <- file.path(R.home("bin"), paste0("Rscript", .Platform$exeext))
   token <- new_execution_cancellation_token("namespace-test")
-  command <- new_external_command(file.path(R.home("bin"), "Rscript"))
+  command <- new_external_command(rscript, args = "--version")
   supervision <- new_external_process_supervision_policy()
   workspace <- new_external_process_workspace_policy()
 
@@ -51,9 +52,6 @@ test_that("registered execution objects dispatch their print methods", {
   expect_output(print(supervision), "PopgenVCFExternalProcessSupervisionPolicy", fixed = TRUE)
   expect_output(print(workspace), "PopgenVCFExternalProcessWorkspacePolicy", fixed = TRUE)
 
-  result <- run_external_command(new_external_command(
-    file.path(R.home("bin"), "Rscript"),
-    args = c("-e", "quit(status = 0)")
-  ))
+  result <- run_external_command(command)
   expect_output(print(result), "PopgenVCFExternalProcessResult", fixed = TRUE)
 })
