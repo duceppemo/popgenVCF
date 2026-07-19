@@ -1,5 +1,5 @@
 execution_ledger_fixture <- function() {
-  new_execution_ledger(data.table::data.table(
+  new_persisted_execution_ledger(data.table::data.table(
     module = c("qc", "pca", "fst"),
     status = c("success", "success", "failed"),
     attempt = c(1L, 1L, 2L),
@@ -45,17 +45,25 @@ test_that("execution ledger serialization is byte-for-byte deterministic", {
 
 test_that("execution ledger invariants fail closed", {
   expect_error(
-    new_execution_ledger(data.frame(module = c("a", "a"), status = "success")),
+    new_persisted_execution_ledger(data.frame(module = c("a", "a"), status = "success")),
     "unique"
   )
   expect_error(
-    new_execution_ledger(data.frame(module = "a", status = "unknown")),
+    new_persisted_execution_ledger(data.frame(module = "a", status = "unknown")),
     "unsupported status"
   )
   expect_error(
-    new_execution_ledger(data.frame(module = "a", status = "success", attempt = 0L)),
+    new_persisted_execution_ledger(data.frame(module = "a", status = "success", attempt = 0L)),
     "positive integers"
   )
+})
+
+test_that("scheduler ledgers remain accepted runtime ledgers", {
+  ledger <- new_persisted_execution_ledger(data.table::data.table(
+    module = c("qc", "pca"),
+    status = c("pending", "blocked")
+  ))
+  expect_s3_class(ledger, "PopgenVCFExecutionLedger")
 })
 
 test_that("payload mutation fails after a valid file checksum", {
