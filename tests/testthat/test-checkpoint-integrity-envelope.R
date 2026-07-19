@@ -1,7 +1,41 @@
+checkpoint_envelope_analysis <- function() {
+  analysis <- new_popgen_vcf_analysis(default_config())
+  analysis$samples$ids <- c("a", "b")
+  analysis$samples$metadata <- data.table::data.table(
+    sample = c("a", "b"), population = c("x", "y")
+  )
+  analysis$variants$qc_ids <- 1:2
+  analysis$variants$ld_ids <- 1:2
+  analysis
+}
+
+checkpoint_envelope_result_module <- function(name) {
+  force(name)
+  function(analysis, context) {
+    analysis <- set_analysis_result(analysis, name, list(module = name))
+    list(analysis = analysis, context = context)
+  }
+}
+
+checkpoint_envelope_registry <- function() {
+  registry <- new_analysis_registry()
+  registry <- register_analysis(
+    registry, "first", checkpoint_envelope_result_module("first")
+  )
+  registry <- register_analysis(
+    registry, "second", checkpoint_envelope_result_module("second"),
+    requires = "first"
+  )
+  register_analysis(
+    registry, "third", checkpoint_envelope_result_module("third"),
+    requires = "second"
+  )
+}
+
 checkpoint_envelope_fixture <- function() {
-  registry <- checkpoint_registry()
+  registry <- checkpoint_envelope_registry()
   checkpoint <- new_execution_checkpoint(
-    execute_analysis_registry(checkpoint_analysis(), list(), registry),
+    execute_analysis_registry(checkpoint_envelope_analysis(), list(), registry),
     registry
   )
   list(registry = registry, checkpoint = checkpoint)
