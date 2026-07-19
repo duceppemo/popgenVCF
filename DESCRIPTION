@@ -41,6 +41,7 @@ Imports:
     jsonlite,
     parallel,
     poppr,
+    processx,
     rmarkdown,
     scales,
     SNPRelate,

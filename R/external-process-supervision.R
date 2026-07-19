@@ -48,7 +48,12 @@ supervision_result <- function(command, status, started, finished,
                                admission, policy, cancellation_token = NULL,
                                exit_status = NA_integer_, stdout = "", stderr = "",
                                resolved_executable = NA_character_,
-                               error_message = NA_character_) {
+                               error_message = NA_character_,
+                               termination = list(
+                                 requested = FALSE,
+                                 reason = NA_character_,
+                                 tree_cleanup = "not_required"
+                               )) {
   result <- new_external_process_result(
     command = command,
     status = status,
@@ -63,6 +68,7 @@ supervision_result <- function(command, status, started, finished,
   )
   result$supervision <- list(
     policy = policy$label,
+    backend = "processx",
     timeout_seconds = policy$timeout_seconds,
     resource_policy = policy$resource_policy$label,
     admission = admission,
@@ -72,6 +78,7 @@ supervision_result <- function(command, status, started, finished,
       reason = cancellation_token$reason,
       requested_at = cancellation_token$requested_at
     ),
+    termination = termination,
     cleanup = "completed"
   )
   result
@@ -80,8 +87,9 @@ supervision_result <- function(command, status, started, finished,
 #' Run an external command under deterministic supervision
 #'
 #' The command is admitted against declared resources before launch. Cancellation
-#' is checked at deterministic launch and completion boundaries. Base R timeout
-#' enforcement terminates commands that exceed the configured elapsed-time limit.
+#' is checked at deterministic launch and completion boundaries. The `processx`
+#' backend enforces elapsed-time limits and cleans the complete descendant process
+#' tree on timeout and abnormal R-side exit paths.
 #'
 #' @param command A validated `PopgenVCFExternalCommand`.
 #' @param requirements Declared process requirements.
@@ -139,60 +147,55 @@ run_supervised_external_command <- function(
     ))
   }
 
-  stdout_path <- tempfile("popgenvcf-supervised-stdout-")
-  stderr_path <- tempfile("popgenvcf-supervised-stderr-")
-  on.exit(unlink(c(stdout_path, stderr_path), force = TRUE), add = TRUE)
-
-  old_directory <- getwd()
-  on.exit(setwd(old_directory), add = TRUE)
-  setwd(command$working_directory)
-
-  environment <- if (length(command$environment)) {
-    paste0(names(command$environment), "=", unname(command$environment))
-  } else {
-    character()
-  }
-  timeout <- if (is.infinite(supervision_policy$timeout_seconds)) {
-    0
-  } else {
-    supervision_policy$timeout_seconds
-  }
-
+  execution <- NULL
   execution_error <- NULL
-  exit_status <- tryCatch(
-    suppressWarnings(system2(
-      resolved,
+  execution <- tryCatch(
+    processx::run(
+      command = resolved,
       args = command$args,
-      stdout = stdout_path,
-      stderr = stderr_path,
-      env = environment,
-      wait = TRUE,
-      timeout = timeout
-    )),
+      error_on_status = FALSE,
+      wd = command$working_directory,
+      timeout = supervision_policy$timeout_seconds,
+      stdout = "|",
+      stderr = "|",
+      env = if (length(command$environment)) command$environment else NULL,
+      cleanup_tree = TRUE,
+      windows_hide_window = TRUE
+    ),
     error = function(e) {
       execution_error <<- conditionMessage(e)
-      NA_integer_
+      NULL
     }
   )
   finished <- Sys.time()
-  stdout <- read_process_output(stdout_path)
-  stderr <- read_process_output(stderr_path)
 
-  status <- if (!is.null(execution_error)) {
-    "launch_failed"
-  } else if (identical(as.integer(exit_status), 124L)) {
+  if (!is.null(execution_error)) {
+    return(supervision_result(
+      command, "launch_failed", started, finished, admission,
+      supervision_policy, cancellation_token,
+      resolved_executable = resolved,
+      error_message = execution_error,
+      termination = list(
+        requested = FALSE,
+        reason = "launch_failed",
+        tree_cleanup = "completed"
+      )
+    ))
+  }
+
+  timed_out <- isTRUE(execution$timeout)
+  exit_status <- if (timed_out) 124L else as.integer(execution$status)
+  status <- if (timed_out) {
     "timed_out"
   } else if (!is.null(cancellation_token) && isTRUE(cancellation_token$requested)) {
     "cancelled"
-  } else if (identical(as.integer(exit_status), 0L)) {
+  } else if (identical(exit_status, 0L)) {
     "success"
   } else {
     "nonzero_exit"
   }
 
-  error_message <- if (!is.null(execution_error)) {
-    execution_error
-  } else if (identical(status, "timed_out")) {
+  error_message <- if (identical(status, "timed_out")) {
     sprintf("Process exceeded timeout of %s seconds", supervision_policy$timeout_seconds)
   } else if (identical(status, "cancelled")) {
     cancellation_token$reason
@@ -202,6 +205,12 @@ run_supervised_external_command <- function(
 
   supervision_result(
     command, status, started, finished, admission, supervision_policy,
-    cancellation_token, exit_status, stdout, stderr, resolved, error_message
+    cancellation_token, exit_status, execution$stdout, execution$stderr,
+    resolved, error_message,
+    termination = list(
+      requested = timed_out,
+      reason = if (timed_out) "timeout" else NA_character_,
+      tree_cleanup = if (timed_out) "completed" else "not_required"
+    )
   )
 }
