@@ -32,7 +32,7 @@ test_that("successful commands clean workspaces and record ordered events", {
 
   command <- new_external_command(
     workspace_rscript(),
-    args = shQuote(script),
+    args = script,
     label = "workspace-success"
   )
   result <- run_supervised_external_command_in_workspace(
@@ -66,7 +66,7 @@ test_that("failed commands retain fingerprinted diagnostic workspaces", {
 
   command <- new_external_command(
     workspace_rscript(),
-    args = shQuote(script),
+    args = script,
     label = "workspace-failure"
   )
   result <- run_supervised_external_command_in_workspace(
@@ -95,7 +95,7 @@ test_that("workspace identity is deterministic and staging fails closed", {
   writeLines("stable", input)
   on.exit(unlink(c(root, script, input), recursive = TRUE), add = TRUE)
 
-  command <- new_external_command(workspace_rscript(), shQuote(script), label = "stable")
+  command <- new_external_command(workspace_rscript(), script, label = "stable")
   policy <- new_external_process_workspace_policy(
     root, cleanup_on_success = FALSE, retain_on_failure = TRUE
   )
