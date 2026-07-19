@@ -64,7 +64,7 @@ test_that("attempt ledger readers fail closed", {
     paste(attempt_ledger_sidecar_digest(path), basename(path)),
     paste0(path, ".sha256")
   )
-  expect_error(read_attempt_ledger(path), "payload digest mismatch")
+  expect_error(read_attempt_ledger(path), "runtime integrity digest mismatch")
 
   saveRDS(ledger, path, version = 3, compress = "xz")
   writeLines(
