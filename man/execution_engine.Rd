@@ -5,18 +5,17 @@
 \alias{plan_analysis_execution}
 \alias{print.PopgenVCFExecutionPlan}
 \alias{execute_analysis_plan}
-\title{Unified analysis execution engine}
+\title{Unified deterministic analysis execution engine}
 \description{
 Compile a dependency-aware module registry into deterministic execution waves,
-apply worker and resource-class limits, and execute the resulting plan.
-Modules are serial by default and must explicitly declare themselves
-parallel-safe before they can share a batch. Non-fail-fast runs continue only
-through dependency-independent modules and record blocked descendants.
+apply worker and resource-class limits, and execute the resulting plan through
+serial, forked, or portable PSOCK workers. Modules are serial by default and
+must explicitly declare themselves parallel-safe before they can share a batch.
 }
 \usage{
 new_execution_engine(
   workers = 1L,
-  backend = c("sequential", "multicore"),
+  backend = c("sequential", "multisession", "multicore"),
   resource_limits = NULL,
   fail_fast = TRUE
 )
@@ -37,7 +36,7 @@ execute_analysis_plan(
 }
 \arguments{
   \item{workers}{Maximum number of concurrently executing modules.}
-  \item{backend}{Execution backend. \code{"sequential"} is portable; \code{"multicore"} uses forked workers on non-Windows systems.}
+  \item{backend}{Execution backend. \code{"sequential"} executes in the calling process, \code{"multisession"} uses portable PSOCK workers on Linux, macOS, and Windows, and \code{"multicore"} uses forked workers on non-Windows systems.}
   \item{resource_limits}{Named positive integer vector with limits for \code{light}, \code{standard}, \code{heavy}, and \code{external} modules.}
   \item{fail_fast}{Whether execution stops after the first module failure. When false, independent modules continue and descendants of failed modules are recorded as blocked without execution.}
   \item{x}{An execution engine or execution plan.}
@@ -60,13 +59,20 @@ module-level execution ledger. Print methods return their input invisibly.
 \details{
 Execution plans use topological dependency waves. Within each wave, only
 modules whose contracts set \code{parallel_safe = TRUE} may share a batch.
-Resource-class limits can further split a wave into smaller batches. A
-parallel-safe module must leave the shared context unchanged; this invariant is
-validated before its results are merged.
+Resource-class limits can further split a wave into smaller batches. A serial
+module executes alone. A parallel-safe module must leave the shared context
+unchanged; this invariant is validated before its results are merged.
+
+The \code{"multisession"} backend creates portable PSOCK workers and initializes
+a deterministic L'Ecuyer-CMRG random-number stream. Worker completion timing is
+recorded, but validation and result merging always follow the planned module
+order. Consequently, completion timing cannot reorder accepted outputs,
+artifacts, validation records, or execution messages.
 
 The execution ledger has one deterministic row per planned module and records
 its wave, batch, requirements, resource class, parallel-safety declaration,
-status, elapsed time, error message, and direct blocking prerequisites. Valid
+status, elapsed time, error message, blocking prerequisites, dispatch sequence,
+completion sequence, merge sequence, and worker process identifier. Valid
 terminal states are \code{success}, \code{failed}, and \code{blocked}. A blocked
 module is never invoked and therefore cannot contribute results or artifacts.
 }
