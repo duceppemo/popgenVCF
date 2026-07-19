@@ -47,10 +47,18 @@ validate_runtime_integrity_envelope <- function(envelope, allow_legacy = FALSE) 
     stop("runtime integrity envelope is missing field(s): ",
          paste(missing, collapse = ", "), call. = FALSE)
   }
+  if (!is.list(envelope$schema) ||
+      !all(c("kind", "version") %in% names(envelope$schema))) {
+    stop("runtime integrity envelope has malformed schema metadata", call. = FALSE)
+  }
   if (!identical(envelope$digest_algorithm, "sha256")) {
     stop("unsupported runtime integrity digest algorithm", call. = FALSE)
   }
-  validate_runtime_schema(envelope$schema, allow_legacy = allow_legacy)
+  validate_runtime_schema(
+    envelope$schema$kind,
+    envelope$schema$version,
+    allow_legacy = allow_legacy
+  )
   if (!identical(envelope$kind, envelope$schema$kind)) {
     stop("runtime integrity envelope kind does not match schema kind", call. = FALSE)
   }
