@@ -17,7 +17,7 @@ write_public_api_record <- function(x, path) {
     envelope_type = "popgenvcf_public_api_record",
     envelope_version = "1.0.0",
     record_type = x$record_type,
-    fingerprint = x$fingerprint,
+    fingerprint = unclass(x$fingerprint),
     encoding = "r-serialize-v3+base64",
     payload = as.character(openssl::base64_encode(payload))
   )
@@ -48,7 +48,7 @@ read_public_api_record <- function(path) {
 
   x <- unserialize(openssl::base64_decode(envelope$payload))
   if (!is.list(x) || !identical(x$record_type, envelope$record_type) ||
-      !identical(x$fingerprint, envelope$fingerprint)) {
+      !identical(unclass(x$fingerprint), unclass(envelope$fingerprint))) {
     stop("Public API envelope identity verification failed.", call. = FALSE)
   }
   .phase10_validate_public_record(x)
