@@ -39,6 +39,7 @@ Imports:
     ggplot2,
     ggrepel,
     jsonlite,
+    openssl,
     parallel,
     poppr,
     processx,
