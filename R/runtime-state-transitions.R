@@ -9,7 +9,9 @@ runtime_terminal_statuses <- function() {
 #' Return the canonical runtime state-transition matrix
 #'
 #' The matrix is deliberately fail closed. Rows are source states and columns
-#' are target states. Terminal states may only remain unchanged.
+#' are target states. Terminal states may only remain unchanged. Retry records
+#' may omit intermediate pending/running snapshots, so failed and blocked may
+#' transition directly to a later observed outcome.
 #'
 #' @return A logical matrix describing allowed runtime state transitions.
 #' @export
@@ -24,8 +26,8 @@ runtime_state_transition_matrix <- function() {
   allowed <- list(
     pending = c("pending", "running", "blocked", "cancelled", "skipped"),
     running = c("running", "success", "failed", "blocked", "cancelled"),
-    failed = c("pending", "running", "failed", "cancelled", "skipped"),
-    blocked = c("pending", "running", "blocked", "cancelled", "skipped"),
+    failed = c("pending", "running", "success", "failed", "blocked", "cancelled", "skipped"),
+    blocked = c("pending", "running", "success", "failed", "blocked", "cancelled", "skipped"),
     success = "success",
     cancelled = "cancelled",
     skipped = "skipped"
