@@ -42,7 +42,10 @@ test_that("closure assembly approves complete evidence deterministically", {
   expect_true(first$closure_review$closure_approved)
   expect_identical(first$fingerprint, second$fingerprint)
   expect_identical(first$roadmap_handoff$next_phase_id, "10.1")
-  expect_match(phase9_closure_report(first), "Closure approved: `TRUE`")
+  expect_match(
+    paste(phase9_closure_report(first), collapse = "\n"),
+    "Closure approved: `TRUE`"
+  )
 })
 
 test_that("closure assembly requires all evidence identities", {
