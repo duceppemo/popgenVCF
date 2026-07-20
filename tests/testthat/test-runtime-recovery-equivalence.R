@@ -63,17 +63,15 @@ test_that("context and artifact drift fail closed", {
     "context"
   )
 
-  changed_artifacts <- reference
-  changed_artifacts$artifacts$artifacts <- data.table::copy(
-    changed_artifacts$artifacts$artifacts
+  with_artifact <- reference
+  with_artifact$artifacts <- register_artifact(
+    with_artifact$artifacts,
+    new_analysis_artifact("first", "result", "data", "result.tsv", "tsv")
   )
-  if (nrow(changed_artifacts$artifacts$artifacts)) {
-    changed_artifacts$artifacts$artifacts[1, path := paste0(path, ".tampered")]
-    expect_error(
-      verify_runtime_recovery_equivalence(reference, changed_artifacts),
-      "artifacts"
-    )
-  }
+  expect_error(
+    verify_runtime_recovery_equivalence(reference, with_artifact),
+    "artifacts"
+  )
 })
 
 test_that("module reordering, duplication, and nonterminal states are rejected", {
