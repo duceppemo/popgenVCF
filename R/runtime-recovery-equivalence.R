@@ -1,6 +1,11 @@
 recovery_analysis_projection <- function(analysis) {
   validate_analysis(analysis)
   projected <- analysis
+  projected$started_at <- NULL
+  projected$completed_at <- NULL
+  projected$status <- NULL
+  projected$timings <- NULL
+  projected$messages <- NULL
   projected$results$execution_engine <- NULL
   projected$results$execution_ledger <- NULL
   projected
@@ -58,10 +63,11 @@ recovery_equivalence_components <- function(execution) {
 
 #' Verify recovery equivalence against an uninterrupted execution
 #'
-#' Recovery-specific bookkeeping such as `checkpoint_reused` and execution-engine
-#' resume metadata is intentionally excluded. Scientific results, context,
-#' artifacts, plan identity, module order, and terminal outcomes must remain
-#' byte-for-byte deterministic after canonical serialization.
+#' Recovery-specific bookkeeping and volatile runtime observations such as
+#' checkpoint reuse flags, timestamps, timings, messages, and execution-engine
+#' metadata are intentionally excluded. Scientific results, inputs, samples,
+#' variants, configuration, context, artifacts, plan identity, module order,
+#' and terminal outcomes must remain deterministic after canonical serialization.
 #'
 #' @param reference A complete uninterrupted analysis execution result.
 #' @param recovered A complete execution result resumed from a checkpoint.
