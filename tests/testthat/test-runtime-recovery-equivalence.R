@@ -1,18 +1,53 @@
+recovery_checkpoint_analysis <- function() {
+  analysis <- new_popgen_vcf_analysis(default_config())
+  analysis$samples$ids <- c("a", "b")
+  analysis$samples$metadata <- data.table::data.table(
+    sample = c("a", "b"), population = c("x", "y")
+  )
+  analysis$variants$qc_ids <- 1:2
+  analysis$variants$ld_ids <- 1:2
+  analysis
+}
+
+recovery_result_module <- function(name) {
+  force(name)
+  function(analysis, context) {
+    analysis <- set_analysis_result(analysis, name, list(module = name))
+    list(analysis = analysis, context = context)
+  }
+}
+
+recovery_checkpoint_registry <- function(fail_second = FALSE) {
+  registry <- new_analysis_registry()
+  registry <- register_analysis(
+    registry, "first", recovery_result_module("first")
+  )
+  second <- if (fail_second) {
+    function(analysis, context) stop("interrupted", call. = FALSE)
+  } else {
+    recovery_result_module("second")
+  }
+  registry <- register_analysis(registry, "second", second, requires = "first")
+  register_analysis(
+    registry, "third", recovery_result_module("third"), requires = "second"
+  )
+}
+
 test_that("resumed execution is equivalent to uninterrupted execution", {
-  reference_registry <- checkpoint_registry()
+  reference_registry <- recovery_checkpoint_registry()
   reference <- execute_analysis_registry(
-    checkpoint_analysis(), list(seed = 17L), reference_registry,
+    recovery_checkpoint_analysis(), list(seed = 17L), reference_registry,
     engine = new_execution_engine(fail_fast = FALSE)
   )
 
-  interrupted_registry <- checkpoint_registry(fail_second = TRUE)
+  interrupted_registry <- recovery_checkpoint_registry(fail_second = TRUE)
   interrupted <- execute_analysis_registry(
-    checkpoint_analysis(), list(seed = 17L), interrupted_registry,
+    recovery_checkpoint_analysis(), list(seed = 17L), interrupted_registry,
     engine = new_execution_engine(fail_fast = FALSE)
   )
   checkpoint <- new_execution_checkpoint(interrupted, interrupted_registry)
   recovered <- resume_analysis_execution(
-    checkpoint, checkpoint_registry(),
+    checkpoint, recovery_checkpoint_registry(),
     engine = new_execution_engine(fail_fast = FALSE)
   )
 
@@ -28,8 +63,8 @@ test_that("resumed execution is equivalent to uninterrupted execution", {
 })
 
 test_that("recovery-only bookkeeping does not create false divergence", {
-  registry <- checkpoint_registry()
-  reference <- execute_analysis_registry(checkpoint_analysis(), list(), registry)
+  registry <- recovery_checkpoint_registry()
+  reference <- execute_analysis_registry(recovery_checkpoint_analysis(), list(), registry)
   checkpoint <- new_execution_checkpoint(reference, registry)
   recovered <- resume_analysis_execution(checkpoint, registry)
 
@@ -39,8 +74,8 @@ test_that("recovery-only bookkeeping does not create false divergence", {
 })
 
 test_that("scientific result drift fails closed", {
-  registry <- checkpoint_registry()
-  reference <- execute_analysis_registry(checkpoint_analysis(), list(), registry)
+  registry <- recovery_checkpoint_registry()
+  reference <- execute_analysis_registry(recovery_checkpoint_analysis(), list(), registry)
   recovered <- reference
   recovered$analysis$results$second$module <- "tampered"
 
@@ -51,9 +86,9 @@ test_that("scientific result drift fails closed", {
 })
 
 test_that("context and artifact drift fail closed", {
-  registry <- checkpoint_registry()
+  registry <- recovery_checkpoint_registry()
   reference <- execute_analysis_registry(
-    checkpoint_analysis(), list(seed = 1L), registry
+    recovery_checkpoint_analysis(), list(seed = 1L), registry
   )
 
   changed_context <- reference
@@ -75,8 +110,8 @@ test_that("context and artifact drift fail closed", {
 })
 
 test_that("module reordering, duplication, and nonterminal states are rejected", {
-  registry <- checkpoint_registry()
-  reference <- execute_analysis_registry(checkpoint_analysis(), list(), registry)
+  registry <- recovery_checkpoint_registry()
+  reference <- execute_analysis_registry(recovery_checkpoint_analysis(), list(), registry)
 
   reordered <- reference
   reordered$order <- rev(reordered$order)
@@ -101,8 +136,8 @@ test_that("module reordering, duplication, and nonterminal states are rejected",
 })
 
 test_that("terminal outcome divergence is reported", {
-  registry <- checkpoint_registry()
-  reference <- execute_analysis_registry(checkpoint_analysis(), list(), registry)
+  registry <- recovery_checkpoint_registry()
+  reference <- execute_analysis_registry(recovery_checkpoint_analysis(), list(), registry)
   recovered <- reference
   recovered$execution$status[2] <- "failed"
 
