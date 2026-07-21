@@ -123,7 +123,7 @@ validate_publication_layout_profile <- function(profile, journal_profile = NULL)
 #' @param name One of `general`, `nature-style`, `g3`, `molecular-ecology`, or `plos`.
 #' @return A deterministic publication layout profile.
 #' @export
-publication_layout_profile <- function(name = .publication_layout_profile_ids) {
+publication_layout_profile <- function(name = c("g3", "general", "molecular-ecology", "nature-style", "plos")) {
   name <- match.arg(name)
   journal <- generic_journal_profile()
   common_structure <- list(
