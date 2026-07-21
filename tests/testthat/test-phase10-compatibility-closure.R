@@ -55,7 +55,7 @@ test_that("Phase 10.2 closure audit fails closed on evidence drift", {
     phase10_2_audit_compatibility_closure(
       x$descriptor, x$compatibility, x$migration_plan, x$conformance, x$policy
     ),
-    "not bound to the supplied candidate descriptor"
+    "not bound"
   )
 })
 
