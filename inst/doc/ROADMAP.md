@@ -74,16 +74,14 @@ Phase 10 exposes the unified runtime through a stable, documented user-facing sc
 - [x] **0.9.10 — Publication AMOVA outputs**
 - [x] **0.9.11 — Publication isolation-by-distance outputs**
 - [x] **0.9.12 — Publication spatial-genetics outputs**
-  - deterministic spatial-genetics publication specifications and manifests over authoritative spatial results;
-  - stable sample coordinates, spatial statistics, neighborhood summaries, permutation evidence, captions, and supplementary tables;
-  - accessible figure-style bindings, machine-readable exports, provenance, and fail-closed drift detection.
-
-### Active milestone
-
-- [ ] **0.9.13 — Canonical real-data validation contracts**
+- [x] **0.9.13 — Canonical real-data validation contracts**
   - fingerprinted licensed-dataset manifests with source, version, checksum, and license metadata;
   - deterministic sample, population, locus, expected-result, tolerance, and external-tool comparison inventories;
   - CI-safe synthetic fixtures, opt-in canonical integration fixtures, provenance, and fail-closed drift detection.
+
+### Current planning checkpoint
+
+No subsequent implementation phase is active. The repository is undergoing a release-gap audit before the next milestone is selected. The audit must reconcile package versioning, exported API/documentation coverage, remaining core publication modules, canonical real-data adoption, benchmarks, metadata, containers, and open tracking issues.
 
 ### Validation datasets and benchmarking
 
