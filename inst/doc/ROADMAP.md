@@ -72,20 +72,17 @@ Phase 10 exposes the unified runtime through a stable, documented user-facing sc
 - [x] **0.9.8 — Publication diversity outputs**
 - [x] **0.9.9 — Publication ancestry outputs**
 - [x] **0.9.10 — Publication AMOVA outputs**
-  - deterministic AMOVA publication specifications and manifests over authoritative AMOVA results;
-  - stable variance components, degrees of freedom, sums of squares, percentage variation, Phi statistics, permutation evidence, captions, and supplementary tables;
-  - accessible figure-style bindings, machine-readable exports, provenance, and fail-closed drift detection.
-
-### Active milestone
-
-- [ ] **0.9.11 — Publication isolation-by-distance outputs**
+- [x] **0.9.11 — Publication isolation-by-distance outputs**
   - deterministic IBD publication specifications and manifests over authoritative IBD results;
   - stable pairwise genetic and geographic distances, regression summaries, permutation evidence, captions, and supplementary tables;
   - accessible figure-style bindings, machine-readable exports, provenance, and fail-closed drift detection.
 
-### Core analysis presentation
+### Active milestone
 
-- [ ] later spatial-genetics adapters.
+- [ ] **0.9.12 — Publication spatial-genetics outputs**
+  - deterministic spatial-genetics publication specifications and manifests over authoritative spatial results;
+  - stable sample coordinates, spatial statistics, neighborhood summaries, permutation evidence, captions, and supplementary tables;
+  - accessible figure-style bindings, machine-readable exports, provenance, and fail-closed drift detection.
 
 ### Validation datasets and benchmarking
 
@@ -107,7 +104,7 @@ Phase 10 exposes the unified runtime through a stable, documented user-facing sc
 The following open issues remain authoritative tracking containers and are intentionally not closed:
 
 - **#4 — v0.9 publication-quality platform:** umbrella tracker for the remaining 0.9 and 1.0 release work.
-- **#20 — Core publication artifact contracts:** remains open for IBS/MDS, isolation-by-distance, and remaining publication artifacts.
+- **#20 — Core publication artifact contracts:** remains open for IBS/MDS and remaining publication artifacts.
 - **#22 — Canonical real-data validation:** covers licensed datasets, expected values, external-tool comparisons, and CI/full-validation workflows.
 - **#24 — Unified ancestry platform:** covers backend/runtime enhancements beyond the completed publication ancestry contract.
 - **#43 — Continuous scientific benchmarks:** covers historical regression archives, cross-tool comparisons, resource/scaling measurements, dashboards, and release benchmark artifacts.
