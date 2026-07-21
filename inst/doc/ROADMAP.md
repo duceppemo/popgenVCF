@@ -67,15 +67,17 @@ See [Phase 10 public API](PHASE10_PUBLIC_API.md) and [Phase 10.1 closure audit](
 ### Active milestone
 
 - [ ] **10.2 — Public API compatibility and release conformance**
-  - [ ] **10.2.1 — Public API compatibility contracts**
-  - define canonical compatibility fixtures for every stable public operation and schema;
+  - [x] **10.2.1 — Public API compatibility contracts**
+  - [x] **10.2.2 — API evolution policy and migration planning**
+  - [ ] **10.2.3 — Release conformance manifests and gating**
   - compare API descriptors and serialized records across supported package releases;
   - classify compatible additions, deprecations, breaking changes, and unsupported future versions;
-  - generate deterministic release-conformance manifests and human-readable compatibility reports;
+  - require deterministic migration paths and deprecation schedules;
+  - generate deterministic release-conformance manifests and human-readable reports;
   - bind conformance evidence to package, container, Apptainer, documentation, and scientific-validation identities;
-  - fail release gating on unexplained public-surface or schema drift.
+  - fail release gating on unexplained public-surface, schema, migration, or distribution drift.
 
-See [Phase 10 API compatibility contracts](PHASE10_API_COMPATIBILITY.md).
+See [Phase 10 API compatibility contracts](PHASE10_API_COMPATIBILITY.md), [Phase 10 API evolution](PHASE10_API_EVOLUTION.md), and [Phase 10 release conformance](PHASE10_RELEASE_CONFORMANCE.md).
 
 ### Entry criteria
 
