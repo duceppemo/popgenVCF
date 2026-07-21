@@ -15,7 +15,16 @@ test_that("metadata alignment fails closed", {
   spec <- new_publication_ordination_spec(group_column = "population")
   coordinates <- data.frame(sample_id = c("a", "b"), PC1 = c(1, 2), PC2 = c(3, 4))
   metadata <- data.frame(sample_id = c("a", "c"), population = c("X", "Y"))
-  expect_error(new_publication_ordination_output(spec, coordinates, metadata, c(60, 30), "result"), "do not match exactly")
+  expect_error(
+    new_publication_ordination_output(
+      spec,
+      coordinates,
+      metadata = metadata,
+      variance_explained = c(60, 30),
+      result_fingerprint = "result"
+    ),
+    "do not match exactly"
+  )
 })
 
 test_that("non-finite values and duplicate samples fail closed", {
