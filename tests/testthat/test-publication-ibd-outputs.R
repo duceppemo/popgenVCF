@@ -1,14 +1,14 @@
 test_that("publication IBD output is deterministic and ordered", {
   spec <- new_publication_ibd_spec()
   pairs <- data.frame(
-    sample1 = c("B", "C", "A"), sample2 = c("A", "A", "C"),
+    sample1 = c("B", "C", "A"), sample2 = c("A", "A", "D"),
     genetic_distance = c(0.2, 0.4, 0.3), geographic_distance = c(20, 40, 30)
   )
   regression <- data.frame(term = c("intercept", "slope"), estimate = c(0.01, 0.005))
   permutation <- data.frame(statistic = "mantel_r", value = 0.7, p_value = 0.01)
   output <- new_publication_ibd_output(spec, pairs, regression, permutation, "result-sha")
   expect_identical(output$pairs$sample1, c("A", "A", "A"))
-  expect_identical(output$pairs$sample2, c("B", "C", "C"))
+  expect_identical(output$pairs$sample2, c("B", "C", "D"))
   expect_true(validate_publication_ibd_output(output, spec))
   expect_match(publication_ibd_caption(output, spec), "3 unique")
   expect_identical(output$fingerprint,
