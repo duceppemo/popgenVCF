@@ -37,6 +37,12 @@
     "validate_publication_supplementary_index",
     "new_publication_submission_package_manifest",
     "validate_publication_submission_package_manifest",
-    "publication_submission_package_report"
+    "publication_submission_package_report",
+    "new_publication_ordination_spec",
+    "validate_publication_ordination_spec",
+    "new_publication_ordination_output",
+    "validate_publication_ordination_output",
+    "publication_ordination_caption",
+    "publication_ordination_report"
   ))
 }

@@ -89,16 +89,20 @@ Phase 10.2 closure binds descriptor, compatibility, migration, policy, release-c
   - stable colors, luminance, line types, point shapes, fills, labels, and contrast rules;
   - report/layout bindings, normalized plotting parameters, accessibility audits, provenance, and drift detection.
 
-### Active milestone
-
-- [ ] **0.9.4 — Deterministic submission packages and supplementary indexes**
+- [x] **0.9.4 — Deterministic submission packages and supplementary indexes**
   - journal-ready package specifications, stable directory layouts, file naming, ordering, archive metadata, and checksums;
   - deterministic supplementary-material indexes with manuscript references, source-artifact identities, media types, sizes, and digests;
   - validated bindings to manuscripts, journal layouts, figure styles, report executions, output manifests, provenance, and fail-closed drift detection.
 
+### Active milestone
+
+- [ ] **0.9.5 — Publication PCA and ordination outputs**
+  - deterministic PCA and generic ordination publication specifications and manifests;
+  - stable scores, loadings, variance-explained tables, metadata joins, centroids, confidence regions, labels, and captions;
+  - accessible figure-style bindings, machine-readable source-data exports, provenance, and fail-closed drift detection.
+
 ### Core analysis presentation
 
-- [ ] publication PCA and ordination outputs with stable source-data exports;
 - [ ] DAPC optimization, cross-validation, confusion matrices, and membership plots;
 - [ ] global and pairwise FST with uncertainty, heatmaps, and supplementary results;
 - [ ] population diversity, private alleles, frequency spectra, and confidence intervals;
