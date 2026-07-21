@@ -1,5 +1,22 @@
+release_reconciliation_test_root <- function() {
+  test_dir <- normalizePath(testthat::test_path(), winslash = "/", mustWork = TRUE)
+  candidates <- unique(c(
+    normalizePath(file.path(test_dir, "..", ".."), winslash = "/", mustWork = TRUE),
+    normalizePath(file.path(test_dir, "..", "..", "00_pkg_src", "popgenVCF"), winslash = "/", mustWork = FALSE),
+    normalizePath(file.path(test_dir, "..", "..", ".."), winslash = "/", mustWork = FALSE)
+  ))
+  required <- c("DESCRIPTION", "NAMESPACE", "NEWS.md", "README.md", "docs/ROADMAP.md")
+  matches <- candidates[vapply(candidates, function(path) {
+    dir.exists(path) && all(file.exists(file.path(path, required)))
+  }, logical(1))]
+  if (length(matches) == 0L) {
+    stop("Unable to locate the package source tree for release reconciliation tests.", call. = FALSE)
+  }
+  matches[[1L]]
+}
+
 test_that("release-facing metadata and public API remain reconciled", {
-  root <- testthat::test_path("..", "..")
+  root <- release_reconciliation_test_root()
   audit <- release_api_reconciliation(root)
 
   expect_identical(audit$version, "0.10.0")
@@ -16,7 +33,7 @@ test_that("release-facing metadata and public API remain reconciled", {
 })
 
 test_that("release reconciliation evidence is deterministic and machine readable", {
-  root <- testthat::test_path("..", "..")
+  root <- release_reconciliation_test_root()
   output_one <- withr::local_tempdir()
   output_two <- withr::local_tempdir()
 
