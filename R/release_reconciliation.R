@@ -18,10 +18,14 @@ release_reconciliation_read <- function(root, path) {
   readLines(file.path(root, path), warn = FALSE, encoding = "UTF-8")
 }
 
-release_reconciliation_exports <- function(namespace_lines) {
+release_reconciliation_export_declarations <- function(namespace_lines) {
   export_lines <- grep("^export\\(", namespace_lines, value = TRUE)
   exports <- sub("^export\\((.*)\\)$", "\\1", export_lines)
-  sort(unique(exports[nzchar(exports)]))
+  exports[nzchar(exports)]
+}
+
+release_reconciliation_exports <- function(namespace_lines) {
+  sort(unique(release_reconciliation_export_declarations(namespace_lines)))
 }
 
 release_reconciliation_s3_methods <- function(namespace_lines) {
@@ -32,8 +36,8 @@ release_reconciliation_s3_methods <- function(namespace_lines) {
   values <- sub("^S3method\\((.*)\\)$", "\\1", method_lines)
   parts <- strsplit(values, ",", fixed = TRUE)
   out <- data.frame(
-    generic = vapply(parts, `[[`, character(1), 1L),
-    class = vapply(parts, `[[`, character(1), 2L),
+    generic = trimws(vapply(parts, `[[`, character(1), 1L)),
+    class = trimws(vapply(parts, `[[`, character(1), 2L)),
     stringsAsFactors = FALSE
   )
   out[order(out$generic, out$class), , drop = FALSE]
@@ -80,61 +84,66 @@ release_reconciliation_version_signals <- function(root, version) {
   )
 }
 
+release_reconciliation_finding <- function(severity, category, items, detail) {
+  items <- as.character(items)
+  if (length(items) == 0L) {
+    return(data.frame(
+      severity = character(),
+      category = character(),
+      item = character(),
+      detail = character(),
+      stringsAsFactors = FALSE
+    ))
+  }
+  data.frame(
+    severity = rep(severity, length(items)),
+    category = rep(category, length(items)),
+    item = items,
+    detail = rep(detail, length(items)),
+    stringsAsFactors = FALSE
+  )
+}
+
 release_api_reconciliation <- function(root = ".") {
   root <- release_reconciliation_root(root)
   namespace_lines <- release_reconciliation_read(root, "NAMESPACE")
-  exports <- release_reconciliation_exports(namespace_lines)
+  export_declarations <- release_reconciliation_export_declarations(namespace_lines)
+  exports <- sort(unique(export_declarations))
   s3_methods <- release_reconciliation_s3_methods(namespace_lines)
   aliases <- release_reconciliation_rd_aliases(root)
   version <- release_reconciliation_version(root)
   version_signals <- release_reconciliation_version_signals(root, version)
 
   missing_export_docs <- setdiff(exports, aliases$alias)
-  duplicate_exports <- sort(unique(exports[duplicated(exports)]))
+  duplicate_exports <- sort(unique(export_declarations[duplicated(export_declarations)]))
   duplicate_aliases <- sort(unique(aliases$alias[duplicated(aliases$alias)]))
   missing_s3_docs <- if (nrow(s3_methods) == 0L) character() else {
     method_names <- paste0(s3_methods$generic, ".", s3_methods$class)
     method_names[!(method_names %in% aliases$alias | s3_methods$generic %in% aliases$alias)]
   }
 
-  findings <- rbind(
-    data.frame(
-      severity = "blocking",
-      category = "export-documentation",
-      item = missing_export_docs,
-      detail = "Exported symbol has no matching Rd alias.",
-      stringsAsFactors = FALSE
+  findings <- do.call(rbind, list(
+    release_reconciliation_finding(
+      "blocking", "export-documentation", missing_export_docs,
+      "Exported symbol has no matching Rd alias."
     ),
-    data.frame(
-      severity = "blocking",
-      category = "namespace",
-      item = duplicate_exports,
-      detail = "Duplicate export declaration.",
-      stringsAsFactors = FALSE
+    release_reconciliation_finding(
+      "blocking", "namespace", duplicate_exports,
+      "Duplicate export declaration."
     ),
-    data.frame(
-      severity = "blocking",
-      category = "s3-documentation",
-      item = missing_s3_docs,
-      detail = "Registered S3 method is not documented by method or generic alias.",
-      stringsAsFactors = FALSE
+    release_reconciliation_finding(
+      "blocking", "s3-documentation", missing_s3_docs,
+      "Registered S3 method is not documented by method or generic alias."
     ),
-    data.frame(
-      severity = "blocking",
-      category = "release-version",
-      item = version_signals$file[!version_signals$present],
-      detail = paste0("Release-facing file does not identify development version ", version, "."),
-      stringsAsFactors = FALSE
+    release_reconciliation_finding(
+      "blocking", "release-version", version_signals$file[!version_signals$present],
+      paste0("Release-facing file does not identify development version ", version, ".")
     ),
-    data.frame(
-      severity = "advisory",
-      category = "documentation-alias",
-      item = duplicate_aliases,
-      detail = "Rd alias is declared by more than one topic; verify that the overlap is intentional.",
-      stringsAsFactors = FALSE
+    release_reconciliation_finding(
+      "advisory", "documentation-alias", duplicate_aliases,
+      "Rd alias is declared by more than one topic; verify that the overlap is intentional."
     )
-  )
-  findings <- findings[nzchar(findings$item), , drop = FALSE]
+  ))
   findings <- findings[order(findings$severity, findings$category, findings$item), , drop = FALSE]
   rownames(findings) <- NULL
 
