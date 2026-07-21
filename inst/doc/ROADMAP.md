@@ -100,10 +100,23 @@ Phase 10 exposes the unified runtime through a stable, documented user-facing sc
 - [ ] GHCR usage, Apptainer definition, and HPC guidance;
 - [ ] Zenodo integration for stable releases.
 
+## Open tracking issues and deferred enhancements
+
+The following open issues remain authoritative tracking containers and are intentionally not closed:
+
+- **#4 — v0.9 publication-quality platform:** umbrella tracker for the remaining 0.9 and 1.0 release work.
+- **#20 — Core publication artifact contracts:** remains open for IBS/MDS, AMOVA, isolation-by-distance, and ancestry publication artifacts.
+- **#22 — Canonical real-data validation:** covers licensed datasets, expected values, external-tool comparisons, and CI/full-validation workflows.
+- **#24 — Unified ancestry platform:** covers ADMIXTURE, fastStructure, and sNMF backends, deterministic replicates, alignment, consensus, K selection, diagnostics, reporting, and validation.
+- **#43 — Continuous scientific benchmarks:** covers historical regression archives, cross-tool comparisons, resource/scaling measurements, dashboards, and release benchmark artifacts.
+- **#68 — Analysis-specific publication narratives:** covers remaining module-specific methods, legends, citations, and supplementary narratives.
+
+The reproducibility and release-infrastructure tracker **#1** also remains open until the documentation/metadata and release-automation items above are complete. Optional Docker Hub publishing is a later enhancement dependent on credentials and is not required for 1.0; Zenodo integration remains a post-stable-release task.
+
 ## 1.0: stable scientific release
 
 Release 1.0 requires stable CLI, YAML, R API, module and output contracts; validated core modules and canonical real-data results; a complete report engine; validated container and Apptainer artifacts; complete documentation and citation metadata; and reproducible release artifacts with checksums, SBOM, and provenance.
 
 ## Beyond 1.0
 
-Potential post-1.0 work includes selection scans, genomic landscapes, spatial resistance models, GWAS interoperability, community plugins, interactive exploration, and cloud/workflow-platform execution. These do not displace the validation and stability requirements of the core toolkit.
+Potential post-1.0 work includes selection scans, genomic landscapes, spatial resistance models, GWAS interoperability, community plugins, interactive exploration, optional Docker Hub publication, and cloud/workflow-platform execution. These do not displace the validation and stability requirements of the core toolkit.
