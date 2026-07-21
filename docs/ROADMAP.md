@@ -75,40 +75,24 @@ Phase 10.2 closure binds descriptor, compatibility, migration, policy, release-c
 ### Completed milestones
 
 - [x] **0.9.1 — Deterministic publication report rendering**
-  - deterministic HTML, PDF, and DOCX report specifications, plans, renderer adapters, executions, and output manifests;
-  - stable manuscript, renderer, checksum, warning, failure, and mutation bindings;
-  - backend-independent rendering contracts with fail-closed verification.
-
 - [x] **0.9.2 — Journal presets and deterministic publication layouts**
-  - general, Nature-style, G3, Molecular Ecology, and PLOS layout profiles;
-  - deterministic geometry, typography, headings, numbering, captions, bibliography, and submission rules;
-  - validated layout-to-report bindings, normalized renderer parameters, provenance, and drift detection.
-
 - [x] **0.9.3 — Accessible and grayscale-safe figure modes**
-  - deterministic standard-color, grayscale-safe, and accessibility-first profiles;
-  - stable colors, luminance, line types, point shapes, fills, labels, and contrast rules;
-  - report/layout bindings, normalized plotting parameters, accessibility audits, provenance, and drift detection.
-
 - [x] **0.9.4 — Deterministic submission packages and supplementary indexes**
-  - journal-ready package specifications, stable directory layouts, file naming, ordering, archive metadata, and checksums;
-  - deterministic supplementary-material indexes with manuscript references, source-artifact identities, media types, sizes, and digests;
-  - validated bindings to manuscripts, journal layouts, figure styles, report executions, output manifests, provenance, and fail-closed drift detection.
-
 - [x] **0.9.5 — Publication PCA and ordination outputs**
-  - deterministic PCA and generic ordination publication specifications and manifests;
-  - stable scores, loadings, variance-explained tables, metadata joins, centroids, confidence regions, labels, and captions;
-  - accessible figure-style bindings, machine-readable source-data exports, provenance, and fail-closed drift detection.
-
-### Active milestone
-
-- [ ] **0.9.6 — Publication DAPC outputs**
+- [x] **0.9.6 — Publication DAPC outputs**
   - deterministic DAPC publication specifications and manifests over authoritative analysis results;
   - stable discriminant coordinates, membership probabilities, diagnostics, cross-validation summaries, confusion matrices, and selected-K metadata;
   - accessible figure-style bindings, machine-readable source-data exports, captions, provenance, and fail-closed drift detection.
 
+### Active milestone
+
+- [ ] **0.9.7 — Publication FST outputs**
+  - deterministic global and pairwise FST publication specifications and manifests over authoritative analysis results;
+  - stable estimates, uncertainty intervals, pair ordering, heatmap source data, captions, and supplementary tables;
+  - accessible figure-style bindings, machine-readable exports, provenance, and fail-closed drift detection.
+
 ### Core analysis presentation
 
-- [ ] global and pairwise FST with uncertainty, heatmaps, and supplementary results;
 - [ ] population diversity, private alleles, frequency spectra, and confidence intervals;
 - [ ] unified ancestry manifests, deterministic replicates, alignment, consensus, and K diagnostics;
 - [ ] AMOVA, isolation-by-distance, and later spatial-genetics adapters.
