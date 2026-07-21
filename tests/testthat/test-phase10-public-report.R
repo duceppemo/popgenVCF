@@ -108,14 +108,17 @@ test_that("public report adapter fails closed", {
 
 test_that("renderer failures use a stable public error", {
   request <- new_public_analysis_request("report.render", "analysis-report-5")
+  blocked_output <- tempfile("phase10-report-file-")
+  writeLines("not a directory", blocked_output)
+
   response <- render_public_report(
     request,
     list(diversity = make_phase10_report_result()),
-    tempfile("phase10-report-"),
-    render = TRUE,
-    formats = "not-supported"
+    blocked_output,
+    render = FALSE
   )
 
-  expect_identical(response$status, "rejected")
-  expect_identical(response$error$code, "unsupported_report_format")
+  expect_identical(response$status, "failed")
+  expect_identical(response$error$code, "report_render_failed")
+  expect_true(validate_public_analysis_response(response, request))
 })
