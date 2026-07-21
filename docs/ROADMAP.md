@@ -45,36 +45,38 @@ Phase 9 connects stable plugin, scientific-object, schema, cache, checkpoint, mi
 - [x] **9.12 — Production module migration registry and staged cutover**
 - [x] **9.13 — Legacy runtime deprecation and unified release readiness**
 - [x] **9.14 — Final closure-review and roadmap-handoff contracts**
+- [x] **9.14.1 — Closure evidence assembly and roadmap synchronization**
 
-### Closure milestone
-
-- [ ] **9.14.1 — Closure evidence assembly and roadmap synchronization**
-  - bind milestones 9.1–9.14 to immutable merge commits;
-  - assemble all required closure evidence domains;
-  - bind release-readiness, migration-registry, deprecation-portfolio, and CI identities;
-  - reject closure with missing evidence or unresolved blockers;
-  - generate a deterministic closure report and Phase 10.1 handoff;
-  - synchronize operator guidance and both packaged roadmap copies.
-
-Phase 9 is declared complete only when the assembled closure review is approved. Merged implementation milestones alone do not satisfy this gate. See [Phase 9 closure evidence and roadmap handoff](PHASE9_CLOSURE.md).
+Phase 9 closure evidence binds the completed milestones, release-readiness, migration, deprecation, CI, and roadmap-handoff records. See [Phase 9 closure evidence and roadmap handoff](PHASE9_CLOSURE.md).
 
 ## Phase 10: stable public scientific interface
 
 Phase 10 exposes the unified runtime through a stable, documented user-facing scientific API while preserving all Phase 8 and Phase 9 guarantees.
 
+### Completed milestone
+
+- [x] **10.1 — Canonical public analysis and artifact API**
+  - stable public entry points for execution, result inspection, artifacts, provenance, and reports;
+  - versioned deterministic request, response, serialization, and compatibility contracts;
+  - adapters over the authoritative Phase 8 and Phase 9 implementations;
+  - fail-closed information hiding, mutation detection, and stable public errors;
+  - deterministic public-surface audit and closure evidence.
+
+See [Phase 10 public API](PHASE10_PUBLIC_API.md) and [Phase 10.1 closure audit](PHASE10_CLOSURE.md).
+
 ### Next milestone
 
-- [ ] **10.1 — Canonical public analysis and artifact API**
-  - define stable public entry points for module execution, canonical results, publication artifacts, reports, and provenance;
-  - separate supported public contracts from internal orchestration details;
-  - version public schemas and define compatibility and migration behavior;
-  - provide deterministic inspection, serialization, and report-regeneration interfaces;
-  - audit exports, S3 methods, errors, status names, and metadata semantics;
-  - add focused API, compatibility, documentation, and end-to-end tests.
+- [ ] **10.2 — Public API compatibility and release conformance**
+  - define canonical compatibility fixtures for every stable public operation and schema;
+  - compare API descriptors and serialized records across supported package releases;
+  - classify compatible additions, deprecations, breaking changes, and unsupported future versions;
+  - generate deterministic release-conformance manifests and human-readable compatibility reports;
+  - bind conformance evidence to package, container, Apptainer, documentation, and scientific-validation identities;
+  - fail release gating on unexplained public-surface or schema drift.
 
 ### Entry criteria
 
-Phase 10.1 starts only after the Phase 9 closure review is approved, required CI and scientific-validation evidence is immutable, migration blockers are empty, and rollback and compatibility obligations are documented.
+Phase 10.2 starts only after Phase 10.1 closure evidence is approved, all five stable operations are exported and documented, authoritative CI is green, and the public descriptor and adapter manifest agree exactly.
 
 ## 0.9: publication-quality analysis platform
 
