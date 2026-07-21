@@ -4,7 +4,7 @@
 
 **popgenVCF** is a modular R toolkit and command-line application for population-genomic analysis of diploid, biallelic SNP VCF files. It supports VCF-only quality control and sample-level analyses, analyses with population metadata, and spatial analyses when geographic coordinates are available.
 
-> Development series: **0.9.0**. Interfaces and output schemas may still evolve before 1.0.
+> Development series: **0.10.0**. The public API is under release-conformance review; interfaces and output schemas may still evolve before 1.0.
 
 ## Highlights
 
@@ -270,6 +270,7 @@ stopifnot(core$passed, structure$passed)
 - [Development guide](docs/DEVELOPMENT_GUIDE.md)
 - [Style guide](docs/STYLE_GUIDE.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Release/API reconciliation](docs/RELEASE_API_RECONCILIATION.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## License
