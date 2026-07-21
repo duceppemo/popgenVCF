@@ -2,10 +2,14 @@
 
 .phase10_public_report_projection <- function(plan) {
   validate_population_genomics_report_plan(plan)
-  sections <- as.data.frame(plan$sections[, c(
+  sections <- as.data.frame(plan$sections)
+  sections <- sections[, c(
     "order", "analysis", "title", "class", "has_metadata", "validation_passed"
-  ), drop = FALSE])
-  sections <- sections[order(sections$order, sections$analysis, method = "radix"), , drop = FALSE]
+  ), drop = FALSE]
+  sections <- sections[
+    order(sections$order, sections$analysis, method = "radix"),
+    , drop = FALSE
+  ]
   rownames(sections) <- NULL
   list(
     schema_version = plan$schema_version,
