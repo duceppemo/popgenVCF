@@ -56,19 +56,7 @@ Phase 10 exposes the unified runtime through a stable, documented user-facing sc
 ### Completed milestones
 
 - [x] **10.1 — Canonical public analysis and artifact API**
-  - stable public entry points for execution, result inspection, artifacts, provenance, and reports;
-  - versioned deterministic request, response, serialization, and compatibility contracts;
-  - adapters over the authoritative Phase 8 and Phase 9 implementations;
-  - fail-closed information hiding, mutation detection, and stable public errors;
-  - deterministic public-surface audit and closure evidence.
-
 - [x] **10.2 — Public API compatibility and release conformance**
-  - [x] **10.2.1 — Public API compatibility contracts**
-  - [x] **10.2.2 — API evolution policy and migration planning**
-  - [x] **10.2.3 — Release conformance manifests and gating**
-  - [x] **10.2.4 — Compatibility closure audit and roadmap handoff**
-
-Phase 10.2 closure binds descriptor, compatibility, migration, policy, release-conformance, distribution-channel, CI, and roadmap evidence into one deterministic fail-closed record. See [Phase 10.2 closure](PHASE10_2_CLOSURE.md).
 
 ## 0.9: publication-quality analysis platform
 
@@ -80,20 +68,20 @@ Phase 10.2 closure binds descriptor, compatibility, migration, policy, release-c
 - [x] **0.9.4 — Deterministic submission packages and supplementary indexes**
 - [x] **0.9.5 — Publication PCA and ordination outputs**
 - [x] **0.9.6 — Publication DAPC outputs**
-  - deterministic DAPC publication specifications and manifests over authoritative analysis results;
-  - stable discriminant coordinates, membership probabilities, diagnostics, cross-validation summaries, confusion matrices, and selected-K metadata;
-  - accessible figure-style bindings, machine-readable source-data exports, captions, provenance, and fail-closed drift detection.
-
-### Active milestone
-
-- [ ] **0.9.7 — Publication FST outputs**
+- [x] **0.9.7 — Publication FST outputs**
   - deterministic global and pairwise FST publication specifications and manifests over authoritative analysis results;
   - stable estimates, uncertainty intervals, pair ordering, heatmap source data, captions, and supplementary tables;
   - accessible figure-style bindings, machine-readable exports, provenance, and fail-closed drift detection.
 
+### Active milestone
+
+- [ ] **0.9.8 — Publication diversity outputs**
+  - deterministic population-diversity publication specifications and manifests over authoritative analysis results;
+  - stable population summaries, private alleles, frequency spectra, uncertainty intervals, captions, and supplementary tables;
+  - accessible figure-style bindings, machine-readable exports, provenance, and fail-closed drift detection.
+
 ### Core analysis presentation
 
-- [ ] population diversity, private alleles, frequency spectra, and confidence intervals;
 - [ ] unified ancestry manifests, deterministic replicates, alignment, consensus, and K diagnostics;
 - [ ] AMOVA, isolation-by-distance, and later spatial-genetics adapters.
 
