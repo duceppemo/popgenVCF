@@ -13,8 +13,32 @@ test_that("layout profiles remain bound to existing journal profiles", {
   profile <- new_publication_layout_profile("custom", journal)
   expect_true(validate_publication_layout_profile(profile, journal))
 
-  changed <- journal
-  changed$id <- "changed"
+  changed <- new_journal_profile(
+    id = "changed",
+    journal = "Changed valid journal profile",
+    required_roles = journal$required_roles,
+    optional_roles = journal$optional_roles,
+    filenames = journal$filenames,
+    required_sections = journal$requirements$sections$required,
+    optional_sections = journal$requirements$sections$optional,
+    required_declarations = journal$requirements$declarations,
+    required_companions = journal$requirements$companions,
+    title_max_chars = journal$requirements$limits$title_max_chars,
+    abstract_max_words = journal$requirements$limits$abstract_max_words,
+    keyword_min = journal$requirements$limits$keyword_min,
+    keyword_max = journal$requirements$limits$keyword_max,
+    highlight_min = journal$requirements$limits$highlight_min,
+    highlight_max = journal$requirements$limits$highlight_max,
+    highlight_max_chars = journal$requirements$limits$highlight_max_chars,
+    graphical_abstract = journal$requirements$graphical_abstract,
+    figure_max = journal$requirements$limits$figure_max,
+    table_max = journal$requirements$limits$table_max,
+    supplementary_max = journal$requirements$limits$supplementary_max,
+    allowed_figure_extensions = journal$requirements$allowed_figure_extensions,
+    filename_pattern = journal$requirements$filename_pattern,
+    overrides = journal$requirements$overrides
+  )
+  expect_true(validate_journal_profile(changed))
   expect_error(validate_publication_layout_profile(profile, changed), "not bound")
 })
 
