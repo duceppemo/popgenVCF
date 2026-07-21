@@ -1,16 +1,49 @@
 release_reconciliation_test_root <- function() {
-  test_dir <- normalizePath(testthat::test_path(), winslash = "/", mustWork = TRUE)
-  candidates <- unique(c(
-    normalizePath(file.path(test_dir, "..", ".."), winslash = "/", mustWork = TRUE),
-    normalizePath(file.path(test_dir, "..", "..", "00_pkg_src", "popgenVCF"), winslash = "/", mustWork = FALSE),
-    normalizePath(file.path(test_dir, "..", "..", ".."), winslash = "/", mustWork = FALSE)
-  ))
   required <- c("DESCRIPTION", "NAMESPACE", "NEWS.md", "README.md", "docs/ROADMAP.md")
-  matches <- candidates[vapply(candidates, function(path) {
-    dir.exists(path) && all(file.exists(file.path(path, required)))
-  }, logical(1))]
+
+  is_source_root <- function(path) {
+    nzchar(path) && dir.exists(path) && all(file.exists(file.path(path, required)))
+  }
+
+  workspace <- Sys.getenv("GITHUB_WORKSPACE", unset = "")
+  test_dir <- normalizePath(testthat::test_path(), winslash = "/", mustWork = TRUE)
+  working_dir <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
+
+  ancestors <- function(path) {
+    out <- character()
+    current <- path
+    repeat {
+      out <- c(out, current)
+      parent <- dirname(current)
+      if (identical(parent, current)) {
+        break
+      }
+      current <- parent
+    }
+    out
+  }
+
+  bases <- unique(c(
+    workspace,
+    ancestors(test_dir),
+    ancestors(working_dir)
+  ))
+  bases <- bases[nzchar(bases)]
+
+  candidates <- unique(c(
+    bases,
+    file.path(bases, "popgenVCF"),
+    file.path(bases, "00_pkg_src", "popgenVCF")
+  ))
+  candidates <- normalizePath(candidates, winslash = "/", mustWork = FALSE)
+
+  matches <- candidates[vapply(candidates, is_source_root, logical(1))]
   if (length(matches) == 0L) {
-    stop("Unable to locate the package source tree for release reconciliation tests.", call. = FALSE)
+    stop(
+      "Unable to locate the package source tree for release reconciliation tests. Checked: ",
+      paste(candidates, collapse = ", "),
+      call. = FALSE
+    )
   }
   matches[[1L]]
 }
