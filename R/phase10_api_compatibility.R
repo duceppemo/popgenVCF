@@ -7,11 +7,11 @@
 #' @return A deterministic compatibility record.
 #' @export
 compare_phase10_api_descriptors <- function(baseline, candidate) {
-  validate_phase10_api_descriptor(baseline)
-  validate_phase10_api_descriptor(candidate)
+  .phase10_validate_comparison_descriptor(baseline)
+  .phase10_validate_comparison_descriptor(candidate)
 
-  old <- phase10_api_operations(baseline)
-  new <- phase10_api_operations(candidate)
+  old <- baseline$operations[order(baseline$operations$operation_id), , drop = FALSE]
+  new <- candidate$operations[order(candidate$operations$operation_id), , drop = FALSE]
   ids <- sort(unique(c(old$operation_id, new$operation_id)))
 
   changes <- do.call(rbind, lapply(ids, function(id) {
@@ -22,7 +22,8 @@ compare_phase10_api_descriptors <- function(baseline, candidate) {
   rownames(changes) <- NULL
 
   rank <- c(compatible = 1L, additive = 2L, deprecated = 3L, breaking = 4L)
-  overall <- names(rank)[which.max(rank[changes$classification])]
+  highest_rank <- max(unname(rank[changes$classification]))
+  overall <- names(rank)[match(highest_rank, rank)]
   record <- list(
     record_type = "popgenvcf_public_api_compatibility",
     schema_version = "1.0.0",
@@ -118,7 +119,7 @@ phase10_api_compatibility_report <- function(compatibility) {
     classification <- "deprecated"
     reason <- "Stable operation entered explicit deprecation lifecycle."
   } else if (identical(request_change, "breaking") || identical(response_change, "breaking") ||
-             identical(before$lifecycle, "deprecated") && identical(after$lifecycle, "stable")) {
+             (identical(before$lifecycle, "deprecated") && identical(after$lifecycle, "stable"))) {
     classification <- "breaking"
     reason <- "Operation contract contains incompatible schema or lifecycle drift."
   } else if (request_change == "additive" || response_change == "additive") {
@@ -162,4 +163,28 @@ phase10_api_compatibility_report <- function(compatibility) {
     lifecycle_change = lifecycle,
     stringsAsFactors = FALSE
   )
+}
+
+.phase10_validate_comparison_descriptor <- function(descriptor) {
+  if (!inherits(descriptor, "PopgenVCFPublicAPIDescriptor")) {
+    stop("descriptor must be a public API descriptor.", call. = FALSE)
+  }
+  if (!is.character(descriptor$api_version) || length(descriptor$api_version) != 1L ||
+      is.na(descriptor$api_version) ||
+      !grepl("^[0-9]+\\.[0-9]+\\.[0-9]+$", descriptor$api_version)) {
+    stop("api_version must be a semantic version.", call. = FALSE)
+  }
+  operations <- descriptor$operations
+  required <- c("operation_id", "request_schema", "response_schema", "lifecycle")
+  if (!is.data.frame(operations) || !identical(names(operations), required)) {
+    stop("Malformed public operation registry.", call. = FALSE)
+  }
+  if (anyDuplicated(operations$operation_id) || any(!nzchar(operations$operation_id)) ||
+      any(!operations$lifecycle %in% c("stable", "deprecated"))) {
+    stop("Invalid or duplicate public operations.", call. = FALSE)
+  }
+  invisible(lapply(operations$request_schema, .phase10_schema_semver))
+  invisible(lapply(operations$response_schema, .phase10_schema_semver))
+  .phase10_verify_fingerprint(descriptor)
+  invisible(TRUE)
 }
