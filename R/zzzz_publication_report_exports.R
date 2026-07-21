@@ -23,6 +23,13 @@
     "bind_publication_layout",
     "validate_publication_layout_binding",
     "publication_layout_parameters",
-    "publication_layout_report"
+    "publication_layout_report",
+    "new_publication_figure_style_profile",
+    "validate_publication_figure_style_profile",
+    "publication_figure_style_profile",
+    "bind_publication_figure_style",
+    "validate_publication_figure_style_binding",
+    "publication_figure_parameters",
+    "publication_figure_accessibility_audit"
   ))
 }
