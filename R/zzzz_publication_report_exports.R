@@ -16,6 +16,13 @@
     "quarto_publication_report_renderer",
     "execute_publication_report_plan",
     "validate_publication_report_execution",
-    "publication_report_execution_report"
+    "publication_report_execution_report",
+    "new_publication_layout_profile",
+    "validate_publication_layout_profile",
+    "publication_layout_profile",
+    "bind_publication_layout",
+    "validate_publication_layout_binding",
+    "publication_layout_parameters",
+    "publication_layout_report"
   ))
 }
