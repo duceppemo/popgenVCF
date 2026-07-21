@@ -30,6 +30,13 @@
     "bind_publication_figure_style",
     "validate_publication_figure_style_binding",
     "publication_figure_parameters",
-    "publication_figure_accessibility_audit"
+    "publication_figure_accessibility_audit",
+    "new_publication_submission_package_spec",
+    "validate_publication_submission_package_spec",
+    "new_publication_supplementary_index",
+    "validate_publication_supplementary_index",
+    "new_publication_submission_package_manifest",
+    "validate_publication_submission_package_manifest",
+    "publication_submission_package_report"
   ))
 }
