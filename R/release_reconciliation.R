@@ -43,8 +43,12 @@ release_reconciliation_s3_methods <- function(namespace_lines) {
   out[order(out$generic, out$class), , drop = FALSE]
 }
 
+release_reconciliation_rd_files <- function(root) {
+  sort(list.files(file.path(root, "man"), pattern = "\\.Rd$", full.names = TRUE))
+}
+
 release_reconciliation_rd_aliases <- function(root) {
-  files <- sort(list.files(file.path(root, "man"), pattern = "\\.Rd$", full.names = TRUE))
+  files <- release_reconciliation_rd_files(root)
   if (length(files) == 0L) {
     return(data.frame(alias = character(), topic = character(), stringsAsFactors = FALSE))
   }
@@ -57,6 +61,19 @@ release_reconciliation_rd_aliases <- function(root) {
   out <- do.call(rbind, records)
   out <- out[nzchar(out$alias), , drop = FALSE]
   out[order(out$alias, out$topic), , drop = FALSE]
+}
+
+release_reconciliation_rd_documented_classes <- function(root, classes) {
+  classes <- sort(unique(as.character(classes)))
+  if (length(classes) == 0L) return(character())
+  files <- release_reconciliation_rd_files(root)
+  if (length(files) == 0L) return(character())
+  rd_text <- paste(vapply(files, function(path) {
+    paste(readLines(path, warn = FALSE, encoding = "UTF-8"), collapse = "\n")
+  }, character(1)), collapse = "\n")
+  classes[vapply(classes, function(class) {
+    grepl(class, rd_text, fixed = TRUE)
+  }, logical(1))]
 }
 
 release_reconciliation_version <- function(root) {
@@ -111,6 +128,7 @@ release_api_reconciliation <- function(root = ".") {
   exports <- sort(unique(export_declarations))
   s3_methods <- release_reconciliation_s3_methods(namespace_lines)
   aliases <- release_reconciliation_rd_aliases(root)
+  documented_classes <- release_reconciliation_rd_documented_classes(root, s3_methods$class)
   version <- release_reconciliation_version(root)
   version_signals <- release_reconciliation_version_signals(root, version)
 
@@ -119,7 +137,10 @@ release_api_reconciliation <- function(root = ".") {
   duplicate_aliases <- sort(unique(aliases$alias[duplicated(aliases$alias)]))
   missing_s3_docs <- if (nrow(s3_methods) == 0L) character() else {
     method_names <- paste0(s3_methods$generic, ".", s3_methods$class)
-    method_names[!(method_names %in% aliases$alias | s3_methods$generic %in% aliases$alias)]
+    documented <- method_names %in% aliases$alias |
+      s3_methods$generic %in% aliases$alias |
+      s3_methods$class %in% documented_classes
+    method_names[!documented]
   }
 
   findings <- do.call(rbind, list(
@@ -133,7 +154,7 @@ release_api_reconciliation <- function(root = ".") {
     ),
     release_reconciliation_finding(
       "blocking", "s3-documentation", missing_s3_docs,
-      "Registered S3 method is not documented by method or generic alias."
+      "Registered S3 method is not documented by method, generic, or class topic."
     ),
     release_reconciliation_finding(
       "blocking", "release-version", version_signals$file[!version_signals$present],
