@@ -56,19 +56,7 @@ Phase 10 exposes the unified runtime through a stable, documented user-facing sc
 ### Completed milestones
 
 - [x] **10.1 — Canonical public analysis and artifact API**
-  - stable public entry points for execution, result inspection, artifacts, provenance, and reports;
-  - versioned deterministic request, response, serialization, and compatibility contracts;
-  - adapters over the authoritative Phase 8 and Phase 9 implementations;
-  - fail-closed information hiding, mutation detection, and stable public errors;
-  - deterministic public-surface audit and closure evidence.
-
 - [x] **10.2 — Public API compatibility and release conformance**
-  - [x] **10.2.1 — Public API compatibility contracts**
-  - [x] **10.2.2 — API evolution policy and migration planning**
-  - [x] **10.2.3 — Release conformance manifests and gating**
-  - [x] **10.2.4 — Compatibility closure audit and roadmap handoff**
-
-Phase 10.2 closure binds descriptor, compatibility, migration, policy, release-conformance, distribution-channel, CI, and roadmap evidence into one deterministic fail-closed record. See [Phase 10.2 closure](PHASE10_2_CLOSURE.md).
 
 ## 0.9: publication-quality analysis platform
 
@@ -80,20 +68,20 @@ Phase 10.2 closure binds descriptor, compatibility, migration, policy, release-c
 - [x] **0.9.4 — Deterministic submission packages and supplementary indexes**
 - [x] **0.9.5 — Publication PCA and ordination outputs**
 - [x] **0.9.6 — Publication DAPC outputs**
-  - deterministic DAPC publication specifications and manifests over authoritative analysis results;
-  - stable discriminant coordinates, membership probabilities, diagnostics, cross-validation summaries, confusion matrices, and selected-K metadata;
-  - accessible figure-style bindings, machine-readable source-data exports, captions, provenance, and fail-closed drift detection.
-
-### Active milestone
-
-- [ ] **0.9.7 — Publication FST outputs**
+- [x] **0.9.7 — Publication FST outputs**
   - deterministic global and pairwise FST publication specifications and manifests over authoritative analysis results;
   - stable estimates, uncertainty intervals, pair ordering, heatmap source data, captions, and supplementary tables;
   - accessible figure-style bindings, machine-readable exports, provenance, and fail-closed drift detection.
 
+### Active milestone
+
+- [ ] **0.9.8 — Publication diversity outputs**
+  - deterministic population-diversity publication specifications and manifests over authoritative analysis results;
+  - stable population summaries, private alleles, frequency spectra, uncertainty intervals, captions, and supplementary tables;
+  - accessible figure-style bindings, machine-readable exports, provenance, and fail-closed drift detection.
+
 ### Core analysis presentation
 
-- [ ] population diversity, private alleles, frequency spectra, and confidence intervals;
 - [ ] unified ancestry manifests, deterministic replicates, alignment, consensus, and K diagnostics;
 - [ ] AMOVA, isolation-by-distance, and later spatial-genetics adapters.
 
@@ -112,10 +100,23 @@ Phase 10.2 closure binds descriptor, compatibility, migration, policy, release-c
 - [ ] GHCR usage, Apptainer definition, and HPC guidance;
 - [ ] Zenodo integration for stable releases.
 
+## Open tracking issues and deferred enhancements
+
+The following open issues remain authoritative tracking containers and are intentionally not closed:
+
+- **#4 — v0.9 publication-quality platform:** umbrella tracker for the remaining 0.9 and 1.0 release work.
+- **#20 — Core publication artifact contracts:** remains open for IBS/MDS, AMOVA, isolation-by-distance, and ancestry publication artifacts.
+- **#22 — Canonical real-data validation:** covers licensed datasets, expected values, external-tool comparisons, and CI/full-validation workflows.
+- **#24 — Unified ancestry platform:** covers ADMIXTURE, fastStructure, and sNMF backends, deterministic replicates, alignment, consensus, K selection, diagnostics, reporting, and validation.
+- **#43 — Continuous scientific benchmarks:** covers historical regression archives, cross-tool comparisons, resource/scaling measurements, dashboards, and release benchmark artifacts.
+- **#68 — Analysis-specific publication narratives:** covers remaining module-specific methods, legends, citations, and supplementary narratives.
+
+The reproducibility and release-infrastructure tracker **#1** also remains open until the documentation/metadata and release-automation items above are complete. Optional Docker Hub publishing is a later enhancement dependent on credentials and is not required for 1.0; Zenodo integration remains a post-stable-release task.
+
 ## 1.0: stable scientific release
 
 Release 1.0 requires stable CLI, YAML, R API, module and output contracts; validated core modules and canonical real-data results; a complete report engine; validated container and Apptainer artifacts; complete documentation and citation metadata; and reproducible release artifacts with checksums, SBOM, and provenance.
 
 ## Beyond 1.0
 
-Potential post-1.0 work includes selection scans, genomic landscapes, spatial resistance models, GWAS interoperability, community plugins, interactive exploration, and cloud/workflow-platform execution. These do not displace the validation and stability requirements of the core toolkit.
+Potential post-1.0 work includes selection scans, genomic landscapes, spatial resistance models, GWAS interoperability, community plugins, interactive exploration, optional Docker Hub publication, and cloud/workflow-platform execution. These do not displace the validation and stability requirements of the core toolkit.
