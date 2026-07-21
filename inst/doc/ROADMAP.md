@@ -84,16 +84,17 @@ Phase 10.2 closure binds descriptor, compatibility, migration, policy, release-c
   - deterministic geometry, typography, headings, numbering, captions, bibliography, and submission rules;
   - validated layout-to-report bindings, normalized renderer parameters, provenance, and drift detection.
 
-### Active milestone
-
-- [ ] **0.9.3 — Accessible and grayscale-safe figure modes**
+- [x] **0.9.3 — Accessible and grayscale-safe figure modes**
   - deterministic standard-color, grayscale-safe, and accessibility-first profiles;
   - stable colors, luminance, line types, point shapes, fills, labels, and contrast rules;
   - report/layout bindings, normalized plotting parameters, accessibility audits, provenance, and drift detection.
 
-### Planned publication system
+### Active milestone
 
-- [ ] deterministic submission packages and supplementary indexes.
+- [ ] **0.9.4 — Deterministic submission packages and supplementary indexes**
+  - journal-ready package specifications, stable directory layouts, file naming, ordering, archive metadata, and checksums;
+  - deterministic supplementary-material indexes with manuscript references, source-artifact identities, media types, sizes, and digests;
+  - validated bindings to manuscripts, journal layouts, figure styles, report executions, output manifests, provenance, and fail-closed drift detection.
 
 ### Core analysis presentation
 
