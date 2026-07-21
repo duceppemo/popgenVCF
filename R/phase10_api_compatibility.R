@@ -1,4 +1,4 @@
-# Phase 10.2.1 — deterministic public API compatibility contracts
+# Phase 10.2.1 - deterministic public API compatibility contracts
 
 #' Compare two stable public API descriptors
 #'
@@ -81,7 +81,7 @@ validate_phase10_api_compatibility <- function(compatibility, allow_breaking = F
 phase10_api_compatibility_report <- function(compatibility) {
   validate_phase10_api_compatibility(compatibility, allow_breaking = TRUE)
   rows <- apply(compatibility$changes, 1L, function(x) {
-    sprintf("- `%s`: **%s** — %s", x[["operation_id"]], x[["classification"]], x[["reason"]])
+    sprintf("- `%s`: **%s** - %s", x[["operation_id"]], x[["classification"]], x[["reason"]])
   })
   c(
     "# Phase 10 public API compatibility report",
