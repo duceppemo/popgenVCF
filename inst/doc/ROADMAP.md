@@ -64,15 +64,18 @@ Phase 10 exposes the unified runtime through a stable, documented user-facing sc
 
 See [Phase 10 public API](PHASE10_PUBLIC_API.md) and [Phase 10.1 closure audit](PHASE10_CLOSURE.md).
 
-### Next milestone
+### Active milestone
 
 - [ ] **10.2 — Public API compatibility and release conformance**
+  - [ ] **10.2.1 — Public API compatibility contracts**
   - define canonical compatibility fixtures for every stable public operation and schema;
   - compare API descriptors and serialized records across supported package releases;
   - classify compatible additions, deprecations, breaking changes, and unsupported future versions;
   - generate deterministic release-conformance manifests and human-readable compatibility reports;
   - bind conformance evidence to package, container, Apptainer, documentation, and scientific-validation identities;
   - fail release gating on unexplained public-surface or schema drift.
+
+See [Phase 10 API compatibility contracts](PHASE10_API_COMPATIBILITY.md).
 
 ### Entry criteria
 
