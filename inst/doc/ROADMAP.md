@@ -94,16 +94,20 @@ Phase 10.2 closure binds descriptor, compatibility, migration, policy, release-c
   - deterministic supplementary-material indexes with manuscript references, source-artifact identities, media types, sizes, and digests;
   - validated bindings to manuscripts, journal layouts, figure styles, report executions, output manifests, provenance, and fail-closed drift detection.
 
-### Active milestone
-
-- [ ] **0.9.5 — Publication PCA and ordination outputs**
+- [x] **0.9.5 — Publication PCA and ordination outputs**
   - deterministic PCA and generic ordination publication specifications and manifests;
   - stable scores, loadings, variance-explained tables, metadata joins, centroids, confidence regions, labels, and captions;
   - accessible figure-style bindings, machine-readable source-data exports, provenance, and fail-closed drift detection.
 
+### Active milestone
+
+- [ ] **0.9.6 — Publication DAPC outputs**
+  - deterministic DAPC publication specifications and manifests over authoritative analysis results;
+  - stable discriminant coordinates, membership probabilities, diagnostics, cross-validation summaries, confusion matrices, and selected-K metadata;
+  - accessible figure-style bindings, machine-readable source-data exports, captions, provenance, and fail-closed drift detection.
+
 ### Core analysis presentation
 
-- [ ] DAPC optimization, cross-validation, confusion matrices, and membership plots;
 - [ ] global and pairwise FST with uncertainty, heatmaps, and supplementary results;
 - [ ] population diversity, private alleles, frequency spectra, and confidence intervals;
 - [ ] unified ancestry manifests, deterministic replicates, alignment, consensus, and K diagnostics;
