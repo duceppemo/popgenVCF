@@ -14,7 +14,7 @@ new_phase10_release_identity <- function(
     artifact_digest,
     api_fingerprint) {
   .phase10_scalar_string(channel, "channel")
-  .phase10_validate_semver(release_version, "release_version")
+  .phase10_validate_release_semver(release_version, "release_version")
   .phase10_scalar_string(artifact_digest, "artifact_digest")
   .phase10_scalar_string(api_fingerprint, "api_fingerprint")
   if (!channel %in% .phase10_required_release_channels()) {
@@ -205,6 +205,14 @@ phase10_release_conformance_report <- function(
   c("package", "container", "apptainer", "documentation", "scientific_validation")
 }
 
+.phase10_validate_release_semver <- function(x, field) {
+  .phase10_scalar_string(x, field)
+  if (!grepl("^[0-9]+\\.[0-9]+\\.[0-9]+$", x)) {
+    stop(sprintf("%s must be a semantic version.", field), call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
 .phase10_validate_release_identities <- function(identities, descriptor) {
   required <- c("channel", "release_version", "artifact_digest", "api_fingerprint")
   if (!is.data.frame(identities) || !identical(names(identities), required) ||
@@ -218,8 +226,8 @@ phase10_release_conformance_report <- function(
   if (length(unique(identities$release_version)) != 1L) {
     stop("Release channels disagree on the release version.", call. = FALSE)
   }
-  invisible(lapply(identities$release_version, .phase10_validate_semver,
-                   name = "release_version"))
+  invisible(lapply(identities$release_version, .phase10_validate_release_semver,
+                   field = "release_version"))
   if (any(!nzchar(identities$artifact_digest))) {
     stop("Release artifact digests must be non-empty.", call. = FALSE)
   }
