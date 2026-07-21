@@ -73,20 +73,21 @@ Phase 10 exposes the unified runtime through a stable, documented user-facing sc
 - [x] **0.9.9 — Publication ancestry outputs**
 - [x] **0.9.10 — Publication AMOVA outputs**
 - [x] **0.9.11 — Publication isolation-by-distance outputs**
-  - deterministic IBD publication specifications and manifests over authoritative IBD results;
-  - stable pairwise genetic and geographic distances, regression summaries, permutation evidence, captions, and supplementary tables;
-  - accessible figure-style bindings, machine-readable exports, provenance, and fail-closed drift detection.
-
-### Active milestone
-
-- [ ] **0.9.12 — Publication spatial-genetics outputs**
+- [x] **0.9.12 — Publication spatial-genetics outputs**
   - deterministic spatial-genetics publication specifications and manifests over authoritative spatial results;
   - stable sample coordinates, spatial statistics, neighborhood summaries, permutation evidence, captions, and supplementary tables;
   - accessible figure-style bindings, machine-readable exports, provenance, and fail-closed drift detection.
 
+### Active milestone
+
+- [ ] **0.9.13 — Canonical real-data validation contracts**
+  - fingerprinted licensed-dataset manifests with source, version, checksum, and license metadata;
+  - deterministic sample, population, locus, expected-result, tolerance, and external-tool comparison inventories;
+  - CI-safe synthetic fixtures, opt-in canonical integration fixtures, provenance, and fail-closed drift detection.
+
 ### Validation datasets and benchmarking
 
-- [ ] retain tiny synthetic fixtures in every CI run;
+- [x] retain tiny synthetic fixtures in every CI run;
 - [ ] adopt a licensed canonical real dataset for documentation and integration tests;
 - [ ] publish a checksum-pinned large benchmark dataset externally;
 - [ ] compare runtime, memory, and numerical agreement with established tools;
