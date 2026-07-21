@@ -4,7 +4,7 @@ test_that("Phase 10.1 public surface is complete and deterministic", {
     manifest$operation_id,
     c("analysis.execute", "artifact.list", "provenance.inspect", "report.render", "result.inspect")
   )
-  expect_false(anyDuplicated(manifest$adapter))
+  expect_identical(anyDuplicated(manifest$adapter), 0L)
 
   audit_a <- popgenVCF:::phase10_1_audit_public_surface()
   audit_b <- popgenVCF:::phase10_1_audit_public_surface()
