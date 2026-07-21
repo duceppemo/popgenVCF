@@ -69,20 +69,20 @@ Phase 10 exposes the unified runtime through a stable, documented user-facing sc
 - [x] **0.9.5 — Publication PCA and ordination outputs**
 - [x] **0.9.6 — Publication DAPC outputs**
 - [x] **0.9.7 — Publication FST outputs**
-  - deterministic global and pairwise FST publication specifications and manifests over authoritative analysis results;
-  - stable estimates, uncertainty intervals, pair ordering, heatmap source data, captions, and supplementary tables;
-  - accessible figure-style bindings, machine-readable exports, provenance, and fail-closed drift detection.
-
-### Active milestone
-
-- [ ] **0.9.8 — Publication diversity outputs**
+- [x] **0.9.8 — Publication diversity outputs**
   - deterministic population-diversity publication specifications and manifests over authoritative analysis results;
   - stable population summaries, private alleles, frequency spectra, uncertainty intervals, captions, and supplementary tables;
   - accessible figure-style bindings, machine-readable exports, provenance, and fail-closed drift detection.
 
+### Active milestone
+
+- [ ] **0.9.9 — Publication ancestry outputs**
+  - deterministic ancestry publication specifications and manifests over authoritative ancestry results;
+  - stable Q-matrix source data, sample and population ordering, consensus assignments, replicate diagnostics, K-selection evidence, captions, and supplementary tables;
+  - accessible figure-style bindings, machine-readable exports, provenance, and fail-closed drift detection.
+
 ### Core analysis presentation
 
-- [ ] unified ancestry manifests, deterministic replicates, alignment, consensus, and K diagnostics;
 - [ ] AMOVA, isolation-by-distance, and later spatial-genetics adapters.
 
 ### Validation datasets and benchmarking
