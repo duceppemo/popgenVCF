@@ -13,6 +13,7 @@
 \alias{benchmark_suite_table}
 \alias{save_benchmark_suite}
 \alias{read_benchmark_suite}
+\alias{print.PopgenVCFBenchmarkSuite}
 \title{Canonical scientific benchmark registry and execution engine}
 \description{Create, register, execute, validate, summarize, and serialize reproducible scientific and performance benchmarks.}
 \usage{
@@ -31,6 +32,7 @@ run_benchmark_suite(registry, ids = NULL, categories = NULL)
 benchmark_suite_table(x)
 save_benchmark_suite(x, path)
 read_benchmark_suite(path)
+\method{print}{PopgenVCFBenchmarkSuite}(x, ...)
 }
 \arguments{
   \item{id}{Stable dataset or benchmark identifier.}
@@ -54,6 +56,7 @@ read_benchmark_suite(path)
   \item{ids,categories}{Optional execution filters.}
   \item{x}{A benchmark object or suite.}
   \item{path}{RDS file path.}
+  \item{...}{Additional arguments passed to the print method.}
 }
-\value{Canonical benchmark objects, registries, suites, or stable summary tables.}
+\value{Canonical benchmark objects, registries, suites, or stable summary tables. The print method returns its input invisibly.}
 \details{Unavailable optional dependencies produce explicit skipped results. Numerical comparisons enforce absolute or relative tolerances, while runtime, memory, and disk budgets are evaluated independently and recorded transparently.}
