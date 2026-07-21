@@ -72,20 +72,22 @@ Phase 10.2 closure binds descriptor, compatibility, migration, policy, release-c
 
 ## 0.9: publication-quality analysis platform
 
+### Completed milestone
+
+- [x] **0.9.1 — Deterministic publication report rendering**
+  - deterministic HTML, PDF, and DOCX report specifications, plans, renderer adapters, executions, and output manifests;
+  - stable manuscript, renderer, checksum, warning, failure, and mutation bindings;
+  - backend-independent rendering contracts with fail-closed verification.
+
 ### Active milestone
 
-- [ ] **0.9.1 — Deterministic publication report rendering**
-  - render canonical publication reports to HTML, PDF, and DOCX;
-  - preserve stable headings, numbered figures, tables, captions, citations, and cross-references;
-  - source Methods and Results facts from canonical analysis and publication records;
-  - preserve author-editable interpretation boundaries;
-  - include software citations, bibliography, provenance, and reproducibility appendices;
-  - validate output manifests, checksums, and deterministic source-data exports;
-  - fail closed on missing render dependencies, unresolved references, or artifact drift.
+- [ ] **0.9.2 — Journal presets and deterministic publication layouts**
+  - general, Nature-style, G3, Molecular Ecology, and PLOS layout profiles;
+  - deterministic geometry, typography, headings, numbering, captions, bibliography, and submission rules;
+  - validated layout-to-report bindings, normalized renderer parameters, provenance, and drift detection.
 
 ### Planned publication system
 
-- [ ] journal presets for general, Nature-style, G3, Molecular Ecology, and PLOS layouts;
 - [ ] accessible and grayscale-safe figure modes;
 - [ ] deterministic submission packages and supplementary indexes.
 
