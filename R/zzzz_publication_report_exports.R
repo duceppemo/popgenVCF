@@ -43,6 +43,12 @@
     "new_publication_ordination_output",
     "validate_publication_ordination_output",
     "publication_ordination_caption",
-    "publication_ordination_report"
+    "publication_ordination_report",
+    "new_publication_dapc_spec",
+    "validate_publication_dapc_spec",
+    "new_publication_dapc_output",
+    "validate_publication_dapc_output",
+    "publication_dapc_caption",
+    "publication_dapc_report"
   ))
 }
