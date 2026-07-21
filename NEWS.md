@@ -1,5 +1,7 @@
 # popgenVCF 0.10.0 development
 
+- Reconciled `0.10.0` as the authoritative development release identity across package metadata, README, NEWS, roadmaps, and tracking issues.
+- Added a deterministic release/public-API audit for exports, S3 registrations, Rd aliases, version signals, blocking findings, and machine-readable reconciliation evidence.
 - Added a unified deterministic analysis execution engine with canonical planning, module ordering, contract validation, and execution metadata.
 - Added dependency-aware failure propagation with explicit success, failed, and blocked states plus auditable execution ledgers.
 - Added validated execution checkpoints, deterministic plan reconstruction, safe resume support, and checkpoint persistence.
