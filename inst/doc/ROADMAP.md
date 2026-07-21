@@ -53,7 +53,7 @@ Phase 9 closure evidence binds the completed milestones, release-readiness, migr
 
 Phase 10 exposes the unified runtime through a stable, documented user-facing scientific API while preserving all Phase 8 and Phase 9 guarantees.
 
-### Completed milestone
+### Completed milestones
 
 - [x] **10.1 — Canonical public analysis and artifact API**
   - stable public entry points for execution, result inspection, artifacts, provenance, and reports;
@@ -62,38 +62,32 @@ Phase 10 exposes the unified runtime through a stable, documented user-facing sc
   - fail-closed information hiding, mutation detection, and stable public errors;
   - deterministic public-surface audit and closure evidence.
 
-See [Phase 10 public API](PHASE10_PUBLIC_API.md) and [Phase 10.1 closure audit](PHASE10_CLOSURE.md).
-
-### Active milestone
-
-- [ ] **10.2 — Public API compatibility and release conformance**
+- [x] **10.2 — Public API compatibility and release conformance**
   - [x] **10.2.1 — Public API compatibility contracts**
   - [x] **10.2.2 — API evolution policy and migration planning**
-  - [ ] **10.2.3 — Release conformance manifests and gating**
-  - compare API descriptors and serialized records across supported package releases;
-  - classify compatible additions, deprecations, breaking changes, and unsupported future versions;
-  - require deterministic migration paths and deprecation schedules;
-  - generate deterministic release-conformance manifests and human-readable reports;
-  - bind conformance evidence to package, container, Apptainer, documentation, and scientific-validation identities;
-  - fail release gating on unexplained public-surface, schema, migration, or distribution drift.
+  - [x] **10.2.3 — Release conformance manifests and gating**
+  - [x] **10.2.4 — Compatibility closure audit and roadmap handoff**
 
-See [Phase 10 API compatibility contracts](PHASE10_API_COMPATIBILITY.md), [Phase 10 API evolution](PHASE10_API_EVOLUTION.md), and [Phase 10 release conformance](PHASE10_RELEASE_CONFORMANCE.md).
-
-### Entry criteria
-
-Phase 10.2 starts only after Phase 10.1 closure evidence is approved, all five stable operations are exported and documented, authoritative CI is green, and the public descriptor and adapter manifest agree exactly.
+Phase 10.2 closure binds descriptor, compatibility, migration, policy, release-conformance, distribution-channel, CI, and roadmap evidence into one deterministic fail-closed record. See [Phase 10.2 closure](PHASE10_2_CLOSURE.md).
 
 ## 0.9: publication-quality analysis platform
 
-### Publication system
+### Active milestone
 
-- [ ] automatic HTML, PDF, and DOCX reports;
-- [ ] generated Methods and Results text sourced from canonical tables;
-- [ ] numbered figures, tables, captions, and supplementary outputs;
-- [ ] software citations and reference bibliography;
+- [ ] **0.9.1 — Deterministic publication report rendering**
+  - render canonical publication reports to HTML, PDF, and DOCX;
+  - preserve stable headings, numbered figures, tables, captions, citations, and cross-references;
+  - source Methods and Results facts from canonical analysis and publication records;
+  - preserve author-editable interpretation boundaries;
+  - include software citations, bibliography, provenance, and reproducibility appendices;
+  - validate output manifests, checksums, and deterministic source-data exports;
+  - fail closed on missing render dependencies, unresolved references, or artifact drift.
+
+### Planned publication system
+
 - [ ] journal presets for general, Nature-style, G3, Molecular Ecology, and PLOS layouts;
 - [ ] accessible and grayscale-safe figure modes;
-- [ ] complete provenance and reproducibility appendix.
+- [ ] deterministic submission packages and supplementary indexes.
 
 ### Core analysis presentation
 
