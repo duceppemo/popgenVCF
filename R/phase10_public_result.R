@@ -30,7 +30,8 @@
   if (!inherits(result, "PopgenVCFCoreResult")) {
     return(data.frame(check = "object_schema", passed = TRUE, stringsAsFactors = FALSE))
   }
-  validation <- as.data.frame(result$validation[, c("check", "passed"), drop = FALSE])
+  validation <- as.data.frame(result$validation, stringsAsFactors = FALSE)
+  validation <- validation[, c("check", "passed"), drop = FALSE]
   validation <- validation[order(validation$check, method = "radix"), , drop = FALSE]
   rownames(validation) <- NULL
   validation
