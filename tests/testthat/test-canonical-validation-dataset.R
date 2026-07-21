@@ -12,7 +12,11 @@ test_that("canonical validation dataset contracts are deterministic", {
   )
   expect_identical(spec$samples$sample_id, c("S1", "S2"))
   expect_true(validate_canonical_validation_dataset(spec))
-  expect_match(canonical_validation_dataset_report(spec), "canonical-demo")
+  expect_true(any(grepl(
+    "canonical-demo",
+    canonical_validation_dataset_report(spec),
+    fixed = TRUE
+  )))
   expect_identical(spec$fingerprint, new_canonical_validation_dataset(
     "canonical-demo", "1.0.0", "https://example.org/dataset", "CC-BY-4.0", checksum,
     data.frame(sample_id = c("S2", "S1")), data.frame(population = c("B", "A")),
