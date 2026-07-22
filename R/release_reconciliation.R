@@ -203,12 +203,18 @@ release_api_reconciliation <- function(root = ".") {
   version <- release_reconciliation_version(root)
   version_signals <- release_reconciliation_version_signals(root, version)
 
+  s3_symbols <- if (nrow(s3_methods)) {
+    paste0(s3_methods$generic, ".", s3_methods$class)
+  } else {
+    character()
+  }
+  roxygen_symbols <- sort(unique(roxygen_exports$symbol))
   missing_export_docs <- setdiff(exports, aliases$alias)
   duplicate_exports <- sort(unique(export_declarations[duplicated(export_declarations)]))
   duplicate_aliases <- sort(unique(aliases$alias[duplicated(aliases$alias)]))
-  missing_roxygen_exports <- setdiff(sort(unique(roxygen_exports$symbol)), exports)
+  missing_roxygen_exports <- setdiff(roxygen_symbols, union(exports, s3_symbols))
   missing_s3_docs <- if (nrow(s3_methods) == 0L) character() else {
-    method_names <- paste0(s3_methods$generic, ".", s3_methods$class)
+    method_names <- s3_symbols
     documented <- method_names %in% aliases$alias |
       s3_methods$generic %in% aliases$alias |
       s3_methods$class %in% documented_classes
@@ -237,8 +243,8 @@ release_api_reconciliation <- function(root = ".") {
       paste0("Release-facing file does not identify development version ", version, ".")
     ),
     release_reconciliation_finding(
-      "advisory", "roxygen-namespace", missing_roxygen_exports,
-      "Roxygen @export declaration is absent from the explicit NAMESPACE; regenerate documentation or remove the stale annotation."
+      "blocking", "roxygen-namespace", missing_roxygen_exports,
+      "Roxygen @export declaration is absent from both explicit exports and S3 registrations."
     ),
     release_reconciliation_finding(
       "advisory", "documentation-alias", duplicate_aliases,
