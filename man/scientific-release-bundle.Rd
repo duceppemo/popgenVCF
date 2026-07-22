@@ -10,12 +10,21 @@
 \title{Deterministic scientific release bundles}
 \usage{
 new_scientific_release_bundle(
-  release_id, package_version, git_commit, git_tag, release_date,
-  digest_chain, artifacts,
+  release_id,
+  package_version,
+  git_commit,
+  git_tag,
+  release_date,
+  digest_chain,
+  artifacts,
   dependencies = data.frame(package = character(), version = character()),
-  canonical_certificate = NULL, canonical_evidence = NULL,
-  git_branch = "", git_remote = "", git_dirty = FALSE,
-  r_version = R.version.string, platform = R.version$platform,
+  canonical_certificate = NULL,
+  canonical_evidence = NULL,
+  git_branch = "",
+  git_remote = "",
+  git_dirty = FALSE,
+  r_version = R.version.string,
+  platform = R.version$platform,
   architecture = R.version$arch,
   operating_system = Sys.info()[["sysname"]]
 )
@@ -30,20 +39,54 @@ write_scientific_release_bundle(x, path, overwrite = FALSE)
 }
 \arguments{
 \item{release_id}{Stable release identifier.}
+
 \item{package_version}{Released package version.}
+
 \item{git_commit}{Full Git commit identity.}
+
 \item{git_tag}{Release tag.}
-\item{release_date}{Explicit ISO 8601 release date.}
-\item{digest_chain}{Named required SHA256 identities.}
-\item{artifacts}{Release artifact checksum table.}
-\item{dependencies}{Package-version table.}
-\item{canonical_certificate}{Release-ready canonical certificate.}
-\item{canonical_evidence}{Data frame of validation, baseline, drift, reconciliation, and gate evidence files.}
-\item{git_branch, git_remote, git_dirty}{Source-control metadata.}
-\item{r_version, platform, architecture, operating_system}{Runtime metadata.}
-\item{x}{A scientific release object or written directory.}
+
+\item{release_date}{Explicit ISO 8601 release date (`YYYY-MM-DD`).}
+
+\item{digest_chain}{Named SHA256 identities for all required scientific records.}
+
+\item{artifacts}{Data frame containing release-relative path, size, and SHA256.}
+
+\item{dependencies}{Data frame containing package and version columns.}
+
+\item{canonical_certificate}{Release-ready canonical certificate. It defaults
+to `NULL` for public-API compatibility but construction fails closed when it
+is absent.}
+
+\item{canonical_evidence}{Data frame of validation, baseline, drift,
+reconciliation, and gate evidence files. It defaults to `NULL` for
+public-API compatibility but construction fails closed when it is absent.}
+
+\item{git_branch}{Git branch name.}
+
+\item{git_remote}{Git remote identity.}
+
+\item{git_dirty}{Whether the source tree was dirty.}
+
+\item{r_version}{R version string.}
+
+\item{platform}{Platform string.}
+
+\item{architecture}{Architecture string.}
+
+\item{operating_system}{Operating-system string.}
+
+\item{x}{A scientific release object or written bundle directory.}
+
 \item{path}{Output directory.}
+
 \item{overwrite}{Whether an existing directory may be replaced.}
 }
-\value{A validated release object, canonical table, Markdown lines, or normalized output path.}
-\description{Creates, validates, renders, and writes an immutable root record for a complete reproducible popgenVCF scientific release.}
+\value{
+A validated `PopgenVCFScientificRelease`, canonical table, Markdown
+  lines, or normalized path, depending on the called function.
+}
+\description{
+Create, validate, render, and write an immutable root record for a complete
+reproducible popgenVCF scientific release.
+}

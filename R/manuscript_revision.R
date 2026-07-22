@@ -108,7 +108,7 @@ revision_annotations <- function(annotations, section_ids) {
 #' @param annotations Optional author-supplied section explanations and reviewer-comment links.
 #' @param strict Whether changed sections without explicit explanations raise an error.
 #' @return A deterministic `PopgenVCFManuscriptRevisionDiff` table.
-#' @export
+#' @noRd
 compare_manuscript_revisions <- function(before, after, annotations = NULL, strict = FALSE) {
   validate_manuscript_revision(before)
   validate_manuscript_revision(after)

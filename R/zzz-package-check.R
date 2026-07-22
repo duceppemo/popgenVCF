@@ -4,6 +4,7 @@
 # namespace metadata. The global-variable inventory contains only symbols used
 # intentionally inside data.table non-standard evaluation expressions.
 
+#' @import data.table
 #' @importFrom stats aggregate setNames
 #' @importFrom utils capture.output head modifyList object.size str tail
 NULL

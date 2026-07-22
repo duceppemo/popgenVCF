@@ -199,7 +199,7 @@ run_module_chromosome <- function(analysis, context) {
 
 #' Construct the built-in analysis registry
 #' @return A populated `PopgenVCFRegistry`.
-#' @export
+#' @noRd
 default_analysis_registry <- function() {
   r <- new_analysis_registry()
   r <- register_analysis(r, "diversity", run_module_diversity,

@@ -12,11 +12,12 @@ verify_runtime_recovery_equivalence(reference, recovered)
 \item{recovered}{A complete execution result resumed from a checkpoint.}
 }
 \value{
-A \code{PopgenVCFRuntimeRecoveryEquivalence} verification report.
+A `PopgenVCFRuntimeRecoveryEquivalence` verification report.
 }
 \description{
-Recovery-specific bookkeeping such as \code{checkpoint_reused} and execution-engine
-resume metadata is intentionally excluded. Scientific results, context,
-artifacts, plan identity, module order, and terminal outcomes must remain
-byte-for-byte deterministic after canonical serialization.
+Recovery-specific bookkeeping and volatile runtime observations such as
+checkpoint reuse flags, timestamps, timings, messages, and execution-engine
+metadata are intentionally excluded. Scientific results, inputs, samples,
+variants, configuration, context, artifacts, plan identity, module order,
+and terminal outcomes must remain deterministic after canonical serialization.
 }

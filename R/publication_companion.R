@@ -138,7 +138,7 @@ publication_caption_table <- function(artifacts, style) {
 #' @param style Publication style identifier or custom profile.
 #' @param title Optional manuscript title.
 #' @return A validated `PopgenVCFPublicationBundle` plan.
-#' @export
+#' @noRd
 new_publication_bundle <- function(project, style = "generic", title = project$name) {
   validate_popgenvcf_project(project)
   style <- publication_style(style)
@@ -218,7 +218,7 @@ publication_copy_artifacts <- function(bundle, directory) {
 #' @param include_fair Include a FAIR subdirectory when FAIR metadata is embedded.
 #' @param overwrite Permit replacement of a non-empty directory.
 #' @return Normalized output directory, invisibly.
-#' @export
+#' @noRd
 generate_publication_bundle <- function(project, directory, style = "generic", title = project$name,
                                         include_project = TRUE, include_fair = TRUE, overwrite = FALSE) {
   validate_popgenvcf_project(project)

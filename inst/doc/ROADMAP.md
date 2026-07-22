@@ -87,27 +87,35 @@ The authoritative development package version is **0.10.0**.
 - [x] **0.9.27 — Canonical real-data baseline adoption contract**
 - [x] **0.9.28 — External-tool scientific concordance contract**
 - [x] **0.9.29 — Continuous release benchmarking contract**
+- [x] **0.9.30a — Source-package and R CMD check hygiene** (#285)
+- [x] **0.9.30b — Generated API documentation and canonical interface reconciliation** (#284)
 
 These milestones complete the software contracts and fail-closed evidence models. They do not substitute for executing, reviewing, approving, and publishing the first production real-data baseline, external-tool concordance suite, and release benchmark history.
 
-### Current stabilization gate
+### Completed stabilization gate
 
-Repository health reconciliation must complete before feature work resumes:
+Repository health and the opening Phase 0.9.30 maintenance work are reconciled:
 
-- [ ] eliminate false release-readiness paths in concordance and benchmark evidence;
-- [ ] replace runtime namespace mutation with explicit public exports;
-- [ ] report roxygen, NAMESPACE, Rd, API-baseline, and release-metadata drift deterministically;
-- [ ] synchronize README, NEWS, roadmaps, and issue trackers;
-- [ ] close completed umbrella issues and retain only work with unmet acceptance criteria;
-- [ ] run the complete CI matrix on the reconciled state.
+- [x] eliminate false release-readiness paths in concordance and benchmark evidence;
+- [x] replace runtime namespace mutation with explicit public exports;
+- [x] report roxygen, NAMESPACE, Rd, API-baseline, and release-metadata drift deterministically;
+- [x] synchronize README, NEWS, roadmaps, and issue trackers;
+- [x] close completed umbrella and maintenance issues while retaining only unmet acceptance criteria;
+- [x] eliminate avoidable package-check notes and source-package hygiene defects;
+- [x] establish deterministic roxygen generation and a 613-entry canonical installed API baseline;
+- [x] run the complete CI matrix on the reconciled state.
 
-### Authoritative sequence after stabilization
+### Active Phase 0.9.30 sequence
 
-1. **0.9.30 — Documentation, metadata, and archival readiness**
-   - complete pkgdown tutorials, interpretation guides, publication gallery, citation and software metadata, reproducibility statements, GHCR and Apptainer usage, HPC guidance, Zenodo configuration, DOI-ready metadata, SBOM, checksum, and provenance instructions;
-   - resolve remaining advisory roxygen-to-namespace drift and regenerate all derived package documentation from source (#284);
-   - eliminate avoidable `R CMD check` notes and source-package hygiene defects (#285).
-2. **0.9.31 — 0.10.0 release-candidate closure**
+1. **Completed opening maintenance**
+   - [x] eliminate avoidable `R CMD check` notes and source-package hygiene defects (#285);
+   - [x] reconcile roxygen ownership, generated `NAMESPACE`/Rd files, S3 registrations, and the canonical API baseline (#284).
+2. **Documentation, metadata, and archival readiness**
+   - complete pkgdown tutorials, interpretation guides, and the publication gallery;
+   - verify citation and software metadata plus reproducibility statements;
+   - complete GHCR, Apptainer, and HPC usage guidance;
+   - add Zenodo configuration, DOI-ready metadata, SBOM, checksum, and provenance instructions.
+3. **0.9.31 — 0.10.0 release-candidate closure**
    - synchronize DESCRIPTION, NEWS, roadmap, and trackers;
    - execute full canonical validation and external-tool concordance, approve the production quantitative baseline, publish release benchmarks, and issue the real release certificate;
    - validate container and Apptainer artifacts, assemble archives, run source and distribution install tests, and produce a reviewer-ready release-readiness report;
@@ -137,8 +145,6 @@ Repository health reconciliation must complete before feature work resumes:
 - **#22 — Canonical real-data validation:** retains the uncompleted production baseline, external-tool execution, approval, and full-validation workflow work.
 - **#43 — Continuous scientific benchmarks:** retains CI/release integration, approved historical baselines, dashboards, and published release benchmark artifacts.
 - **#68 — Analysis-specific publication narratives:** retains any module-specific narrative, citation, and supplementary integration not yet demonstrated end to end.
-- **#284 — Generated API documentation reconciliation:** resolves remaining roxygen, namespace, Rd, and API-baseline drift.
-- **#285 — R CMD check note cleanup:** removes source-package hygiene, internal namespace, NSE/import, and Rd formatting notes.
 - **#1 — Reproducibility and release infrastructure:** remains open until documentation, metadata, archival integration, and release automation are complete.
 
 ## 1.0: stable scientific release

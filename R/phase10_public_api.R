@@ -283,7 +283,7 @@ inspect_public_analysis_response <- function(response) {
 #' @param x A public API descriptor, request, or response.
 #' @param path Output JSON path.
 #' @return The normalized path, invisibly.
-#' @export
+#' @noRd
 write_public_api_record <- function(x, path) {
   .phase10_validate_public_record(x)
   json <- jsonlite::toJSON(
@@ -298,7 +298,7 @@ write_public_api_record <- function(x, path) {
 #'
 #' @param path Input JSON path.
 #' @return A validated public API object.
-#' @export
+#' @noRd
 read_public_api_record <- function(path) {
   x <- jsonlite::fromJSON(path, simplifyVector = FALSE)
   class_name <- switch(

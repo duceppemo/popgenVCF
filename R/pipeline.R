@@ -1,3 +1,10 @@
+#' Run the complete popgenVCF analysis pipeline
+#'
+#' @param config Configuration list or YAML configuration path.
+#' @param registry Analysis module registry.
+#' @param selected Optional module identifiers to execute.
+#' @return The completed `PopgenVCFAnalysis` object.
+#' @export
 run_pipeline <- function(config, registry = default_analysis_registry(), selected = NULL) {
   cfg <- if (is.character(config)) read_config(config) else config
   cfg <- validate_config(cfg)
