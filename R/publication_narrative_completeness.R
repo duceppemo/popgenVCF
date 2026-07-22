@@ -107,7 +107,7 @@ publication_narrative_completeness <- function(inventory) {
 
 publication_validate_caption_ownership <- function(artifacts, inventory) {
   if (!nrow(artifacts)) return(invisible(TRUE))
-  active <- inventory[inventory$state %in% c("present", "diagnostic-only"), , drop = FALSE]
+  active <- inventory[inventory$state %in% c("present", "diagnostic-only")]
   for (id in artifacts$id) {
     id_lower <- tolower(id)
     owned <- vapply(seq_len(nrow(active)), function(i) {
