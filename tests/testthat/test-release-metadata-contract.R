@@ -11,7 +11,7 @@ test_that("packaged software identity is complete and development-safe", {
   expect_null(identity$doi)
   expect_identical(identity$license$spdx, "MIT")
   expect_true(all(c("aut", "cre") %in% identity$author$roles))
-  expect_true(validate_popgenvcf_software_identity(identity) |> invisible() |> is.null())
+  expect_invisible(validate_popgenvcf_software_identity(identity))
 })
 
 test_that("development identity rejects premature release claims", {
