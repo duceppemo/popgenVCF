@@ -33,14 +33,15 @@ project <- new_popgenvcf_project(
   results = results,
   project_id = "00000000-0000-0000-0000-000000000930"
 )
-inventory <- publication_narrative_inventory(project)
+bundle <- new_publication_bundle(project)
+inventory <- bundle$narrative_inventory
 inventory[, c("kind", "state", "citation_keys")]
 ```
 
 ## Completeness evidence
 
 ```{r completeness}
-publication_narrative_completeness(inventory)
+bundle$narrative_completeness
 ```
 
 Every canonical family has one narrative owner, a methods statement, a caption/legend, citation keys, and a supplementary summary. The same table records `skipped`, `unavailable`, `incomplete`, `failed`, and `diagnostic-only` states without inventing results.
@@ -76,7 +77,8 @@ fallback_project <- new_popgenvcf_project(
   ),
   project_id = "00000000-0000-0000-0000-000000000931"
 )
-publication_narrative_inventory(fallback_project)[, c("kind", "state", "reason")]
+fallback_bundle <- new_publication_bundle(fallback_project)
+fallback_bundle$narrative_inventory[, c("kind", "state", "reason")]
 ```
 
 ## Publication companion outputs
