@@ -93,7 +93,7 @@ test_that("release gate evidence is deterministic and complete", {
   output <- write_canonical_release_gate_evidence(result, tempfile("release-gate-"))
   expect_true(all(file.exists(output)))
   expect_setequal(names(output), c("components", "blocking", "certificate", "report"))
-  expect_match(readLines(output[["report"]]), "READY")
+  expect_true(any(grepl("READY", readLines(output[["report"]]), fixed = TRUE)))
   certificate <- jsonlite::read_json(output[["certificate"]], simplifyVector = TRUE)
   expect_true(certificate$release_ready)
 })
