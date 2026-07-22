@@ -1,6 +1,6 @@
-# Dynamic namespace synchronization for the Phase 0.9 publication-report API.
-# These exports are registered at namespace load so the implementation remains
-# usable before the next generated NAMESPACE synchronization pass.
+# Dynamic namespace synchronization for the Phase 0.9 publication-report and
+# canonical real-data APIs. These exports are registered at namespace load so
+# the implementation remains usable before the next generated NAMESPACE pass.
 .onLoad <- function(libname, pkgname) {
   ns <- asNamespace(pkgname)
   namespaceExport(ns, c(
@@ -49,6 +49,12 @@
     "new_publication_dapc_output",
     "validate_publication_dapc_output",
     "publication_dapc_caption",
-    "publication_dapc_report"
+    "publication_dapc_report",
+    "canonical_1000g_chrY_source",
+    "validate_canonical_source",
+    "verify_canonical_source",
+    "canonical_dataset_from_source",
+    "approved_1000g_chrY_registry",
+    "write_approved_canonical_source_evidence"
   ))
 }
