@@ -105,6 +105,11 @@ validate_canonical_baseline_registry <- function(registry) {
   paste(format(x, digits = 17L, trim = TRUE, scientific = FALSE), collapse = "|")
 }
 
+.baseline_within_tolerance <- function(deviation, tolerance) {
+  guard <- 8 * .Machine$double.eps * max(1, abs(deviation), abs(tolerance))
+  isTRUE(deviation <= tolerance + guard)
+}
+
 #' Compare an observed value with a canonical baseline
 #' @param metric Baseline metric.
 #' @param observed Observed scalar or vector value.
@@ -128,7 +133,7 @@ compare_canonical_baseline_metric <- function(metric, observed) {
       detail <- "numeric shape mismatch"
     } else {
       deviation <- max(abs(observed - expected))
-      passed <- isTRUE(deviation <= tolerance)
+      passed <- .baseline_within_tolerance(deviation, tolerance)
       detail <- "maximum absolute deviation"
     }
   } else if (comparator == "relative") {
@@ -137,7 +142,7 @@ compare_canonical_baseline_metric <- function(metric, observed) {
     } else {
       scale <- pmax(abs(expected), .Machine$double.eps)
       deviation <- max(abs(observed - expected) / scale)
-      passed <- isTRUE(deviation <= tolerance)
+      passed <- .baseline_within_tolerance(deviation, tolerance)
       detail <- "maximum relative deviation"
     }
   } else if (comparator == "set") {
@@ -153,7 +158,7 @@ compare_canonical_baseline_metric <- function(metric, observed) {
       observed_q <- unname(stats::quantile(observed, probabilities, names = FALSE, type = 8))
       scale <- max(diff(range(expected)), .Machine$double.eps)
       deviation <- max(abs(observed_q - expected_q)) / scale
-      passed <- isTRUE(deviation <= tolerance)
+      passed <- .baseline_within_tolerance(deviation, tolerance)
       detail <- "normalized maximum decile deviation"
     }
   }
