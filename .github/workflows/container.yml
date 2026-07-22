@@ -13,6 +13,7 @@ on:
       - "inst/scripts/install-bioconductor.R"
       - "popgenVCF.R"
       - ".github/workflows/container.yml"
+      - "docs/developer/release-archival-readiness.md"
   release:
     types: [published]
   workflow_dispatch:
@@ -169,14 +170,31 @@ jobs:
             stopifnot(core$passed, structure$passed)
           '
 
-      - name: Write container metadata
+      - name: Write container metadata and attestations
         if: steps.publish.outputs.digest != ''
         env:
           DIGEST: ${{ steps.publish.outputs.digest }}
           TAGS: ${{ steps.meta.outputs.tags }}
           VERSION: ${{ steps.source.outputs.version }}
         run: |
+          set -euo pipefail
           mkdir -p release-container
+          image="${REGISTRY}/${IMAGE_NAME}@${DIGEST}"
+          docker buildx imagetools inspect "$image" \
+            --format '{{ json .SBOM.SPDX }}' \
+            > release-container/container-sbom.spdx.json
+          docker buildx imagetools inspect "$image" \
+            --format '{{ json .Provenance.SLSA }}' \
+            > release-container/container-provenance.slsa.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          sbom = json.loads(Path("release-container/container-sbom.spdx.json").read_text())
+          provenance = json.loads(Path("release-container/container-provenance.slsa.json").read_text())
+          assert sbom.get("SPDXID") == "SPDXRef-DOCUMENT"
+          assert str(sbom.get("spdxVersion", "")).startswith("SPDX-")
+          assert isinstance(provenance, dict) and provenance
+          PY
           jq -n \
             --arg schema_version "1.0" \
             --arg image "${REGISTRY}/${IMAGE_NAME}" \
@@ -184,10 +202,18 @@ jobs:
             --arg version "$VERSION" \
             --arg git_commit "$(git rev-parse HEAD)" \
             --arg release_tag "${{ github.event.release.tag_name }}" \
+            --arg sbom "container-sbom.spdx.json" \
+            --arg provenance "container-provenance.slsa.json" \
             --argjson tags "$(printf '%s\n' "$TAGS" | jq -Rsc 'split("\n") | map(select(length > 0))')" \
-            '{schema_version: $schema_version, record_type: "popgenvcf_oci_release", image: $image, digest: $digest, version: $version, release_tag: $release_tag, git_commit: $git_commit, tags: $tags}' \
+            '{schema_version: $schema_version, record_type: "popgenvcf_oci_release", image: $image, digest: $digest, version: $version, release_tag: $release_tag, git_commit: $git_commit, tags: $tags, sbom: $sbom, provenance: $provenance}' \
             > release-container/container-metadata.json
           printf '%s  %s\n' "$DIGEST" "${REGISTRY}/${IMAGE_NAME}" > release-container/container-digest.txt
+          sha256sum \
+            release-container/container-metadata.json \
+            release-container/container-digest.txt \
+            release-container/container-sbom.spdx.json \
+            release-container/container-provenance.slsa.json \
+            > release-container/container-SHA256SUMS.txt
 
       - name: Upload container metadata artifact
         if: steps.publish.outputs.digest != ''
@@ -206,6 +232,9 @@ jobs:
           gh release upload "$RELEASE_TAG" \
             release-container/container-metadata.json \
             release-container/container-digest.txt \
+            release-container/container-sbom.spdx.json \
+            release-container/container-provenance.slsa.json \
+            release-container/container-SHA256SUMS.txt \
             --clobber
 
       - name: Publish image summary
