@@ -11,73 +11,151 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-popgenVCF supports Docker-compatible OCI images and native Apptainer SIF images. Both deployment paths use the same package code and pinned software environment.
+popgenVCF supports Docker-compatible OCI images and native Apptainer SIF images. Both deployment paths run the same package code, but reproducibility depends on recording the exact image digest, configuration, inputs, external tools, and scheduler resources.
+
+## Select and record the image
+
+Use a shell variable so commands remain identical between exploratory and archival work:
+
+```bash
+export POPGENVCF_IMAGE="ghcr.io/duceppemo/popgenvcf:latest"
+```
+
+For a released or published analysis, replace the floating tag with the immutable digest attached to the GitHub Release:
+
+```bash
+export POPGENVCF_IMAGE="ghcr.io/duceppemo/popgenvcf@sha256:<digest>"
+```
+
+Record the digest in the analysis archive. A tag can move; a digest cannot.
 
 ## Docker or Podman
 
-Pull a versioned release:
+Generate a configuration from the current directory:
 
 ```bash
-docker pull ghcr.io/duceppemo/popgenvcf:0.8.3
-```
-
-Generate a configuration and run an analysis from the current directory:
-
-```bash
-docker run --rm -v "$PWD:/data" \
-  ghcr.io/duceppemo/popgenvcf:0.8.3 \
-  --write-config /data/analysis.yml
-
 docker run --rm \
   --user "$(id -u):$(id -g)" \
   -e HOME=/tmp \
   -v "$PWD:/data" \
-  ghcr.io/duceppemo/popgenvcf:0.8.3 \
+  "$POPGENVCF_IMAGE" \
+  --write-config /data/analysis.yml
+```
+
+Run the analysis:
+
+```bash
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
+  -v "$PWD:/data" \
+  "$POPGENVCF_IMAGE" \
   --config /data/analysis.yml
 ```
 
-## Apptainer on HPC systems
+Podman accepts the same command structure. Site-specific SELinux policy may require an approved bind relabel option. Avoid broad permission changes on genomic data directories.
 
-Convert the published OCI image into a SIF file:
+## Pull a SIF from GHCR
+
+Apptainer can convert the published OCI image into a local SIF:
 
 ```bash
 apptainer pull popgenvcf.sif \
-  docker://ghcr.io/duceppemo/popgenvcf:0.8.3
+  "docker://${POPGENVCF_IMAGE}"
 ```
 
-Or build from the repository definition:
+For archival work, build from the digest rather than `latest`. Record both the OCI digest and the checksum of the resulting SIF because the SIF is a separate artifact.
+
+## Build from the native definition
+
+From a source checkout:
 
 ```bash
-apptainer build popgenvcf.sif Apptainer.def
+sudo apptainer build popgenvcf.sif Apptainer.def
 ```
 
-Run with an explicit bind mount:
+On a cluster configured for unprivileged builds:
 
 ```bash
-apptainer run \
+apptainer build --fakeroot popgenvcf.sif Apptainer.def
+```
+
+A native build is reproducible only when the source revision and all retrieved dependencies are recorded. Prefer a published digest for long-term analysis archives.
+
+## Run with explicit binds
+
+```bash
+apptainer run --cleanenv \
   --bind "$PWD:/data" \
   popgenvcf.sif \
   --config /data/analysis.yml
 ```
 
-## Scheduler example
+Configuration paths must refer to paths visible inside the container. Bind additional read-only reference, software, or scratch locations explicitly when required.
 
-A minimal Slurm job can derive CPU allocation from the scheduler:
+## Slurm example
 
 ```bash
 #!/usr/bin/env bash
+#SBATCH --job-name=popgenvcf
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
 #SBATCH --time=08:00:00
+#SBATCH --output=logs/popgenvcf-%j.out
 
-apptainer run \
+set -euo pipefail
+
+module load apptainer
+mkdir -p logs results
+
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export TMPDIR="${SLURM_TMPDIR:-$PWD/tmp}"
+mkdir -p "$TMPDIR"
+
+apptainer run --cleanenv \
   --bind "$PWD:/data" \
+  --bind "$TMPDIR:/tmp" \
   popgenvcf.sif \
   --config /data/analysis.yml
 ```
 
-Set the thread count in `analysis.yml` consistently with the scheduler allocation. Avoid requesting more threads than the job receives.
+Set `compute.threads` in `analysis.yml` to no more than `SLURM_CPUS_PER_TASK`. The single-thread library variables prevent each worker from creating additional hidden BLAS or OpenMP threads.
+
+## PBS or other schedulers
+
+Use the same principles:
+
+- request one task with the intended CPU and memory allocation;
+- set `compute.threads` from the allocated CPU count;
+- bind the submitted analysis directory to `/data`;
+- use job-local scratch for temporary data when available;
+- copy final results to persistent storage before the allocation ends;
+- retain scheduler accounting with the analysis archive.
+
+For PBS, the allocated CPU count is commonly available as `PBS_NP`, but cluster policy varies. Do not assume scheduler variable names without checking local documentation.
+
+## Storage and caches
+
+VCF normalization, GDS conversion, external tools, and report generation can use substantial temporary space. Fast local scratch can reduce I/O contention, but final evidence must remain in the configured persistent result directory.
+
+Do not treat caches as authoritative outputs. The result archive should contain input checksums, configuration, result tables, validation records, provenance, software identity, and the exact image or environment identity.
+
+## External executables
+
+The container includes the software declared by its build. Optional engines may still require site-specific licensed or separately distributed executables. When binding an external tool into the container:
+
+1. use an explicit read-only bind where possible;
+2. configure the exact container-visible path;
+3. record the executable checksum and reported version;
+4. retain the complete command and output inventory;
+5. distinguish unavailable or diagnostic-only execution from validated equivalence.
+
+## Network-restricted clusters
+
+Pull the image on an approved networked system, verify its digest or checksum, transfer it according to institutional policy, and run the local SIF without network access. Remote canonical datasets or external software must be materialized and checksum-verified before the job starts.
 
 ## Verification
 
-The CI pipeline builds and tests the native SIF image. Published OCI images are also pulled back by immutable digest and rerun through package, CLI, and scientific-validation checks.
+The CI pipeline builds and smoke-tests the native SIF. Published OCI images are verified by digest and exercised through package, CLI, and scientific-validation checks. Those checks establish the software artifact identity; they do not approve a user's input data, metadata definitions, or scientific interpretation.

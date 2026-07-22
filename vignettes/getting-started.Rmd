@@ -1,0 +1,167 @@
+---
+title: "Run your first popgenVCF analysis"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Run your first popgenVCF analysis}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+This guide takes a new analysis from input preparation to a reproducible result directory. It uses the command-line interface because the same workflow works in Docker, Podman, Apptainer, and a local R installation.
+
+## 1. Choose the analysis mode
+
+popgenVCF determines which analyses are scientifically available from the supplied inputs.
+
+| Mode | Required input | Analyses that can become available |
+|---|---|---|
+| VCF only | Diploid biallelic SNP VCF | QC, filtering, LD pruning, PCA, IBS/MDS, and configured ancestry engines |
+| Sample metadata | VCF plus exact sample identifiers | VCF-only analyses with descriptive annotations |
+| Population metadata | Complete `population` values | Diversity, FST, DAPC, AMOVA, and population summaries |
+| Spatial metadata | Usable `latitude` and `longitude` values | Mantel, isolation-by-distance, maps, and spatial analyses |
+
+Missing metadata does not make a VCF-only analysis invalid. Modules whose requirements are not met are skipped transparently and recorded in `analysis_capabilities.tsv`.
+
+## 2. Prepare the VCF and metadata
+
+The VCF sample names are the immutable sample keys. When metadata is supplied, the `sample` column must match every VCF sample name exactly, once and only once.
+
+```text
+sample	population	latitude	longitude	location
+Sample01	North	45.4215	-75.6972	Ottawa
+Sample02	North	45.4200	-75.6900	Ottawa
+Sample03	South	45.5019	-73.5674	Montreal
+Sample04	South	NA	NA	Montreal
+```
+
+The input VCF may be uncompressed, ordinary gzip-compressed, or BGZF-compressed. popgenVCF reuses a valid index and otherwise creates a sorted BGZF copy and Tabix index in the analysis cache. Preserve the original input and record its checksum before analysis.
+
+## 3. Select an executable environment
+
+For exploratory work, define an image variable once:
+
+```bash
+export POPGENVCF_IMAGE="ghcr.io/duceppemo/popgenvcf:latest"
+```
+
+For a publication or archive, replace `latest` with the immutable digest recorded by the corresponding GitHub Release:
+
+```bash
+export POPGENVCF_IMAGE="ghcr.io/duceppemo/popgenvcf@sha256:<digest>"
+```
+
+A local package installation can use the same CLI arguments through `Rscript inst/cli/popgenVCF.R`.
+
+## 4. Generate and edit the configuration
+
+From the directory containing the VCF and metadata:
+
+```bash
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
+  -v "$PWD:/data" \
+  "$POPGENVCF_IMAGE" \
+  --write-config /data/analysis.yml
+```
+
+Edit at least the input and output sections:
+
+```yaml
+input:
+  vcf: /data/cohort.vcf.gz
+  metadata: /data/metadata.tsv
+  metadata_header: auto
+
+output:
+  directory: /data/results
+
+compute:
+  threads: 8
+  seed: 42
+
+qc:
+  maf: 0.05
+  max_sample_missing: 0.20
+
+report:
+  enabled: true
+  title: Population genomic analysis
+  author: Analyst name
+```
+
+Container paths must be visible inside the container. With the bind mount above, host files under the current directory appear under `/data`.
+
+## 5. Run the analysis
+
+```bash
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
+  -v "$PWD:/data" \
+  "$POPGENVCF_IMAGE" \
+  --config /data/analysis.yml
+```
+
+On an HPC system, use the equivalent Apptainer command from the [containers and HPC guide](containers-and-hpc.html). Set `compute.threads` to no more than the scheduler allocation.
+
+## 6. Inspect the execution evidence first
+
+Before interpreting figures, review the machine-readable control files in the result root:
+
+| File | Purpose |
+|---|---|
+| `pipeline.log` | Ordered operational log and failures |
+| `analysis_capabilities.tsv` | Available and skipped modules with reasons |
+| `analysis_execution_plan.tsv` | Dependency-resolved execution plan |
+| `analysis_execution_ledger.tsv` | Success, failure, blocking, retry, or timeout state |
+| `analysis_module_contracts.tsv` | Registered module requirements and contracts |
+| `analysis_artifacts.tsv` | Produced artifact manifest when artifacts exist |
+| `analysis_validation.tsv` | Module validation outcomes when validation records exist |
+| `analysis_summary.tsv` | Stable analysis summary |
+| `analysis_results.rds` | Complete serialized analysis object |
+| `sessionInfo.txt` | R and package environment |
+
+The `tables/` directory begins with sample identity and QC evidence, including `01_sample_QC.tsv`, `02_sample_metadata_match.tsv`, variant-QC tables, and the exact LD-pruned SNP list. Module-specific tables and figures depend on capability and configuration.
+
+## 7. Inspect the result from R
+
+```r
+analysis <- readRDS("results/analysis_results.rds")
+summary(analysis)
+popgenVCF::list_analyses()
+popgenVCF::get_analysis_result(analysis, "pca")
+```
+
+Do not assume that a missing result is a software error. Confirm whether the module was unavailable, skipped, blocked by a failed dependency, or explicitly not selected.
+
+## 8. Validate before interpretation
+
+A completed command is not by itself scientific validation. Check that:
+
+1. sample identities and metadata alignment are correct;
+2. retained sample and variant counts are plausible;
+3. module validation records pass;
+4. no required module is failed, blocked, or timed out;
+5. external-tool results record the executable and version actually used;
+6. diagnostic-only comparisons are not presented as release-gating equivalence evidence.
+
+Use the [interpretation guide](interpreting-results.html) for analysis-specific cautions.
+
+## 9. Archive the analysis
+
+Retain together:
+
+- the original VCF and metadata checksums;
+- `analysis.yml`;
+- the exact package version, source commit, or OCI digest;
+- the complete result directory;
+- external-tool versions and commands;
+- scheduler resources, thread count, and random seed;
+- validation, benchmark, and provenance evidence relevant to the analysis.
+
+The 0.10.0 software contracts support canonical validation and release evidence, but users must not describe a production baseline, external concordance suite, or release certificate as approved unless the corresponding approval records are present.

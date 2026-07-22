@@ -1,5 +1,6 @@
 # popgenVCF 0.10.0 development
 
+- Added the Phase 0.9.30.1 public guide set: a first-analysis tutorial, analysis-specific scientific interpretation guidance, operational troubleshooting, expanded computational reproducibility, and release-neutral Docker, GHCR, Apptainer, Slurm, and HPC deployment instructions, with pkgdown/README integration and fail-closed documentation tests.
 - Opened Phase 0.9.30 by eliminating all avoidable `R CMD check` notes: repository-only release assets are excluded from source packages, package-internal triple-colon access is removed, imports and data.table NSE bindings are explicit, and generated usage documentation is width-safe.
 - Reconciled the generated public interface as a 613-entry installed API contract comprising 590 ordinary exports and 23 S3 registrations, with unique roxygen ownership, deterministic `NAMESPACE`/Rd generation, a refreshed canonical baseline, and read-only CI drift enforcement.
 - Reconciled repository health after Phase 0.9.29: removed runtime namespace mutation, restored explicit public exports, expanded release/API drift evidence, and synchronized README, NEWS, roadmaps, package requirements, and trackers.

@@ -11,42 +11,118 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-popgenVCF records the software, parameters, inputs, and validation evidence needed to reproduce a computational analysis. Reproducibility depends on preserving both the analysis outputs and the exact execution context.
+popgenVCF records software, parameters, inputs, execution state, validation, and provenance needed to reproduce a computational analysis. A reproducible record must preserve both outputs and the exact context that produced them.
 
-## Recommended archival record
+## Reproducibility levels
 
-For each analysis, retain:
+| Level | Evidence required |
+|---|---|
+| Re-executable | Inputs, configuration, software, and commands are available |
+| Computationally reproducible | The same environment regenerates materially equivalent outputs |
+| Independently verifiable | Checksums, validation records, source tables, and external comparisons can be audited |
+| Scientifically approved | Design, expected values, tolerances, and interpretation have explicit review and approval |
 
-- the input VCF and metadata checksums;
+A computationally reproducible run is not automatically a scientifically approved baseline.
+
+## Minimum archival record
+
+Retain:
+
+- the original VCF and metadata checksums;
 - the complete configuration file;
-- the popgenVCF release version or Git commit;
-- the OCI image digest or the resolved conda environment;
-- the generated validation and provenance records;
-- the random seed, thread count, and relevant external-tool versions.
+- the popgenVCF version and source commit;
+- the OCI image digest, SIF checksum, or resolved environment manifest;
+- `sessionInfo.txt` and external-tool versions;
+- the random seed, thread count, scheduler allocation, and timeout policy;
+- capability, execution-plan, execution-ledger, validation, and artifact tables;
+- source tables underlying reported figures;
+- provenance and release-evidence records relevant to the analysis.
+
+Preserve the failed state as well as the successful rerun when a failure affected decisions or parameters.
 
 ## Immutable container execution
 
-Tagged releases publish an OCI digest. Use the digest rather than a floating tag for archival work:
+For archival work, use the digest recorded by the GitHub Release:
 
 ```bash
-docker pull ghcr.io/duceppemo/popgenvcf@sha256:<digest>
+export POPGENVCF_IMAGE="ghcr.io/duceppemo/popgenvcf@sha256:<digest>"
+
+docker pull "$POPGENVCF_IMAGE"
 
 docker run --rm \
   --user "$(id -u):$(id -g)" \
   -e HOME=/tmp \
   -v "$PWD:/data" \
-  ghcr.io/duceppemo/popgenvcf@sha256:<digest> \
+  "$POPGENVCF_IMAGE" \
   --config /data/analysis.yml
 ```
 
-The release assets include the canonical digest and machine-readable metadata linking it to the source revision.
+Retain `container-metadata.json`, `container-digest.txt`, attestations, and checksums published with the release when available.
 
-## Deterministic and non-deterministic boundaries
+## Input identity
 
-popgenVCF fixes and records random seeds where supported, normalizes output ordering, records software versions, and validates scientific reference results. Bit-for-bit identity may still vary where external libraries, floating-point implementations, thread scheduling, compression metadata, or plotting devices differ.
+A file name is not an identity. Record a cryptographic checksum for each primary input and metadata file. For remote canonical data, also retain the registry entry, license/source record, expected checksum, materialization evidence, and approval state.
+
+Sample identity is equally important. VCF sample names are immutable keys; aliases and display labels must not replace them in provenance records.
+
+## Configuration and defaults
+
+Archive the fully resolved configuration, not only a partial user override. Defaults can change between versions. Record explicitly:
+
+- QC and LD-pruning thresholds;
+- enabled modules and external backends;
+- random seed and thread count;
+- timeout, retry, checkpoint, and resource policies;
+- reporting and publication profiles;
+- paths to external executables and reference data.
+
+## Deterministic and variable boundaries
+
+popgenVCF fixes and records random seeds where supported, normalizes ordering, validates schemas, records software versions, and uses comparator-aware scientific tolerances. Bit-for-bit identity may still vary because of:
+
+- floating-point and BLAS implementations;
+- thread scheduling and external-engine parallelism;
+- compression timestamps or metadata;
+- plotting devices and font rendering;
+- upstream library or operating-system differences;
+- nondeterminism in an external executable.
+
+Use the documented exact, numeric, matrix, eigenspace, or label-switching-aware comparator appropriate to the artifact. Do not use a permissive tolerance to hide an unexplained change.
+
+## External tools
+
+For every external execution, retain:
+
+- executable path or image identity;
+- executable version and checksum when feasible;
+- full command, seed, threads, and environment;
+- declared expected output inventory;
+- raw output used by the parser;
+- parser and comparison version;
+- diagnostic versus equivalence role.
+
+An unavailable executable or missing output must remain `skipped` or `insufficient-evidence`; it cannot certify concordance.
+
+## Canonical evidence and approval
+
+The package contains contracts for canonical datasets, quantitative baselines, longitudinal drift, scientific change requests, external-tool concordance, performance budgets, and release certificates. These contracts fail closed when required evidence or approval is missing.
+
+Do not state that the production baseline, external concordance suite, benchmark history, or release certificate is approved merely because the software objects exist. Confirm that the retained evidence names the dataset, checksum, tool versions, expected values, tolerances, source commit, reviewer, and approval state.
+
+## Reproduction procedure
+
+A reviewer should be able to:
+
+1. verify all input and software checksums;
+2. reconstruct the environment or pull the immutable image;
+3. inspect the resolved configuration;
+4. rerun the analysis with the recorded resources;
+5. compare regenerated source tables and artifacts with the retained evidence;
+6. reproduce validation and release-gate decisions;
+7. identify any approved scientific change explaining intentional drift.
 
 ## Scientific boundary
 
-Computational reproducibility demonstrates that the same software and inputs can regenerate materially equivalent outputs. It does not establish that sampling design, marker selection, population definitions, biological assumptions, or scientific interpretation are correct. Those remain responsibilities of the analyst and peer-review process.
+Computational reproducibility demonstrates that specified software and inputs can regenerate materially equivalent outputs. It does not establish that sampling design, marker selection, population definitions, biological assumptions, or interpretation are correct. Those remain responsibilities of the analyst, collaborators, reviewers, and the relevant scientific governance process.
 
-The full policy is maintained in [`docs/reproducibility.md`](https://github.com/duceppemo/popgenVCF/blob/main/docs/reproducibility.md).
+The detailed project policy is maintained in [`docs/reproducibility.md`](https://github.com/duceppemo/popgenVCF/blob/main/docs/reproducibility.md).

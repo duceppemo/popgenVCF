@@ -1,0 +1,113 @@
+---
+title: "Interpret population-genomic results"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Interpret population-genomic results}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+Population-genomic outputs are summaries of a particular sample, marker set, filtering policy, population definition, and model. They are not direct measurements of demographic history or causation. Interpretation should begin with execution and validation evidence, not with the most visually striking figure.
+
+## Read results in this order
+
+1. Confirm exact sample identity and metadata alignment.
+2. Review sample and variant QC, missingness, allele-frequency filters, and LD pruning.
+3. Confirm module capability, execution state, and validation state.
+4. Inspect numerical source tables before figures.
+5. Compare related analyses and investigate disagreement.
+6. State assumptions, uncertainty, exclusions, and alternative explanations.
+
+## Execution and evidence states
+
+| State | Meaning | Interpretation rule |
+|---|---|---|
+| `success` | The module completed | Interpret only after its validation record passes |
+| `skipped` or unavailable | Required metadata, software, or inputs were absent | Report the reason; do not infer a negative biological result |
+| `blocked` | A prerequisite failed or did not complete | Interpret neither the blocked module nor missing downstream artifacts |
+| `failed` | The module encountered an error or invalid output | Resolve the cause and rerun before scientific use |
+| `timed_out` | The configured elapsed-time budget was exceeded | Treat as incomplete, not as evidence for absence |
+| diagnostic-only | A comparison is informative but not release-gating | Do not describe it as certified equivalence |
+| insufficient evidence | Required datasets, repetitions, approvals, or comparisons are missing | Do not convert the state into pass or fail |
+
+## Quality control and filtering
+
+Sample and variant QC determine the data on which every downstream result depends.
+
+Review missingness, heterozygosity, minor-allele frequency, retained sample counts, retained variant counts, chromosome representation, and the exact LD-pruned SNP list. Large changes after one threshold deserve explanation. A sample with unusual heterozygosity may reflect biology, contamination, ploidy mismatch, mapping error, or sample mixture; the statistic alone does not identify the cause.
+
+Filtering can change ordinations, distances, diversity, and differentiation. Report thresholds and sensitivity analyses when conclusions depend on a narrow filtering choice.
+
+## PCA
+
+Principal components summarize directions of variance in the analyzed genotype matrix. Separation can reflect population structure, family relationships, batch effects, uneven missingness, marker ascertainment, inversions, or geographic clines.
+
+Interpret the eigenvalues and source coordinates together. Do not assign discrete populations solely from visual clusters. Examine whether patterns persist after removing close relatives, high-LD regions, or problematic samples. Axis signs are arbitrary; only relative geometry is meaningful.
+
+## IBS and MDS
+
+Identity-by-state measures allele sharing in the retained marker set. MDS represents those distances in a lower-dimensional space.
+
+High similarity may indicate relatedness or shared population history, but IBS is not an identity-by-descent estimate and does not establish pedigree relationships. Check pairwise source tables, sample labels, and the amount of distortion introduced by the displayed dimensions.
+
+## Diversity
+
+Allelic richness, heterozygosity, nucleotide diversity, and related summaries are sensitive to sample size, missing data, marker ascertainment, and the genomic regions retained after filtering.
+
+Compare populations only when estimators and sampling effort are appropriate. A lower estimate is not automatically evidence of a bottleneck, inbreeding, or reduced fitness. Those explanations require additional analyses and study-design support.
+
+## FST
+
+FST summarizes relative allele-frequency differentiation under a specified estimator. It is not a direct measure of migration rate, divergence time, or reproductive isolation.
+
+Report the estimator, marker set, population definitions, sample sizes, confidence intervals or resampling procedure, and whether pairwise estimates are stable. Negative estimates can arise from sampling variation and should be handled according to the documented estimator policy rather than silently transformed.
+
+## DAPC
+
+DAPC is supervised by group labels and seeks axes that discriminate those groups. Apparent separation is therefore not independent confirmation that the supplied groups are biologically real.
+
+Document how many principal components and discriminant axes were retained, how those choices were validated, and whether sample sizes support the model. Avoid using the same labels to define groups and then presenting discrimination as an unbiased discovery result.
+
+## AMOVA
+
+AMOVA partitions molecular variance according to a predefined hierarchy. Its meaning depends entirely on that hierarchy, distance definition, and permutation design.
+
+State the levels tested, the units permuted, the number of permutations, and whether the design contains enough independent groups. A statistically detectable component may still be small or confounded by sampling design.
+
+## Ancestry models
+
+ADMIXTURE, fastStructure, and sNMF estimate model-dependent ancestry proportions. Cluster labels are exchangeable, and the selected K is not a literal count of ancestral populations.
+
+Interpret replicate alignment, convergence, fit metrics, cross-validation or entropy criteria, cluster stability, sample uncertainty, and agreement across backends. Prefer stable patterns supported across replicates and neighboring K values. Do not equate a colour component with a named historical population without independent evidence.
+
+## Isolation by distance and Mantel analyses
+
+A relationship between genetic and geographic distance can reflect dispersal limitation, barriers, hierarchical structure, sampling geometry, or environmental covariation.
+
+Inspect the distance definitions, complete coordinate pairs, spatial extent, outliers, permutation design, and residual pattern. A Mantel result does not establish a causal spatial process and can be misleading under complex spatial or hierarchical sampling.
+
+## Integrating analyses
+
+Concordant analyses can strengthen a description, but shared inputs also create shared biases. PCA separation, high pairwise FST, ancestry components, and geographic clustering are not four independent experiments when they use the same samples and variants.
+
+When analyses disagree, investigate sample size, missingness, LD, relatives, population labels, spatial scale, model assumptions, and uncertainty before choosing the preferred narrative.
+
+## Reporting checklist
+
+A defensible results section should identify:
+
+- input datasets and checksums;
+- sample and variant exclusions;
+- filtering and LD-pruning parameters;
+- estimator and software versions;
+- random seeds, threads, and replicate counts;
+- validation state and failed or skipped modules;
+- uncertainty intervals or resampling where available;
+- limitations and plausible alternative explanations;
+- the exact source tables behind each figure.
+
+Scientific conclusions remain the responsibility of the analyst. popgenVCF provides deterministic calculations, evidence records, and transparent failure states; it does not replace study-design review or domain expertise.

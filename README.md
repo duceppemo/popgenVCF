@@ -8,7 +8,7 @@
 
 ## Repository status
 
-Implementation contracts are complete through Phase **0.9.29**, including canonical real-data descriptors, approval-gated baseline snapshots, external-tool concordance records, and continuous release benchmark evidence. The repository is currently in a stabilization pass before Phase 0.9.30.
+Implementation contracts are complete through Phase **0.9.29**. Phase **0.9.30** is active and is completing user documentation, interpretation guidance, publication examples, software metadata, reproducibility, deployment, and archival readiness before the 0.10.0 release-candidate closure phase.
 
 The software contracts are not the same as approved production evidence. The first checksum-verified real-data baseline, full external-tool concordance suite, historical release benchmark archive, and final 0.10.0 release certificate still require execution, scientific review, approval, and publication through the dedicated validation workflows. See the [roadmap](docs/ROADMAP.md) for the authoritative distinction between completed infrastructure and remaining release evidence.
 
@@ -17,27 +17,49 @@ The software contracts are not the same as approved production evidence. The fir
 - Accepts `.vcf` and `.vcf.gz` input.
 - Automatically sorts, BGZF-compresses, and Tabix-indexes input when required.
 - Runs PCA, IBS/MDS, QC, filtering, and LD pruning directly from VCF sample IDs without metadata.
-- Validates metadata sample IDs against the VCF before attaching any annotations.
+- Validates metadata sample IDs against the VCF before attaching annotations.
 - Detects which analyses are possible from the available metadata columns.
 - Performs exact audited SNPRelate QC and LD pruning.
 - Provides diversity, FST, DAPC, population-structure, AMOVA, Mantel, and isolation-by-distance workflows when their requirements are met.
 - Produces publication artifacts, validation records, and reproducible container images.
 - Preserves canonical dataset checksums, scientific approval state, external-tool provenance, and release benchmark budgets as machine-readable evidence.
 
-## Recommended installation: Docker
+## Start here
+
+The public guide sequence is:
+
+1. [Run your first analysis](vignettes/getting-started.Rmd)
+2. [Interpret population-genomic results](vignettes/interpreting-results.Rmd)
+3. [Troubleshoot analyses and deployments](vignettes/troubleshooting.Rmd)
+4. [Computational reproducibility](vignettes/reproducibility.Rmd)
+5. [Containers and HPC deployment](vignettes/containers-and-hpc.Rmd)
+
+The rendered versions are available from the [pkgdown site](https://duceppemo.github.io/popgenVCF/).
+
+## Recommended installation: container image
+
+For current development and evaluation:
 
 ```bash
-docker pull ghcr.io/duceppemo/popgenvcf:latest
+export POPGENVCF_IMAGE="ghcr.io/duceppemo/popgenvcf:latest"
+docker pull "$POPGENVCF_IMAGE"
 ```
 
-The `latest` tag is convenient for development. Reproducible analyses should record and use an immutable published version tag or container digest.
+For a reproducible release analysis, replace `latest` with the immutable digest recorded by the corresponding GitHub Release:
 
-Generate a default configuration from your analysis directory:
+```bash
+export POPGENVCF_IMAGE="ghcr.io/duceppemo/popgenvcf@sha256:<digest>"
+docker pull "$POPGENVCF_IMAGE"
+```
+
+Generate a default configuration from the analysis directory:
 
 ```bash
 docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
   -v "$PWD:/data" \
-  ghcr.io/duceppemo/popgenvcf:latest \
+  "$POPGENVCF_IMAGE" \
   --write-config /data/analysis.yml
 ```
 
@@ -48,7 +70,7 @@ docker run --rm \
   --user "$(id -u):$(id -g)" \
   -e HOME=/tmp \
   -v "$PWD:/data" \
-  ghcr.io/duceppemo/popgenvcf:latest \
+  "$POPGENVCF_IMAGE" \
   --config /data/analysis.yml
 ```
 
@@ -73,7 +95,7 @@ input:
 
 ## Workflow modes
 
-### 1. VCF-only mode
+### VCF-only mode
 
 A metadata file is optional:
 
@@ -83,102 +105,36 @@ input:
   metadata: null
 ```
 
-The sample names stored in the VCF are the canonical sample identifiers. Without metadata, popgenVCF performs:
+The VCF sample names are the canonical sample identifiers. Without metadata, popgenVCF can perform sample and variant QC, filtering, LD pruning, PCA, IBS/MDS, and configured ancestry analyses. Population and spatial modules are skipped transparently because their annotations are unavailable.
 
-- sample and variant QC;
-- allele-frequency, MAF, missingness, and heterozygosity summaries;
-- filtering audits and exact LD pruning;
-- PCA;
-- IBS/MDS and related sample-level ordination or distance outputs;
-- external ancestry/structure analyses when their own required inputs are configured.
+### Sample metadata mode
 
-Population and spatial modules are skipped because the necessary annotations are unavailable. The reasons are recorded in `analysis_capabilities.tsv`, and the workflow exits successfully.
+A metadata file may add descriptive columns such as location, collection date, sex, or species. PCA and IBS/MDS do not require this file; metadata annotates their samples and figures.
 
-### 2. Sample metadata mode
+### Population metadata mode
 
-A metadata file may add descriptive columns such as location, collection date, sex, or species. PCA and IBS/MDS do not require this file; metadata only annotates their samples and plots.
+A complete `population` column enables population diversity, FST, DAPC, AMOVA, and population-level summaries.
 
-### 3. Population metadata mode
+### Spatial metadata mode
 
-Adding a complete `population` column enables population diversity, FST, DAPC, AMOVA, and population-level summaries.
+Valid `latitude` and `longitude` values enable Mantel tests, isolation by distance, geographic figures, and other spatial modules. Samples without coordinates are excluded only from the spatial calculation; the module must still meet its minimum complete-pair requirement.
 
-### 4. Spatial metadata mode
+## Metadata identity contract
 
-Adding valid `latitude` and `longitude` columns enables Mantel tests, isolation by distance, geographic figures, and other spatial modules. Samples without coordinates are excluded only from the spatial calculation; the module must still meet its minimum number of complete coordinate pairs.
+When metadata is supplied, its `sample` column must match the VCF sample names **exactly**.
 
-## Metadata file format
+popgenVCF enforces all of the following before downstream analysis:
 
-Metadata should normally be a tab-delimited file with a header. Comma-delimited and whitespace-delimited input are also detected. Column names are normalized to lowercase snake case.
-
-### Sample identity contract
-
-When a metadata file is supplied, its `sample` column must match the VCF sample names **exactly**.
-
-popgenVCF enforces all of the following before any downstream analysis:
-
-- every metadata sample ID must exist in the VCF;
-- every VCF sample ID must occur exactly once in the metadata;
+- every metadata sample ID exists in the VCF;
+- every VCF sample ID occurs exactly once in metadata;
 - duplicate metadata sample IDs are rejected;
-- metadata rows are reordered to the VCF sample order before annotations are attached;
-- matching is case-sensitive and whitespace is not silently altered inside identifiers.
+- metadata rows are reordered to VCF sample order;
+- matching is case-sensitive;
+- internal whitespace in identifiers is not silently changed.
 
-A mismatch is a fatal input error because silently dropping or misaligning samples could attach population, location, or other metadata to the wrong individual.
+A mismatch is a fatal input error because silent dropping or reordering could attach population, location, or other metadata to the wrong individual.
 
-Every run with metadata writes:
-
-```text
-tables/02_sample_metadata_match.tsv
-```
-
-This records the VCF sample IDs, metadata presence, and post-QC retention state.
-
-### Required columns
-
-Only one column is mandatory when a metadata file is supplied:
-
-| Column | Required | Type | Description |
-|---|:---:|---|---|
-| `sample` | Yes | text | Identifier matching a VCF sample exactly. Aliases such as `sample_id`, `id`, `individual`, and `individual_id` are accepted. |
-
-### Recognized optional columns
-
-| Column | Required | Type | Used by |
-|---|:---:|---|---|
-| `population` | No | text | Population diversity, FST, DAPC, AMOVA, population summaries, and plot colours. Alias `pop` is accepted. |
-| `latitude` | No | numeric decimal degrees | Mantel, isolation by distance, maps, and spatial analyses. |
-| `longitude` | No | numeric decimal degrees | Mantel, isolation by distance, maps, and spatial analyses. |
-| `location` | No | text | Reports, labels, and descriptive summaries. |
-| `collection_date` | No | text/date | Reports and future temporal analyses. |
-| `sex` | No | text | Descriptive summaries and future stratified analyses. |
-| `species` | No | text | Reports and multi-taxon metadata. |
-| `group` | No | text | User-defined grouping retained for custom or future modules. |
-
-Additional columns are accepted and carried through the analysis object and outputs. Unknown columns are not discarded.
-
-### Sample-only example
-
-```text
-sample	location	collection_date
-Sample01	Ottawa	2025-06-01
-Sample02	Ottawa	2025-06-03
-Sample03	Montreal	2025-06-10
-```
-
-This adds labels and descriptive annotations to QC, PCA, IBS/MDS, and other sample-level analyses. Population-dependent modules are skipped.
-
-### Population example without coordinates
-
-```text
-sample	population	location
-Sample01	Ontario	Ottawa
-Sample02	Ontario	Ottawa
-Sample03	Quebec	Montreal
-Sample04	Quebec	Montreal
-```
-
-This enables population modules, but spatial analyses are skipped because no complete coordinate pairs are available.
-
-### Full or partial spatial example
+### Metadata example
 
 ```text
 sample	population	latitude	longitude	location
@@ -188,42 +144,23 @@ Sample03	Quebec	45.5019	-73.5674	Montreal
 Sample04	Quebec	NA	NA	Montreal
 ```
 
-Missing coordinates are allowed. Spatial modules use samples with complete latitude/longitude pairs and must still satisfy their module-specific minimum sample requirements. The other analyses continue to use all retained samples.
+Only `sample` is mandatory when metadata is supplied. Recognized optional fields include `population`, `latitude`, `longitude`, `location`, `collection_date`, `sex`, `species`, and `group`. Additional columns are retained rather than discarded.
 
-## Analysis requirements
+## Capability and execution evidence
 
-| Analysis | VCF only | `sample` metadata | complete `population` | usable coordinates |
-|---|:---:|:---:|:---:|:---:|
-| Sample and variant QC | Yes | Optional |  |  |
-| Filtering and LD pruning | Yes | Optional |  |  |
-| PCA | Yes | Optional |  |  |
-| IBS/MDS | Yes | Optional |  |  |
-| ADMIXTURE / fastStructure / sNMF | Yes* | Optional |  |  |
-| Population diversity |  | Yes | Yes |  |
-| FST |  | Yes | Yes |  |
-| DAPC |  | Yes | Yes |  |
-| AMOVA |  | Yes | Yes |  |
-| Mantel / isolation by distance |  | Yes | Usually | Yes |
-| Geographic plots and spatial modules |  | Yes | Optional | Yes |
+Every run writes machine-readable evidence before results should be interpreted:
 
-`*` External engines also require their configured executable and method-specific input files.
+- `analysis_capabilities.tsv` records available and skipped modules with reasons;
+- `analysis_execution_plan.tsv` records the dependency-resolved plan;
+- `analysis_execution_ledger.tsv` records success, failure, blocking, retries, and timeouts;
+- `analysis_module_contracts.tsv` records registered module contracts;
+- `analysis_artifacts.tsv` records produced artifacts when present;
+- `analysis_validation.tsv` records module validation when present;
+- `analysis_summary.tsv` provides a stable summary;
+- `analysis_results.rds` stores the complete analysis object;
+- `sessionInfo.txt` records the R environment.
 
-## Capability reporting
-
-Every run writes:
-
-```text
-analysis_capabilities.tsv
-```
-
-This table records each registered module, whether it was available, and why it was skipped. Examples include:
-
-- `available from VCF sample IDs`;
-- `metadata not supplied; population annotations unavailable`;
-- `complete population annotations unavailable`;
-- `no complete latitude/longitude pairs available`.
-
-Explicitly requested unavailable modules are skipped with a warning rather than causing unrelated analyses to fail.
+A skipped or unavailable module is not a negative biological result. A blocked, failed, or timed-out module must not be interpreted.
 
 ## Example configuration
 
@@ -250,7 +187,7 @@ report:
 
 For VCF-only operation, remove `metadata` or set it to `null`.
 
-## Conda/Mamba installation
+## Local Conda/Mamba installation
 
 ```bash
 git clone https://github.com/duceppemo/popgenVCF.git
@@ -279,6 +216,9 @@ Canonical real-data acquisition and external-tool execution are deliberately exc
 
 - [Project charter](docs/PROJECT_CHARTER.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Reproducibility statement](docs/reproducibility.md)
+- [Container images](docs/user/container-images.md)
+- [Apptainer usage](docs/user/apptainer.md)
 - [Scientific validation policy](docs/SCIENTIFIC_VALIDATION.md)
 - [Canonical real-data contracts](docs/CANONICAL_REAL_DATA.md)
 - [Canonical dataset registry](docs/CANONICAL_DATASET_REGISTRY.md)
