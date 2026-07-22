@@ -10,12 +10,11 @@ timeout_test_analysis <- function() {
 }
 
 timeout_busy_wait <- function(seconds) {
-  started <- proc.time()[["elapsed"]]
-  value <- 0
-  while ((proc.time()[["elapsed"]] - started) < seconds) {
-    value <- value + sqrt(value + 1)
-  }
-  invisible(value)
+  # Use an elapsed-time delay rather than processor-speed-dependent arithmetic.
+  # setTimeLimit(elapsed = ...) is checked when control returns from Sys.sleep(),
+  # making this regression stable across R release/devel and runner hardware.
+  Sys.sleep(seconds)
+  invisible(seconds)
 }
 
 timeout_module <- function(name, delay = 0) {
@@ -28,7 +27,7 @@ timeout_module <- function(name, delay = 0) {
   }
 }
 
-timeout_test_registry <- function(delay = 0.1) {
+timeout_test_registry <- function(delay = 0.25) {
   registry <- new_analysis_registry()
   registry <- register_analysis(registry, "first", timeout_module("first"))
   registry <- register_analysis(
@@ -61,7 +60,7 @@ test_that("timed-out modules fail closed and block descendants", {
   result <- execute_analysis_registry_with_timeouts(
     timeout_test_analysis(), list(), timeout_test_registry(),
     timeout_policy = new_execution_timeout_policy(
-      module_seconds = c(slow = 0.01), label = "short-slow-budget"
+      module_seconds = c(slow = 0.02), label = "short-slow-budget"
     )
   )
 
@@ -92,7 +91,7 @@ test_that("timeout failures participate in bounded retries", {
     registry, "slow",
     function(analysis, context) {
       attempts$n <- attempts$n + 1L
-      if (attempts$n == 1L) timeout_busy_wait(0.1)
+      if (attempts$n == 1L) timeout_busy_wait(0.25)
       analysis <- set_analysis_result(analysis, "slow", list(module = "slow"))
       list(analysis = analysis, context = context)
     },
@@ -108,7 +107,7 @@ test_that("timeout failures participate in bounded retries", {
   )
   result <- execute_analysis_registry_with_timeouts(
     timeout_test_analysis(), list(), registry,
-    timeout_policy = new_execution_timeout_policy(module_seconds = c(slow = 0.01)),
+    timeout_policy = new_execution_timeout_policy(module_seconds = c(slow = 0.02)),
     retry_policy = retry
   )
 
