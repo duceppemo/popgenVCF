@@ -17,7 +17,6 @@ parse_admixture_cv <- function(text) {
 #' @param seed Deterministic ADMIXTURE seed.
 #' @return A data table of K values and cross-validation errors.
 #' @export
-
 run_admixture_cv <- function(executable, plink_prefix, k_values, threads = 1L, cv_folds = 5L,
                              output_dir = ".", seed = 42L) {
   bed <- paste0(plink_prefix, ".bed")

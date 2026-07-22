@@ -69,7 +69,6 @@ write_default_config <- function(path) {
 #' @param args Character vector of command-line arguments.
 #' @return The pipeline result, or `NULL` invisibly for informational commands.
 #' @export
-
 cli_main <- function(args = commandArgs(trailingOnly = TRUE)) {
   x <- parse_cli(args)
   if (isTRUE(x$version)) {
