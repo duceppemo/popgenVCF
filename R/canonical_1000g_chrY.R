@@ -111,12 +111,16 @@ canonical_dataset_from_source <- function(source, directory) {
   )
 }
 
-#' Create the approved 1000 Genomes chromosome Y registry
+#' Create an approved canonical registry from a verified source
 #' @param directory Directory containing verified source files.
+#' @param source Canonical source specification. Defaults to the approved
+#'   1000 Genomes chromosome Y source.
 #' @return A registry with one approved SHA-256 descriptor.
 #' @export
-approved_1000g_chrY_registry <- function(directory) {
-  source <- canonical_1000g_chrY_source()
+approved_1000g_chrY_registry <- function(
+    directory,
+    source = canonical_1000g_chrY_source()) {
+  validate_canonical_source(source)
   descriptor <- canonical_dataset_from_source(source, directory)
   register_canonical_dataset(new_canonical_dataset_registry(), descriptor,
     approval = "approved", reviewed_by = source$reviewed_by,
@@ -135,7 +139,7 @@ write_approved_canonical_source_evidence <- function(source, directory, output_d
   verification <- verify_canonical_source(source, directory)
   if (!all(verification$passed)) stop("canonical source verification failed", call. = FALSE)
   descriptor <- canonical_dataset_from_source(source, directory)
-  registry <- approved_1000g_chrY_registry(directory)
+  registry <- approved_1000g_chrY_registry(directory, source = source)
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   source_path <- file.path(output_dir, "canonical_source_verification.tsv")
   registry_path <- file.path(output_dir, "canonical_dataset_registry.tsv")
