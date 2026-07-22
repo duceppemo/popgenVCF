@@ -34,23 +34,13 @@ jobs:
           test -f inst/api-contract/public-api-baseline.tsv.gz.b64
           test -f inst/api-contract/public-api-baseline.dcf
           base64 --decode inst/api-contract/public-api-baseline.tsv.gz.b64 | gzip --decompress > inst/api-contract/public-api-baseline.tsv
-          Rscript - <<'RSCRIPT'
-          metadata <- read.dcf("inst/api-contract/public-api-baseline.dcf")
-          required <- c("Package", "Version", "Contract-Format", "Entries", "Snapshot-SHA256")
-          missing <- setdiff(required, colnames(metadata))
-          if (length(missing)) stop("Missing baseline metadata field(s): ", paste(missing, collapse = ", "))
-          baseline_file <- "inst/api-contract/public-api-baseline.tsv"
-          actual_sha256 <- digest::digest(
-            baseline_file,
-            algo = "sha256",
-            serialize = FALSE,
-            file = TRUE
-          )
-          expected_sha256 <- metadata[1L, "Snapshot-SHA256"]
-          if (!identical(actual_sha256, expected_sha256)) {
-            stop("Canonical baseline SHA-256 mismatch: expected ", expected_sha256, ", got ", actual_sha256)
-          }
-          RSCRIPT
+          expected_digest="$(sed -n 's/^Snapshot-SHA256: //p' inst/api-contract/public-api-baseline.dcf)"
+          actual_digest="$(sha256sum inst/api-contract/public-api-baseline.tsv | cut -d' ' -f1)"
+          test -n "$expected_digest"
+          if [[ "$expected_digest" != "$actual_digest" ]]; then
+            echo "Canonical baseline SHA-256 mismatch: expected $expected_digest, got $actual_digest" >&2
+            exit 1
+          fi
 
       - name: Generate current contract
         run: |
