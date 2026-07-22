@@ -53,6 +53,7 @@ test_that("Phase 0.9.30 user guides are complete and site-linked", {
   guides <- c(
     "vignettes/getting-started.Rmd",
     "vignettes/interpreting-results.Rmd",
+    "vignettes/publication-gallery.Rmd",
     "vignettes/troubleshooting.Rmd",
     "vignettes/reproducibility.Rmd",
     "vignettes/containers-and-hpc.Rmd"
@@ -112,6 +113,7 @@ test_that("README and release identity expose the user guide entry points", {
   required_links <- c(
     "vignettes/getting-started.Rmd",
     "vignettes/interpreting-results.Rmd",
+    "vignettes/publication-gallery.Rmd",
     "vignettes/troubleshooting.Rmd",
     "vignettes/reproducibility.Rmd",
     "vignettes/containers-and-hpc.Rmd"
