@@ -1,0 +1,44 @@
+name: Supply-chain action pins
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".github/dependabot.yml"
+      - "scripts/validate_workflow_action_pins.py"
+      - "tests/testthat/test-workflow-action-pins.R"
+      - "docs/developer/github-actions-supply-chain.md"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - ".github/dependabot.yml"
+      - "scripts/validate_workflow_action_pins.py"
+      - "tests/testthat/test-workflow-action-pins.R"
+      - "docs/developer/github-actions-supply-chain.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-action-pins:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Validate immutable action references
+        env:
+          POPGENVCF_ACTION_PIN_EVIDENCE: artifacts/github-action-pin-audit.json
+        run: python3 scripts/validate_workflow_action_pins.py
+
+      - name: Upload action-pin audit
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: github-action-pin-audit
+          path: artifacts/github-action-pin-audit.json
+          if-no-files-found: error
+          retention-days: 30
