@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "DESCRIPTION"
+      - "LICENSE"
       - "CITATION.cff"
       - "codemeta.json"
       - "inst/CITATION"
@@ -12,12 +13,15 @@ on:
       - "R/zzz_software_identity_integration.R"
       - "docs/reproducibility.md"
       - "scripts/validate_release_metadata.R"
+      - "scripts/validate_license_metadata.R"
       - "tests/testthat/test-release-metadata-contract.R"
+      - "tests/testthat/test-license-metadata-contract.R"
       - ".github/workflows/release-metadata.yml"
   push:
     branches: [main]
     paths:
       - "DESCRIPTION"
+      - "LICENSE"
       - "CITATION.cff"
       - "codemeta.json"
       - "inst/CITATION"
@@ -26,7 +30,9 @@ on:
       - "R/zzz_software_identity_integration.R"
       - "docs/reproducibility.md"
       - "scripts/validate_release_metadata.R"
+      - "scripts/validate_license_metadata.R"
       - "tests/testthat/test-release-metadata-contract.R"
+      - "tests/testthat/test-license-metadata-contract.R"
       - ".github/workflows/release-metadata.yml"
   workflow_dispatch:
 
@@ -67,11 +73,18 @@ jobs:
           POPGENVCF_METADATA_EVIDENCE: artifacts/release-metadata-validation.json
         run: Rscript scripts/validate_release_metadata.R
 
+      - name: Validate LICENSE consistency
+        env:
+          POPGENVCF_LICENSE_METADATA_EVIDENCE: artifacts/license-metadata-validation.json
+        run: Rscript scripts/validate_license_metadata.R
+
       - name: Upload metadata validation evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: release-metadata-validation
-          path: artifacts/release-metadata-validation.json
+          path: |
+            artifacts/release-metadata-validation.json
+            artifacts/license-metadata-validation.json
           if-no-files-found: warn
           retention-days: 14
