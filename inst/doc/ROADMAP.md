@@ -58,7 +58,9 @@ Phase 10 exposes the unified runtime through a stable, documented user-facing sc
 - [x] **10.1 — Canonical public analysis and artifact API**
 - [x] **10.2 — Public API compatibility and release conformance**
 
-## 0.9: publication-quality analysis platform
+## 0.10: publication-quality release candidate
+
+The authoritative development package version is **0.10.0**. This series reconciles the completed public interface with the remaining scientific-validation and release-evidence work required before 1.0.
 
 ### Completed milestones
 
@@ -79,9 +81,21 @@ Phase 10 exposes the unified runtime through a stable, documented user-facing sc
   - deterministic sample, population, locus, expected-result, tolerance, and external-tool comparison inventories;
   - CI-safe synthetic fixtures, opt-in canonical integration fixtures, provenance, and fail-closed drift detection.
 
-### Current planning checkpoint
+### Active milestone
 
-No subsequent implementation phase is active. The repository is undergoing a release-gap audit before the next milestone is selected. The audit must reconcile package versioning, exported API/documentation coverage, remaining core publication modules, canonical real-data adoption, benchmarks, metadata, containers, and open tracking issues.
+- [ ] **0.9.14 — Release-state and public-API reconciliation**
+  - retain 0.10.0 as the authoritative development release identity;
+  - audit exports, S3 registrations, Rd aliases, and generated documentation;
+  - emit deterministic reconciliation evidence and fail closed on release-state drift;
+  - synchronize README, NEWS, DESCRIPTION, roadmap copies, and tracking issues.
+
+### Planned sequence after reconciliation
+
+1. canonical contract hardening;
+2. IBS/MDS publication outputs;
+3. licensed canonical real-data integration and external comparisons;
+4. release evidence, metadata, benchmark publication, and container/HPC documentation;
+5. 0.10.0 release-readiness review.
 
 ### Validation datasets and benchmarking
 
@@ -102,12 +116,13 @@ No subsequent implementation phase is active. The repository is undergoing a rel
 
 The following open issues remain authoritative tracking containers and are intentionally not closed:
 
-- **#4 — v0.9 publication-quality platform:** umbrella tracker for the remaining 0.9 and 1.0 release work.
+- **#4 — publication-quality platform:** umbrella tracker for remaining 0.10 and 1.0 release work.
 - **#20 — Core publication artifact contracts:** remains open for IBS/MDS and remaining publication artifacts.
 - **#22 — Canonical real-data validation:** covers licensed datasets, expected values, external-tool comparisons, and CI/full-validation workflows.
 - **#24 — Unified ancestry platform:** covers backend/runtime enhancements beyond the completed publication ancestry contract.
 - **#43 — Continuous scientific benchmarks:** covers historical regression archives, cross-tool comparisons, resource/scaling measurements, dashboards, and release benchmark artifacts.
 - **#68 — Analysis-specific publication narratives:** covers remaining module-specific methods, legends, citations, and supplementary narratives.
+- **#254 — Release-state and public-API reconciliation:** owns the active 0.9.14 implementation and acceptance criteria.
 
 The reproducibility and release-infrastructure tracker **#1** also remains open until the documentation/metadata and release-automation items above are complete. Optional Docker Hub publishing is a later enhancement dependent on credentials and is not required for 1.0; Zenodo integration remains a post-stable-release task.
 
