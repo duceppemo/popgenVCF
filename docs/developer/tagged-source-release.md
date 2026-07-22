@@ -17,13 +17,13 @@ The accepted release identifier is always `v<Version>`, where `Version` is read 
 Publication occurs only after all of the following succeed:
 
 1. `R CMD build` creates the source package from the checked-out revision.
-2. DOI-ready `.zenodo.json`, CFF, CodeMeta, and reproducibility metadata are collected without adding an unpublished DOI or date.
+2. DOI-ready `.zenodo.json`, CFF, CodeMeta, and reproducibility metadata are collected into a deterministic archive without adding an unpublished DOI or date.
 3. a pinned Syft action creates an SPDX JSON SBOM from the exact source tarball and its document structure is validated.
 4. `R CMD check --as-cran` succeeds against that built tarball.
 5. the checked tarball is installed.
 6. the end-to-end scientific release integration workflow completes.
 7. session and installed-package manifests are recorded.
-8. `source-release-provenance.json` binds the source archive, SBOM, metadata, tag, commit, and workflow identity.
+8. `source-release-provenance.json` binds the source archive, SBOM, archival-metadata archive, tag, commit, and workflow identity.
 9. every payload file is hashed into `release-manifest.json`.
 10. the payload and manifest checksums are verified.
 11. a deliberate modified-file test proves that tampering is rejected.
@@ -32,17 +32,14 @@ A failure at any gate prevents the GitHub Release upload step.
 
 ## Published layout
 
-`release-assets/` contains deterministic filenames and the archival metadata directory:
+`release-assets/` contains deterministic top-level filenames:
 
 - `popgenVCF_<version>.tar.gz`;
 - `popgenVCF-check-results.tar.gz`;
 - `popgenVCF-scientific-release.tar.gz`;
+- `popgenVCF-archive-metadata.tar.gz`;
 - `popgenVCF-source-sbom.spdx.json`;
 - `source-release-provenance.json`;
-- `archive-metadata/.zenodo.json`;
-- `archive-metadata/CITATION.cff`;
-- `archive-metadata/codemeta.json`;
-- `archive-metadata/reproducibility.md`;
 - `scientific-release-integration-summary.json`;
 - `scientific-release-determinism.tsv`;
 - `scientific-validation.tsv`;
@@ -52,7 +49,7 @@ A failure at any gate prevents the GitHub Release upload step.
 - `release-manifest.json`;
 - `release-SHA256SUMS.txt`.
 
-All payload files are listed with their byte size and SHA-256 digest in `release-manifest.json`. The manifest is authenticated by `release-SHA256SUMS.txt`. The checksum file is the terminal control record and therefore does not recursively checksum itself.
+The archival-metadata tarball contains `.zenodo.json`, `CITATION.cff`, `codemeta.json`, and `reproducibility.md`. All payload files are listed with their byte size and SHA-256 digest in `release-manifest.json`. The manifest is authenticated by `release-SHA256SUMS.txt`. The checksum file is the terminal control record and therefore does not recursively checksum itself.
 
 ## Manual rehearsal
 
@@ -66,6 +63,7 @@ sha256sum --check release-SHA256SUMS.txt
 python -m json.tool release-manifest.json >/dev/null
 python -m json.tool source-release-provenance.json >/dev/null
 python -m json.tool popgenVCF-source-sbom.spdx.json >/dev/null
+tar -tzf popgenVCF-archive-metadata.tar.gz
 ```
 
 To exercise a prospective version, update `DESCRIPTION` and all canonical metadata in a branch, then run the workflow on that branch with its matching identifier.
@@ -90,7 +88,7 @@ git tag -a v0.10.0 -m "popgenVCF 0.10.0"
 git push origin v0.10.0
 ```
 
-The workflow creates the GitHub Release when needed and recursively uploads every file in `release-assets/`. Re-running the same unpublished tag replaces assets using `--clobber`, which supports recovery from an interrupted upload while keeping deterministic asset names.
+The workflow creates the GitHub Release when needed and uploads every top-level file in `release-assets/`. Re-running the same unpublished tag replaces assets using `--clobber`, which supports recovery from an interrupted upload while keeping deterministic asset names.
 
 The container workflow then publishes the image by immutable digest with BuildKit SBOM and provenance attestations. Zenodo deposition and DOI finalization follow the reviewed process in [release archival readiness](release-archival-readiness.md).
 
