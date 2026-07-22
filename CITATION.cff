@@ -1,21 +1,25 @@
 cff-version: 1.2.0
-message: "Please cite this software and the underlying statistical methods used in your analysis."
+message: "Please cite this software and the statistical methods used in your analysis."
 title: "popgenVCF: Population Genomics Toolkit for VCF Data"
 type: software
 authors:
   - family-names: Duceppe
     given-names: Marc-Olivier
+    email: duceppemo@users.noreply.github.com
 repository-code: "https://github.com/duceppemo/popgenVCF"
-url: "https://github.com/duceppemo/popgenVCF"
+repository-artifact: "https://github.com/duceppemo/popgenVCF/releases"
+url: "https://duceppemo.github.io/popgenVCF/"
 license: MIT
 version: 0.10.0
-date-released: 2026-07-18
 keywords:
   - population genomics
   - population genetics
   - VCF
   - SNP
+  - bioinformatics
   - reproducible research
 abstract: >-
-  popgenVCF is an R package and command-line toolkit for reproducible
-  population-genomic analysis of diploid, biallelic SNP data stored in VCF files.
+  popgenVCF is a modular R package and command-line toolkit for reproducible
+  population-genomic analysis of diploid, biallelic SNP data stored in VCF
+  files. This development metadata intentionally omits a release date and DOI
+  until the corresponding release archive has been approved and published.

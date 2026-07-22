@@ -1,27 +1,38 @@
 {
   "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
   "@type": "SoftwareSourceCode",
+  "identifier": "https://github.com/duceppemo/popgenVCF",
   "name": "popgenVCF",
   "version": "0.10.0",
-  "description": "An R package and command-line toolkit for reproducible population-genomic analysis of diploid, biallelic SNP data stored in VCF files.",
+  "description": "A modular R package and command-line toolkit for reproducible population-genomic analysis of diploid, biallelic SNP data stored in VCF files.",
+  "url": "https://duceppemo.github.io/popgenVCF/",
   "codeRepository": "https://github.com/duceppemo/popgenVCF",
   "issueTracker": "https://github.com/duceppemo/popgenVCF/issues",
+  "downloadUrl": "https://github.com/duceppemo/popgenVCF/releases",
   "license": "https://spdx.org/licenses/MIT.html",
   "programmingLanguage": "R",
-  "runtimePlatform": "R",
+  "runtimePlatform": "R (>= 4.3)",
   "applicationCategory": "Bioinformatics",
+  "developmentStatus": "https://www.repostatus.org/#active",
+  "isAccessibleForFree": true,
   "keywords": [
     "population genomics",
     "population genetics",
     "VCF",
     "SNP",
+    "bioinformatics",
     "reproducible research"
+  ],
+  "softwareRequirements": [
+    "BCFtools",
+    "HTSlib"
   ],
   "author": [
     {
       "@type": "Person",
       "givenName": "Marc-Olivier",
-      "familyName": "Duceppe"
+      "familyName": "Duceppe",
+      "email": "duceppemo@users.noreply.github.com"
     }
   ],
   "maintainer": {
@@ -29,7 +40,5 @@
     "givenName": "Marc-Olivier",
     "familyName": "Duceppe",
     "email": "duceppemo@users.noreply.github.com"
-  },
-  "developmentStatus": "active",
-  "dateModified": "2026-07-18"
+  }
 }
