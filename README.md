@@ -30,9 +30,10 @@ The public guide sequence is:
 
 1. [Run your first analysis](vignettes/getting-started.Rmd)
 2. [Interpret population-genomic results](vignettes/interpreting-results.Rmd)
-3. [Troubleshoot analyses and deployments](vignettes/troubleshooting.Rmd)
-4. [Computational reproducibility](vignettes/reproducibility.Rmd)
-5. [Containers and HPC deployment](vignettes/containers-and-hpc.Rmd)
+3. [Explore the maintained publication gallery](vignettes/publication-gallery.Rmd)
+4. [Troubleshoot analyses and deployments](vignettes/troubleshooting.Rmd)
+5. [Computational reproducibility](vignettes/reproducibility.Rmd)
+6. [Containers and HPC deployment](vignettes/containers-and-hpc.Rmd)
 
 The rendered versions are available from the [pkgdown site](https://duceppemo.github.io/popgenVCF/).
 
@@ -218,19 +219,3 @@ Canonical real-data acquisition and external-tool execution are deliberately exc
 - [Architecture](docs/ARCHITECTURE.md)
 - [Reproducibility statement](docs/reproducibility.md)
 - [Container images](docs/user/container-images.md)
-- [Apptainer usage](docs/user/apptainer.md)
-- [Scientific validation policy](docs/SCIENTIFIC_VALIDATION.md)
-- [Canonical real-data contracts](docs/CANONICAL_REAL_DATA.md)
-- [Canonical dataset registry](docs/CANONICAL_DATASET_REGISTRY.md)
-- [Canonical real-data baselines](docs/CANONICAL_REAL_DATA_BASELINES.md)
-- [External-tool scientific concordance](docs/SCIENTIFIC_CONCORDANCE.md)
-- [Continuous release benchmarking](docs/CONTINUOUS_RELEASE_BENCHMARKING.md)
-- [Release/API reconciliation](docs/RELEASE_API_RECONCILIATION.md)
-- [Development guide](docs/DEVELOPMENT_GUIDE.md)
-- [Style guide](docs/STYLE_GUIDE.md)
-- [Roadmap](docs/ROADMAP.md)
-- [Contributing](CONTRIBUTING.md)
-
-## License
-
-popgenVCF is released under the MIT License. External programs retain their own licenses.
