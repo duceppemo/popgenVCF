@@ -1,0 +1,52 @@
+name: Public API contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-api-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::rcmdcheck
+          needs: check
+
+      - name: Install package
+        run: R CMD INSTALL .
+
+      - name: Generate current contract
+        run: |
+          mkdir -p artifacts/public-api-contract
+          Rscript tools/update-public-api-baseline.R . artifacts/public-api-contract/public-api-current.tsv artifacts/public-api-contract/public-api-current.dcf
+
+      - name: Verify canonical baseline
+        shell: bash
+        run: |
+          if [[ -f inst/api-contract/public-api-baseline.tsv && -f inst/api-contract/public-api-baseline.dcf ]]; then
+            Rscript tools/check-public-api-contract.R . artifacts/public-api-contract inst/api-contract/public-api-baseline.tsv
+            expected_version="$(sed -n 's/^Version: //p' inst/api-contract/public-api-baseline.dcf)"
+            installed_version="$(Rscript -e 'cat(as.character(utils::packageVersion("popgenVCF")))')"
+            test "$expected_version" = "$installed_version"
+          else
+            echo "::notice::Canonical API baseline is not committed yet; bootstrap snapshot generated for this phase branch."
+          fi
+
+      - name: Upload API contract evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-api-contract
+          path: artifacts/public-api-contract
+          if-no-files-found: error
