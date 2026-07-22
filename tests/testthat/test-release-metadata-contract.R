@@ -29,10 +29,12 @@ test_that("installed package citation follows package metadata", {
   citation <- utils::citation("popgenVCF", auto = FALSE)
   expect_gte(length(citation), 1L)
 
+  entry <- citation[[1L]]
+  expect_identical(unname(entry$title), identity$citation_title)
+  expect_identical(unname(entry$note), paste("R package version", identity$version))
+  expect_identical(unname(entry$url), identity$repository)
+
   text <- paste(format(citation, style = "text"), collapse = "\n")
-  expect_match(text, identity$citation_title, fixed = TRUE)
-  expect_match(text, paste("R package version", identity$version), fixed = TRUE)
-  expect_match(text, identity$repository, fixed = TRUE)
   expect_false(grepl("R package version 0.8.0", text, fixed = TRUE))
 })
 
