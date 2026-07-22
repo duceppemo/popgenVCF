@@ -9,6 +9,7 @@ vignette: >
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(popgenVCF)
 ```
 
 This gallery is generated from deterministic synthetic canonical-result records. It demonstrates publication structure and interpretation boundaries; it is not production biological evidence and does not replace approval of the canonical real-data baseline.
