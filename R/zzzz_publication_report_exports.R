@@ -73,6 +73,13 @@
     "canonical_baseline_table",
     "write_canonical_baseline_evidence",
     "canonical_baseline_validation",
-    "canonical_baseline_coverage"
+    "canonical_baseline_coverage",
+    "new_canonical_drift_profile",
+    "new_canonical_baseline_snapshot",
+    "assess_canonical_baseline_drift",
+    "canonical_drift_table",
+    "canonical_drift_history",
+    "canonical_drift_summary",
+    "write_canonical_drift_evidence"
   ))
 }
