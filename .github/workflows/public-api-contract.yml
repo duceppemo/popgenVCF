@@ -52,15 +52,22 @@ jobs:
           Rscript tools/check-public-api-contract.R . artifacts/public-api-contract inst/api-contract/public-api-baseline.tsv
           Rscript - <<'RSCRIPT'
           metadata <- read.dcf("inst/api-contract/public-api-baseline.dcf")
-          expected_version <- metadata[1L, "Version"]
+          expected_version <- unname(metadata[1L, "Version"])
           installed_version <- as.character(utils::packageVersion("popgenVCF"))
-          if (!identical(expected_version, installed_version)) {
+          if (is.na(expected_version) || expected_version != installed_version) {
             stop("Baseline version ", expected_version, " does not match installed package version ", installed_version)
           }
-          expected_entries <- as.integer(metadata[1L, "Entries"])
-          baseline <- utils::read.delim("inst/api-contract/public-api-baseline.tsv", stringsAsFactors = FALSE, check.names = FALSE, na.strings = "")
-          if (!identical(expected_entries, nrow(baseline))) {
-            stop("Baseline entry count mismatch: metadata declares ", expected_entries, ", file contains ", nrow(baseline))
+          expected_entries <- suppressWarnings(as.integer(unname(metadata[1L, "Entries"])))
+          baseline <- utils::read.delim(
+            "inst/api-contract/public-api-baseline.tsv",
+            stringsAsFactors = FALSE,
+            check.names = FALSE,
+            na.strings = "",
+            quote = ""
+          )
+          actual_entries <- nrow(baseline)
+          if (is.na(expected_entries) || expected_entries != actual_entries) {
+            stop("Baseline entry count mismatch: metadata declares ", expected_entries, ", file contains ", actual_entries)
           }
           RSCRIPT
 
