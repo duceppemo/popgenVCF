@@ -60,12 +60,28 @@ test_that("release-facing metadata and public API remain reconciled", {
   expect_true(audit$passed)
 })
 
-test_that("release reconciliation reports stale roxygen declarations", {
+test_that("every roxygen export has an explicit namespace declaration", {
   root <- release_reconciliation_test_root()
   audit <- release_api_reconciliation(root)
-  stale <- audit$findings[audit$findings$category == "roxygen-namespace", , drop = FALSE]
-  expect_true(all(stale$severity == "advisory"))
-  expect_true(all(stale$item %in% audit$roxygen_exports$symbol))
+  s3_symbols <- if (nrow(audit$s3_methods)) {
+    paste0(audit$s3_methods$generic, ".", audit$s3_methods$class)
+  } else {
+    character()
+  }
+  declared <- union(audit$exports, s3_symbols)
+  missing <- setdiff(sort(unique(audit$roxygen_exports$symbol)), declared)
+
+  expect_length(missing, 0L)
+  expect_false(any(audit$findings$category == "roxygen-namespace"))
+})
+
+test_that("roxygen export ownership is unique", {
+  root <- release_reconciliation_test_root()
+  audit <- release_api_reconciliation(root)
+  duplicated_symbols <- sort(unique(
+    audit$roxygen_exports$symbol[duplicated(audit$roxygen_exports$symbol)]
+  ))
+  expect_length(duplicated_symbols, 0L)
 })
 
 test_that("release reconciliation evidence is deterministic and machine readable", {
