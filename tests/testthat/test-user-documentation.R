@@ -29,8 +29,16 @@ user_documentation_source_root <- function() {
   ))
   candidates <- normalizePath(candidates, winslash = "/", mustWork = FALSE)
   matches <- candidates[vapply(candidates, is_root, logical(1L))]
-  if (!length(matches)) stop("Unable to locate package source root", call. = FALSE)
+  if (!length(matches)) return(NA_character_)
   matches[[1L]]
+}
+
+require_user_documentation_root <- function() {
+  root <- user_documentation_source_root()
+  if (is.na(root)) {
+    testthat::skip("Repository-only documentation is unavailable in the built source package")
+  }
+  root
 }
 
 read_documentation_files <- function(root, paths) {
@@ -41,7 +49,7 @@ read_documentation_files <- function(root, paths) {
 }
 
 test_that("Phase 0.9.30 user guides are complete and site-linked", {
-  root <- user_documentation_source_root()
+  root <- require_user_documentation_root()
   guides <- c(
     "vignettes/getting-started.Rmd",
     "vignettes/interpreting-results.Rmd",
@@ -60,26 +68,26 @@ test_that("Phase 0.9.30 user guides are complete and site-linked", {
 
   contents <- read_documentation_files(root, guides)
   for (path in names(contents)) {
-    expect_true(
-      any(grepl("%\\\\VignetteIndexEntry\\{", contents[[path]])),
-      label = path
-    )
+    if (!any(grepl("%\\\\VignetteIndexEntry\\{", contents[[path]]))) {
+      testthat::fail(paste("Missing VignetteIndexEntry in", path))
+    }
   }
 })
 
 test_that("public user documentation uses current or release-neutral image examples", {
-  root <- user_documentation_source_root()
+  root <- require_user_documentation_root()
   public_files <- c(
     "README.md",
-    list.files(file.path(root, "vignettes"), pattern = "\\.Rmd$", full.names = FALSE),
-    file.path("docs/user", list.files(file.path(root, "docs/user"), pattern = "\\.md$"))
+    file.path(
+      "vignettes",
+      list.files(file.path(root, "vignettes"), pattern = "\\.Rmd$", full.names = FALSE)
+    ),
+    file.path(
+      "docs/user",
+      list.files(file.path(root, "docs/user"), pattern = "\\.md$", full.names = FALSE)
+    )
   )
-  public_files <- unique(c(
-    "README.md",
-    file.path("vignettes", basename(public_files[grepl("\\.Rmd$", public_files)])),
-    public_files[grepl("^docs/user/", public_files)]
-  ))
-  contents <- read_documentation_files(root, public_files)
+  contents <- read_documentation_files(root, unique(public_files))
   stale <- unlist(lapply(names(contents), function(path) {
     hits <- grep(
       "ghcr\\.io/duceppemo/popgenvcf:0\\.(8|9)(\\.[0-9]+)?",
@@ -96,7 +104,7 @@ test_that("public user documentation uses current or release-neutral image examp
 })
 
 test_that("README and release identity expose the user guide entry points", {
-  root <- user_documentation_source_root()
+  root <- require_user_documentation_root()
   description <- read.dcf(file.path(root, "DESCRIPTION"))
   expect_identical(unname(description[1L, "Version"]), "0.10.0")
 
