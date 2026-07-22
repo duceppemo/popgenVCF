@@ -1,5 +1,5 @@
-publication_narrative_test_project <- function() {
-  results <- list(
+publication_narrative_test_results <- function() {
+  list(
     pca = structure(list(variance = c(0.34, 0.19), n_samples = 8L, n_snps = 120L), class = "PopgenVCFPCAResult"),
     ibs = structure(list(method = "SNPRelate IBS"), class = "PopgenVCFIBSResult"),
     tree = structure(list(), class = "PopgenVCFTreeResult"),
@@ -10,8 +10,11 @@ publication_narrative_test_project <- function() {
     ibd = structure(list(), class = "PopgenVCFIBDResult"),
     ancestry = structure(list(backend = "ADMIXTURE", selected_k = 3L), class = "PopgenVCFAncestryResult")
   )
+}
+
+publication_narrative_test_project <- function() {
   new_popgenvcf_project(
-    "Narrative completeness fixture", results = results,
+    "Narrative completeness fixture", results = publication_narrative_test_results(),
     project_id = "00000000-0000-0000-0000-000000000930"
   )
 }
@@ -51,8 +54,12 @@ test_that("absent and non-certifying states remain explicit without scientific c
 })
 
 test_that("duplicate narrative and caption ownership fail closed", {
-  duplicate <- publication_narrative_test_project()
-  duplicate$results$pca_copy <- duplicate$results$pca
+  duplicate_results <- publication_narrative_test_results()
+  duplicate_results$pca_copy <- duplicate_results$pca
+  duplicate <- new_popgenvcf_project(
+    "Duplicate narrative fixture", results = duplicate_results,
+    project_id = "00000000-0000-0000-0000-000000000932"
+  )
   expect_error(publication_narrative_inventory(duplicate), "duplicate narrative ownership")
 
   inventory <- publication_narrative_inventory(publication_narrative_test_project())
