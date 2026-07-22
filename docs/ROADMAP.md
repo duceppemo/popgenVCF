@@ -23,11 +23,9 @@ Phase 8 established the deterministic, recoverable, and scientifically auditable
 - [x] **8.9 — Portable deterministic concurrent scheduling**
 - [x] **8.10 — Execution hardening and stable runtime API**
 
-Phase 8 is complete when every terminal state is deterministic, auditable, fail closed, resumable where scientifically safe, and governed by a versioned runtime contract.
-
 ## Phase 9: unified publication-quality module runtime
 
-Phase 9 connects stable plugin, scientific-object, schema, cache, checkpoint, migration, validation, provenance, and publication contracts to the Phase 8 runtime without introducing a competing executor.
+Phase 9 connected stable plugin, scientific-object, schema, cache, checkpoint, migration, validation, provenance, and publication contracts to the Phase 8 runtime.
 
 ### Completed implementation milestones
 
@@ -47,20 +45,16 @@ Phase 9 connects stable plugin, scientific-object, schema, cache, checkpoint, mi
 - [x] **9.14 — Final closure-review and roadmap-handoff contracts**
 - [x] **9.14.1 — Closure evidence assembly and roadmap synchronization**
 
-Phase 9 closure evidence binds the completed milestones, release-readiness, migration, deprecation, CI, and roadmap-handoff records. See [Phase 9 closure evidence and roadmap handoff](PHASE9_CLOSURE.md).
+See [Phase 9 closure evidence and roadmap handoff](PHASE9_CLOSURE.md).
 
 ## Phase 10: stable public scientific interface
-
-Phase 10 exposes the unified runtime through a stable, documented user-facing scientific API while preserving all Phase 8 and Phase 9 guarantees.
-
-### Completed milestones
 
 - [x] **10.1 — Canonical public analysis and artifact API**
 - [x] **10.2 — Public API compatibility and release conformance**
 
 ## 0.10: publication-quality release candidate
 
-The authoritative development package version is **0.10.0**. This series reconciles the completed public interface with the remaining scientific-validation and release-evidence work required before 1.0.
+The authoritative development package version is **0.10.0**.
 
 ### Completed milestones
 
@@ -78,17 +72,19 @@ The authoritative development package version is **0.10.0**. This series reconci
 - [x] **0.9.12 — Publication spatial-genetics outputs**
 - [x] **0.9.13 — Canonical real-data validation contracts**
 - [x] **0.9.14 — Release-state and public-API reconciliation**
+- [x] **0.9.15 — Public API contract hardening**
 
 ### Active milestone
 
-- [ ] **0.9.15 — Public API contract hardening**
-  - generate deterministic snapshots of exports, S3 registrations, and exported function signatures;
-  - compare the current interface against a committed release baseline;
-  - fail closed on removals, incompatible required-argument changes, and default-value drift;
-  - classify additive exports and optional arguments for explicit review;
-  - emit machine-readable compatibility evidence and synchronize release documentation.
+- [ ] **0.9.16 — Canonical API baseline and CI enforcement**
+  - commit the exact installed-package public API snapshot for the 0.10.0 development series;
+  - enforce compatibility against that baseline on every pull request;
+  - fail closed on breaking export, S3, argument-order, required-argument, and default-value drift;
+  - retain additive changes as explicit advisory evidence requiring intentional baseline refresh;
+  - upload deterministic API evidence and validate baseline/package version alignment;
+  - document the controlled refresh procedure and synchronize release-facing records.
 
-### Planned sequence after contract hardening
+### Planned sequence after API enforcement
 
 1. IBS/MDS publication outputs;
 2. licensed canonical real-data integration and external comparisons;
@@ -112,17 +108,15 @@ The authoritative development package version is **0.10.0**. This series reconci
 
 ## Open tracking issues and deferred enhancements
 
-The following open issues remain authoritative tracking containers and are intentionally not closed:
-
 - **#4 — publication-quality platform:** umbrella tracker for remaining 0.10 and 1.0 release work.
 - **#20 — Core publication artifact contracts:** remains open for IBS/MDS and remaining publication artifacts.
 - **#22 — Canonical real-data validation:** covers licensed datasets, expected values, external-tool comparisons, and CI/full-validation workflows.
 - **#24 — Unified ancestry platform:** covers backend/runtime enhancements beyond the completed publication ancestry contract.
 - **#43 — Continuous scientific benchmarks:** covers historical regression archives, cross-tool comparisons, resource/scaling measurements, dashboards, and release benchmark artifacts.
 - **#68 — Analysis-specific publication narratives:** covers remaining module-specific methods, legends, citations, and supplementary narratives.
-- **#256 — Public API contract hardening:** owns the active 0.9.15 implementation and acceptance criteria.
+- **#258 — Canonical public API baseline and CI enforcement:** owns the active 0.9.16 implementation and acceptance criteria.
 
-The reproducibility and release-infrastructure tracker **#1** also remains open until the documentation/metadata and release-automation items above are complete. Optional Docker Hub publishing is a later enhancement dependent on credentials and is not required for 1.0; Zenodo integration remains a post-stable-release task.
+The reproducibility and release-infrastructure tracker **#1** remains open until documentation, metadata, and release-automation work is complete.
 
 ## 1.0: stable scientific release
 
@@ -130,4 +124,4 @@ Release 1.0 requires stable CLI, YAML, R API, module and output contracts; valid
 
 ## Beyond 1.0
 
-Potential post-1.0 work includes selection scans, genomic landscapes, spatial resistance models, GWAS interoperability, community plugins, interactive exploration, optional Docker Hub publication, and cloud/workflow-platform execution. These do not displace the validation and stability requirements of the core toolkit.
+Potential post-1.0 work includes selection scans, genomic landscapes, spatial resistance models, GWAS interoperability, community plugins, interactive exploration, optional Docker Hub publication, and cloud/workflow-platform execution.
