@@ -35,7 +35,13 @@ test_that("package code does not call its own namespace with triple colon", {
     if (!length(hits)) return(character())
     paste0(basename(path), ":", hits)
   }), use.names = FALSE)
-  expect_length(occurrences, 0L, info = paste(occurrences, collapse = "\n"))
+  if (length(occurrences)) {
+    testthat::fail(paste(
+      "Package-internal triple-colon access found:",
+      paste(occurrences, collapse = "\n")
+    ))
+  }
+  expect_length(occurrences, 0L)
 })
 
 test_that("static-analysis imports and data.table NSE declarations are retained", {
@@ -72,6 +78,10 @@ test_that("documented usage lines fit the R CMD check width", {
       usage <- c(usage, line)
       if (depth == 0L) break
     }
-    expect_lte(max(nchar(usage, type = "width")), 90L, info = topic)
+    width <- max(nchar(usage, type = "width"))
+    if (width > 90L) {
+      testthat::fail(sprintf("%s has a %d-character usage line", topic, width))
+    }
+    expect_lte(width, 90L)
   }
 })
