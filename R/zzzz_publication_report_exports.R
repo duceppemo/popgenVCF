@@ -55,6 +55,13 @@
     "verify_canonical_source",
     "canonical_dataset_from_source",
     "approved_1000g_chrY_registry",
-    "write_approved_canonical_source_evidence"
+    "write_approved_canonical_source_evidence",
+    "new_canonical_validation_suite",
+    "register_canonical_validation",
+    "validate_canonical_validation_suite",
+    "run_canonical_validation_suite",
+    "canonical_validation_suite_table",
+    "canonical_validation_coverage",
+    "write_canonical_validation_suite"
   ))
 }
