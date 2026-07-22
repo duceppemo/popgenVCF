@@ -1,5 +1,5 @@
 # Dynamic namespace synchronization for the Phase 0.9 publication-report and
-# canonical real-data APIs. These exports are registered at namespace load so
+# canonical validation APIs. These exports are registered at namespace load so
 # the implementation remains usable before the next generated NAMESPACE pass.
 .onLoad <- function(libname, pkgname) {
   ns <- asNamespace(pkgname)
@@ -62,6 +62,17 @@
     "run_canonical_validation_suite",
     "canonical_validation_suite_table",
     "canonical_validation_coverage",
-    "write_canonical_validation_suite"
+    "write_canonical_validation_suite",
+    "new_canonical_baseline_metric",
+    "validate_canonical_baseline_metric",
+    "new_canonical_baseline_registry",
+    "register_canonical_baseline_metric",
+    "validate_canonical_baseline_registry",
+    "compare_canonical_baseline_metric",
+    "evaluate_canonical_baselines",
+    "canonical_baseline_table",
+    "write_canonical_baseline_evidence",
+    "canonical_baseline_validation",
+    "canonical_baseline_coverage"
   ))
 }
