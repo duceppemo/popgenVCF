@@ -27,6 +27,17 @@ jobs:
       - name: Install package
         run: R CMD INSTALL .
 
+      - name: Restore canonical baseline
+        shell: bash
+        run: |
+          test -f inst/api-contract/public-api-baseline.tsv.gz.b64
+          test -f inst/api-contract/public-api-baseline.dcf
+          base64 --decode inst/api-contract/public-api-baseline.tsv.gz.b64 | gzip --decompress > inst/api-contract/public-api-baseline.tsv
+          expected_digest="$(sed -n 's/^Snapshot-SHA256: //p' inst/api-contract/public-api-baseline.dcf)"
+          actual_digest="$(sha256sum inst/api-contract/public-api-baseline.tsv | cut -d' ' -f1)"
+          test -n "$expected_digest"
+          test "$expected_digest" = "$actual_digest"
+
       - name: Generate current contract
         run: |
           mkdir -p artifacts/public-api-contract
@@ -35,14 +46,13 @@ jobs:
       - name: Verify canonical baseline
         shell: bash
         run: |
-          if [[ -f inst/api-contract/public-api-baseline.tsv && -f inst/api-contract/public-api-baseline.dcf ]]; then
-            Rscript tools/check-public-api-contract.R . artifacts/public-api-contract inst/api-contract/public-api-baseline.tsv
-            expected_version="$(sed -n 's/^Version: //p' inst/api-contract/public-api-baseline.dcf)"
-            installed_version="$(Rscript -e 'cat(as.character(utils::packageVersion("popgenVCF")))')"
-            test "$expected_version" = "$installed_version"
-          else
-            echo "::notice::Canonical API baseline is not committed yet; bootstrap snapshot generated for this phase branch."
-          fi
+          Rscript tools/check-public-api-contract.R . artifacts/public-api-contract inst/api-contract/public-api-baseline.tsv
+          expected_version="$(sed -n 's/^Version: //p' inst/api-contract/public-api-baseline.dcf)"
+          installed_version="$(Rscript -e 'cat(as.character(utils::packageVersion("popgenVCF")))')"
+          expected_entries="$(sed -n 's/^Entries: //p' inst/api-contract/public-api-baseline.dcf)"
+          actual_entries="$(($(wc -l < inst/api-contract/public-api-baseline.tsv) - 1))"
+          test "$expected_version" = "$installed_version"
+          test "$expected_entries" = "$actual_entries"
 
       - name: Upload API contract evidence
         uses: actions/upload-artifact@v4
