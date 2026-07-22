@@ -276,10 +276,38 @@ validate_continuous_benchmark_comparison <- function(comparison) {
   if (!all(required %in% names(comparison)) || !identical(comparison$schema_version, "1.1")) {
     stop("invalid continuous benchmark comparison schema", call. = FALSE)
   }
+  continuous_benchmark_scalar(comparison$benchmark_id, "benchmark_id")
+  continuous_benchmark_scalar(comparison$module, "module")
+  continuous_benchmark_scalar(comparison$current_release, "current_release")
+  continuous_benchmark_scalar(comparison$baseline_release, "baseline_release")
+  continuous_benchmark_scalar(comparison$budget_id, "budget_id")
+  if (!comparison$dataset_tier %in% c("synthetic", "canonical", "medium", "large")) {
+    stop("invalid benchmark comparison dataset tier", call. = FALSE)
+  }
+  threads <- continuous_benchmark_positive_integer(comparison$threads, "threads")
+  expected_key <- paste(
+    comparison$benchmark_id,
+    comparison$module,
+    comparison$dataset_tier,
+    threads,
+    sep = "::"
+  )
+  if (!identical(comparison$observation_key, expected_key)) {
+    stop("continuous benchmark comparison identity is inconsistent", call. = FALSE)
+  }
+  for (field in c("current_git_sha", "baseline_git_sha")) {
+    value <- comparison[[field]]
+    if (!is.character(value) || length(value) != 1L || is.na(value) ||
+        !grepl("^[0-9a-f]{40}$", value)) {
+      stop(field, " must be a full lowercase Git SHA", call. = FALSE)
+    }
+  }
   if (!is.data.frame(comparison$checks) ||
       !all(c("metric", "value", "threshold", "comparator", "passed") %in% names(comparison$checks)) ||
       !identical(as.character(comparison$checks$metric),
-        c("runtime", "memory", "throughput", "scaling_efficiency"))) {
+        c("runtime", "memory", "throughput", "scaling_efficiency")) ||
+      !is.logical(comparison$checks$passed) || length(comparison$checks$passed) != 4L ||
+      anyNA(comparison$checks$passed)) {
     stop("invalid continuous benchmark comparison checks", call. = FALSE)
   }
   logical_fields <- c("repetitions_complete", "environment_compatible",
@@ -339,6 +367,14 @@ write_continuous_benchmark_evidence <- function(observations, comparisons = list
     }
     if (!all(comparison_keys %in% observation_keys)) {
       stop("every comparison must correspond to a supplied current observation", call. = FALSE)
+    }
+    for (index in seq_along(comparisons)) {
+      comparison <- comparisons[[index]]
+      observation <- observations[[match(comparison$observation_key, observation_keys)]]
+      if (!identical(comparison$current_release, observation$release) ||
+          !identical(comparison$current_git_sha, observation$git_sha)) {
+        stop("every comparison must identify the exact supplied current observation", call. = FALSE)
+      }
     }
     comparisons <- comparisons[order(comparison_keys)]
   }
