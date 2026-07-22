@@ -64,25 +64,34 @@ BLOCKS: dict[tuple[str, str], tuple[str, ...]] = {
 
 
 def reconcile(path: Path, symbol: str, block: tuple[str, ...], write: bool) -> bool:
-    text = path.read_text(encoding="utf-8")
-    lines = text.splitlines()
+    lines = path.read_text(encoding="utf-8").splitlines()
     pattern = re.compile(rf"^\s*{re.escape(symbol)}\s*<-\s*function\b")
     matches = [index for index, line in enumerate(lines) if pattern.search(line)]
     if len(matches) != 1:
         raise RuntimeError(f"{path}: expected one definition of {symbol}, found {len(matches)}")
 
     index = matches[0]
-    previous = index - 1
+    cursor = index - 1
+    while cursor >= 0 and not lines[cursor].strip():
+        cursor -= 1
+    block_end = cursor
     existing: list[str] = []
-    while previous >= 0 and lines[previous].lstrip().startswith("#'"):
-        existing.append(lines[previous].strip())
-        previous -= 1
+    while cursor >= 0 and lines[cursor].lstrip().startswith("#'"):
+        existing.append(lines[cursor].strip())
+        cursor -= 1
+
     if "#' @export" in existing:
+        if block_end + 1 < index:
+            if write:
+                del lines[block_end + 1:index]
+                path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            return True
         return False
+
     if existing:
         raise RuntimeError(f"{path}: {symbol} has an unexpected existing roxygen block")
 
-    lines[index:index] = [*block, ""]
+    lines[index:index] = list(block)
     if write:
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return True
