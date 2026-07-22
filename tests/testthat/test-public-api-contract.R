@@ -5,6 +5,14 @@ test_that("public API contract snapshots are deterministic", {
   expect_true(all(c("kind", "generic", "class", "symbol", "signature") %in% names(first)))
 })
 
+test_that("required formals serialize without evaluation", {
+  fixture <- function(required, optional = FALSE) NULL
+  expect_identical(
+    public_api_contract_signature(fixture),
+    "required=<required>;optional=FALSE"
+  )
+})
+
 test_that("removed API entries are blocking", {
   baseline <- data.frame(kind = "export", generic = NA_character_, class = NA_character_, symbol = "old_api", signature = "x=<required>")
   current <- baseline[0, , drop = FALSE]
