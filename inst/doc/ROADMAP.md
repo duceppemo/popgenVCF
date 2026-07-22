@@ -23,11 +23,9 @@ Phase 8 established the deterministic, recoverable, and scientifically auditable
 - [x] **8.9 — Portable deterministic concurrent scheduling**
 - [x] **8.10 — Execution hardening and stable runtime API**
 
-Phase 8 is complete when every terminal state is deterministic, auditable, fail closed, resumable where scientifically safe, and governed by a versioned runtime contract.
-
 ## Phase 9: unified publication-quality module runtime
 
-Phase 9 connects stable plugin, scientific-object, schema, cache, checkpoint, migration, validation, provenance, and publication contracts to the Phase 8 runtime without introducing a competing executor.
+Phase 9 connected stable plugin, scientific-object, schema, cache, checkpoint, migration, validation, provenance, and publication contracts to the Phase 8 runtime.
 
 ### Completed implementation milestones
 
@@ -47,20 +45,16 @@ Phase 9 connects stable plugin, scientific-object, schema, cache, checkpoint, mi
 - [x] **9.14 — Final closure-review and roadmap-handoff contracts**
 - [x] **9.14.1 — Closure evidence assembly and roadmap synchronization**
 
-Phase 9 closure evidence binds the completed milestones, release-readiness, migration, deprecation, CI, and roadmap-handoff records. See [Phase 9 closure evidence and roadmap handoff](PHASE9_CLOSURE.md).
+See [Phase 9 closure evidence and roadmap handoff](PHASE9_CLOSURE.md).
 
 ## Phase 10: stable public scientific interface
-
-Phase 10 exposes the unified runtime through a stable, documented user-facing scientific API while preserving all Phase 8 and Phase 9 guarantees.
-
-### Completed milestones
 
 - [x] **10.1 — Canonical public analysis and artifact API**
 - [x] **10.2 — Public API compatibility and release conformance**
 
 ## 0.10: publication-quality release candidate
 
-The authoritative development package version is **0.10.0**. This series reconciles the completed public interface with the remaining scientific-validation and release-evidence work required before 1.0.
+The authoritative development package version is **0.10.0**.
 
 ### Completed milestones
 
@@ -77,54 +71,75 @@ The authoritative development package version is **0.10.0**. This series reconci
 - [x] **0.9.11 — Publication isolation-by-distance outputs**
 - [x] **0.9.12 — Publication spatial-genetics outputs**
 - [x] **0.9.13 — Canonical real-data validation contracts**
-  - fingerprinted licensed-dataset manifests with source, version, checksum, and license metadata;
-  - deterministic sample, population, locus, expected-result, tolerance, and external-tool comparison inventories;
-  - CI-safe synthetic fixtures, opt-in canonical integration fixtures, provenance, and fail-closed drift detection.
+- [x] **0.9.14 — Release-state and public-API reconciliation**
+- [x] **0.9.15 — Public API contract hardening**
+- [x] **0.9.16 — Canonical API baseline and CI enforcement**
+- [x] **0.9.17 — Publication IBS and MDS outputs**
+- [x] **0.9.18 — Canonical real-data materialization and external-comparison contracts**
+- [x] **0.9.19 — Canonical dataset registry and approval gate**
+- [x] **0.9.20 — First approved canonical dataset integration**
+- [x] **0.9.21 — Canonical validation suites**
+- [x] **0.9.22 — Quantitative canonical baseline metrics**
+- [x] **0.9.23 — Longitudinal canonical drift detection**
+- [x] **0.9.24 — Canonical scientific change approval and reconciliation**
+- [x] **0.9.25 — Canonical release-readiness gate**
 
 ### Active milestone
 
-- [ ] **0.9.14 — Release-state and public-API reconciliation**
-  - retain 0.10.0 as the authoritative development release identity;
-  - audit exports, S3 registrations, Rd aliases, and generated documentation;
-  - emit deterministic reconciliation evidence and fail closed on release-state drift;
-  - synchronize README, NEWS, DESCRIPTION, roadmap copies, and tracking issues.
+- [ ] **0.9.26 — Canonical release bundle integration**
+  - execute the canonical release gate during scientific release assembly;
+  - require a `release_ready = TRUE` certificate before production bundle finalization;
+  - embed validation, baseline, drift, reconciliation, and gate evidence;
+  - add checksums and manifest entries for every canonical evidence file;
+  - bind the certificate to commit SHA, package version, container digest, canonical dataset versions, and environment lockfiles;
+  - refuse archive creation when required evidence is missing, malformed, blocked, or inconsistent;
+  - add deterministic end-to-end synthetic release integration tests.
 
-### Planned sequence after reconciliation
+### Authoritative sequence after release-bundle integration
 
-1. canonical contract hardening;
-2. IBS/MDS publication outputs;
-3. licensed canonical real-data integration and external comparisons;
-4. release evidence, metadata, benchmark publication, and container/HPC documentation;
-5. 0.10.0 release-readiness review.
+1. **0.9.27 — Canonical real-data baseline adoption**
+   - extend the approved licensed canonical dataset integration with production scientific validation descriptors, complete sample metadata, and the first approved real-data quantitative baseline snapshot;
+   - run it only in opt-in or scheduled full-validation CI while ordinary pull-request CI remains synthetic, deterministic, offline, and fast.
+2. **0.9.28 — External-tool scientific concordance**
+   - compare canonical popgenVCF results with established implementations such as PLINK 2, SNPRelate, hierfstat, adegenet, and practical AMOVA references;
+   - publish machine-readable comparisons, explicit tolerance profiles, methods, commands, logs, and approval-ready baseline proposals.
+3. **0.9.29 — Continuous release benchmarking**
+   - measure runtime, peak memory, thread scaling, dataset tiers, historical regressions, and configurable performance budgets;
+   - publish deterministic JSON, TSV, and Markdown benchmark evidence and block releases only for confirmed regressions.
+4. **0.9.30 — Documentation, metadata, and archival readiness**
+   - complete pkgdown tutorials, interpretation guides, publication gallery, citation and software metadata, reproducibility statements, GHCR and Apptainer usage, HPC guidance, Zenodo configuration, DOI-ready metadata, SBOM, checksum, and provenance instructions.
+5. **0.9.31 — 0.10.0 release-candidate closure**
+   - synchronize DESCRIPTION, NEWS, roadmap, and trackers;
+   - regenerate documentation, run full canonical validation and benchmarking, issue the real release certificate, validate container and Apptainer artifacts, assemble archives, run source and distribution install tests, and produce a reviewer-ready release-readiness report;
+   - tag and publish 0.10.0 only after every required gate passes.
 
 ### Validation datasets and benchmarking
 
 - [x] retain tiny synthetic fixtures in every CI run;
-- [ ] adopt a licensed canonical real dataset for documentation and integration tests;
-- [ ] publish a checksum-pinned large benchmark dataset externally;
-- [ ] compare runtime, memory, and numerical agreement with established tools;
-- [ ] publish benchmark artifacts per release.
+- [x] adopt a licensed, checksum-pinned canonical dataset under an approved registry entry;
+- [ ] approve and retain the first production quantitative baseline snapshot from the canonical real dataset;
+- [ ] publish complete external-tool scientific concordance evidence;
+- [ ] publish runtime, memory, scaling, and historical regression artifacts per release;
+- [ ] publish or externally host a checksum-pinned medium or large benchmark tier when licensing and storage policy permit.
 
 ### Documentation and metadata
 
 - [ ] pkgdown website, tutorials, interpretation guides, and figure gallery;
 - [ ] `CITATION.cff`, `codemeta.json`, and reproducibility statement;
 - [ ] GHCR usage, Apptainer definition, and HPC guidance;
-- [ ] Zenodo integration for stable releases.
+- [ ] Zenodo configuration and DOI-ready archive metadata;
+- [ ] SBOM, checksums, and provenance instructions.
 
 ## Open tracking issues and deferred enhancements
 
-The following open issues remain authoritative tracking containers and are intentionally not closed:
-
 - **#4 — publication-quality platform:** umbrella tracker for remaining 0.10 and 1.0 release work.
-- **#20 — Core publication artifact contracts:** remains open for IBS/MDS and remaining publication artifacts.
-- **#22 — Canonical real-data validation:** covers licensed datasets, expected values, external-tool comparisons, and CI/full-validation workflows.
+- **#20 — Core publication artifact contracts:** IBS/MDS is complete; retain only for any genuinely remaining publication-artifact work and close when its acceptance criteria are fully satisfied.
+- **#22 — Canonical real-data validation:** tracks production real-data baselines, expected values, external-tool comparisons, and full-validation workflows beyond the completed dataset adoption infrastructure.
 - **#24 — Unified ancestry platform:** covers backend/runtime enhancements beyond the completed publication ancestry contract.
-- **#43 — Continuous scientific benchmarks:** covers historical regression archives, cross-tool comparisons, resource/scaling measurements, dashboards, and release benchmark artifacts.
+- **#43 — Continuous scientific benchmarks:** tracks historical regression archives, cross-tool comparisons, resource/scaling measurements, dashboards, and release benchmark artifacts.
 - **#68 — Analysis-specific publication narratives:** covers remaining module-specific methods, legends, citations, and supplementary narratives.
-- **#254 — Release-state and public-API reconciliation:** owns the active 0.9.14 implementation and acceptance criteria.
 
-The reproducibility and release-infrastructure tracker **#1** also remains open until the documentation/metadata and release-automation items above are complete. Optional Docker Hub publishing is a later enhancement dependent on credentials and is not required for 1.0; Zenodo integration remains a post-stable-release task.
+The reproducibility and release-infrastructure tracker **#1** remains open until documentation, metadata, and release automation are complete.
 
 ## 1.0: stable scientific release
 
@@ -132,4 +147,4 @@ Release 1.0 requires stable CLI, YAML, R API, module and output contracts; valid
 
 ## Beyond 1.0
 
-Potential post-1.0 work includes selection scans, genomic landscapes, spatial resistance models, GWAS interoperability, community plugins, interactive exploration, optional Docker Hub publication, and cloud/workflow-platform execution. These do not displace the validation and stability requirements of the core toolkit.
+Potential post-1.0 work includes selection scans, genomic landscapes, spatial resistance models, GWAS interoperability, community plugins, interactive exploration, optional Docker Hub publication, and cloud/workflow-platform execution.

@@ -73,50 +73,73 @@ The authoritative development package version is **0.10.0**.
 - [x] **0.9.13 — Canonical real-data validation contracts**
 - [x] **0.9.14 — Release-state and public-API reconciliation**
 - [x] **0.9.15 — Public API contract hardening**
+- [x] **0.9.16 — Canonical API baseline and CI enforcement**
+- [x] **0.9.17 — Publication IBS and MDS outputs**
+- [x] **0.9.18 — Canonical real-data materialization and external-comparison contracts**
+- [x] **0.9.19 — Canonical dataset registry and approval gate**
+- [x] **0.9.20 — First approved canonical dataset integration**
+- [x] **0.9.21 — Canonical validation suites**
+- [x] **0.9.22 — Quantitative canonical baseline metrics**
+- [x] **0.9.23 — Longitudinal canonical drift detection**
+- [x] **0.9.24 — Canonical scientific change approval and reconciliation**
+- [x] **0.9.25 — Canonical release-readiness gate**
 
 ### Active milestone
 
-- [ ] **0.9.16 — Canonical API baseline and CI enforcement**
-  - commit the exact installed-package public API snapshot for the 0.10.0 development series;
-  - enforce compatibility against that baseline on every pull request;
-  - fail closed on breaking export, S3, argument-order, required-argument, and default-value drift;
-  - retain additive changes as explicit advisory evidence requiring intentional baseline refresh;
-  - upload deterministic API evidence and validate baseline/package version alignment;
-  - document the controlled refresh procedure and synchronize release-facing records.
+- [ ] **0.9.26 — Canonical release bundle integration**
+  - execute the canonical release gate during scientific release assembly;
+  - require a `release_ready = TRUE` certificate before production bundle finalization;
+  - embed validation, baseline, drift, reconciliation, and gate evidence;
+  - add checksums and manifest entries for every canonical evidence file;
+  - bind the certificate to commit SHA, package version, container digest, canonical dataset versions, and environment lockfiles;
+  - refuse archive creation when required evidence is missing, malformed, blocked, or inconsistent;
+  - add deterministic end-to-end synthetic release integration tests.
 
-### Planned sequence after API enforcement
+### Authoritative sequence after release-bundle integration
 
-1. IBS/MDS publication outputs;
-2. licensed canonical real-data integration and external comparisons;
-3. release evidence, metadata, benchmark publication, and container/HPC documentation;
-4. 0.10.0 release-readiness review.
+1. **0.9.27 — Canonical real-data baseline adoption**
+   - extend the approved licensed canonical dataset integration with production scientific validation descriptors, complete sample metadata, and the first approved real-data quantitative baseline snapshot;
+   - run it only in opt-in or scheduled full-validation CI while ordinary pull-request CI remains synthetic, deterministic, offline, and fast.
+2. **0.9.28 — External-tool scientific concordance**
+   - compare canonical popgenVCF results with established implementations such as PLINK 2, SNPRelate, hierfstat, adegenet, and practical AMOVA references;
+   - publish machine-readable comparisons, explicit tolerance profiles, methods, commands, logs, and approval-ready baseline proposals.
+3. **0.9.29 — Continuous release benchmarking**
+   - measure runtime, peak memory, thread scaling, dataset tiers, historical regressions, and configurable performance budgets;
+   - publish deterministic JSON, TSV, and Markdown benchmark evidence and block releases only for confirmed regressions.
+4. **0.9.30 — Documentation, metadata, and archival readiness**
+   - complete pkgdown tutorials, interpretation guides, publication gallery, citation and software metadata, reproducibility statements, GHCR and Apptainer usage, HPC guidance, Zenodo configuration, DOI-ready metadata, SBOM, checksum, and provenance instructions.
+5. **0.9.31 — 0.10.0 release-candidate closure**
+   - synchronize DESCRIPTION, NEWS, roadmap, and trackers;
+   - regenerate documentation, run full canonical validation and benchmarking, issue the real release certificate, validate container and Apptainer artifacts, assemble archives, run source and distribution install tests, and produce a reviewer-ready release-readiness report;
+   - tag and publish 0.10.0 only after every required gate passes.
 
 ### Validation datasets and benchmarking
 
 - [x] retain tiny synthetic fixtures in every CI run;
-- [ ] adopt a licensed canonical real dataset for documentation and integration tests;
-- [ ] publish a checksum-pinned large benchmark dataset externally;
-- [ ] compare runtime, memory, and numerical agreement with established tools;
-- [ ] publish benchmark artifacts per release.
+- [x] adopt a licensed, checksum-pinned canonical dataset under an approved registry entry;
+- [ ] approve and retain the first production quantitative baseline snapshot from the canonical real dataset;
+- [ ] publish complete external-tool scientific concordance evidence;
+- [ ] publish runtime, memory, scaling, and historical regression artifacts per release;
+- [ ] publish or externally host a checksum-pinned medium or large benchmark tier when licensing and storage policy permit.
 
 ### Documentation and metadata
 
 - [ ] pkgdown website, tutorials, interpretation guides, and figure gallery;
 - [ ] `CITATION.cff`, `codemeta.json`, and reproducibility statement;
 - [ ] GHCR usage, Apptainer definition, and HPC guidance;
-- [ ] Zenodo integration for stable releases.
+- [ ] Zenodo configuration and DOI-ready archive metadata;
+- [ ] SBOM, checksums, and provenance instructions.
 
 ## Open tracking issues and deferred enhancements
 
 - **#4 — publication-quality platform:** umbrella tracker for remaining 0.10 and 1.0 release work.
-- **#20 — Core publication artifact contracts:** remains open for IBS/MDS and remaining publication artifacts.
-- **#22 — Canonical real-data validation:** covers licensed datasets, expected values, external-tool comparisons, and CI/full-validation workflows.
+- **#20 — Core publication artifact contracts:** IBS/MDS is complete; retain only for any genuinely remaining publication-artifact work and close when its acceptance criteria are fully satisfied.
+- **#22 — Canonical real-data validation:** tracks production real-data baselines, expected values, external-tool comparisons, and full-validation workflows beyond the completed dataset adoption infrastructure.
 - **#24 — Unified ancestry platform:** covers backend/runtime enhancements beyond the completed publication ancestry contract.
-- **#43 — Continuous scientific benchmarks:** covers historical regression archives, cross-tool comparisons, resource/scaling measurements, dashboards, and release benchmark artifacts.
+- **#43 — Continuous scientific benchmarks:** tracks historical regression archives, cross-tool comparisons, resource/scaling measurements, dashboards, and release benchmark artifacts.
 - **#68 — Analysis-specific publication narratives:** covers remaining module-specific methods, legends, citations, and supplementary narratives.
-- **#258 — Canonical public API baseline and CI enforcement:** owns the active 0.9.16 implementation and acceptance criteria.
 
-The reproducibility and release-infrastructure tracker **#1** remains open until documentation, metadata, and release-automation work is complete.
+The reproducibility and release-infrastructure tracker **#1** remains open until documentation, metadata, and release automation are complete.
 
 ## 1.0: stable scientific release
 
