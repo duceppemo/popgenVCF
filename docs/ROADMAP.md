@@ -83,32 +83,30 @@ The authoritative development package version is **0.10.0**.
 - [x] **0.9.23 — Longitudinal canonical drift detection**
 - [x] **0.9.24 — Canonical scientific change approval and reconciliation**
 - [x] **0.9.25 — Canonical release-readiness gate**
+- [x] **0.9.26 — Canonical release bundle integration**
 
 ### Active milestone
 
-- [ ] **0.9.26 — Canonical release bundle integration**
-  - execute the canonical release gate during scientific release assembly;
-  - require a `release_ready = TRUE` certificate before production bundle finalization;
-  - embed validation, baseline, drift, reconciliation, and gate evidence;
-  - add checksums and manifest entries for every canonical evidence file;
-  - bind the certificate to commit SHA, package version, container digest, canonical dataset versions, and environment lockfiles;
-  - refuse archive creation when required evidence is missing, malformed, blocked, or inconsistent;
-  - add deterministic end-to-end synthetic release integration tests.
+- [ ] **0.9.27 — Canonical real-data baseline adoption**
+  - extend the approved licensed canonical dataset integration with production scientific validation descriptors and complete sample metadata;
+  - generate the first quantitative baseline snapshot only from the checksum-verified real dataset;
+  - record metric versions, comparators, tolerances, workflow provenance, commit SHA, and dataset artifact digests;
+  - require explicit scientific review before a proposed snapshot becomes approved;
+  - run acquisition and computation only in opt-in or scheduled full-validation CI;
+  - keep ordinary pull-request CI synthetic, deterministic, offline, and fast;
+  - publish descriptors, observations, comparisons, logs, and snapshot evidence as workflow artifacts.
 
-### Authoritative sequence after release-bundle integration
+### Authoritative sequence after real-data baseline adoption
 
-1. **0.9.27 — Canonical real-data baseline adoption**
-   - extend the approved licensed canonical dataset integration with production scientific validation descriptors, complete sample metadata, and the first approved real-data quantitative baseline snapshot;
-   - run it only in opt-in or scheduled full-validation CI while ordinary pull-request CI remains synthetic, deterministic, offline, and fast.
-2. **0.9.28 — External-tool scientific concordance**
+1. **0.9.28 — External-tool scientific concordance**
    - compare canonical popgenVCF results with established implementations such as PLINK 2, SNPRelate, hierfstat, adegenet, and practical AMOVA references;
    - publish machine-readable comparisons, explicit tolerance profiles, methods, commands, logs, and approval-ready baseline proposals.
-3. **0.9.29 — Continuous release benchmarking**
+2. **0.9.29 — Continuous release benchmarking**
    - measure runtime, peak memory, thread scaling, dataset tiers, historical regressions, and configurable performance budgets;
    - publish deterministic JSON, TSV, and Markdown benchmark evidence and block releases only for confirmed regressions.
-4. **0.9.30 — Documentation, metadata, and archival readiness**
+3. **0.9.30 — Documentation, metadata, and archival readiness**
    - complete pkgdown tutorials, interpretation guides, publication gallery, citation and software metadata, reproducibility statements, GHCR and Apptainer usage, HPC guidance, Zenodo configuration, DOI-ready metadata, SBOM, checksum, and provenance instructions.
-5. **0.9.31 — 0.10.0 release-candidate closure**
+4. **0.9.31 — 0.10.0 release-candidate closure**
    - synchronize DESCRIPTION, NEWS, roadmap, and trackers;
    - regenerate documentation, run full canonical validation and benchmarking, issue the real release certificate, validate container and Apptainer artifacts, assemble archives, run source and distribution install tests, and produce a reviewer-ready release-readiness report;
    - tag and publish 0.10.0 only after every required gate passes.
