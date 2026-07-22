@@ -43,6 +43,78 @@ release_reconciliation_s3_methods <- function(namespace_lines) {
   out[order(out$generic, out$class), , drop = FALSE]
 }
 
+release_reconciliation_r_files <- function(root) {
+  sort(list.files(file.path(root, "R"), pattern = "\\.[Rr]$", full.names = TRUE))
+}
+
+release_reconciliation_roxygen_exports <- function(root) {
+  records <- lapply(release_reconciliation_r_files(root), function(path) {
+    lines <- readLines(path, warn = FALSE, encoding = "UTF-8")
+    indices <- grep("^#'\\s*@export(?:\\s+.*)?$", lines, perl = TRUE)
+    if (!length(indices)) return(NULL)
+    rows <- lapply(indices, function(index) {
+      directive <- trimws(sub("^#'\\s*@export\\s*", "", lines[[index]], perl = TRUE))
+      symbol <- if (nzchar(directive)) strsplit(directive, "\\s+", perl = TRUE)[[1L]][[1L]] else NA_character_
+      if (is.na(symbol)) {
+        upper <- min(length(lines), index + 12L)
+        candidates <- if (index < upper) lines[(index + 1L):upper] else character()
+        definition <- grep(
+          "^[[:space:]]*([.A-Za-z][A-Za-z0-9._]*)[[:space:]]*<-[[:space:]]*function\\b",
+          candidates, value = TRUE, perl = TRUE
+        )
+        if (length(definition)) {
+          symbol <- sub(
+            "^[[:space:]]*([.A-Za-z][A-Za-z0-9._]*)[[:space:]]*<-[[:space:]]*function.*$",
+            "\\1", definition[[1L]], perl = TRUE
+          )
+        }
+      }
+      data.frame(
+        symbol = symbol,
+        file = sub(paste0("^", normalizePath(root, winslash = "/"), "/?"), "", normalizePath(path, winslash = "/")),
+        line = index,
+        stringsAsFactors = FALSE
+      )
+    })
+    do.call(rbind, rows)
+  })
+  records <- Filter(Negate(is.null), records)
+  if (!length(records)) {
+    return(data.frame(symbol = character(), file = character(), line = integer(), stringsAsFactors = FALSE))
+  }
+  out <- do.call(rbind, records)
+  out <- out[!is.na(out$symbol) & nzchar(out$symbol), , drop = FALSE]
+  out <- out[order(out$symbol, out$file, out$line), , drop = FALSE]
+  rownames(out) <- NULL
+  out
+}
+
+release_reconciliation_dynamic_exports <- function(root) {
+  records <- lapply(release_reconciliation_r_files(root), function(path) {
+    lines <- readLines(path, warn = FALSE, encoding = "UTF-8")
+    indices <- grep(
+      "^[[:space:]]*(?:base::)?namespaceExport[[:space:]]*\\(",
+      lines,
+      perl = TRUE
+    )
+    if (!length(indices)) return(NULL)
+    data.frame(
+      file = rep(sub(paste0("^", normalizePath(root, winslash = "/"), "/?"), "", normalizePath(path, winslash = "/")), length(indices)),
+      line = indices,
+      code = trimws(lines[indices]),
+      stringsAsFactors = FALSE
+    )
+  })
+  records <- Filter(Negate(is.null), records)
+  if (!length(records)) {
+    return(data.frame(file = character(), line = integer(), code = character(), stringsAsFactors = FALSE))
+  }
+  out <- do.call(rbind, records)
+  out <- out[order(out$file, out$line), , drop = FALSE]
+  rownames(out) <- NULL
+  out
+}
+
 release_reconciliation_rd_files <- function(root) {
   sort(list.files(file.path(root, "man"), pattern = "\\.Rd$", full.names = TRUE))
 }
@@ -105,11 +177,8 @@ release_reconciliation_finding <- function(severity, category, items, detail) {
   items <- as.character(items)
   if (length(items) == 0L) {
     return(data.frame(
-      severity = character(),
-      category = character(),
-      item = character(),
-      detail = character(),
-      stringsAsFactors = FALSE
+      severity = character(), category = character(), item = character(),
+      detail = character(), stringsAsFactors = FALSE
     ))
   }
   data.frame(
@@ -129,12 +198,15 @@ release_api_reconciliation <- function(root = ".") {
   s3_methods <- release_reconciliation_s3_methods(namespace_lines)
   aliases <- release_reconciliation_rd_aliases(root)
   documented_classes <- release_reconciliation_rd_documented_classes(root, s3_methods$class)
+  roxygen_exports <- release_reconciliation_roxygen_exports(root)
+  dynamic_exports <- release_reconciliation_dynamic_exports(root)
   version <- release_reconciliation_version(root)
   version_signals <- release_reconciliation_version_signals(root, version)
 
   missing_export_docs <- setdiff(exports, aliases$alias)
   duplicate_exports <- sort(unique(export_declarations[duplicated(export_declarations)]))
   duplicate_aliases <- sort(unique(aliases$alias[duplicated(aliases$alias)]))
+  missing_roxygen_exports <- setdiff(sort(unique(roxygen_exports$symbol)), exports)
   missing_s3_docs <- if (nrow(s3_methods) == 0L) character() else {
     method_names <- paste0(s3_methods$generic, ".", s3_methods$class)
     documented <- method_names %in% aliases$alias |
@@ -153,12 +225,20 @@ release_api_reconciliation <- function(root = ".") {
       "Duplicate export declaration."
     ),
     release_reconciliation_finding(
+      "blocking", "namespace-dynamic", dynamic_exports$file,
+      "Runtime namespaceExport() calls are prohibited; declare public APIs in NAMESPACE."
+    ),
+    release_reconciliation_finding(
       "blocking", "s3-documentation", missing_s3_docs,
       "Registered S3 method is not documented by method, generic, or class topic."
     ),
     release_reconciliation_finding(
       "blocking", "release-version", version_signals$file[!version_signals$present],
       paste0("Release-facing file does not identify development version ", version, ".")
+    ),
+    release_reconciliation_finding(
+      "advisory", "roxygen-namespace", missing_roxygen_exports,
+      "Roxygen @export declaration is absent from the explicit NAMESPACE; regenerate documentation or remove the stale annotation."
     ),
     release_reconciliation_finding(
       "advisory", "documentation-alias", duplicate_aliases,
@@ -174,6 +254,8 @@ release_api_reconciliation <- function(root = ".") {
       exports = exports,
       s3_methods = s3_methods,
       aliases = aliases,
+      roxygen_exports = roxygen_exports,
+      dynamic_exports = dynamic_exports,
       version_signals = version_signals,
       findings = findings,
       passed = !any(findings$severity == "blocking")
@@ -189,6 +271,9 @@ write_release_api_reconciliation <- function(root = ".", output_dir = file.path(
   summary <- data.frame(
     package_version = audit$version,
     exports = length(audit$exports),
+    roxygen_exports = length(unique(audit$roxygen_exports$symbol)),
+    missing_explicit_exports = sum(audit$findings$category == "roxygen-namespace"),
+    dynamic_export_calls = nrow(audit$dynamic_exports),
     s3_methods = nrow(audit$s3_methods),
     rd_aliases = nrow(audit$aliases),
     blocking_findings = sum(audit$findings$severity == "blocking"),
@@ -202,6 +287,8 @@ write_release_api_reconciliation <- function(root = ".", output_dir = file.path(
     data.frame(symbol = audit$exports, documented = audit$exports %in% audit$aliases$alias, stringsAsFactors = FALSE),
     file.path(output_dir, "exports.tsv"), sep = "\t", quote = FALSE, row.names = FALSE
   )
+  utils::write.table(audit$roxygen_exports, file.path(output_dir, "roxygen-exports.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
+  utils::write.table(audit$dynamic_exports, file.path(output_dir, "dynamic-exports.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
   utils::write.table(audit$s3_methods, file.path(output_dir, "s3-methods.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
   utils::write.table(audit$version_signals, file.path(output_dir, "version-signals.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
 

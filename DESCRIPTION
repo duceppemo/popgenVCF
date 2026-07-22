@@ -66,5 +66,7 @@ Suggests:
     withr
 VignetteBuilder: knitr
 Config/testthat/edition: 3
-SystemRequirements: Pandoc (optional, for manuscript reports), ADMIXTURE (optional), fastStructure (optional)
+SystemRequirements: BCFtools and HTSlib utilities (required for VCF sorting,
+    BGZF compression, and indexing), Pandoc (optional, for manuscript reports),
+    ADMIXTURE (optional), fastStructure (optional)
 RoxygenNote: 7.3.2

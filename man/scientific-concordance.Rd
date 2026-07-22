@@ -2,6 +2,7 @@
 \alias{new_scientific_concordance_record}
 \alias{validate_scientific_concordance_record}
 \alias{new_scientific_concordance_suite}
+\alias{validate_scientific_concordance_suite}
 \alias{scientific_concordance_table}
 \alias{write_scientific_concordance_evidence}
 \title{Canonical external-tool scientific concordance}
@@ -18,6 +19,8 @@ new_scientific_concordance_suite(
   records, require_complete = TRUE,
   required_tools = character(), required_analyses = character()
 )
+
+validate_scientific_concordance_suite(suite)
 
 scientific_concordance_table(suite)
 
@@ -43,12 +46,14 @@ write_scientific_concordance_evidence(
 \item{required_tools, required_analyses}{Required inventory entries.}
 \item{suite}{A scientific concordance suite.}
 \item{output_dir}{Evidence output directory.}
-\item{require_release_ready}{Refuse finalization unless release ready.}
+\item{require_release_ready}{Refuse finalization unless inventory and equivalence evidence are release ready.}
 }
 \description{
 Creates deterministic, reviewable scientific concordance records and suites that
-bind canonical analyses to external-tool versions, commands, tolerances,
-comparison results, provenance, citations, and explicit approval.
+bind canonical analyses to datasets, external-tool versions, commands,
+tolerances, comparison results, provenance, citations, and explicit approval.
+Release readiness requires a complete declared inventory and approved passing
+equivalence evidence.
 }
 \value{
 A validated concordance record or suite, a deterministic summary table, or named

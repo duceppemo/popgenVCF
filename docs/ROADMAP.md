@@ -56,7 +56,7 @@ See [Phase 9 closure evidence and roadmap handoff](PHASE9_CLOSURE.md).
 
 The authoritative development package version is **0.10.0**.
 
-### Completed milestones
+### Completed implementation milestones
 
 - [x] **0.9.1 — Deterministic publication report rendering**
 - [x] **0.9.2 — Journal presets and deterministic publication layouts**
@@ -84,60 +84,62 @@ The authoritative development package version is **0.10.0**.
 - [x] **0.9.24 — Canonical scientific change approval and reconciliation**
 - [x] **0.9.25 — Canonical release-readiness gate**
 - [x] **0.9.26 — Canonical release bundle integration**
+- [x] **0.9.27 — Canonical real-data baseline adoption contract**
+- [x] **0.9.28 — External-tool scientific concordance contract**
+- [x] **0.9.29 — Continuous release benchmarking contract**
 
-### Active milestone
+These milestones complete the software contracts and fail-closed evidence models. They do not substitute for executing, reviewing, approving, and publishing the first production real-data baseline, external-tool concordance suite, and release benchmark history.
 
-- [ ] **0.9.27 — Canonical real-data baseline adoption**
-  - extend the approved licensed canonical dataset integration with production scientific validation descriptors and complete sample metadata;
-  - generate the first quantitative baseline snapshot only from the checksum-verified real dataset;
-  - record metric versions, comparators, tolerances, workflow provenance, commit SHA, and dataset artifact digests;
-  - require explicit scientific review before a proposed snapshot becomes approved;
-  - run acquisition and computation only in opt-in or scheduled full-validation CI;
-  - keep ordinary pull-request CI synthetic, deterministic, offline, and fast;
-  - publish descriptors, observations, comparisons, logs, and snapshot evidence as workflow artifacts.
+### Current stabilization gate
 
-### Authoritative sequence after real-data baseline adoption
+Repository health reconciliation must complete before feature work resumes:
 
-1. **0.9.28 — External-tool scientific concordance**
-   - compare canonical popgenVCF results with established implementations such as PLINK 2, SNPRelate, hierfstat, adegenet, and practical AMOVA references;
-   - publish machine-readable comparisons, explicit tolerance profiles, methods, commands, logs, and approval-ready baseline proposals.
-2. **0.9.29 — Continuous release benchmarking**
-   - measure runtime, peak memory, thread scaling, dataset tiers, historical regressions, and configurable performance budgets;
-   - publish deterministic JSON, TSV, and Markdown benchmark evidence and block releases only for confirmed regressions.
-3. **0.9.30 — Documentation, metadata, and archival readiness**
-   - complete pkgdown tutorials, interpretation guides, publication gallery, citation and software metadata, reproducibility statements, GHCR and Apptainer usage, HPC guidance, Zenodo configuration, DOI-ready metadata, SBOM, checksum, and provenance instructions.
-4. **0.9.31 — 0.10.0 release-candidate closure**
+- [ ] eliminate false release-readiness paths in concordance and benchmark evidence;
+- [ ] replace runtime namespace mutation with explicit public exports;
+- [ ] report roxygen, NAMESPACE, Rd, API-baseline, and release-metadata drift deterministically;
+- [ ] synchronize README, NEWS, roadmaps, and issue trackers;
+- [ ] close completed umbrella issues and retain only work with unmet acceptance criteria;
+- [ ] run the complete CI matrix on the reconciled state.
+
+### Authoritative sequence after stabilization
+
+1. **0.9.30 — Documentation, metadata, and archival readiness**
+   - complete pkgdown tutorials, interpretation guides, publication gallery, citation and software metadata, reproducibility statements, GHCR and Apptainer usage, HPC guidance, Zenodo configuration, DOI-ready metadata, SBOM, checksum, and provenance instructions;
+   - resolve remaining advisory roxygen-to-namespace drift and regenerate all derived package documentation from source (#284);
+   - eliminate avoidable `R CMD check` notes and source-package hygiene defects (#285).
+2. **0.9.31 — 0.10.0 release-candidate closure**
    - synchronize DESCRIPTION, NEWS, roadmap, and trackers;
-   - regenerate documentation, run full canonical validation and benchmarking, issue the real release certificate, validate container and Apptainer artifacts, assemble archives, run source and distribution install tests, and produce a reviewer-ready release-readiness report;
+   - execute full canonical validation and external-tool concordance, approve the production quantitative baseline, publish release benchmarks, and issue the real release certificate;
+   - validate container and Apptainer artifacts, assemble archives, run source and distribution install tests, and produce a reviewer-ready release-readiness report;
    - tag and publish 0.10.0 only after every required gate passes.
 
 ### Validation datasets and benchmarking
 
 - [x] retain tiny synthetic fixtures in every CI run;
 - [x] adopt a licensed, checksum-pinned canonical dataset under an approved registry entry;
-- [ ] approve and retain the first production quantitative baseline snapshot from the canonical real dataset;
-- [ ] publish complete external-tool scientific concordance evidence;
+- [x] define production baseline, scientific concordance, performance-budget, and release-evidence contracts;
+- [ ] execute, approve, and retain the first production quantitative baseline snapshot from the canonical real dataset;
+- [ ] execute and publish complete external-tool scientific concordance evidence;
 - [ ] publish runtime, memory, scaling, and historical regression artifacts per release;
 - [ ] publish or externally host a checksum-pinned medium or large benchmark tier when licensing and storage policy permit.
 
 ### Documentation and metadata
 
 - [ ] pkgdown website, tutorials, interpretation guides, and figure gallery;
-- [ ] `CITATION.cff`, `codemeta.json`, and reproducibility statement;
+- [ ] verify and finalize `CITATION.cff`, `codemeta.json`, and the reproducibility statement;
 - [ ] GHCR usage, Apptainer definition, and HPC guidance;
 - [ ] Zenodo configuration and DOI-ready archive metadata;
 - [ ] SBOM, checksums, and provenance instructions.
 
 ## Open tracking issues and deferred enhancements
 
-- **#4 — publication-quality platform:** umbrella tracker for remaining 0.10 and 1.0 release work.
-- **#20 — Core publication artifact contracts:** IBS/MDS is complete; retain only for any genuinely remaining publication-artifact work and close when its acceptance criteria are fully satisfied.
-- **#22 — Canonical real-data validation:** tracks production real-data baselines, expected values, external-tool comparisons, and full-validation workflows beyond the completed dataset adoption infrastructure.
-- **#24 — Unified ancestry platform:** covers backend/runtime enhancements beyond the completed publication ancestry contract.
-- **#43 — Continuous scientific benchmarks:** tracks historical regression archives, cross-tool comparisons, resource/scaling measurements, dashboards, and release benchmark artifacts.
-- **#68 — Analysis-specific publication narratives:** covers remaining module-specific methods, legends, citations, and supplementary narratives.
-
-The reproducibility and release-infrastructure tracker **#1** remains open until documentation, metadata, and release automation are complete.
+- **#4 — Publication-quality platform:** umbrella tracker for remaining 0.10 and 1.0 release work.
+- **#22 — Canonical real-data validation:** retains the uncompleted production baseline, external-tool execution, approval, and full-validation workflow work.
+- **#43 — Continuous scientific benchmarks:** retains CI/release integration, approved historical baselines, dashboards, and published release benchmark artifacts.
+- **#68 — Analysis-specific publication narratives:** retains any module-specific narrative, citation, and supplementary integration not yet demonstrated end to end.
+- **#284 — Generated API documentation reconciliation:** resolves remaining roxygen, namespace, Rd, and API-baseline drift.
+- **#285 — R CMD check note cleanup:** removes source-package hygiene, internal namespace, NSE/import, and Rd formatting notes.
+- **#1 — Reproducibility and release infrastructure:** remains open until documentation, metadata, archival integration, and release automation are complete.
 
 ## 1.0: stable scientific release
 

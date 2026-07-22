@@ -15,21 +15,14 @@ release_reconciliation_test_root <- function() {
     repeat {
       out <- c(out, current)
       parent <- dirname(current)
-      if (identical(parent, current)) {
-        break
-      }
+      if (identical(parent, current)) break
       current <- parent
     }
     out
   }
 
-  bases <- unique(c(
-    workspace,
-    ancestors(test_dir),
-    ancestors(working_dir)
-  ))
+  bases <- unique(c(workspace, ancestors(test_dir), ancestors(working_dir)))
   bases <- bases[nzchar(bases)]
-
   candidates <- unique(c(
     bases,
     file.path(bases, "popgenVCF"),
@@ -58,11 +51,21 @@ test_that("release-facing metadata and public API remain reconciled", {
     collapse = ", "
   ))
   expect_length(setdiff(audit$exports, audit$aliases$alias), 0L)
+  expect_equal(nrow(audit$dynamic_exports), 0L)
+  expect_true(nrow(audit$roxygen_exports) > 0L)
   expect_false(any(audit$findings$severity == "blocking"), info = paste(
     paste(audit$findings$category, audit$findings$item, sep = ": "),
     collapse = "\n"
   ))
   expect_true(audit$passed)
+})
+
+test_that("release reconciliation reports stale roxygen declarations", {
+  root <- release_reconciliation_test_root()
+  audit <- release_api_reconciliation(root)
+  stale <- audit$findings[audit$findings$category == "roxygen-namespace", , drop = FALSE]
+  expect_true(all(stale$severity == "advisory"))
+  expect_true(all(stale$item %in% audit$roxygen_exports$symbol))
 })
 
 test_that("release reconciliation evidence is deterministic and machine readable", {
@@ -77,8 +80,10 @@ test_that("release reconciliation evidence is deterministic and machine readable
   files_two <- sort(list.files(output_two))
   expect_identical(files_one, files_two)
   expect_identical(files_one, c(
+    "dynamic-exports.tsv",
     "exports.tsv",
     "findings.tsv",
+    "roxygen-exports.tsv",
     "s3-methods.tsv",
     "summary.tsv",
     "version-signals.tsv"
