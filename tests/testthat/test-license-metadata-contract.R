@@ -57,8 +57,10 @@ run_license_metadata_validator <- function(root, evidence_path = tempfile(fileex
       paste0("POPGENVCF_LICENSE_METADATA_EVIDENCE=", evidence_path)
     )
   ))
+  status <- attr(output, "status")
+  if (is.null(status)) status <- 0L
   list(
-    status = attr(output, "status") %||% 0L,
+    status = status,
     output = output,
     evidence_path = evidence_path
   )
