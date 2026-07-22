@@ -77,25 +77,23 @@ The authoritative development package version is **0.10.0**. This series reconci
 - [x] **0.9.11 — Publication isolation-by-distance outputs**
 - [x] **0.9.12 — Publication spatial-genetics outputs**
 - [x] **0.9.13 — Canonical real-data validation contracts**
-  - fingerprinted licensed-dataset manifests with source, version, checksum, and license metadata;
-  - deterministic sample, population, locus, expected-result, tolerance, and external-tool comparison inventories;
-  - CI-safe synthetic fixtures, opt-in canonical integration fixtures, provenance, and fail-closed drift detection.
+- [x] **0.9.14 — Release-state and public-API reconciliation**
 
 ### Active milestone
 
-- [ ] **0.9.14 — Release-state and public-API reconciliation**
-  - retain 0.10.0 as the authoritative development release identity;
-  - audit exports, S3 registrations, Rd aliases, and generated documentation;
-  - emit deterministic reconciliation evidence and fail closed on release-state drift;
-  - synchronize README, NEWS, DESCRIPTION, roadmap copies, and tracking issues.
+- [ ] **0.9.15 — Public API contract hardening**
+  - generate deterministic snapshots of exports, S3 registrations, and exported function signatures;
+  - compare the current interface against a committed release baseline;
+  - fail closed on removals, incompatible required-argument changes, and default-value drift;
+  - classify additive exports and optional arguments for explicit review;
+  - emit machine-readable compatibility evidence and synchronize release documentation.
 
-### Planned sequence after reconciliation
+### Planned sequence after contract hardening
 
-1. canonical contract hardening;
-2. IBS/MDS publication outputs;
-3. licensed canonical real-data integration and external comparisons;
-4. release evidence, metadata, benchmark publication, and container/HPC documentation;
-5. 0.10.0 release-readiness review.
+1. IBS/MDS publication outputs;
+2. licensed canonical real-data integration and external comparisons;
+3. release evidence, metadata, benchmark publication, and container/HPC documentation;
+4. 0.10.0 release-readiness review.
 
 ### Validation datasets and benchmarking
 
@@ -122,7 +120,7 @@ The following open issues remain authoritative tracking containers and are inten
 - **#24 — Unified ancestry platform:** covers backend/runtime enhancements beyond the completed publication ancestry contract.
 - **#43 — Continuous scientific benchmarks:** covers historical regression archives, cross-tool comparisons, resource/scaling measurements, dashboards, and release benchmark artifacts.
 - **#68 — Analysis-specific publication narratives:** covers remaining module-specific methods, legends, citations, and supplementary narratives.
-- **#254 — Release-state and public-API reconciliation:** owns the active 0.9.14 implementation and acceptance criteria.
+- **#256 — Public API contract hardening:** owns the active 0.9.15 implementation and acceptance criteria.
 
 The reproducibility and release-infrastructure tracker **#1** also remains open until the documentation/metadata and release-automation items above are complete. Optional Docker Hub publishing is a later enhancement dependent on credentials and is not required for 1.0; Zenodo integration remains a post-stable-release task.
 
