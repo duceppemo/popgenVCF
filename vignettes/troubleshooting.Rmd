@@ -1,0 +1,165 @@
+---
+title: "Troubleshooting analyses and deployments"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Troubleshooting analyses and deployments}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+Start troubleshooting from `pipeline.log`, `analysis_capabilities.tsv`, `analysis_execution_plan.tsv`, and `analysis_execution_ledger.tsv`. Preserve the original failed result directory before changing inputs or configuration.
+
+## Input and VCF preparation
+
+### The VCF cannot be indexed
+
+Common causes are ordinary gzip compression, unsorted records, malformed coordinates, duplicate records rejected by external utilities, a read-only source directory, or unavailable BCFtools/HTSlib commands.
+
+Check the input explicitly:
+
+```bash
+bcftools view -h cohort.vcf.gz >/dev/null
+bcftools sort -Oz -o /tmp/cohort.sorted.vcf.gz cohort.vcf.gz
+bcftools index --tbi /tmp/cohort.sorted.vcf.gz
+```
+
+popgenVCF can create a normalized copy in its cache, but the output directory and temporary filesystem must be writable and large enough.
+
+### No variants remain after QC or LD pruning
+
+Inspect the sequential QC counts and the exact LD-pruned SNP table. Verify genome build, contig naming, ploidy, biallelic-SNP assumptions, missingness, MAF threshold, and whether a previous pipeline already restricted the VCF. Do not loosen thresholds only to obtain a desired plot; justify changes scientifically and retain the original audit.
+
+## Metadata and sample identity
+
+### Metadata sample identifiers do not match
+
+The `sample` values must match the VCF sample names exactly and case-sensitively. Check for duplicate rows, leading or trailing whitespace, spreadsheet formatting, and aliases that were not explicitly mapped.
+
+```bash
+bcftools query -l cohort.vcf.gz > vcf_samples.txt
+cut -f1 metadata.tsv | tail -n +2 > metadata_samples.txt
+comm -3 <(sort vcf_samples.txt) <(sort metadata_samples.txt)
+```
+
+Do not silently drop unmatched samples. Correct the source metadata or create an explicit, reviewed identity mapping.
+
+### Population or spatial modules are skipped
+
+Read `analysis_capabilities.tsv`. Population analyses require usable population annotations; spatial analyses require complete latitude/longitude pairs and module-specific minimum sample counts. A skip is not evidence that the biological pattern is absent.
+
+## Execution failures
+
+### A module is blocked
+
+A blocked module did not run because a prerequisite failed, timed out, or was unavailable. Resolve the earliest failed dependency in the execution ledger. Rerunning only the blocked downstream module does not repair invalid prerequisite state.
+
+### A module times out
+
+Compare the configured timeout with scheduler wall time. Confirm that the job received the requested CPUs and memory, that the input is on suitable storage, and that external processes are not waiting for unavailable files or network access. Increase a budget only after identifying the expected runtime and retaining the timed-out ledger.
+
+### The process is killed without an R error
+
+On clusters and containers this often indicates an out-of-memory kill or scheduler termination. Inspect scheduler accounting, kernel or container logs, peak-memory evidence, temporary-disk use, and the number of concurrent workers. Reduce concurrency or request appropriate resources rather than retrying blindly.
+
+## Containers
+
+### Docker writes root-owned files
+
+Run with the host user and a writable home:
+
+```bash
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
+  -v "$PWD:/data" \
+  "$POPGENVCF_IMAGE" \
+  --config /data/analysis.yml
+```
+
+On systems using SELinux, the bind may require the platform-appropriate relabel option such as `:Z`. Confirm local policy before changing labels.
+
+### A host path is missing inside the container
+
+Configuration paths are interpreted inside the container. Bind every required input location and use the corresponding container path. Prefer one analysis root mounted at `/data` to reduce ambiguous mappings.
+
+## Apptainer and HPC
+
+### The SIF cannot see files
+
+Bind the analysis root explicitly:
+
+```bash
+apptainer run --cleanenv \
+  --bind "$PWD:/data" \
+  popgenvcf.sif \
+  --config /data/analysis.yml
+```
+
+Some clusters disable implicit home or current-directory binds. Also bind scratch, reference, or external-tool directories when the configuration uses them.
+
+### Threads do not match the scheduler allocation
+
+Set `compute.threads` no higher than `SLURM_CPUS_PER_TASK`, `PBS_NP`, or the equivalent allocation. Also constrain threaded numerical libraries when required by site policy:
+
+```bash
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+```
+
+This prevents each worker from starting additional hidden threads.
+
+### Temporary storage fills
+
+Point temporary files and caches to job-local scratch when available:
+
+```bash
+export TMPDIR="${SLURM_TMPDIR:-$PWD/tmp}"
+mkdir -p "$TMPDIR"
+```
+
+Ensure the result directory remains on persistent storage. Do not archive transient caches as if they were final evidence.
+
+## External software
+
+### ADMIXTURE, fastStructure, BCFtools, or another executable is unavailable
+
+Check the exact executable path inside the active environment or container, then record its version:
+
+```bash
+command -v bcftools
+bcftools --version
+command -v admixture || true
+```
+
+A dependency-aware skip may be valid for an optional analysis. It is not valid to claim that an external comparison passed when the executable, version, command, or declared output inventory is absent.
+
+## Validation and reproducibility
+
+### Validation reports a mismatch
+
+First distinguish an expected scientific change from corruption, incompatible inputs, changed software, nondeterministic ordering, or an inappropriate baseline. Review tolerances, dataset checksum, package commit, external-tool version, seed, threads, and environment fingerprint. Baselines should be replaced only through the documented approval process.
+
+### Results differ between machines
+
+Compare input checksums, configuration, package version or OCI digest, external-tool versions, thread count, RNG seed, BLAS implementation, compression metadata, and plotting device. Numerical material equivalence may be appropriate even when files are not byte-identical.
+
+## Diagnostic record for a support request
+
+Include:
+
+- the popgenVCF version or source commit;
+- OCI digest or environment manifest;
+- operating system and scheduler;
+- redacted configuration;
+- input checksums and sample/variant counts;
+- `pipeline.log`;
+- capability, plan, ledger, validation, and summary tables;
+- external-tool commands and versions;
+- scheduler exit state, memory, and wall-time accounting.
+
+Do not upload confidential genomic data to a public issue. Reduce the problem to a synthetic or safely shareable fixture whenever possible.
