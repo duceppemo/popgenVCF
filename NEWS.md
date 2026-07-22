@@ -1,7 +1,23 @@
 # popgenVCF 0.10.0 development
 
+- Reconciled repository health after Phase 0.9.29: removed runtime namespace mutation, restored explicit public exports, expanded release/API drift evidence, and synchronized README, NEWS, roadmaps, package requirements, and trackers.
+- Hardened scientific concordance suites so dataset/tool/version identities are unique, declared inventories are mandatory for release readiness, mutated suite state is rejected, and machine-readable evidence exposes missing inventory entries.
+- Hardened continuous release benchmarking so current and baseline identities, environments, metrics, and repetition counts must be compatible; empty, duplicate, malformed, or incomplete comparison evidence can no longer certify a release.
+- Added continuous release benchmark observations, versioned performance budgets, historical comparison contracts, deterministic TSV/JSON/Markdown evidence, and explicit `passed`, `failed`, and `insufficient-evidence` states.
+- Added canonical external-tool scientific concordance records and suites with exact versions, commands, tolerance profiles, comparison tables, provenance, citations, diagnostic/equivalence roles, scientific approval, and deterministic evidence.
+- Added canonical real-data baseline snapshot contracts that bind approved checksum-pinned datasets, complete sample metadata, quantitative metric registries, workflow provenance, source commits, and explicit scientific approval.
+- Integrated canonical release certificates into scientific release bundles with release identity, provenance, required evidence inventories, artifact-manifest checksum linkage, and fail-closed finalization.
+- Added canonical release-readiness policies and certificates combining validation, quantitative baseline conformance, longitudinal drift, and approved scientific change reconciliation.
+- Added scientific change-request registries and deterministic reconciliation of independently measured canonical drift against approved, rejected, pending, or superseded changes.
+- Added longitudinal canonical baseline drift histories with tolerance-normalized severity classes, deterministic summaries, and methods evidence.
+- Added versioned quantitative canonical baseline metrics, comparator-aware evaluation, coverage summaries, and deterministic evidence.
+- Added deterministic multi-dataset canonical validation suites over approved registry entries with checksum verification, custom scientific checks, failure policies, coverage summaries, and evidence.
+- Integrated the first approved canonical real-data source, the checksum-verified 1000 Genomes Project Phase 3 chromosome Y callset, through a manual full-validation workflow.
+- Added canonical dataset registry and approval-state contracts plus licensed, checksum-pinned real-data materialization and external numerical-comparison contracts.
+- Added deterministic publication-quality IBS/MDS coordinates, source tables, validation records, methods, captions, and PDF/SVG/PNG artifacts.
+- Added a canonical public-API baseline and fail-closed CI compatibility gate for removals, required-argument changes, and default drift.
 - Reconciled `0.10.0` as the authoritative development release identity across package metadata, README, NEWS, roadmaps, and tracking issues.
-- Added a deterministic release/public-API audit for exports, S3 registrations, Rd aliases, version signals, blocking findings, and machine-readable reconciliation evidence.
+- Added a deterministic release/public-API audit for exports, S3 registrations, Rd aliases, roxygen declarations, dynamic namespace mutation, version signals, blocking findings, and machine-readable reconciliation evidence.
 - Added a unified deterministic analysis execution engine with canonical planning, module ordering, contract validation, and execution metadata.
 - Added dependency-aware failure propagation with explicit success, failed, and blocked states plus auditable execution ledgers.
 - Added validated execution checkpoints, deterministic plan reconstruction, safe resume support, and checkpoint persistence.
