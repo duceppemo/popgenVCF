@@ -35,7 +35,7 @@ project <- new_popgenvcf_project(
 )
 bundle <- new_publication_bundle(project)
 inventory <- bundle$narrative_inventory
-inventory[, c("kind", "state", "citation_keys")]
+inventory[, c("kind", "state", "citation_keys"), with = FALSE]
 ```
 
 ## Completeness evidence
@@ -78,7 +78,7 @@ fallback_project <- new_popgenvcf_project(
   project_id = "00000000-0000-0000-0000-000000000931"
 )
 fallback_bundle <- new_publication_bundle(fallback_project)
-fallback_bundle$narrative_inventory[, c("kind", "state", "reason")]
+fallback_bundle$narrative_inventory[, c("kind", "state", "reason"), with = FALSE]
 ```
 
 ## Publication companion outputs
