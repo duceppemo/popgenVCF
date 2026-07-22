@@ -89,7 +89,7 @@ regeneration_changes <- function(x) {
 #' @param changes Data frame describing explicit changed dependencies.
 #' @param generator_id Stable generator contract identifier.
 #' @return A validated `PopgenVCFRegenerationPlan`.
-#' @export
+#' @noRd
 new_manuscript_regeneration_plan <- function(manuscript_id, revision_id, dependencies,
                                              changes, generator_id = "popgenVCF-manuscript") {
   dependencies <- regeneration_dependencies(dependencies)
@@ -178,7 +178,7 @@ manuscript_regeneration_table <- function(x) {
 #' @param x A `PopgenVCFRegenerationPlan` or directory.
 #' @param strict Whether blocked sections raise an error.
 #' @return `TRUE` invisibly.
-#' @export
+#' @noRd
 validate_manuscript_regeneration_plan <- function(x, strict = FALSE) {
   if (is.character(x) && length(x) == 1L) {
     required <- c("regeneration-plan.json", "regeneration-plan.md", "regeneration-plan.tsv", "regeneration-plan-manifest.tsv")

@@ -31,7 +31,7 @@ write_manuscript_regeneration_verification(
 )
 }
 \arguments{
-\item{execution}{A validated \code{PopgenVCFRegenerationExecution}; optional when validating or rendering an existing record.}
+\item{execution}{Optional linked `PopgenVCFRegenerationExecution` when validating.}
 
 \item{reviews}{Data frame containing section review decisions.}
 
@@ -39,7 +39,7 @@ write_manuscript_regeneration_verification(
 
 \item{x}{A verification record or written verification directory.}
 
-\item{plan}{Optional linked \code{PopgenVCFRegenerationPlan}.}
+\item{plan}{Optional linked `PopgenVCFRegenerationPlan`.}
 
 \item{strict}{Whether every required review must be accepted.}
 
@@ -48,10 +48,10 @@ write_manuscript_regeneration_verification(
 \item{overwrite}{Whether an existing directory may be replaced.}
 }
 \value{
-\code{new_manuscript_regeneration_verification()} returns a validated
-\code{PopgenVCFRegenerationVerification}; the table and renderer return
-canonical representations; validators return \code{TRUE} invisibly; the
-writer returns the normalized output path invisibly.
+`new_manuscript_regeneration_verification()` returns a validated
+  `PopgenVCFRegenerationVerification`; the table and renderer return canonical
+  representations; validators return `TRUE` invisibly; the writer returns the
+  normalized output path invisibly.
 }
 \description{
 Create, validate, render, and write immutable section-level verification

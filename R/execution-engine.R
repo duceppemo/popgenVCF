@@ -14,7 +14,7 @@
 #'   independent modules continue and descendants of failed modules are marked
 #'   as blocked without being executed.
 #' @return A validated `PopgenVCFExecutionEngine` object.
-#' @export
+#' @noRd
 new_execution_engine <- function(workers = 1L,
                                  backend = c("sequential", "multicore"),
                                  resource_limits = NULL,
@@ -59,7 +59,7 @@ new_execution_engine <- function(workers = 1L,
 #' @param x A `PopgenVCFExecutionEngine` object.
 #' @param ... Unused.
 #' @return `x`, invisibly.
-#' @export
+#' @noRd
 print.PopgenVCFExecutionEngine <- function(x, ...) {
   cat("<PopgenVCFExecutionEngine>\n")
   cat("  backend:", x$backend, "\n")
@@ -263,7 +263,7 @@ merge_parallel_module <- function(analysis, context, execution, validated, regis
 #' @param engine A `PopgenVCFExecutionEngine` object.
 #' @return A list containing updated state, successful execution order, plan,
 #'   artifacts, engine metadata, and the module-level `execution` ledger.
-#' @export
+#' @noRd
 execute_analysis_plan <- function(analysis, context, registry, plan,
                                   engine = new_execution_engine()) {
   if (!inherits(engine, "PopgenVCFExecutionEngine")) {

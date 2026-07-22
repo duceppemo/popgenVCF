@@ -19,7 +19,7 @@ write_ibs_publication_artifacts(
 
 \item{distance}{Symmetric IBS distance matrix.}
 
-\item{metadata}{Optional data frame containing \code{sample_id} (or \code{sample}) and \code{population}.}
+\item{metadata}{Optional data frame containing `sample_id` (or `sample`) and `population`.}
 
 \item{output_dir}{Analysis output directory.}
 
@@ -30,8 +30,8 @@ write_ibs_publication_artifacts(
 \item{module}{Artifact module name.}
 }
 \value{
-A \code{PopgenVCFArtifactManifest}.
+A `PopgenVCFArtifactManifest`.
 }
 \description{
-Writes deterministic IBS matrices, MDS coordinates and eigenvalues, publication figures, source data, manuscript-ready methods and caption text, and fail-closed validation evidence.
+Write publication-ready IBS and MDS artifacts
 }

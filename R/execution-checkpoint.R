@@ -199,7 +199,7 @@ read_execution_checkpoint <- function(path, registry = NULL) {
 #' @param registry Current analysis registry.
 #' @param engine Execution engine for unfinished modules.
 #' @return A regular execution result with a combined ledger and `resumed_from_checkpoint` metadata.
-#' @export
+#' @noRd
 resume_analysis_execution <- function(checkpoint, registry,
                                       engine = new_execution_engine()) {
   validate_execution_checkpoint(checkpoint, registry = registry)

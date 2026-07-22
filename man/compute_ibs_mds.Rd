@@ -14,8 +14,8 @@ compute_ibs_mds(distance, k = 2L, sample_ids = NULL)
 \item{sample_ids}{Optional sample identifiers. Defaults to matrix row names.}
 }
 \value{
-A list containing \code{coordinates}, \code{eigenvalues}, and \code{goodness_of_fit}.
+A list containing `coordinates`, `eigenvalues`, and `goodness_of_fit`.
 }
 \description{
-Computes classical multidimensional scaling and applies deterministic axis orientation so repeated executions produce sign-stable coordinates.
+Compute deterministic classical MDS coordinates from an IBS distance matrix
 }
