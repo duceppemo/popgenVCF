@@ -1,3 +1,8 @@
+#' Create the default popgenVCF configuration
+#'
+#' @return A nested configuration list using the supported schema.
+#' @export
+
 default_config <- function() {
   list(
     schema_version = "1.0",
@@ -32,6 +37,12 @@ merge_lists <- function(x, y) {
   }
   x
 }
+
+#' Read and merge a popgenVCF configuration
+#'
+#' @param path YAML configuration file.
+#' @return The user configuration merged with current defaults.
+#' @export
 
 read_config <- function(path) {
   if (!file.exists(path)) stopf("Configuration file not found: %s", path)

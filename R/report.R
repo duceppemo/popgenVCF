@@ -1,3 +1,12 @@
+#' Render a population-genomics report
+#'
+#' @param results_rds Serialized analysis results path.
+#' @param output_dir Report output directory.
+#' @param title Report title.
+#' @param author Report author.
+#' @return The rendered report path, invisibly.
+#' @export
+
 render_report <- function(results_rds, output_dir, title = "Population genomics analysis", author = "") {
   template <- system.file("rmarkdown", "templates", "popgenvcf_report", "skeleton", "skeleton.Rmd", package = "popgenVCF")
   if (!nzchar(template)) stop("Installed report template not found", call. = FALSE)
