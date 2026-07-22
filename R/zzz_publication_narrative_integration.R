@@ -1,19 +1,22 @@
-publication_analysis_methods_text <- function(project, modules, parameters, narratives) {
+publication_analysis_methods_text <- function(project, modules, parameters, inventory) {
   base <- publication_methods_text(project, modules, parameters)
-  if (!nrow(narratives)) return(base)
-  sections <- paste0("## ", toupper(substring(narratives$kind, 1L, 1L)), substring(narratives$kind, 2L), "\n\n", narratives$method)
+  present <- inventory[state %in% c("present", "diagnostic-only")]
+  if (!nrow(present)) return(base)
+  sections <- paste0("## ", toupper(substring(present$kind, 1L, 1L)), substring(present$kind, 2L), "\n\n", present$method)
   paste(c(base, sections), collapse = "\n\n")
 }
 
-publication_analysis_caption_table <- function(artifacts, style, narratives) {
+publication_analysis_caption_table <- function(artifacts, style, inventory) {
+  publication_validate_caption_ownership(artifacts, inventory)
   captions <- publication_caption_table(artifacts, style)
-  if (!nrow(captions) || !nrow(narratives)) return(captions)
+  if (!nrow(captions)) return(captions)
+  active <- inventory[state %in% c("present", "diagnostic-only")]
   for (i in seq_len(nrow(captions))) {
     id <- tolower(captions$id[[i]])
-    matches <- which(vapply(seq_len(nrow(narratives)), function(j) {
-      grepl(narratives$kind[[j]], id, fixed = TRUE) || grepl(tolower(narratives$analysis[[j]]), id, fixed = TRUE)
+    matches <- which(vapply(seq_len(nrow(active)), function(j) {
+      grepl(active$kind[[j]], id, fixed = TRUE) || grepl(tolower(active$analysis[[j]]), id, fixed = TRUE)
     }, logical(1L)))
-    if (length(matches)) captions$caption[[i]] <- paste0(captions$label[[i]], ". ", narratives$legend[[matches[[1L]]]])
+    if (length(matches) == 1L) captions$caption[[i]] <- paste0(captions$label[[i]], ". ", active$legend[[matches]])
   }
   captions
 }
@@ -32,20 +35,19 @@ new_publication_bundle <- function(project, style = "generic", title = project$n
   parameters <- publication_parameter_table(project)
   modules <- publication_module_table(project)
   software <- publication_software_table(project)
-  narratives <- publication_analysis_narratives(project)
+  inventory <- publication_narrative_inventory(project)
+  completeness <- publication_narrative_completeness(inventory)
   bundle <- structure(list(
-    schema_version = "1.1",
-    project_id = project$project_id,
-    title = as.character(title)[1L],
-    style = style,
+    schema_version = "1.2", project_id = project$project_id,
+    title = as.character(title)[1L], style = style,
     created_at = format(Sys.time(), tz = "UTC", usetz = TRUE),
-    methods = publication_analysis_methods_text(project, modules, parameters, narratives),
-    parameters = parameters,
-    modules = modules,
-    software = software,
-    analyses = narratives,
+    methods = publication_analysis_methods_text(project, modules, parameters, inventory),
+    parameters = parameters, modules = modules, software = software,
+    analyses = inventory[state %in% c("present", "diagnostic-only")],
+    narrative_inventory = inventory, narrative_completeness = completeness,
+    supplementary_summaries = inventory[, .(analysis, kind, state, supplementary_summary)],
     artifacts = artifacts,
-    captions = publication_analysis_caption_table(artifacts, style, narratives),
+    captions = publication_analysis_caption_table(artifacts, style, inventory),
     project_digest = digest::digest(project$component_digests, algo = "sha256", serialize = TRUE)
   ), class = "PopgenVCFPublicationBundle")
   validate_publication_bundle(bundle)
@@ -80,12 +82,16 @@ generate_publication_bundle <- function(project, directory, style = "generic", t
   data.table::fwrite(bundle$parameters, file.path(directory, "manuscript", "parameters.tsv"), sep = "\t")
   data.table::fwrite(bundle$modules, file.path(directory, "manuscript", "modules.tsv"), sep = "\t")
   data.table::fwrite(bundle$analyses, file.path(directory, "manuscript", "analysis-narratives.tsv"), sep = "\t")
+  data.table::fwrite(bundle$narrative_inventory, file.path(directory, "manuscript", "narrative-inventory.tsv"), sep = "\t")
+  data.table::fwrite(bundle$narrative_completeness, file.path(directory, "manuscript", "narrative-completeness.tsv"), sep = "\t")
+  data.table::fwrite(bundle$supplementary_summaries, file.path(directory, "supplementary", "analysis-summaries.tsv"), sep = "\t")
   data.table::fwrite(bundle$captions, file.path(directory, "manuscript", "captions.tsv"), sep = "\t")
   write_publication_bibliography(bundle$analyses, file.path(directory, "manuscript", "references.bib"))
   data.table::fwrite(copied, file.path(directory, "provenance", "artifacts.tsv"), sep = "\t")
   jsonlite::write_json(list(project_id = bundle$project_id, project_digest = bundle$project_digest,
                             style = bundle$style, created_at = bundle$created_at,
-                            analyses = bundle$analyses[, .(analysis, kind, citation_keys)]),
+                            completeness = bundle$narrative_completeness,
+                            inventory = bundle$narrative_inventory[, .(analysis, kind, state, reason)]),
                        file.path(directory, "provenance", "publication.json"), pretty = TRUE, auto_unbox = TRUE)
   if (isTRUE(include_project)) write_popgenvcf_project(project, file.path(directory, "supplementary", "analysis.popgenvcf"), overwrite = TRUE)
   fair <- project$artifacts$fair_metadata

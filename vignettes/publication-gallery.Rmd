@@ -1,0 +1,93 @@
+---
+title: "Publication narrative and figure gallery"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Publication narrative and figure gallery}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(popgenVCF)
+```
+
+This gallery is generated from deterministic synthetic canonical-result records. It demonstrates publication structure and interpretation boundaries; it is not production biological evidence and does not replace approval of the canonical real-data baseline.
+
+## Maintained nine-family fixture
+
+```{r fixture}
+results <- list(
+  pca = structure(list(variance = c(0.34, 0.19), n_samples = 8L, n_snps = 120L), class = "PopgenVCFPCAResult"),
+  ibs = structure(list(method = "SNPRelate IBS"), class = "PopgenVCFIBSResult"),
+  tree = structure(list(), class = "PopgenVCFTreeResult"),
+  diversity = structure(list(), class = "PopgenVCFDiversityResult"),
+  fst = structure(list(method = "Weir and Cockerham 1984"), class = "PopgenVCFFSTResult"),
+  amova = structure(list(), class = "PopgenVCFAMOVAResult"),
+  dapc = structure(list(parameters = list(n_pca = 12L, n_da = 2L)), class = "PopgenVCFDAPCResult"),
+  ibd = structure(list(), class = "PopgenVCFIBDResult"),
+  ancestry = structure(list(backend = "ADMIXTURE", selected_k = 3L), class = "PopgenVCFAncestryResult")
+)
+project <- new_popgenvcf_project(
+  "Publication gallery fixture",
+  results = results,
+  project_id = "00000000-0000-0000-0000-000000000930"
+)
+bundle <- new_publication_bundle(project)
+inventory <- bundle$narrative_inventory
+inventory[, c("kind", "state", "citation_keys"), with = FALSE]
+```
+
+## Completeness evidence
+
+```{r completeness}
+bundle$narrative_completeness
+```
+
+Every canonical family has one narrative owner, a methods statement, a caption/legend, citation keys, and a supplementary summary. The same table records `skipped`, `unavailable`, `incomplete`, `failed`, and `diagnostic-only` states without inventing results.
+
+## Interpretation boundaries
+
+| Family | Gallery interpretation boundary |
+|---|---|
+| PCA | Ordination axes summarize genotype variation; they do not prove discrete populations or causality. |
+| IBS/MDS | Sample similarity is not population-level FST. |
+| Neighbour joining | Branch lengths follow the recorded distance and are not a time-calibrated phylogeny. |
+| Diversity | Estimates depend on filtering, sample size, missingness, and population assignment. |
+| FST | Population differentiation is estimator- and sampling-dependent. |
+| AMOVA | Variance partitioning follows the supplied hierarchy and distance definition. |
+| DAPC | Discrimination among supplied groups is not model-based ancestry. |
+| IBD | Geographic association does not by itself identify a causal process. |
+| Ancestry | Cluster labels are arbitrary and K selection requires replicate and fit evidence. |
+
+## Transparent fallback states
+
+```{r fallback}
+fallback_project <- new_popgenvcf_project(
+  "Publication fallback fixture",
+  modules = list(
+    pca = list(status = "skipped", reason = "No variants passed QC."),
+    ancestry = list(status = "diagnostic-only", reason = "Exploratory backend comparison.")
+  ),
+  results = list(
+    ancestry = structure(
+      list(backend = "ADMIXTURE", selected_k = 2L, status = "diagnostic-only"),
+      class = "PopgenVCFAncestryResult"
+    )
+  ),
+  project_id = "00000000-0000-0000-0000-000000000931"
+)
+fallback_bundle <- new_publication_bundle(fallback_project)
+fallback_bundle$narrative_inventory[, c("kind", "state", "reason"), with = FALSE]
+```
+
+## Publication companion outputs
+
+`generate_publication_bundle()` writes the following maintained evidence in addition to methods, captions, bibliography, artifact lineage, and checksums:
+
+- `manuscript/narrative-inventory.tsv`;
+- `manuscript/narrative-completeness.tsv`;
+- `supplementary/analysis-summaries.tsv`;
+- `provenance/publication.json`.
+
+These files allow reviewers and release automation to distinguish complete scientific narratives from transparent fallback states.

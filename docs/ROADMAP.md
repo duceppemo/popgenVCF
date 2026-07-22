@@ -90,6 +90,7 @@ The authoritative development package version is **0.10.0**.
 - [x] **0.9.30a — Source-package and R CMD check hygiene** (#285)
 - [x] **0.9.30b — Generated API documentation and canonical interface reconciliation** (#284)
 - [x] **0.9.30.1 — User tutorials, scientific interpretation, deployment, and troubleshooting** (#288)
+- [x] **0.9.30.2 — Publication narrative completeness and maintained gallery** (#68)
 
 These milestones complete the software contracts and fail-closed evidence models. They do not substitute for executing, reviewing, approving, and publishing the first production real-data baseline, external-tool concordance suite, and release benchmark history.
 
@@ -113,7 +114,7 @@ Repository health and the opening Phase 0.9.30 maintenance work are reconciled:
    - [x] reconcile roxygen ownership, generated `NAMESPACE`/Rd files, S3 registrations, and the canonical API baseline (#284).
 2. **Documentation, metadata, and archival readiness**
    - [x] complete the first-analysis tutorial, scientific interpretation guide, troubleshooting guide, reproducibility guide, and GHCR/Apptainer/HPC deployment guidance (#288);
-   - complete the maintained publication gallery and end-to-end narrative integration (#68);
+   - [x] complete the maintained publication gallery and end-to-end narrative integration (#68);
    - verify citation and software metadata plus reproducibility statements;
    - add Zenodo configuration, DOI-ready metadata, SBOM, checksum, and provenance instructions.
 3. **0.9.31 — 0.10.0 release-candidate closure**
@@ -135,7 +136,7 @@ Repository health and the opening Phase 0.9.30 maintenance work are reconciled:
 ### Documentation and metadata
 
 - [x] first-analysis tutorial, scientific interpretation, troubleshooting, reproducibility, and deployment/HPC guide set;
-- [ ] maintained publication figure gallery and end-to-end narrative example;
+- [x] maintained publication figure gallery and end-to-end narrative example;
 - [ ] verify and finalize `CITATION.cff`, `codemeta.json`, and the reproducibility statement;
 - [ ] Zenodo configuration and DOI-ready archive metadata;
 - [ ] SBOM, checksums, and provenance instructions.
@@ -145,7 +146,6 @@ Repository health and the opening Phase 0.9.30 maintenance work are reconciled:
 - **#4 — Publication-quality platform:** umbrella tracker for remaining 0.10 and 1.0 release work.
 - **#22 — Canonical real-data validation:** retains the uncompleted production baseline, external-tool execution, approval, and full-validation workflow work.
 - **#43 — Continuous scientific benchmarks:** retains CI/release integration, approved historical baselines, dashboards, and published release benchmark artifacts.
-- **#68 — Analysis-specific publication narratives:** retains publication-gallery, module-specific narrative, citation, and supplementary integration not yet demonstrated end to end.
 - **#1 — Reproducibility and release infrastructure:** remains open until documentation, metadata, archival integration, and release automation are complete.
 
 ## 1.0: stable scientific release

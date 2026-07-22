@@ -27,6 +27,8 @@ navbar:
           href: articles/getting-started.html
         - text: Interpret results
           href: articles/interpreting-results.html
+        - text: Publication gallery
+          href: articles/publication-gallery.html
         - text: Troubleshooting
           href: articles/troubleshooting.html
         - text: Reproducibility
@@ -54,6 +56,7 @@ articles:
     contents:
       - getting-started
       - interpreting-results
+      - publication-gallery
       - troubleshooting
   - title: Reproducibility and deployment
     navbar: ~
