@@ -8,9 +8,9 @@
 
 ## Repository status
 
-Implementation contracts are complete through Phase **0.9.30.3**. The remaining Phase **0.9.30** work is archival readiness: Zenodo and DOI-ready configuration, SBOM publication, release checksums, and provenance instructions before the 0.10.0 release-candidate closure phase.
+Implementation contracts are complete through Phase **0.9.30.4**. Phase **0.9.30** archival readiness now includes DOI-ready but unpublished Zenodo metadata, a standalone source-package SPDX SBOM, OCI SBOM and provenance extraction, checksum-linked source-release provenance, complete release manifests, and archival verification instructions. Phase **0.9.31** is the active 0.10.0 release-candidate closure phase.
 
-The software contracts are not the same as approved production evidence. The first checksum-verified real-data baseline, full external-tool concordance suite, historical release benchmark archive, and final 0.10.0 release certificate still require execution, scientific review, approval, and publication through the dedicated validation workflows. See the [roadmap](docs/ROADMAP.md) for the authoritative distinction between completed infrastructure and remaining release evidence.
+The software contracts are not the same as approved production evidence. The first checksum-verified real-data baseline, full external-tool concordance suite, historical release benchmark archive, real-data three-backend ancestry evidence, final release certificate, release tag, and published DOI still require execution, scientific review, approval, and publication through the dedicated validation and release workflows. See the [roadmap](docs/ROADMAP.md) for the authoritative distinction between completed infrastructure and remaining release evidence.
 
 ## Highlights
 
@@ -23,7 +23,8 @@ The software contracts are not the same as approved production evidence. The fir
 - Provides diversity, FST, DAPC, population-structure, AMOVA, Mantel, and isolation-by-distance workflows when their requirements are met.
 - Produces publication artifacts, validation records, and reproducible container images.
 - Preserves canonical dataset checksums, scientific approval state, external-tool provenance, and release benchmark budgets as machine-readable evidence.
-- Synchronizes the installed package citation, `CITATION.cff`, CodeMeta, FAIR software records, and reproducibility statement against one development-safe software identity.
+- Synchronizes the installed package citation, `CITATION.cff`, CodeMeta, FAIR software records, Zenodo deposition metadata, and reproducibility statement against one development-safe software identity.
+- Produces checksum-linked source and OCI SBOM/provenance evidence without claiming an unpublished release date or DOI.
 
 ## Start here
 
@@ -219,6 +220,8 @@ Canonical real-data acquisition and external-tool execution are deliberately exc
 - [Project charter](docs/PROJECT_CHARTER.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Reproducibility statement](docs/reproducibility.md)
+- [Release archival readiness](docs/developer/release-archival-readiness.md)
 - [Citation metadata](CITATION.cff)
+- [Zenodo deposition metadata](.zenodo.json)
 - [CodeMeta software record](codemeta.json)
 - [Container images](docs/user/container-images.md)

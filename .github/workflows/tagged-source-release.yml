@@ -2,15 +2,23 @@ name: Tagged source-package release
 
 on:
   pull_request:
-    branches: [main]
     paths:
       - '.github/workflows/tagged-source-release.yml'
+      - '.zenodo.json'
+      - 'CITATION.cff'
+      - 'codemeta.json'
+      - 'docs/reproducibility.md'
+      - 'docs/developer/release-archival-readiness.md'
       - 'scripts/build_release_manifest.R'
       - 'inst/scripts/build_release_manifest.R'
+      - 'scripts/build_release_provenance.R'
+      - 'inst/scripts/build_release_provenance.R'
       - 'scripts/build_scientific_release_integration.R'
       - 'tests/testthat/test-release-manifest.R'
+      - 'tests/testthat/test-release-provenance.R'
       - 'docs/developer/tagged-source-release.md'
       - 'DESCRIPTION'
+      - '.Rbuildignore'
   push:
     tags: ['v*']
   workflow_dispatch:
@@ -114,6 +122,49 @@ jobs:
           [[ -n "${tarball}" ]]
           cp "${tarball}" "${package_root}/release-assets/"
           echo "tarball=${tarball}" >> "$GITHUB_OUTPUT"
+          echo "asset=$(basename "${tarball}")" >> "$GITHUB_OUTPUT"
+
+      - name: Collect archival metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-work/archive-metadata
+          cp .zenodo.json release-work/archive-metadata/.zenodo.json
+          cp CITATION.cff release-work/archive-metadata/CITATION.cff
+          cp codemeta.json release-work/archive-metadata/codemeta.json
+          cp docs/reproducibility.md release-work/archive-metadata/reproducibility.md
+          tar \
+            --sort=name \
+            --mtime='UTC 1970-01-01' \
+            --owner=0 \
+            --group=0 \
+            --numeric-owner \
+            -czf release-assets/popgenVCF-archive-metadata.tar.gz \
+            -C release-work/archive-metadata .
+
+      - name: Generate source-package SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          file: release-assets/${{ steps.package.outputs.asset }}
+          format: spdx-json
+          output-file: release-assets/popgenVCF-source-sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Validate source-package SBOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s release-assets/popgenVCF-source-sbom.spdx.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("release-assets/popgenVCF-source-sbom.spdx.json")
+          document = json.loads(path.read_text(encoding="utf-8"))
+          assert str(document.get("spdxVersion", "")).startswith("SPDX-")
+          assert document.get("SPDXID") == "SPDXRef-DOCUMENT"
+          assert isinstance(document.get("packages", []), list)
+          PY
 
       - name: Check built source package
         shell: bash
@@ -165,6 +216,24 @@ jobs:
             sep = "\t",
             quote = FALSE
           )
+
+      - name: Generate source-release provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          Rscript scripts/build_release_provenance.R \
+            release-assets \
+            popgenVCF \
+            "${{ steps.identity.outputs.package_version }}" \
+            "${{ steps.identity.outputs.release_id }}" \
+            "${{ steps.identity.outputs.release_id }}" \
+            "${GITHUB_SHA}" \
+            "${GITHUB_WORKFLOW}" \
+            "${GITHUB_RUN_ID}" \
+            "${GITHUB_RUN_ATTEMPT}" \
+            "${{ steps.package.outputs.asset }}" \
+            popgenVCF-source-sbom.spdx.json \
+            popgenVCF-archive-metadata.tar.gz
 
       - name: Generate and verify release manifest
         shell: bash

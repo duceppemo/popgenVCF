@@ -1,0 +1,21 @@
+{
+  "title": "popgenVCF: Population Genomics Toolkit for VCF Data",
+  "upload_type": "software",
+  "description": "A modular R package and command-line toolkit for reproducible population-genomic analysis of diploid, biallelic SNP data stored in VCF files.",
+  "creators": [
+    {
+      "name": "Duceppe, Marc-Olivier"
+    }
+  ],
+  "access_right": "open",
+  "license": "mit",
+  "version": "0.10.0",
+  "keywords": [
+    "population genomics",
+    "population genetics",
+    "VCF",
+    "SNP",
+    "bioinformatics",
+    "reproducible research"
+  ]
+}
