@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "name": "popgenVCF",
+  "title": "Population Genomics Toolkit for VCF Data",
+  "citation_title": "popgenVCF: Population Genomics Toolkit for VCF Data",
+  "version": "0.10.0",
+  "citation_year": 2026,
+  "release_status": "development",
+  "date_released": null,
+  "doi": null,
+  "description": "A modular R package and command-line toolkit for reproducible population-genomic analysis of diploid, biallelic SNP data stored in VCF files.",
+  "author": {
+    "given_name": "Marc-Olivier",
+    "family_name": "Duceppe",
+    "email": "duceppemo@users.noreply.github.com",
+    "roles": [
+      "aut",
+      "cre"
+    ]
+  },
+  "repository": "https://github.com/duceppemo/popgenVCF",
+  "documentation": "https://duceppemo.github.io/popgenVCF/",
+  "issue_tracker": "https://github.com/duceppemo/popgenVCF/issues",
+  "release_archive": "https://github.com/duceppemo/popgenVCF/releases",
+  "license": {
+    "spdx": "MIT",
+    "url": "https://spdx.org/licenses/MIT.html"
+  },
+  "keywords": [
+    "population genomics",
+    "population genetics",
+    "VCF",
+    "SNP",
+    "bioinformatics",
+    "reproducible research"
+  ],
+  "programming_language": "R",
+  "runtime_platform": "R (>= 4.3)",
+  "application_category": "Bioinformatics",
+  "development_status": "https://www.repostatus.org/#active",
+  "system_requirements": [
+    "BCFtools",
+    "HTSlib"
+  ],
+  "optional_system_requirements": [
+    "Pandoc",
+    "ADMIXTURE",
+    "fastStructure"
+  ]
+}
