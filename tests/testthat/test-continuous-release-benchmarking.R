@@ -127,6 +127,20 @@ test_that("benchmark evidence is deterministic and fail closed", {
     ),
     "inconsistent"
   )
+
+  wrong_release <- comparison
+  wrong_release$current_release <- "different-current"
+  expect_invisible(validate_continuous_benchmark_comparison(wrong_release))
+  expect_error(
+    write_continuous_benchmark_evidence(
+      list(current), list(wrong_release), tempfile(), require_release_ready = TRUE
+    ),
+    "exact supplied current observation"
+  )
+
+  malformed_checks <- comparison
+  malformed_checks$checks$passed[[1L]] <- NA
+  expect_error(validate_continuous_benchmark_comparison(malformed_checks), "checks")
 })
 
 test_that("duplicate observations are rejected", {
