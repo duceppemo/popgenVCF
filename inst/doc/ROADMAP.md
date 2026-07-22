@@ -92,37 +92,46 @@ The authoritative development package version is **0.10.0**.
 - [x] **0.9.30.1 — User tutorials, scientific interpretation, deployment, and troubleshooting** (#288)
 - [x] **0.9.30.2 — Publication narrative completeness and maintained gallery** (#68)
 - [x] **0.9.30.3 — Citation, software, and reproducibility metadata reconciliation** (#291)
+- [x] **0.9.30.4 — DOI-ready archival metadata, SBOMs, checksums, and provenance** (#297)
 
-These milestones complete the software contracts and fail-closed evidence models. They do not substitute for executing, reviewing, approving, and publishing the first production real-data baseline, external-tool concordance suite, and release benchmark history.
+These milestones complete the software, documentation, metadata, and archival-readiness contracts. They do not substitute for executing, reviewing, approving, depositing, and publishing the first production real-data baseline, external-tool concordance suite, cross-backend ancestry evidence, release benchmark history, or final 0.10.0 release certificate.
 
 ### Completed stabilization gate
 
-Repository health and the opening Phase 0.9.30 maintenance work are reconciled:
+Repository health and Phase 0.9.30 are reconciled:
 
 - [x] eliminate false release-readiness paths in concordance and benchmark evidence;
 - [x] replace runtime namespace mutation with explicit public exports;
-- [x] report roxygen, NAMESPACE, Rd, API-baseline, and release-metadata drift deterministically;
+- [x] report roxygen, NAMESPACE, Rd, API-baseline, release-metadata, LICENSE, Zenodo, and action-pin drift deterministically;
 - [x] synchronize README, NEWS, roadmaps, and issue trackers;
-- [x] close completed umbrella and maintenance issues while retaining only unmet acceptance criteria;
+- [x] retire obsolete competing roadmap material;
 - [x] eliminate avoidable package-check notes and source-package hygiene defects;
 - [x] establish deterministic roxygen generation and a 613-entry canonical installed API baseline;
+- [x] pin external GitHub Actions to immutable commits with controlled update automation;
+- [x] generate source and OCI SBOM/provenance evidence and checksum-linked archival manifests;
 - [x] run the complete CI matrix on the reconciled state.
 
-### Active Phase 0.9.30 sequence
+### Completed Phase 0.9.30 sequence
 
-1. **Completed opening maintenance**
+1. **Opening maintenance**
    - [x] eliminate avoidable `R CMD check` notes and source-package hygiene defects (#285);
    - [x] reconcile roxygen ownership, generated `NAMESPACE`/Rd files, S3 registrations, and the canonical API baseline (#284).
 2. **Documentation, metadata, and archival readiness**
    - [x] complete the first-analysis tutorial, scientific interpretation guide, troubleshooting guide, reproducibility guide, and GHCR/Apptainer/HPC deployment guidance (#288);
    - [x] complete the maintained publication gallery and end-to-end narrative integration (#68);
    - [x] reconcile citation, installed-package, CodeMeta, FAIR software, and reproducibility metadata with development-safe release boundaries (#291);
-   - add Zenodo configuration, DOI-ready metadata, SBOM, checksum, and provenance instructions.
-3. **0.9.31 — 0.10.0 release-candidate closure**
-   - synchronize DESCRIPTION, NEWS, roadmap, and trackers;
-   - execute full canonical validation and external-tool concordance, approve the production quantitative baseline, publish release benchmarks, and issue the real release certificate;
-   - validate container and Apptainer artifacts, assemble archives, run source and distribution install tests, and produce a reviewer-ready release-readiness report;
-   - tag and publish 0.10.0 only after every required gate passes.
+   - [x] add DOI-ready Zenodo metadata, source and OCI SBOMs, provenance evidence, release checksums, manifests, and archival instructions (#297).
+
+### Active Phase 0.9.31 — 0.10.0 release-candidate closure
+
+- synchronize final DESCRIPTION, NEWS, roadmap, metadata, and trackers;
+- execute full canonical validation and external-tool concordance;
+- approve the production quantitative baseline and real-data cross-backend ancestry evidence;
+- publish release benchmark history and issue the real release certificate;
+- validate source, container, and Apptainer distribution artifacts from clean environments;
+- assemble and review the complete archival asset set;
+- produce a reviewer-ready release-readiness report;
+- tag, publish, deposit, and assign the real DOI only after every required gate passes.
 
 ### Validation datasets and benchmarking
 
@@ -131,6 +140,7 @@ Repository health and the opening Phase 0.9.30 maintenance work are reconciled:
 - [x] define production baseline, scientific concordance, performance-budget, and release-evidence contracts;
 - [ ] execute, approve, and retain the first production quantitative baseline snapshot from the canonical real dataset;
 - [ ] execute and publish complete external-tool scientific concordance evidence;
+- [ ] execute and approve a real-data three-backend ancestry validation case;
 - [ ] publish runtime, memory, scaling, and historical regression artifacts per release;
 - [ ] publish or externally host a checksum-pinned medium or large benchmark tier when licensing and storage policy permit.
 
@@ -139,19 +149,21 @@ Repository health and the opening Phase 0.9.30 maintenance work are reconciled:
 - [x] first-analysis tutorial, scientific interpretation, troubleshooting, reproducibility, and deployment/HPC guide set;
 - [x] maintained publication figure gallery and end-to-end narrative example;
 - [x] canonical `CITATION.cff`, `codemeta.json`, installed citation, FAIR software identity, and reproducibility statement;
-- [ ] Zenodo configuration and DOI-ready archive metadata;
-- [ ] SBOM, checksums, and provenance instructions.
+- [x] DOI-ready, development-safe Zenodo deposition metadata;
+- [x] source and OCI SBOMs, checksums, provenance, and archival verification instructions;
+- [ ] record the real release date, DOI, concept DOI, and archive identifiers only after successful publication.
 
 ## Open tracking issues and deferred enhancements
 
 - **#4 — Publication-quality platform:** umbrella tracker for remaining 0.10 and 1.0 release work.
 - **#22 — Canonical real-data validation:** retains the uncompleted production baseline, external-tool execution, approval, and full-validation workflow work.
-- **#43 — Continuous scientific benchmarks:** retains CI/release integration, approved historical baselines, dashboards, and published release benchmark artifacts.
-- **#1 — Reproducibility and release infrastructure:** remains open until archival integration, release evidence, and release automation are complete.
+- **#24 — Unified ancestry platform:** retains backend installation guidance and approved real-data three-backend release evidence.
+- **#43 — Continuous scientific benchmarks:** retains approved historical baselines, dashboards, and published release benchmark artifacts.
+- **#1 — Reproducibility and release infrastructure:** remains open until production release evidence, final distribution validation, tagging, deposition, and publication are complete.
 
 ## 1.0: stable scientific release
 
-Release 1.0 requires stable CLI, YAML, R API, module and output contracts; validated core modules and canonical real-data results; a complete report engine; validated container and Apptainer artifacts; complete documentation and citation metadata; and reproducible release artifacts with checksums, SBOM, and provenance.
+Release 1.0 requires stable CLI, YAML, R API, module and output contracts; validated core modules and canonical real-data results; a complete report engine; validated container and Apptainer artifacts; complete documentation and citation metadata; and reproducible release artifacts with checksums, SBOM, provenance, and persistent archive identifiers.
 
 ## Beyond 1.0
 
