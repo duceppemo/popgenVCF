@@ -1,4 +1,4 @@
-schema_version: "1.1"
+schema_version: "1.2"
 datasets:
   core_synthetic:
     enabled: true
@@ -16,23 +16,26 @@ datasets:
     license: private
     approval: local_only
     purpose: application-specific validation supplied outside the package
-  first_public_canonical_candidate:
-    enabled: false
+  1000g_phase3_chry_v2a:
+    enabled: true
     bundled: false
     data_class: public_real_data
-    approval: candidate
-    descriptor: null
-    source_url: null
-    version: null
-    citation: null
-    license: null
-    sha256_inventory: null
-    reviewed_by: null
-    reviewed_at: null
-    purpose: first independently licensed public canonical panel
-    activation_requirements:
-      - immutable source and release version
-      - verified redistribution and analysis license
-      - complete citation and provenance metadata
-      - SHA-256 checksum for every materialized file
-      - scientific review approval
+    approval: approved
+    version: 20130502-v2a
+    organism: Homo sapiens
+    assembly: GRCh37
+    doi: 10.5281/zenodo.3359882
+    license: Zenodo open dataset; use subject to record rights
+    citation: The 1000 Genomes Project Consortium (2015), Nature 526:68-74, doi:10.1038/nature15393
+    reviewed_by: popgenVCF scientific validation maintainers
+    reviewed_at: 2026-07-22
+    routine_ci: false
+    full_validation_only: true
+    files:
+      - filename: ALL.chrY.phase3_integrated_v2a.20130502.genotypes.vcf.gz
+        md5: 388fb466c983d4bec2082941647409f3
+      - filename: ALL.chrY.phase3_integrated_v2a.20130502.genotypes.vcf.gz.tbi
+        md5: fa37e14805cce3221f6f9d3a4cd749a4
+      - filename: integrated_call_male_samples_v3.20130502.ALL.panel
+        md5: d1e59867b4d4ce43092a45a479496b80
+    purpose: first approved real-data validation panel; upstream MD5 verification precedes SHA-256 descriptor promotion

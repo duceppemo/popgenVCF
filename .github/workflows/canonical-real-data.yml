@@ -1,0 +1,39 @@
+name: Canonical real-data validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-1000g-chry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::rcmdcheck
+          needs: check
+      - name: Install package
+        run: R CMD INSTALL .
+      - name: Download approved source files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p canonical-source
+          base='https://zenodo.org/records/3359882/files'
+          curl --fail --location --retry 3 --output canonical-source/ALL.chrY.phase3_integrated_v2a.20130502.genotypes.vcf.gz "$base/ALL.chrY.phase3_integrated_v2a.20130502.genotypes.vcf.gz?download=1"
+          curl --fail --location --retry 3 --output canonical-source/ALL.chrY.phase3_integrated_v2a.20130502.genotypes.vcf.gz.tbi "$base/ALL.chrY.phase3_integrated_v2a.20130502.genotypes.vcf.gz.tbi?download=1"
+          curl --fail --location --retry 3 --output canonical-source/integrated_call_male_samples_v3.20130502.ALL.panel "$base/integrated_call_male_samples_v3.20130502.ALL.panel?download=1"
+      - name: Verify and write evidence
+        run: Rscript scripts/run-approved-canonical-validation.R canonical-source canonical-validation-evidence
+      - uses: actions/upload-artifact@v4
+        with:
+          name: canonical-1000g-chry-evidence
+          path: canonical-validation-evidence
+          if-no-files-found: error
