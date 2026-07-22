@@ -56,8 +56,10 @@ evaluate_canonical_release_gate <- function(release_id, validation = NULL,
   if (!is.list(provenance) || (length(provenance) && is.null(names(provenance))))
     stop("provenance must be a named list", call. = FALSE)
 
-  validation_pass <- !is.null(validation) && inherits(validation, "PopgenVCFCanonicalValidationSuiteResult") &&
-    isTRUE(validation$passed)
+  validation_valid <- !is.null(validation) &&
+    inherits(validation, "PopgenVCFCanonicalValidationSuiteResult")
+  validation_table <- if (validation_valid) canonical_validation_suite_table(validation) else NULL
+  validation_pass <- validation_valid && nrow(validation_table) > 0L && all(validation_table$passed)
   baseline_pass <- !is.null(baselines) && inherits(baselines, "PopgenVCFCanonicalBaselineResult") &&
     isTRUE(baselines$passed)
   reconciliation_pass <- !is.null(reconciliation) &&
@@ -71,8 +73,10 @@ evaluate_canonical_release_gate <- function(release_id, validation = NULL,
   passes <- c(validation = validation_pass, baselines = baseline_pass,
               drift = drift_pass, reconciliation = reconciliation_pass)
   details <- c(
-    validation = if (is.null(validation)) "validation result missing" else if (validation_pass)
-      "canonical validation suite passed" else "canonical validation suite failed or has invalid type",
+    validation = if (is.null(validation)) "validation result missing" else if (!validation_valid)
+      "validation result has invalid type" else if (!nrow(validation_table))
+      "canonical validation suite contains no executed datasets" else if (validation_pass)
+      "canonical validation suite passed" else "canonical validation suite failed",
     baselines = if (is.null(baselines)) "baseline result missing" else if (baseline_pass)
       "canonical baselines conform" else "canonical baseline comparison failed or has invalid type",
     drift = if (is.null(drift)) "drift assessment missing" else if (!drift_valid)
@@ -113,8 +117,8 @@ evaluate_canonical_release_gate <- function(release_id, validation = NULL,
 canonical_release_gate_table <- function(result) {
   if (!inherits(result, "PopgenVCFCanonicalReleaseGateResult"))
     stop("result must be a canonical release gate result", call. = FALSE)
-  order <- c("validation", "baselines", "drift", "reconciliation")
-  out <- result$components[match(order, result$components$component), , drop = FALSE]
+  component_order <- c("validation", "baselines", "drift", "reconciliation")
+  out <- result$components[match(component_order, result$components$component), , drop = FALSE]
   rownames(out) <- NULL
   out
 }
