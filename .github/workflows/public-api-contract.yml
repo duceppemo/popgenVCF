@@ -39,10 +39,12 @@ jobs:
           required <- c("Package", "Version", "Contract-Format", "Entries", "Snapshot-SHA256")
           missing <- setdiff(required, colnames(metadata))
           if (length(missing)) stop("Missing baseline metadata field(s): ", paste(missing, collapse = ", "))
+          baseline_file <- "inst/api-contract/public-api-baseline.tsv"
           actual_sha256 <- digest::digest(
-            file = "inst/api-contract/public-api-baseline.tsv",
+            baseline_file,
             algo = "sha256",
-            serialize = FALSE
+            serialize = FALSE,
+            file = TRUE
           )
           expected_sha256 <- metadata[1L, "Snapshot-SHA256"]
           if (!identical(actual_sha256, expected_sha256)) {
