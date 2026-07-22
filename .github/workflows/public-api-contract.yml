@@ -30,13 +30,23 @@ jobs:
       - name: Restore canonical baseline
         shell: bash
         run: |
+          set -euo pipefail
           test -f inst/api-contract/public-api-baseline.tsv.gz.b64
           test -f inst/api-contract/public-api-baseline.dcf
           base64 --decode inst/api-contract/public-api-baseline.tsv.gz.b64 | gzip --decompress > inst/api-contract/public-api-baseline.tsv
-          expected_digest="$(sed -n 's/^Snapshot-SHA256: //p' inst/api-contract/public-api-baseline.dcf)"
-          actual_digest="$(sha256sum inst/api-contract/public-api-baseline.tsv | cut -d' ' -f1)"
-          test -n "$expected_digest"
-          test "$expected_digest" = "$actual_digest"
+          Rscript - <<'RSCRIPT'
+          metadata <- read.dcf("inst/api-contract/public-api-baseline.dcf")
+          required <- c("Package", "Version", "Contract-Format", "Entries", "Snapshot-SHA256")
+          missing <- setdiff(required, colnames(metadata))
+          if (length(missing)) stop("Missing baseline metadata field(s): ", paste(missing, collapse = ", "))
+          actual <- unname(tools::md5sum("inst/api-contract/public-api-baseline.tsv"))
+          sha256 <- openssl::sha256(file("inst/api-contract/public-api-baseline.tsv", "rb"))
+          actual_sha256 <- paste(format(sha256), collapse = "")
+          expected_sha256 <- metadata[1L, "Snapshot-SHA256"]
+          if (!identical(actual_sha256, expected_sha256)) {
+            stop("Canonical baseline SHA-256 mismatch: expected ", expected_sha256, ", got ", actual_sha256)
+          }
+          RSCRIPT
 
       - name: Generate current contract
         run: |
@@ -44,19 +54,26 @@ jobs:
           Rscript tools/update-public-api-baseline.R . artifacts/public-api-contract/public-api-current.tsv artifacts/public-api-contract/public-api-current.dcf
 
       - name: Verify canonical baseline
-        shell: bash
         run: |
           Rscript tools/check-public-api-contract.R . artifacts/public-api-contract inst/api-contract/public-api-baseline.tsv
-          expected_version="$(sed -n 's/^Version: //p' inst/api-contract/public-api-baseline.dcf)"
-          installed_version="$(Rscript -e 'cat(as.character(utils::packageVersion("popgenVCF")))')"
-          expected_entries="$(sed -n 's/^Entries: //p' inst/api-contract/public-api-baseline.dcf)"
-          actual_entries="$(($(wc -l < inst/api-contract/public-api-baseline.tsv) - 1))"
-          test "$expected_version" = "$installed_version"
-          test "$expected_entries" = "$actual_entries"
+          Rscript - <<'RSCRIPT'
+          metadata <- read.dcf("inst/api-contract/public-api-baseline.dcf")
+          expected_version <- metadata[1L, "Version"]
+          installed_version <- as.character(utils::packageVersion("popgenVCF"))
+          if (!identical(expected_version, installed_version)) {
+            stop("Baseline version ", expected_version, " does not match installed package version ", installed_version)
+          }
+          expected_entries <- as.integer(metadata[1L, "Entries"])
+          baseline <- utils::read.delim("inst/api-contract/public-api-baseline.tsv", stringsAsFactors = FALSE, check.names = FALSE, na.strings = "")
+          if (!identical(expected_entries, nrow(baseline))) {
+            stop("Baseline entry count mismatch: metadata declares ", expected_entries, ", file contains ", nrow(baseline))
+          }
+          RSCRIPT
 
       - name: Upload API contract evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: public-api-contract
           path: artifacts/public-api-contract
-          if-no-files-found: error
+          if-no-files-found: warn
