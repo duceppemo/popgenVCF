@@ -60,7 +60,7 @@ test_that("Phase 0.9.30 user guides are complete and site-linked", {
   expect_true(all(file.exists(file.path(root, guides))))
 
   pkgdown <- readLines(file.path(root, "_pkgdown.yml"), warn = FALSE)
-  slugs <- sub("^vignettes/|\\.Rmd$", "", guides)
+  slugs <- sub("\\.Rmd$", "", basename(guides))
   for (slug in slugs) {
     expect_true(any(grepl(paste0("articles/", slug, "\\.html"), pkgdown)))
     expect_true(any(trimws(pkgdown) == paste0("- ", slug)))
