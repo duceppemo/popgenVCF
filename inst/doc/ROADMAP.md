@@ -105,7 +105,8 @@ Repository health reconciliation must complete before feature work resumes:
 
 1. **0.9.30 — Documentation, metadata, and archival readiness**
    - complete pkgdown tutorials, interpretation guides, publication gallery, citation and software metadata, reproducibility statements, GHCR and Apptainer usage, HPC guidance, Zenodo configuration, DOI-ready metadata, SBOM, checksum, and provenance instructions;
-   - resolve remaining advisory roxygen-to-namespace drift and regenerate all derived package documentation from source.
+   - resolve remaining advisory roxygen-to-namespace drift and regenerate all derived package documentation from source (#284);
+   - eliminate avoidable `R CMD check` notes and source-package hygiene defects (#285).
 2. **0.9.31 — 0.10.0 release-candidate closure**
    - synchronize DESCRIPTION, NEWS, roadmap, and trackers;
    - execute full canonical validation and external-tool concordance, approve the production quantitative baseline, publish release benchmarks, and issue the real release certificate;
@@ -136,6 +137,8 @@ Repository health reconciliation must complete before feature work resumes:
 - **#22 — Canonical real-data validation:** retains the uncompleted production baseline, external-tool execution, approval, and full-validation workflow work.
 - **#43 — Continuous scientific benchmarks:** retains CI/release integration, approved historical baselines, dashboards, and published release benchmark artifacts.
 - **#68 — Analysis-specific publication narratives:** retains any module-specific narrative, citation, and supplementary integration not yet demonstrated end to end.
+- **#284 — Generated API documentation reconciliation:** resolves remaining roxygen, namespace, Rd, and API-baseline drift.
+- **#285 — R CMD check note cleanup:** removes source-package hygiene, internal namespace, NSE/import, and Rd formatting notes.
 - **#1 — Reproducibility and release infrastructure:** remains open until documentation, metadata, archival integration, and release automation are complete.
 
 ## 1.0: stable scientific release
