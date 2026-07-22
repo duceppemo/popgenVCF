@@ -126,7 +126,13 @@ write_public_api_contract <- function(output_dir, baseline_file = NULL, namespac
   current <- public_api_contract_snapshot(namespace)
   utils::write.table(current, file.path(output_dir, "public-api-current.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "")
   if (is.null(baseline_file)) return(invisible(current))
-  baseline <- utils::read.delim(baseline_file, stringsAsFactors = FALSE, check.names = FALSE, na.strings = "")
+  baseline <- utils::read.delim(
+    baseline_file,
+    stringsAsFactors = FALSE,
+    check.names = FALSE,
+    na.strings = "",
+    quote = ""
+  )
   findings <- compare_public_api_contract(baseline, current)
   utils::write.table(findings, file.path(output_dir, "public-api-findings.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "")
   summary <- data.frame(entries = nrow(current), blocking_findings = sum(findings$severity == "blocking"), advisory_findings = sum(findings$severity == "advisory"), passed = !any(findings$severity == "blocking"))
