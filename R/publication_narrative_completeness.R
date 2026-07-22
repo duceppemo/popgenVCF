@@ -43,7 +43,7 @@ publication_supplementary_summary <- function(kind, result, state, reason) {
 #'
 #' @param project A reproducible `PopgenVCFProject`.
 #' @return A nine-row data table describing publication evidence and fallback states.
-#' @export
+#' @noRd
 publication_narrative_inventory <- function(project) {
   validate_popgenvcf_project(project)
   results <- project$results %||% list()
@@ -87,7 +87,7 @@ publication_narrative_inventory <- function(project) {
 #'
 #' @param inventory Output from `publication_narrative_inventory()`.
 #' @return A one-row data table with deterministic completeness counts.
-#' @export
+#' @noRd
 publication_narrative_completeness <- function(inventory) {
   required <- c("kind", "state", "method_complete", "caption_complete", "citation_complete", "supplementary_summary")
   missing <- setdiff(required, names(inventory))
