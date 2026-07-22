@@ -4,9 +4,15 @@ public_api_contract_signature <- function(fun) {
   f <- formals(fun)
   if (is.null(f)) return(NA_character_)
   paste(vapply(names(f), function(name) {
-    value <- f[[name]]
-    required <- identical(value, quote(expr = ))
-    default <- if (required) "<required>" else paste(deparse(value, width.cutoff = 500L), collapse = " ")
+    formal <- f[name]
+    missing_template <- alist(value = )
+    names(missing_template) <- name
+    required <- identical(formal, missing_template)
+    default <- if (required) {
+      "<required>"
+    } else {
+      paste(deparse(f[[name]], width.cutoff = 500L), collapse = " ")
+    }
     paste(name, default, sep = "=")
   }, character(1)), collapse = ";")
 }
