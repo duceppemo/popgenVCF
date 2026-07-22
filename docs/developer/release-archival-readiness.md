@@ -11,19 +11,19 @@ A tagged source-package release produces:
 - deterministic scientific-release evidence;
 - runtime and installed-package manifests;
 - a standalone SPDX JSON SBOM generated from the exact source tarball;
-- DOI-ready `.zenodo.json`, `CITATION.cff`, CodeMeta, and reproducibility metadata;
-- `source-release-provenance.json`, binding the release/tag/commit/workflow identity to the source tarball, SBOM, and archival metadata;
+- `popgenVCF-archive-metadata.tar.gz`, containing DOI-ready `.zenodo.json`, `CITATION.cff`, CodeMeta, and reproducibility metadata;
+- `source-release-provenance.json`, binding the release/tag/commit/workflow identity to the source tarball, SBOM, and archival-metadata archive;
 - `release-manifest.json`, recording the byte size and SHA-256 digest of every payload file;
 - `release-SHA256SUMS.txt`, authenticating every payload digest and the manifest digest.
 
 The checksum file is the terminal control record and intentionally does not recursively hash itself. The cryptographic chain is:
 
 ```text
-source, SBOM, metadata, validation evidence, provenance
-                         ↓
-               release-manifest.json
-                         ↓
-             release-SHA256SUMS.txt
+source, SBOM, metadata archive, validation evidence, provenance
+                              ↓
+                    release-manifest.json
+                              ↓
+                  release-SHA256SUMS.txt
 ```
 
 OCI image evidence remains a separate distribution identity. The container workflow publishes the exact image digest, BuildKit SPDX SBOM attestation, and maximum SLSA provenance attestation for the same release tag and Git commit.
@@ -40,13 +40,16 @@ sha256sum --check release-SHA256SUMS.txt
 
 The checksum file covers the release manifest. The manifest in turn requires an exact payload inventory and rejects missing, unexpected, resized, or modified files through `scripts/build_release_manifest.R`.
 
-Inspect key JSON documents:
+Inspect key JSON documents and the archival metadata inventory:
 
 ```bash
 python -m json.tool release-manifest.json >/dev/null
 python -m json.tool source-release-provenance.json >/dev/null
 python -m json.tool popgenVCF-source-sbom.spdx.json >/dev/null
-python -m json.tool archive-metadata/.zenodo.json >/dev/null
+tar -tzf popgenVCF-archive-metadata.tar.gz
+mkdir -p archive-metadata-check
+tar -xzf popgenVCF-archive-metadata.tar.gz -C archive-metadata-check
+python -m json.tool archive-metadata-check/.zenodo.json >/dev/null
 ```
 
 The source SBOM must identify an SPDX document and should be retained even when an OCI image is also published; the two SBOMs describe different artifacts.
@@ -63,7 +66,7 @@ docker buildx imagetools inspect "$image" --format '{{ json .Provenance.SLSA }}'
   > container-provenance.slsa.json
 ```
 
-Verify that both documents are valid JSON and retain them with `container-metadata.json`, `container-digest.txt`, the source-release assets, and institutional release records.
+Verify that both documents are valid JSON and retain them with `container-metadata.json`, `container-digest.txt`, `container-SHA256SUMS.txt`, the source-release assets, and institutional release records.
 
 ## Zenodo deposition sequence
 
