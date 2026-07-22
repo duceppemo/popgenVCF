@@ -1,5 +1,7 @@
 # popgenVCF 0.10.0 development
 
+- Opened Phase 0.9.30 by eliminating all avoidable `R CMD check` notes: repository-only release assets are excluded from source packages, package-internal triple-colon access is removed, imports and data.table NSE bindings are explicit, and generated usage documentation is width-safe.
+- Reconciled the generated public interface as a 613-entry installed API contract comprising 590 ordinary exports and 23 S3 registrations, with unique roxygen ownership, deterministic `NAMESPACE`/Rd generation, a refreshed canonical baseline, and read-only CI drift enforcement.
 - Reconciled repository health after Phase 0.9.29: removed runtime namespace mutation, restored explicit public exports, expanded release/API drift evidence, and synchronized README, NEWS, roadmaps, package requirements, and trackers.
 - Hardened scientific concordance suites so dataset/tool/version identities are unique, declared inventories are mandatory for release readiness, mutated suite state is rejected, and machine-readable evidence exposes missing inventory entries.
 - Hardened continuous release benchmarking so current and baseline identities, environments, metrics, and repetition counts must be compatible; empty, duplicate, malformed, or incomplete comparison evidence can no longer certify a release.
@@ -58,27 +60,3 @@
 - Migrated IBS/MDS registration to a self-contained `ibs_module_spec()` descriptor while preserving VCF-only execution and downstream tree/IBD dependencies.
 - Migrated PCA registration to a self-contained `pca_module_spec()` descriptor that owns execution, validation, references, resources, outputs, and publication artifacts.
 - Added first-class VCF-only execution with PCA and IBS/MDS driven directly by VCF sample IDs.
-- Made `sample` the only mandatory metadata column and retained arbitrary additional columns.
-- Added exact metadata-to-VCF sample identity validation, VCF-order alignment, and a sample matching report.
-- Added capability-driven module selection for VCF-only, sample annotation, population, and spatial metadata modes.
-- Added `analysis_capabilities.tsv` with explicit availability and skip reasons for every registered module.
-- Added transparent support for `.vcf` and `.vcf.gz` inputs.
-- Added automatic reuse or creation of Tabix/CSI indexes for BGZF-compressed VCF files.
-- Added cached `bcftools sort -Oz` normalization for plain VCF, ordinary gzip, unsorted, and read-only compressed inputs.
-- Added `write_pca_publication_artifacts()` as the first publication-output implementation.
-- Added canonical PCA coordinate and variance tables, PDF/SVG/PNG scatterplots, manuscript methods text, captions, figure source data, and validation records.
-- Added strict sample, eigenvalue, variance, and artifact existence validation for PCA publication outputs.
-- Added opt-in registry declarations for required module artifacts.
-- Enforced artifact namespaces, required identifiers, optional file existence, and duplicate-free accumulation after module execution.
-- Added the combined artifact manifest to `execute_analysis_registry()` output while preserving legacy modules with no declarations.
-- Added canonical `PopgenVCFArtifact` and `PopgenVCFArtifactManifest` contracts.
-- Added stable artifact identifiers, publication-time file existence checks, duplicate detection, and machine-readable manifest tables.
-- Added tests and documentation for the artifact API that will underpin report, supplementary, validation, and provenance outputs.
-
-# popgenVCF 0.8.3
-
-- Replaced the unsatisfiable all-in-one Conda environment with a solvable core environment.
-- Install SNPRelate, gdsfmt, and LEA through BiocManager matched to the active R version.
-- Isolated fastStructure in an optional Python 3.10 environment and source installer.
-- Removed the nonexistent texlive-inconsolata Conda dependency; TeX is now documented as a system/container layer.
-- Added resolved-environment export and verification guidance.
