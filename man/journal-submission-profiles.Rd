@@ -17,7 +17,10 @@ new_journal_profile(id = "generic", required_roles = c("manuscript_source"),
   source_url = NA_character_, source_date = NA_character_,
   required_sections = c("abstract", "introduction", "methods", "results", "discussion"),
   optional_sections = character(),
-  required_declarations = c("data_availability", "software_availability", "reproducibility", "funding", "author_contributions", "competing_interests"),
+  required_declarations = c(
+    "data_availability", "software_availability", "reproducibility",
+    "funding", "author_contributions", "competing_interests"
+  ),
   required_companions = character(), title_max_chars = NA_integer_,
   abstract_max_words = NA_integer_, keyword_min = 0L,
   keyword_max = NA_integer_, highlight_min = 0L,
