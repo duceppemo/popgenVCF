@@ -6,14 +6,12 @@ release_provenance_script <- function() {
 
 make_release_provenance_fixture <- function() {
   asset_dir <- tempfile("release-provenance-")
-  dir.create(file.path(asset_dir, "archive-metadata"), recursive = TRUE)
+  dir.create(asset_dir, recursive = TRUE)
   writeLines("source archive", file.path(asset_dir, "popgenVCF_0.10.0.tar.gz"))
   writeLines('{"spdxVersion":"SPDX-2.3","SPDXID":"SPDXRef-DOCUMENT"}',
              file.path(asset_dir, "popgenVCF-source-sbom.spdx.json"))
-  writeLines('{"upload_type":"software"}',
-             file.path(asset_dir, "archive-metadata", ".zenodo.json"))
-  writeLines("cff-version: 1.2.0",
-             file.path(asset_dir, "archive-metadata", "CITATION.cff"))
+  writeLines("archival metadata archive",
+             file.path(asset_dir, "popgenVCF-archive-metadata.tar.gz"))
   asset_dir
 }
 
@@ -34,7 +32,7 @@ test_that("source-release provenance is deterministic and checksum-linked", {
     workflow_run_attempt = "1",
     source_archive = "popgenVCF_0.10.0.tar.gz",
     source_sbom = "popgenVCF-source-sbom.spdx.json",
-    archival_metadata_dir = "archive-metadata",
+    archival_metadata = "popgenVCF-archive-metadata.tar.gz",
     created_at = "1970-01-01T00:00:00Z"
   )
 
@@ -51,7 +49,11 @@ test_that("source-release provenance is deterministic and checksum-linked", {
   expect_identical(first$control_chain$manifest, "release-manifest.json")
   expect_identical(first$control_chain$checksums, "release-SHA256SUMS.txt")
   expect_length(first$subjects, 2L)
-  expect_length(first$archival_metadata, 2L)
+  expect_length(first$archival_metadata, 1L)
+  expect_identical(
+    first$archival_metadata[[1L]]$path,
+    "popgenVCF-archive-metadata.tar.gz"
+  )
 })
 
 test_that("source-release provenance detects payload drift", {
@@ -70,7 +72,7 @@ test_that("source-release provenance detects payload drift", {
     workflow_run_attempt = "1",
     source_archive = "popgenVCF_0.10.0.tar.gz",
     source_sbom = "popgenVCF-source-sbom.spdx.json",
-    archival_metadata_dir = "archive-metadata"
+    archival_metadata = "popgenVCF-archive-metadata.tar.gz"
   )
   path <- environment$write_source_release_provenance(provenance, asset_dir)
   cat("\nchanged\n", file = file.path(asset_dir, "popgenVCF-source-sbom.spdx.json"), append = TRUE)
@@ -97,7 +99,7 @@ test_that("source-release provenance rejects invalid commit identities", {
       workflow_run_attempt = "1",
       source_archive = "popgenVCF_0.10.0.tar.gz",
       source_sbom = "popgenVCF-source-sbom.spdx.json",
-      archival_metadata_dir = "archive-metadata"
+      archival_metadata = "popgenVCF-archive-metadata.tar.gz"
     ),
     "40-character SHA"
   )
