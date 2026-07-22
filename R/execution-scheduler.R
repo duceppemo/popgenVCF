@@ -108,9 +108,7 @@ run_execution_batch <- function(eligible, analysis, context, registry, engine) {
   parallel::parLapply(
     cluster,
     eligible,
-    function(name, analysis, context, registry) {
-      popgenVCF:::run_scheduled_engine_module(name, analysis, context, registry)
-    },
+    run_scheduled_engine_module,
     analysis = analysis,
     context = context,
     registry = registry

@@ -7,6 +7,11 @@
 ^.*\.zip$
 ^\.git$
 ^\.gitignore$
+^\.dockerignore$
+^Dockerfile$
+^Apptainer\.def$
+^codemeta\.json$
+^docker$
 
 ^scripts$
 ^benchmarks$

@@ -14,8 +14,11 @@
 new_golden_spec(id, mode = "exact", absolute_tolerance = 0,
   relative_tolerance = 0, role = "gating", metadata = list())
 
-new_golden_entry(spec, value, approved_by = NA_character_,
-  approval_reason = NA_character_, created_at = format(Sys.time(), tz = "UTC", usetz = TRUE))
+new_golden_entry(
+  spec, value, approved_by = NA_character_,
+  approval_reason = NA_character_,
+  created_at = format(Sys.time(), tz = "UTC", usetz = TRUE)
+)
 
 new_golden_store(entries = list(), metadata = list())
 
