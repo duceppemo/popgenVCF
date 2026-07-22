@@ -6,6 +6,12 @@
 
 > Development series: **0.10.0**. The public API is under release-conformance review; interfaces and output schemas may still evolve before 1.0.
 
+## Repository status
+
+Implementation contracts are complete through Phase **0.9.29**, including canonical real-data descriptors, approval-gated baseline snapshots, external-tool concordance records, and continuous release benchmark evidence. The repository is currently in a stabilization pass before Phase 0.9.30.
+
+The software contracts are not the same as approved production evidence. The first checksum-verified real-data baseline, full external-tool concordance suite, historical release benchmark archive, and final 0.10.0 release certificate still require execution, scientific review, approval, and publication through the dedicated validation workflows. See the [roadmap](docs/ROADMAP.md) for the authoritative distinction between completed infrastructure and remaining release evidence.
+
 ## Highlights
 
 - Accepts `.vcf` and `.vcf.gz` input.
@@ -16,12 +22,15 @@
 - Performs exact audited SNPRelate QC and LD pruning.
 - Provides diversity, FST, DAPC, population-structure, AMOVA, Mantel, and isolation-by-distance workflows when their requirements are met.
 - Produces publication artifacts, validation records, and reproducible container images.
+- Preserves canonical dataset checksums, scientific approval state, external-tool provenance, and release benchmark budgets as machine-readable evidence.
 
 ## Recommended installation: Docker
 
 ```bash
 docker pull ghcr.io/duceppemo/popgenvcf:latest
 ```
+
+The `latest` tag is convenient for development. Reproducible analyses should record and use an immutable published version tag or container digest.
 
 Generate a default configuration from your analysis directory:
 
@@ -256,21 +265,30 @@ bash inst/scripts/verify-environment.sh
 
 ## Scientific validation
 
+Routine offline validation uses deterministic fixtures:
+
 ```r
 core <- popgenVCF::run_scientific_validation(integration = TRUE, threads = 4)
 structure <- popgenVCF::run_population_structure_validation(integration = TRUE)
 stopifnot(core$passed, structure$passed)
 ```
 
+Canonical real-data acquisition and external-tool execution are deliberately excluded from ordinary package checks. They run only in opt-in or scheduled full-validation workflows, with checksum verification and explicit approval before evidence can gate a release.
+
 ## Project documentation
 
 - [Project charter](docs/PROJECT_CHARTER.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Scientific validation policy](docs/SCIENTIFIC_VALIDATION.md)
+- [Canonical real-data contracts](docs/CANONICAL_REAL_DATA.md)
+- [Canonical dataset registry](docs/CANONICAL_DATASET_REGISTRY.md)
+- [Canonical real-data baselines](docs/CANONICAL_REAL_DATA_BASELINES.md)
+- [External-tool scientific concordance](docs/SCIENTIFIC_CONCORDANCE.md)
+- [Continuous release benchmarking](docs/CONTINUOUS_RELEASE_BENCHMARKING.md)
+- [Release/API reconciliation](docs/RELEASE_API_RECONCILIATION.md)
 - [Development guide](docs/DEVELOPMENT_GUIDE.md)
 - [Style guide](docs/STYLE_GUIDE.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Release/API reconciliation](docs/RELEASE_API_RECONCILIATION.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## License
