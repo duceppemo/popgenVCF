@@ -127,9 +127,12 @@ scientific_release_payload <- function(x) {
 #' @param digest_chain Named SHA256 identities for all required scientific records.
 #' @param artifacts Data frame containing release-relative path, size, and SHA256.
 #' @param dependencies Data frame containing package and version columns.
-#' @param canonical_certificate Release-ready canonical certificate.
+#' @param canonical_certificate Release-ready canonical certificate. It defaults
+#'   to `NULL` for public-API compatibility but construction fails closed when it
+#'   is absent.
 #' @param canonical_evidence Data frame of validation, baseline, drift,
-#'   reconciliation, and gate evidence files.
+#'   reconciliation, and gate evidence files. It defaults to `NULL` for
+#'   public-API compatibility but construction fails closed when it is absent.
 #' @param git_branch Git branch name.
 #' @param git_remote Git remote identity.
 #' @param git_dirty Whether the source tree was dirty.
@@ -156,8 +159,8 @@ new_scientific_release_bundle <- function(
   digest_chain,
   artifacts,
   dependencies = data.frame(package = character(), version = character()),
-  canonical_certificate,
-  canonical_evidence,
+  canonical_certificate = NULL,
+  canonical_evidence = NULL,
   git_branch = "",
   git_remote = "",
   git_dirty = FALSE,
