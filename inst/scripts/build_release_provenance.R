@@ -34,8 +34,11 @@ release_provenance_file_record <- function(path, asset_dir) {
 collect_archival_metadata_records <- function(path, asset_dir) {
   relative_root <- normalize_release_asset_path(path, asset_dir)
   absolute_root <- file.path(asset_dir, relative_root)
+  if (file.exists(absolute_root) && !isTRUE(file.info(absolute_root)$isdir)) {
+    return(list(release_provenance_file_record(relative_root, asset_dir)))
+  }
   if (!dir.exists(absolute_root)) {
-    stop("Archival metadata directory does not exist: ", relative_root, call. = FALSE)
+    stop("Archival metadata input does not exist: ", relative_root, call. = FALSE)
   }
   files <- list.files(
     absolute_root,
@@ -62,7 +65,7 @@ build_source_release_provenance <- function(
     workflow_run_attempt,
     source_archive,
     source_sbom,
-    archival_metadata_dir,
+    archival_metadata,
     created_at = Sys.getenv("POPGENVCF_RELEASE_CREATED_AT", "1970-01-01T00:00:00Z")) {
   require_release_provenance_packages()
   if (!grepl("^[0-9a-f]{40}$", git_commit)) {
@@ -93,7 +96,7 @@ build_source_release_provenance <- function(
     ),
     created_at = created_at,
     subjects = subjects,
-    archival_metadata = collect_archival_metadata_records(archival_metadata_dir, asset_dir),
+    archival_metadata = collect_archival_metadata_records(archival_metadata, asset_dir),
     control_chain = list(
       manifest = "release-manifest.json",
       checksums = "release-SHA256SUMS.txt",
@@ -156,7 +159,7 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
     stop(
       "Usage: build_release_provenance.R <asset_dir> <package_name> <package_version> ",
       "<release_id> <git_tag> <git_commit> <workflow_name> <workflow_run_id> ",
-      "<workflow_run_attempt> <source_archive> <source_sbom> <archival_metadata_dir>",
+      "<workflow_run_attempt> <source_archive> <source_sbom> <archival_metadata>",
       call. = FALSE
     )
   }
@@ -172,7 +175,7 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
     workflow_run_attempt = args[[9L]],
     source_archive = args[[10L]],
     source_sbom = args[[11L]],
-    archival_metadata_dir = args[[12L]]
+    archival_metadata = args[[12L]]
   )
   path <- write_source_release_provenance(provenance, args[[1L]])
   verify_source_release_provenance(path, args[[1L]])
