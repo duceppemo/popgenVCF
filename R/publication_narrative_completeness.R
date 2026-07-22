@@ -25,9 +25,7 @@ publication_narrative_reason <- function(result = NULL, module = NULL, state) {
 }
 
 publication_supplementary_summary <- function(kind, result, state, reason) {
-  if (!identical(state, "present")) {
-    return(paste0(toupper(kind), ": ", state, ". ", reason))
-  }
+  if (!identical(state, "present")) return(paste0(toupper(kind), ": ", state, ". ", reason))
   values <- switch(kind,
     pca = c(samples = publication_count(result, c("n_samples", "sample_count")),
             variants = publication_count(result, c("n_snps", "variant_count", "snp_count"))),
@@ -51,14 +49,14 @@ publication_narrative_inventory <- function(project) {
   results <- project$results %||% list()
   modules <- project$modules %||% list()
   kinds <- publication_narrative_kinds()
+  result_names <- names(results) %||% rep("", length(results))
   rows <- lapply(kinds, function(kind) {
-    result_names <- names(results) %||% character()
     hits <- which(vapply(seq_along(results), function(i) {
       identical(publication_result_kind(results[[i]], result_names[[i]]), kind)
     }, logical(1L)))
     if (length(hits) > 1L) stop("duplicate narrative ownership for analysis family: ", kind, call. = FALSE)
     result <- if (length(hits)) results[[hits[[1L]]]] else NULL
-    result_name <- if (length(hits)) result_names[[hits[[1L]]]] else kind
+    result_name <- if (length(hits) && nzchar(result_names[[hits[[1L]]]])) result_names[[hits[[1L]]]] else kind
     module <- modules[[result_name]] %||% modules[[kind]] %||% list()
     state <- publication_narrative_state(result, module)
     reason <- publication_narrative_reason(result, module, state)
@@ -73,13 +71,15 @@ publication_narrative_inventory <- function(project) {
       method = narrative$method[[1L]], legend = narrative$legend[[1L]],
       citation_keys = narrative$citation_keys[[1L]],
       supplementary_summary = publication_supplementary_summary(kind, result, state, reason),
-      method_complete = state %in% c("present", "diagnostic-only") && nzchar(narrative$method[[1L]]),
-      caption_complete = state %in% c("present", "diagnostic-only") && nzchar(narrative$legend[[1L]]),
-      citation_complete = state %in% c("present", "diagnostic-only") && nzchar(narrative$citation_keys[[1L]])
+      method_complete = state %in% c("present", "diagnostic-only") && !is.na(narrative$method[[1L]]) && nzchar(narrative$method[[1L]]),
+      caption_complete = state %in% c("present", "diagnostic-only") && !is.na(narrative$legend[[1L]]) && nzchar(narrative$legend[[1L]]),
+      citation_complete = state %in% c("present", "diagnostic-only") && !is.na(narrative$citation_keys[[1L]]) && nzchar(narrative$citation_keys[[1L]])
     )
   })
   inventory <- data.table::rbindlist(rows, fill = TRUE)
-  data.table::setorder(inventory, match(kind, kinds))
+  inventory[, narrative_order := match(kind, kinds)]
+  data.table::setorder(inventory, narrative_order)
+  inventory[, narrative_order := NULL]
   inventory[]
 }
 
@@ -107,10 +107,14 @@ publication_narrative_completeness <- function(inventory) {
 
 publication_validate_caption_ownership <- function(artifacts, inventory) {
   if (!nrow(artifacts)) return(invisible(TRUE))
+  active <- inventory[inventory$state %in% c("present", "diagnostic-only"), , drop = FALSE]
   for (id in artifacts$id) {
-    matches <- inventory[state %in% c("present", "diagnostic-only") &
-      (grepl(kind, tolower(id), fixed = TRUE) | grepl(tolower(analysis), tolower(id), fixed = TRUE))]
-    if (nrow(matches) > 1L) stop("conflicting caption ownership for artifact: ", id, call. = FALSE)
+    id_lower <- tolower(id)
+    owned <- vapply(seq_len(nrow(active)), function(i) {
+      grepl(active$kind[[i]], id_lower, fixed = TRUE) ||
+        grepl(tolower(active$analysis[[i]]), id_lower, fixed = TRUE)
+    }, logical(1L))
+    if (sum(owned) > 1L) stop("conflicting caption ownership for artifact: ", id, call. = FALSE)
   }
   invisible(TRUE)
 }
