@@ -44,6 +44,9 @@
     "write_canonical_drift_evidence", "new_canonical_change_request",
     "new_canonical_change_registry", "register_canonical_change_request",
     "set_canonical_change_status", "reconcile_canonical_changes",
-    "canonical_change_summary", "write_canonical_change_evidence"
+    "canonical_change_summary", "write_canonical_change_evidence",
+    "new_canonical_release_gate_policy", "evaluate_canonical_release_gate",
+    "canonical_release_gate_table", "canonical_release_certificate",
+    "write_canonical_release_gate_evidence"
   ))
 }
