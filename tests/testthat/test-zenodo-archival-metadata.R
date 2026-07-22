@@ -71,7 +71,7 @@ test_that("Zenodo metadata is complete, synchronized, and DOI-free", {
     file.path(root, "inst", "metadata", "software-identity.json"),
     simplifyVector = TRUE
   )
-  zenodo <- jsonlite::read_json(file.path(root, ".zenodo.json"), simplifyVector = TRUE)
+  zenodo <- jsonlite::read_json(file.path(root, ".zenodo.json"), simplifyVector = FALSE)
 
   expect_identical(zenodo$title, identity$citation_title)
   expect_identical(zenodo$description, identity$description)
@@ -79,7 +79,7 @@ test_that("Zenodo metadata is complete, synchronized, and DOI-free", {
   expect_identical(zenodo$access_right, "open")
   expect_identical(tolower(zenodo$license), tolower(identity$license$spdx))
   expect_identical(zenodo$version, identity$version)
-  expect_setequal(zenodo$keywords, identity$keywords)
+  expect_setequal(unlist(zenodo$keywords, use.names = FALSE), identity$keywords)
   expect_identical(
     zenodo$creators[[1L]]$name,
     paste0(identity$author$family_name, ", ", identity$author$given_name)
