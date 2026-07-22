@@ -13,6 +13,7 @@ new_scientific_release_bundle(
   release_id, package_version, git_commit, git_tag, release_date,
   digest_chain, artifacts,
   dependencies = data.frame(package = character(), version = character()),
+  canonical_certificate = NULL, canonical_evidence = NULL,
   git_branch = "", git_remote = "", git_dirty = FALSE,
   r_version = R.version.string, platform = R.version$platform,
   architecture = R.version$arch,
@@ -36,6 +37,8 @@ write_scientific_release_bundle(x, path, overwrite = FALSE)
 \item{digest_chain}{Named required SHA256 identities.}
 \item{artifacts}{Release artifact checksum table.}
 \item{dependencies}{Package-version table.}
+\item{canonical_certificate}{Release-ready canonical certificate.}
+\item{canonical_evidence}{Data frame of validation, baseline, drift, reconciliation, and gate evidence files.}
 \item{git_branch, git_remote, git_dirty}{Source-control metadata.}
 \item{r_version, platform, architecture, operating_system}{Runtime metadata.}
 \item{x}{A scientific release object or written directory.}
