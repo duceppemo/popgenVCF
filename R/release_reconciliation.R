@@ -92,7 +92,11 @@ release_reconciliation_roxygen_exports <- function(root) {
 release_reconciliation_dynamic_exports <- function(root) {
   records <- lapply(release_reconciliation_r_files(root), function(path) {
     lines <- readLines(path, warn = FALSE, encoding = "UTF-8")
-    indices <- grep("namespaceExport[[:space:]]*\\(", lines, perl = TRUE)
+    indices <- grep(
+      "^[[:space:]]*(?:base::)?namespaceExport[[:space:]]*\\(",
+      lines,
+      perl = TRUE
+    )
     if (!length(indices)) return(NULL)
     data.frame(
       file = rep(sub(paste0("^", normalizePath(root, winslash = "/"), "/?"), "", normalizePath(path, winslash = "/")), length(indices)),
