@@ -6,8 +6,13 @@ on:
       - "DESCRIPTION"
       - "CITATION.cff"
       - "codemeta.json"
+      - "inst/CITATION"
+      - "inst/metadata/software-identity.json"
+      - "R/software_identity.R"
+      - "R/zzz_software_identity_integration.R"
       - "docs/reproducibility.md"
       - "scripts/validate_release_metadata.R"
+      - "tests/testthat/test-release-metadata-contract.R"
       - ".github/workflows/release-metadata.yml"
   push:
     branches: [main]
@@ -15,8 +20,13 @@ on:
       - "DESCRIPTION"
       - "CITATION.cff"
       - "codemeta.json"
+      - "inst/CITATION"
+      - "inst/metadata/software-identity.json"
+      - "R/software_identity.R"
+      - "R/zzz_software_identity_integration.R"
       - "docs/reproducibility.md"
       - "scripts/validate_release_metadata.R"
+      - "tests/testthat/test-release-metadata-contract.R"
       - ".github/workflows/release-metadata.yml"
   workflow_dispatch:
 
@@ -41,14 +51,27 @@ jobs:
 
       - name: Install metadata validators
         run: |
-          Rscript -e 'install.packages("jsonlite")'
+          Rscript -e 'install.packages(c("jsonlite", "yaml"))'
           python -m pip install --disable-pip-version-check cffconvert
 
       - name: Validate CFF schema
         run: cffconvert --validate
 
+      - name: Validate JSON syntax
+        run: |
+          python -m json.tool codemeta.json >/dev/null
+          python -m json.tool inst/metadata/software-identity.json >/dev/null
+
       - name: Validate metadata consistency
+        env:
+          POPGENVCF_METADATA_EVIDENCE: artifacts/release-metadata-validation.json
         run: Rscript scripts/validate_release_metadata.R
 
-      - name: Validate JSON syntax
-        run: python -m json.tool codemeta.json >/dev/null
+      - name: Upload metadata validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-metadata-validation
+          path: artifacts/release-metadata-validation.json
+          if-no-files-found: warn
+          retention-days: 14
