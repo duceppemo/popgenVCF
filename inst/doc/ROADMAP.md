@@ -91,6 +91,7 @@ The authoritative development package version is **0.10.0**.
 - [x] **0.9.30b — Generated API documentation and canonical interface reconciliation** (#284)
 - [x] **0.9.30.1 — User tutorials, scientific interpretation, deployment, and troubleshooting** (#288)
 - [x] **0.9.30.2 — Publication narrative completeness and maintained gallery** (#68)
+- [x] **0.9.30.3 — Citation, software, and reproducibility metadata reconciliation** (#291)
 
 These milestones complete the software contracts and fail-closed evidence models. They do not substitute for executing, reviewing, approving, and publishing the first production real-data baseline, external-tool concordance suite, and release benchmark history.
 
@@ -115,7 +116,7 @@ Repository health and the opening Phase 0.9.30 maintenance work are reconciled:
 2. **Documentation, metadata, and archival readiness**
    - [x] complete the first-analysis tutorial, scientific interpretation guide, troubleshooting guide, reproducibility guide, and GHCR/Apptainer/HPC deployment guidance (#288);
    - [x] complete the maintained publication gallery and end-to-end narrative integration (#68);
-   - verify citation and software metadata plus reproducibility statements;
+   - [x] reconcile citation, installed-package, CodeMeta, FAIR software, and reproducibility metadata with development-safe release boundaries (#291);
    - add Zenodo configuration, DOI-ready metadata, SBOM, checksum, and provenance instructions.
 3. **0.9.31 — 0.10.0 release-candidate closure**
    - synchronize DESCRIPTION, NEWS, roadmap, and trackers;
@@ -137,7 +138,7 @@ Repository health and the opening Phase 0.9.30 maintenance work are reconciled:
 
 - [x] first-analysis tutorial, scientific interpretation, troubleshooting, reproducibility, and deployment/HPC guide set;
 - [x] maintained publication figure gallery and end-to-end narrative example;
-- [ ] verify and finalize `CITATION.cff`, `codemeta.json`, and the reproducibility statement;
+- [x] canonical `CITATION.cff`, `codemeta.json`, installed citation, FAIR software identity, and reproducibility statement;
 - [ ] Zenodo configuration and DOI-ready archive metadata;
 - [ ] SBOM, checksums, and provenance instructions.
 
@@ -146,7 +147,7 @@ Repository health and the opening Phase 0.9.30 maintenance work are reconciled:
 - **#4 — Publication-quality platform:** umbrella tracker for remaining 0.10 and 1.0 release work.
 - **#22 — Canonical real-data validation:** retains the uncompleted production baseline, external-tool execution, approval, and full-validation workflow work.
 - **#43 — Continuous scientific benchmarks:** retains CI/release integration, approved historical baselines, dashboards, and published release benchmark artifacts.
-- **#1 — Reproducibility and release infrastructure:** remains open until documentation, metadata, archival integration, and release automation are complete.
+- **#1 — Reproducibility and release infrastructure:** remains open until archival integration, release evidence, and release automation are complete.
 
 ## 1.0: stable scientific release
 
