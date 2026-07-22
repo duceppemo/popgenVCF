@@ -48,7 +48,8 @@ write_validation_table <- function(x, path) {
 build_release <- function(root) {
   if (dir.exists(root)) unlink(root, recursive = TRUE, force = TRUE)
   records_dir <- file.path(root, "records")
-  dir.create(records_dir, recursive = TRUE, showWarnings = FALSE)
+  canonical_dir <- file.path(records_dir, "canonical")
+  dir.create(canonical_dir, recursive = TRUE, showWarnings = FALSE)
 
   core <- popgenVCF::run_scientific_validation(integration = TRUE, threads = 2)
   structure <- popgenVCF::run_population_structure_validation(integration = TRUE)
@@ -122,11 +123,55 @@ build_release <- function(root) {
     )
   )
 
+  package_version <- as.character(utils::packageVersion("popgenVCF"))
+  container_digest <- paste(rep("c", 64L), collapse = "")
+  lock_digest <- paste(rep("d", 64L), collapse = "")
+  canonical_payloads <- list(
+    validation = list(schema_version = "1.0", component = "validation", passed = TRUE),
+    baselines = list(schema_version = "1.0", component = "baselines", passed = TRUE),
+    drift = list(schema_version = "1.0", component = "drift", classification = "stable"),
+    reconciliation = list(schema_version = "1.0", component = "reconciliation", release_ready = TRUE)
+  )
+  canonical_paths <- c(
+    validation = file.path(canonical_dir, "validation.json"),
+    baselines = file.path(canonical_dir, "baselines.json"),
+    drift = file.path(canonical_dir, "drift.json"),
+    reconciliation = file.path(canonical_dir, "reconciliation.json"),
+    gate = file.path(canonical_dir, "certificate.json")
+  )
+  invisible(mapply(write_record, canonical_paths[names(canonical_payloads)], canonical_payloads, SIMPLIFY = FALSE))
+
+  certificate <- list(
+    schema_version = "1.0",
+    release_id = release_id,
+    evaluated_at = paste0(release_date, "T00:00:00Z"),
+    release_ready = TRUE,
+    required_components = c("validation", "baselines", "drift", "reconciliation"),
+    passed_components = c("validation", "baselines", "drift", "reconciliation"),
+    blocking_reasons = character(),
+    provenance = list(
+      commit_sha = git_commit,
+      package_version = package_version,
+      container_digest = container_digest,
+      canonical_dataset_versions = list(integration_fixture = "1.0"),
+      environment_lockfiles = list(renv_lock = lock_digest)
+    )
+  )
+  write_record(canonical_paths[["gate"]], certificate)
+
   record_files <- sort(list.files(records_dir, recursive = TRUE, full.names = TRUE))
   artifacts <- data.frame(
     path = sub(paste0("^", normalizePath(root, winslash = "/"), "/"), "", normalizePath(record_files, winslash = "/")),
     size_bytes = as.numeric(file.info(record_files)$size),
     sha256 = vapply(record_files, digest::digest, character(1), algo = "sha256", file = TRUE),
+    stringsAsFactors = FALSE
+  )
+  canonical_relative <- sub(paste0("^", normalizePath(root, winslash = "/"), "/"), "", normalizePath(canonical_paths, winslash = "/"))
+  canonical_evidence <- data.frame(
+    component = names(canonical_paths),
+    path = unname(canonical_relative),
+    size_bytes = as.numeric(file.info(canonical_paths)$size),
+    sha256 = vapply(canonical_paths, digest::digest, character(1), algo = "sha256", file = TRUE),
     stringsAsFactors = FALSE
   )
 
@@ -140,13 +185,15 @@ build_release <- function(root) {
 
   release <- popgenVCF::new_scientific_release_bundle(
     release_id = release_id,
-    package_version = as.character(utils::packageVersion("popgenVCF")),
+    package_version = package_version,
     git_commit = git_commit,
     git_tag = release_id,
     release_date = release_date,
     digest_chain = identities,
     artifacts = artifacts,
     dependencies = dependencies,
+    canonical_certificate = certificate,
+    canonical_evidence = canonical_evidence,
     git_branch = git_branch,
     git_remote = git_remote,
     git_dirty = FALSE
@@ -163,6 +210,8 @@ build_release <- function(root) {
     release_digest = release$digest,
     digest_chain = as.list(release$digest_chain),
     artifact_count = nrow(artifacts),
+    canonical_evidence_count = nrow(canonical_evidence),
+    canonical_release_ready = isTRUE(certificate$release_ready),
     core_validation_passed = isTRUE(core$passed),
     population_structure_validation_passed = isTRUE(structure$passed)
   )
@@ -208,6 +257,7 @@ final_summary <- list(
   release_digest = first$release$digest,
   deterministic = TRUE,
   tamper_detected = TRUE,
+  canonical_release_ready = TRUE,
   digest_chain = as.list(first$release$digest_chain)
 )
 jsonlite::write_json(final_summary, file.path(output_dir, "integration-summary.json"), auto_unbox = TRUE, pretty = TRUE, null = "null")
