@@ -1,20 +1,102 @@
+normalize_pca_eigenvalues <- function(eigenvalues,
+                                      relative_tolerance = sqrt(.Machine$double.eps)) {
+  eigenvalues <- as.numeric(eigenvalues)
+  if (!length(eigenvalues)) {
+    stop("SNPRelate PCA returned no eigenvalues", call. = FALSE)
+  }
+  if (any(!is.finite(eigenvalues))) {
+    stop(
+      sprintf(
+        "SNPRelate PCA returned %d non-finite eigenvalue(s)",
+        sum(!is.finite(eigenvalues))
+      ),
+      call. = FALSE
+    )
+  }
+
+  relative_tolerance <- as.numeric(relative_tolerance)[1L]
+  if (!is.finite(relative_tolerance) || relative_tolerance < 0) {
+    stop("relative_tolerance must be one finite nonnegative value", call. = FALSE)
+  }
+  scale <- max(1, max(abs(eigenvalues)))
+  tolerance <- max(.Machine$double.eps, relative_tolerance * scale)
+  materially_negative <- eigenvalues < -tolerance
+  if (any(materially_negative)) {
+    stop(
+      sprintf(
+        paste0(
+          "SNPRelate PCA returned materially negative eigenvalues ",
+          "(minimum=%.6g; tolerance=%.6g)"
+        ),
+        min(eigenvalues), tolerance
+      ),
+      call. = FALSE
+    )
+  }
+
+  adjusted <- eigenvalues
+  adjusted[abs(adjusted) <= tolerance] <- 0
+  if (sum(adjusted) <= 0) {
+    stop("SNPRelate PCA retained no positive genetic variance", call. = FALSE)
+  }
+
+  list(
+    values = adjusted,
+    adjusted_negative = sum(eigenvalues < 0),
+    tolerance = tolerance
+  )
+}
+
 run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads) {
   z <- SNPRelate::snpgdsPCA(gds, sample.id = sample_ids, snp.id = snp_ids,
                             autosome.only = FALSE, num.thread = threads, verbose = FALSE)
-  npc <- min(n_pcs, ncol(z$eigenvect))
+  eig <- normalize_pca_eigenvalues(z$eigenval)
+  if (eig$adjusted_negative > 0L) {
+    log_msg(
+      "Clamped ", eig$adjusted_negative,
+      " negligible negative PCA eigenvalue(s) to zero (tolerance=",
+      signif(eig$tolerance, 6), ")",
+      level = "WARNING"
+    )
+  }
+
+  available_components <- which(
+    seq_along(eig$values) <= ncol(z$eigenvect) & eig$values > 0
+  )
+  npc <- min(as.integer(n_pcs), length(available_components))
+  if (npc < 2L) {
+    stop(
+      sprintf(
+        "PCA produced only %d positive-variance component(s); at least two are required",
+        npc
+      ),
+      call. = FALSE
+    )
+  }
+  component_index <- available_components[seq_len(npc)]
+  variance_proportion <- eig$values / sum(eig$values)
+
   public_ids <- public_sample_ids(metadata, z$sample.id)
   scores <- data.table::data.table(sample = public_ids, vcf_sample = z$sample.id)
-  for (i in seq_len(npc)) scores[[paste0("PC", i)]] <- z$eigenvect[, i]
+  for (i in seq_len(npc)) {
+    scores[[paste0("PC", i)]] <- z$eigenvect[, component_index[[i]]]
+  }
   if ("population" %in% names(metadata)) {
     data.table::set(scores, j = "population",
                     value = metadata$population[match(scores$vcf_sample, metadata$sample)])
   }
   variance <- data.table::data.table(
     PC = paste0("PC", seq_len(npc)),
-    proportion = z$varprop[seq_len(npc)],
-    percent = 100 * z$varprop[seq_len(npc)]
+    proportion = variance_proportion[component_index],
+    percent = 100 * variance_proportion[component_index]
   )
-  list(scores = scores, variance = variance, object = z)
+  list(
+    scores = scores,
+    variance = variance,
+    object = z,
+    eigenvalues = eig$values,
+    eigenvalue_tolerance = eig$tolerance
+  )
 }
 
 plot_pca <- function(pca, cfg, dirs) {
