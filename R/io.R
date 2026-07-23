@@ -132,7 +132,7 @@ harmonize_samples <- function(gds, ids, metadata, max_missing,
     missing_rate = missing,
     retained = missing <= max_missing
   )
-  keep_vcf <- qc[retained, vcf_sample]
+  keep_vcf <- qc[retained == TRUE, vcf_sample]
   if (length(keep_vcf) < 2L) stop("Sample QC retained fewer than two samples", call. = FALSE)
   retained_metadata <- metadata[match(keep_vcf, sample)]
   list(
