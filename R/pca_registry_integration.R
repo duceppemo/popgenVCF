@@ -27,7 +27,10 @@ run_module_pca <- function(analysis, context) {
     analysis,
     "INFO",
     "pca",
-    paste("requested", pca$requested_components, "bounded component(s) from SNPRelate")
+    paste(
+      "requested", pca$requested_components,
+      "bounded component(s); eigensystem source:", pca$eigensystem_source
+    )
   )
   list(analysis = analysis, context = context, artifacts = artifacts)
 }
