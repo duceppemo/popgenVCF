@@ -1,125 +1,26 @@
-faststructure_install_directory <- function() {
-  configured <- Sys.getenv("POPGENVCF_FASTSTRUCTURE_HOME", unset = "")
-  if (nzchar(configured)) path.expand(configured) else path.expand("~/.local/opt/fastStructure3")
-}
-
-faststructure_environment_name <- function() {
-  configured <- Sys.getenv("POPGENVCF_FASTSTRUCTURE_ENV", unset = "")
-  if (nzchar(configured)) configured else "popgenvcf-faststructure"
-}
-
-resolve_faststructure_script <- function(requested, script_name,
-                                         install_dir = faststructure_install_directory(),
-                                         locator = Sys.which,
-                                         file_exists = file.exists) {
-  requested <- as.character(requested %||% script_name)[1L]
-  if (is.na(requested) || !nzchar(requested)) requested <- script_name
+resolve_faststructure_executable <- function(requested, label,
+                                             locator = Sys.which,
+                                             file_exists = file.exists) {
+  requested <- as.character(requested %||% label)[1L]
+  if (is.na(requested) || !nzchar(requested)) requested <- label
 
   located <- unname(as.character(locator(requested))[1L])
-  candidates <- list()
   if (!is.na(located) && nzchar(located)) {
-    candidates[[length(candidates) + 1L]] <- list(path = located, source = "PATH")
+    return(normalizePath(located, mustWork = TRUE))
   }
+
   if (grepl("[/\\\\]", requested)) {
-    candidates[[length(candidates) + 1L]] <- list(
-      path = path.expand(requested), source = "configured path"
-    )
-  }
-  candidates[[length(candidates) + 1L]] <- list(
-    path = file.path(path.expand(install_dir), basename(requested)),
-    source = "fastStructure install directory"
-  )
-  if (!identical(basename(requested), script_name)) {
-    candidates[[length(candidates) + 1L]] <- list(
-      path = file.path(path.expand(install_dir), script_name),
-      source = "fastStructure install directory"
-    )
-  }
-
-  seen <- character()
-  for (candidate in candidates) {
-    path <- as.character(candidate$path)[1L]
-    if (is.na(path) || !nzchar(path) || path %in% seen) next
-    seen <- c(seen, path)
-    if (isTRUE(file_exists(path))) {
-      return(list(
-        path = normalizePath(path, mustWork = TRUE),
-        source = candidate$source,
-        on_path = identical(candidate$source, "PATH")
-      ))
+    candidate <- path.expand(requested)
+    if (isTRUE(file_exists(candidate))) {
+      return(normalizePath(candidate, mustWork = TRUE))
     }
   }
 
   stop(
     paste0(
-      "fastStructure script not found: ", requested, ". Expected it on PATH or under ",
-      path.expand(install_dir), ". Create the isolated runtime with `mamba env create --file ",
-      "inst/conda/faststructure-environment.yml`, activate it, and run ",
-      "`bash inst/scripts/install-faststructure.sh ", path.expand(install_dir), "`."
-    ),
-    call. = FALSE
-  )
-}
-
-resolve_faststructure_launcher <- function(script,
-                                           env_name = faststructure_environment_name(),
-                                           locator = Sys.which,
-                                           active_env = Sys.getenv("CONDA_DEFAULT_ENV", unset = ""),
-                                           conda_executable = Sys.getenv("CONDA_EXE", unset = ""),
-                                           python_executable = Sys.getenv(
-                                             "POPGENVCF_FASTSTRUCTURE_PYTHON", unset = ""
-                                           )) {
-  script_path <- normalizePath(script$path, mustWork = TRUE)
-  extension <- tolower(tools::file_ext(script_path))
-
-  # A command already installed on PATH (for example a Bioconda entry point or
-  # a user wrapper) is self-contained and should be invoked directly.
-  if (isTRUE(script$on_path)) {
-    return(list(command = script_path, prefix_args = character(), mode = "direct"))
-  }
-
-  # Non-Python configured executables are assumed to be intentional wrappers.
-  if (!identical(extension, "py") && file.access(script_path, mode = 1L) == 0L) {
-    return(list(command = script_path, prefix_args = character(), mode = "direct"))
-  }
-
-  python_executable <- path.expand(as.character(python_executable)[1L])
-  if (!is.na(python_executable) && nzchar(python_executable) && file.exists(python_executable)) {
-    return(list(
-      command = normalizePath(python_executable, mustWork = TRUE),
-      prefix_args = script_path,
-      mode = "configured Python"
-    ))
-  }
-
-  if (identical(active_env, env_name)) {
-    python <- unname(as.character(locator("python"))[1L])
-    if (!is.na(python) && nzchar(python)) {
-      return(list(
-        command = python,
-        prefix_args = script_path,
-        mode = paste0("active Conda environment ", env_name)
-      ))
-    }
-  }
-
-  conda_executable <- as.character(conda_executable)[1L]
-  if (is.na(conda_executable) || !nzchar(conda_executable)) {
-    conda_executable <- unname(as.character(locator("conda"))[1L])
-  }
-  if (!is.na(conda_executable) && nzchar(conda_executable)) {
-    return(list(
-      command = conda_executable,
-      prefix_args = c("run", "-n", env_name, "python", script_path),
-      mode = paste0("Conda environment ", env_name)
-    ))
-  }
-
-  stop(
-    paste0(
-      "fastStructure requires its isolated Python runtime. Conda was not found and ",
-      "POPGENVCF_FASTSTRUCTURE_PYTHON is unset. Set that variable to the environment's ",
-      "Python executable or make conda available on PATH."
+      "fastStructure executable not found: ", requested,
+      ". Install it in the active popgenVCF environment with ",
+      "`mamba install bioconda::faststructure`, or configure an absolute path."
     ),
     call. = FALSE
   )
@@ -132,11 +33,11 @@ faststructure_output_tail <- function(output, n = 12L) {
   paste(utils::tail(text, as.integer(n)), collapse = " | ")
 }
 
-run_faststructure_process <- function(launcher, arguments, log_file) {
+run_faststructure_process <- function(executable, arguments, log_file) {
   output <- tryCatch(
     suppressWarnings(system2(
-      launcher$command,
-      c(launcher$prefix_args, arguments),
+      executable,
+      arguments,
       stdout = TRUE,
       stderr = TRUE
     )),
@@ -149,8 +50,9 @@ run_faststructure_process <- function(launcher, arguments, log_file) {
   list(output = output, status = status)
 }
 
-# Late-loaded replacement supporting the isolated Python 3 runtime documented
-# by popgenVCF while retaining direct PATH-based installations and wrappers.
+# Late-loaded replacement with strict process diagnostics and output validation.
+# The supported Bioconda package installs structure.py and chooseK.py directly
+# into the same Conda environment as popgenVCF.
 run_faststructure <- function(structure_executable = "structure.py",
                               choosek_executable = "chooseK.py",
                               plink_prefix, k_values, output_dir = ".",
@@ -165,14 +67,12 @@ run_faststructure <- function(structure_executable = "structure.py",
     )
   }
 
-  structure_script <- resolve_faststructure_script(
+  structure_command <- resolve_faststructure_executable(
     structure_executable, "structure.py"
   )
-  choosek_script <- resolve_faststructure_script(
+  choosek_command <- resolve_faststructure_executable(
     choosek_executable, "chooseK.py"
   )
-  structure_launcher <- resolve_faststructure_launcher(structure_script)
-  choosek_launcher <- resolve_faststructure_launcher(choosek_script)
 
   k_values <- unique(as.integer(k_values))
   if (!length(k_values) || anyNA(k_values) || any(k_values < 1L)) {
@@ -187,8 +87,7 @@ run_faststructure <- function(structure_executable = "structure.py",
   prefix <- file.path(output_dir, "faststructure")
 
   log_msg(
-    "Using fastStructure via ", structure_launcher$mode,
-    "; script: ", structure_script$path,
+    "Using fastStructure executable: ", structure_command,
     level = "INFO"
   )
 
@@ -208,7 +107,7 @@ run_faststructure <- function(structure_executable = "structure.py",
       "--format", "bed"
     )
     process <- run_faststructure_process(
-      structure_launcher, arguments, log_file
+      structure_command, arguments, log_file
     )
     if (is.na(process$status) || process$status != 0L) {
       stop(
@@ -238,7 +137,7 @@ run_faststructure <- function(structure_executable = "structure.py",
     runs[[i]] <- data.table::data.table(
       K = k,
       exit_status = process$status,
-      runtime = structure_launcher$mode,
+      executable = structure_command,
       log_file = log_file,
       q_file = qfile
     )
@@ -246,7 +145,7 @@ run_faststructure <- function(structure_executable = "structure.py",
 
   choose_log <- file.path(output_dir, "fastStructure_chooseK.log")
   choose_process <- run_faststructure_process(
-    choosek_launcher,
+    choosek_command,
     c("--input", prefix),
     choose_log
   )
@@ -270,10 +169,8 @@ run_faststructure <- function(structure_executable = "structure.py",
       paste(choose_process$output, collapse = "\n")
     ),
     runtime = list(
-      structure_script = structure_script$path,
-      choosek_script = choosek_script$path,
-      mode = structure_launcher$mode,
-      environment = faststructure_environment_name()
+      structure_executable = structure_command,
+      choosek_executable = choosek_command
     )
   )
 }
