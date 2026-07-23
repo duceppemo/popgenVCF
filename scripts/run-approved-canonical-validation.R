@@ -30,6 +30,7 @@ module_dir <- normalizePath(
 )
 for (module in c(
   "canonical_production_execution.R",
+  "canonical_production_bcftools.R",
   "canonical_production_checksum.R"
 )) {
   sys.source(file.path(module_dir, module), envir = environment())
@@ -43,7 +44,8 @@ result <- run_canonical_production_execution(
   generated_at = positional[[5L]],
   source_dir = source_dir,
   allow_download = allow_download,
-  quiet = !verbose
+  quiet = !verbose,
+  inspect = canonical_production_inspect_bcftools_compatible
 )
 
 cat("Canonical production execution passed\n")
