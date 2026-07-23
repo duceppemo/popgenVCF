@@ -28,11 +28,19 @@ rc_source_root <- function() {
 test_that("closure and ancestry operator documentation is retained", {
   root <- rc_source_root()
   if (is.na(root)) testthat::skip("Repository-only closure documentation is unavailable")
-  closure <- readLines(file.path(root, "docs/developer/release-candidate-closure.md"), warn = FALSE)
-  ancestry <- readLines(file.path(root, "docs/user/ancestry-backends.md"), warn = FALSE)
-  expect_true(all(c("rehearsal", "production", "release-candidate-SHA256SUMS.txt") %in%
-                    unlist(lapply(c("rehearsal", "production", "release-candidate-SHA256SUMS.txt"),
-                                  function(x) x[any(grepl(x, closure, fixed = TRUE))]))))
+  closure <- readLines(
+    file.path(root, "docs/developer/release-candidate-closure.md"),
+    warn = FALSE,
+    encoding = "UTF-8"
+  )
+  ancestry <- readLines(
+    file.path(root, "docs/user/ancestry-backends.md"),
+    warn = FALSE,
+    encoding = "UTF-8"
+  )
+  for (term in c("rehearsal", "production", "release-candidate-SHA256SUMS.txt")) {
+    expect_true(any(grepl(term, closure, fixed = TRUE)))
+  }
   for (term in c("ADMIXTURE", "fastStructure", "LEA/sNMF", "q_sample_file")) {
     expect_true(any(grepl(term, ancestry, fixed = TRUE)))
   }
