@@ -24,11 +24,16 @@ if (length(positional) != 5L) {
 script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
 if (!length(script_arg)) stop("Unable to resolve script location", call. = FALSE)
 script_path <- normalizePath(sub("^--file=", "", script_arg[[1L]]), mustWork = TRUE)
-module_path <- normalizePath(
-  file.path(dirname(script_path), "..", "inst", "scripts", "canonical_production_execution.R"),
+module_dir <- normalizePath(
+  file.path(dirname(script_path), "..", "inst", "scripts"),
   mustWork = TRUE
 )
-sys.source(module_path, envir = environment())
+for (module in c(
+  "canonical_production_execution.R",
+  "canonical_production_checksum.R"
+)) {
+  sys.source(file.path(module_dir, module), envir = environment())
+}
 
 result <- run_canonical_production_execution(
   output_dir = positional[[1L]],
