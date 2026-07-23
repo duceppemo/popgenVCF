@@ -12,11 +12,18 @@ if (length(args) != 5L) {
 script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
 if (!length(script_arg)) stop("Unable to resolve script location", call. = FALSE)
 script_path <- normalizePath(sub("^--file=", "", script_arg[[1L]]), mustWork = TRUE)
-implementation <- normalizePath(
-  file.path(dirname(script_path), "..", "inst", "scripts", "build_release_candidate_dossier.R"),
+module_dir <- normalizePath(
+  file.path(dirname(script_path), "..", "inst", "scripts"),
   mustWork = TRUE
 )
-sys.source(implementation, envir = environment())
+for (module in c(
+  "release_candidate_utils.R",
+  "release_candidate_policy.R",
+  "release_candidate_evaluate.R",
+  "release_candidate_write.R"
+)) {
+  sys.source(file.path(module_dir, module), envir = environment())
+}
 
 policy <- read_release_candidate_policy(args[[1L]])
 git_commit <- tolower(rc_scalar(args[[4L]], "git commit"))
@@ -59,7 +66,7 @@ index <- list(
   mode = "rehearsal",
   candidate_id = rc_scalar(args[[3L]], "candidate id"),
   target_release = rc_scalar(policy$target_release, "target release"),
-  package_version = rc_scalar(policy$package_version, "package version"),
+  package_version = rc_scalar(policy$package_version, "packae version"),
   git_commit = git_commit,
   evaluated_at = evaluated_at,
   records = records

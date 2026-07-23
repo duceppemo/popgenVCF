@@ -5,9 +5,16 @@ on:
     paths:
       - "inst/metadata/release-candidate-policy.json"
       - "inst/scripts/build_release_candidate_dossier.R"
+      - "inst/scripts/release_candidate_utils.R"
+      - "inst/scripts/release_candidate_policy.R"
+      - "inst/scripts/release_candidate_evaluate.R"
+      - "inst/scripts/release_candidate_write.R"
+      - "inst/scripts/release_candidate_main.R"
       - "scripts/build_release_candidate_dossier.R"
       - "scripts/build_release_candidate_rehearsal.R"
       - "tests/testthat/test-release-candidate-dossier.R"
+      - "tests/testthat/helper-release-candidate-dossier.R"
+      - "tests/testthat/test-release-candidate-documentation.R"
       - "docs/developer/release-candidate-closure.md"
       - "docs/user/ancestry-backends.md"
       - ".github/workflows/release-candidate-closure.yml"
@@ -20,9 +27,16 @@ on:
     paths:
       - "inst/metadata/release-candidate-policy.json"
       - "inst/scripts/build_release_candidate_dossier.R"
+      - "inst/scripts/release_candidate_utils.R"
+      - "inst/scripts/release_candidate_policy.R"
+      - "inst/scripts/release_candidate_evaluate.R"
+      - "inst/scripts/release_candidate_write.R"
+      - "inst/scripts/release_candidate_main.R"
       - "scripts/build_release_candidate_dossier.R"
       - "scripts/build_release_candidate_rehearsal.R"
       - "tests/testthat/test-release-candidate-dossier.R"
+      - "tests/testthat/helper-release-candidate-dossier.R"
+      - "tests/testthat/test-release-candidate-documentation.R"
       - "docs/developer/release-candidate-closure.md"
       - "docs/user/ancestry-backends.md"
       - ".github/workflows/release-candidate-closure.yml"
@@ -113,7 +127,7 @@ jobs:
           needs: check
 
       - name: Validate dossier contract
-        run: Rscript -e 'testthat::test_file("tests/testthat/test-release-candidate-dossier.R", reporter = "summary")'
+        run: Rscript -e 'testthat::test_dir("tests/testthat", filter = "release-candidate", reporter = "summary")'
 
       - name: Acquire or create evidence index
         id: evidence
