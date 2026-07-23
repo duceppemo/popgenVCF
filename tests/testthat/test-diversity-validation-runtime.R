@@ -47,7 +47,7 @@ test_that("diversity validation names only components that are actually missing"
 
 test_that("non-list diversity results retain a specific validation error", {
   validation <- popgenVCF:::validate_diversity_result(
-    data.table::data.table(sample = "sample_1"),
+    c(sample_1 = 0.2),
     analysis = NULL,
     context = NULL
   )
