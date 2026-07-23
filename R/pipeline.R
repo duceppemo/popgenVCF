@@ -96,7 +96,7 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
 
   capability_table <- analysis_capability_table(registry, capabilities)
   write_tsv(capability_table, file.path(dirs$root, "analysis_capabilities.tsv"))
-  selected_available <- resolve_capability_modules(registry, capabilities, selected)
+  selected_available <- resolve_pipeline_modules(registry, capabilities, cfg, selected)
 
   context <- list(
     cfg = cfg, dirs = dirs, gds = gds, ids = ids, sample_ids = sample_ids,
