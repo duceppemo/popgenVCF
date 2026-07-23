@@ -8,9 +8,9 @@
 
 ## Repository status
 
-Implementation contracts are complete through Phase **0.9.30.4**. Phase **0.9.30** archival readiness now includes DOI-ready but unpublished Zenodo metadata, a standalone source-package SPDX SBOM, OCI SBOM and provenance extraction, checksum-linked source-release provenance, complete release manifests, and archival verification instructions. Phase **0.9.31** is the active 0.10.0 release-candidate closure phase.
+Implementation contracts are complete through Phase **0.9.31**. The release-candidate closure layer now includes a versioned 15-gate policy, checksum-verified evidence-index contract, deterministic reviewer dossier, terminal checksum inventory, deliberately blocked pull-request rehearsal, manual production evaluation, named approval requirements, and backend-specific ADMIXTURE, fastStructure, and LEA/sNMF setup guidance.
 
-The software contracts are not the same as approved production evidence. The first checksum-verified real-data baseline, full external-tool concordance suite, historical release benchmark archive, real-data three-backend ancestry evidence, final release certificate, release tag, and published DOI still require execution, scientific review, approval, and publication through the dedicated validation and release workflows. See the [roadmap](docs/ROADMAP.md) for the authoritative distinction between completed infrastructure and remaining release evidence.
+The closure mechanism is complete, but the current 0.10.0 candidate is **not release-ready**. The first approved production baseline, complete external-tool concordance suite, approved real-data three-backend ancestry case, historical release benchmark archive, exact distribution evidence, final scientific approval, release authorization, release tag, and published DOI still require execution, review, and retention. A release may proceed only when a production dossier for the exact candidate commit reports `READY`. See the [roadmap](docs/ROADMAP.md) and [release-candidate closure guide](docs/developer/release-candidate-closure.md).
 
 ## Highlights
 
@@ -25,6 +25,7 @@ The software contracts are not the same as approved production evidence. The fir
 - Preserves canonical dataset checksums, scientific approval state, external-tool provenance, and release benchmark budgets as machine-readable evidence.
 - Synchronizes the installed package citation, `CITATION.cff`, CodeMeta, FAIR software records, Zenodo deposition metadata, and reproducibility statement against one development-safe software identity.
 - Produces checksum-linked source and OCI SBOM/provenance evidence without claiming an unpublished release date or DOI.
+- Builds a checksum-verified release-candidate dossier that cannot report readiness from rehearsal mode or incomplete, malformed, unapproved, or tampered evidence.
 
 ## Start here
 
@@ -36,6 +37,7 @@ The public guide sequence is:
 4. [Troubleshoot analyses and deployments](vignettes/troubleshooting.Rmd)
 5. [Computational reproducibility](vignettes/reproducibility.Rmd)
 6. [Containers and HPC deployment](vignettes/containers-and-hpc.Rmd)
+7. [Install and configure ancestry backends](docs/user/ancestry-backends.md)
 
 The rendered versions are available from the [pkgdown site](https://duceppemo.github.io/popgenVCF/).
 
@@ -221,6 +223,8 @@ Canonical real-data acquisition and external-tool execution are deliberately exc
 - [Architecture](docs/ARCHITECTURE.md)
 - [Reproducibility statement](docs/reproducibility.md)
 - [Release archival readiness](docs/developer/release-archival-readiness.md)
+- [Release-candidate closure](docs/developer/release-candidate-closure.md)
+- [Ancestry backend installation](docs/user/ancestry-backends.md)
 - [Citation metadata](CITATION.cff)
 - [Zenodo deposition metadata](.zenodo.json)
 - [CodeMeta software record](codemeta.json)
