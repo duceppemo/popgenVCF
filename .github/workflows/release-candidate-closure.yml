@@ -1,0 +1,188 @@
+name: Release candidate closure
+
+on:
+  pull_request:
+    paths:
+      - "inst/metadata/release-candidate-policy.json"
+      - "inst/scripts/build_release_candidate_dossier.R"
+      - "scripts/build_release_candidate_dossier.R"
+      - "scripts/build_release_candidate_rehearsal.R"
+      - "tests/testthat/test-release-candidate-dossier.R"
+      - "docs/developer/release-candidate-closure.md"
+      - "docs/user/ancestry-backends.md"
+      - ".github/workflows/release-candidate-closure.yml"
+      - "README.md"
+      - "NEWS.md"
+      - "docs/ROADMAP.md"
+      - "inst/doc/ROADMAP.md"
+  push:
+    branches: [main]
+    paths:
+      - "inst/metadata/release-candidate-policy.json"
+      - "inst/scripts/build_release_candidate_dossier.R"
+      - "scripts/build_release_candidate_dossier.R"
+      - "scripts/build_release_candidate_rehearsal.R"
+      - "tests/testthat/test-release-candidate-dossier.R"
+      - "docs/developer/release-candidate-closure.md"
+      - "docs/user/ancestry-backends.md"
+      - ".github/workflows/release-candidate-closure.yml"
+      - "README.md"
+      - "NEWS.md"
+      - "docs/ROADMAP.md"
+      - "inst/doc/ROADMAP.md"
+  workflow_dispatch:
+    inputs:
+      candidate_ref:
+        description: Git ref or full commit SHA to evaluate
+        required: false
+        default: main
+        type: string
+      candidate_id:
+        description: Stable release-candidate identifier
+        required: false
+        default: 0.10.0-rc1
+        type: string
+      evidence_release_tag:
+        description: GitHub Release tag containing the evidence index and referenced artifacts; leave blank for a blocked rehearsal
+        required: false
+        type: string
+      require_ready:
+        description: Fail unless the downloaded production dossier is release-ready
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-candidate-closure-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  dossier:
+    name: Build release-candidate dossier
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+
+    steps:
+      - name: Resolve candidate revision
+        id: candidate
+        shell: bash
+        env:
+          REQUESTED_REF: ${{ inputs.candidate_ref }}
+          REQUESTED_ID: ${{ inputs.candidate_id }}
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            ref="${REQUESTED_REF:-main}"
+            candidate_id="${REQUESTED_ID:-0.10.0-rc1}"
+          elif [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            ref="${GITHUB_SHA}"
+            candidate_id="pr-${{ github.event.pull_request.number }}"
+          else
+            ref="${GITHUB_SHA}"
+            candidate_id="main-${GITHUB_SHA:0:12}"
+          fi
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+          echo "candidate_id=${candidate_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Check out exact candidate revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.candidate.outputs.ref }}
+          fetch-depth: 0
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - name: Install dossier dependencies
+        uses: r-lib/actions/setup-r-dependencies@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
+        with:
+          extra-packages: |
+            any::data.table
+            any::digest
+            any::jsonlite
+            any::testthat
+          needs: check
+
+      - name: Validate dossier contract
+        run: Rscript -e 'testthat::test_file("tests/testthat/test-release-candidate-dossier.R", reporter = "summary")'
+
+      - name: Acquire or create evidence index
+        id: evidence
+        shell: bash
+        env:
+          EVIDENCE_RELEASE_TAG: ${{ inputs.evidence_release_tag }}
+          CANDIDATE_ID: ${{ steps.candidate.outputs.candidate_id }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-candidate-evidence
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && -n "${EVIDENCE_RELEASE_TAG:-}" ]]; then
+            gh release download "$EVIDENCE_RELEASE_TAG" \
+              --dir release-candidate-evidence
+            mode=production
+          else
+            Rscript scripts/build_release_candidate_rehearsal.R \
+              inst/metadata/release-candidate-policy.json \
+              release-candidate-evidence/release-candidate-evidence-index.json \
+              "$CANDIDATE_ID" \
+              "$(git rev-parse HEAD)" \
+              "1970-01-01T00:00:00Z"
+            mode=rehearsal
+          fi
+          test -s release-candidate-evidence/release-candidate-evidence-index.json
+          python -m json.tool \
+            release-candidate-evidence/release-candidate-evidence-index.json \
+            >/dev/null
+          echo "mode=${mode}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify evidence identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_commit="$(git rev-parse HEAD)"
+          expected_version="$(awk -F': *' '$1 == "Version" {print $2}' DESCRIPTION)"
+          actual_commit="$(jq -r '.git_commit' release-candidate-evidence/release-candidate-evidence-index.json)"
+          actual_version="$(jq -r '.package_version' release-candidate-evidence/release-candidate-evidence-index.json)"
+          test "$actual_commit" = "$expected_commit"
+          test "$actual_version" = "$expected_version"
+
+      - name: Build and verify release-candidate dossier
+        shell: bash
+        env:
+          REQUIRE_READY: ${{ github.event_name == 'workflow_dispatch' && inputs.require_ready || false }}
+        run: |
+          set -euo pipefail
+          args=(
+            inst/metadata/release-candidate-policy.json
+            release-candidate-evidence/release-candidate-evidence-index.json
+            release-candidate-evidence
+            release-candidate-dossier
+          )
+          if [[ "$REQUIRE_READY" == "true" ]]; then
+            args+=(--require-ready)
+          fi
+          Rscript scripts/build_release_candidate_dossier.R "${args[@]}"
+          (
+            cd release-candidate-dossier
+            sha256sum --check release-candidate-SHA256SUMS.txt
+          )
+
+      - name: Upload release-candidate dossier
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-candidate-dossier
+          path: |
+            release-candidate-dossier/
+            release-candidate-evidence/release-candidate-evidence-index.json
+          if-no-files-found: error
+          retention-days: 90
