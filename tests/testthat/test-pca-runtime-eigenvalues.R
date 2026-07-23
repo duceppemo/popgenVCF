@@ -47,6 +47,33 @@ test_that("PCA component requests respect matrix rank bounds", {
   )
 })
 
+test_that("PCA covariance fallback recovers a finite eigensystem", {
+  pca <- list(
+    sample.id = paste0("s", seq_len(4L)),
+    eigenval = c(4, NaN, NaN),
+    eigenvect = matrix(NaN, nrow = 4L, ncol = 3L),
+    genmat = diag(c(4, 2, 1, 0))
+  )
+
+  expect_false(popgenVCF:::pca_eigensystem_is_finite(pca, 3L))
+  recovered <- popgenVCF:::recover_pca_eigensystem(pca, 3L)
+
+  expect_true(popgenVCF:::pca_eigensystem_is_finite(recovered, 3L))
+  expect_equal(recovered$eigenval, c(4, 2, 1))
+  expect_equal(sum(recovered$varprop), 1, tolerance = 1e-12)
+  expect_equal(
+    unname(crossprod(recovered$eigenvect)),
+    diag(3L),
+    tolerance = 1e-12
+  )
+
+  pca$genmat[1, 1] <- NaN
+  expect_error(
+    popgenVCF:::recover_pca_eigensystem(pca, 3L),
+    "covariance matrix contains 1 non-finite"
+  )
+})
+
 test_that("PCA and downstream SNPRelate calls pin runtime-sensitive arguments", {
   pca_body <- paste(deparse(body(popgenVCF:::run_pca)), collapse = "\n")
   ibs_body <- paste(deparse(body(popgenVCF:::run_ibs)), collapse = "\n")
@@ -55,6 +82,8 @@ test_that("PCA and downstream SNPRelate calls pin runtime-sensitive arguments", 
 
   expect_match(pca_body, "eigen.cnt = requested_components", fixed = TRUE)
   expect_match(pca_body, "missing.rate = NaN", fixed = TRUE)
+  expect_match(pca_body, "need.genmat = need_genmat", fixed = TRUE)
+  expect_match(pca_body, "recover_pca_eigensystem", fixed = TRUE)
   expect_match(ibs_body, "missing.rate = NaN", fixed = TRUE)
   expect_match(fst_body, "missing.rate = NaN", fixed = TRUE)
   expect_match(fst_pair_body, "missing.rate = NaN", fixed = TRUE)
