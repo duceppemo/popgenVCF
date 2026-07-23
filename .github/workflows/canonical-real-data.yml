@@ -93,12 +93,23 @@ jobs:
         run: R CMD INSTALL .
 
       - name: Test production execution contract
-        run: >-
+        shell: bash
+        run: |
+          set -o pipefail
           Rscript -e 'testthat::test_dir(
-          "tests/testthat",
-          filter = "canonical-production-execution",
-          reporter = "summary"
-          )'
+            "tests/testthat",
+            filter = "canonical-production-execution",
+            reporter = "summary"
+          )' 2>&1 | tee canonical-production-contract-tests.log
+
+      - name: Upload contract-test log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: canonical-production-contract-tests
+          path: canonical-production-contract-tests.log
+          if-no-files-found: error
+          retention-days: 14
 
   production:
     name: Execute approved canonical dataset
