@@ -26,10 +26,15 @@ validate_finite_columns <- function(x, columns, allow_na = TRUE) {
 
 validate_diversity_result <- function(result, analysis, context) {
   errors <- character(); warnings <- character()
-  if (!is.list(result)) errors <- c(errors, "diversity result is not a list")
-  required <- c("sample", "population", "locus")
-  if (is.list(result)) errors <- c(errors, paste0("missing component '", setdiff(required, names(result)), "'"))
-  errors <- errors[nzchar(errors)]
+  if (!is.list(result)) {
+    errors <- c(errors, "diversity result is not a list")
+  } else {
+    required <- c("sample", "population", "locus")
+    missing <- setdiff(required, names(result))
+    if (length(missing)) {
+      errors <- c(errors, sprintf("missing component '%s'", missing))
+    }
+  }
   if (!length(errors)) {
     errors <- c(errors,
       validate_finite_columns(result$sample, c("observed_heterozygosity", "missing_rate")),
@@ -40,8 +45,8 @@ validate_diversity_result <- function(result, analysis, context) {
     }
   }
   validation_result(!length(errors), errors, warnings,
-                    list(samples = if (is.list(result)) nrow(result$sample) else NA_integer_,
-                         populations = if (is.list(result)) nrow(result$population) else NA_integer_))
+                    list(samples = if (is.list(result) && !is.null(result$sample)) nrow(result$sample) else NA_integer_,
+                         populations = if (is.list(result) && !is.null(result$population)) nrow(result$population) else NA_integer_))
 }
 
 validate_pca_result <- function(result, analysis, context) {
