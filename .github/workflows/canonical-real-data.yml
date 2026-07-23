@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/canonical-real-data.yml"
       - "inst/scripts/canonical_production_execution.R"
+      - "inst/scripts/canonical_production_checksum.R"
       - "scripts/run-approved-canonical-validation.R"
       - "tests/testthat/helper-canonical-production-execution.R"
       - "tests/testthat/test-canonical-production-execution.R"
@@ -16,6 +17,7 @@ on:
     paths:
       - ".github/workflows/canonical-real-data.yml"
       - "inst/scripts/canonical_production_execution.R"
+      - "inst/scripts/canonical_production_checksum.R"
       - "scripts/run-approved-canonical-validation.R"
       - "tests/testthat/helper-canonical-production-execution.R"
       - "tests/testthat/test-canonical-production-execution.R"
@@ -44,8 +46,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: canonical-production-${{ github.ref }}
-  cancel-in-progress: false
+  group: canonical-production-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
   contract:
