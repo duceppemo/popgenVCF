@@ -60,12 +60,13 @@ test_that("PCA and downstream SNPRelate calls pin runtime-sensitive arguments", 
   expect_match(fst_pair_body, "missing.rate = NaN", fixed = TRUE)
 })
 
-test_that("PCA registry publishes normalized runtime eigenvalues", {
+test_that("PCA registry publishes and records bounded runtime eigenvalues", {
   module_body <- paste(
     deparse(body(popgenVCF:::run_module_pca)),
     collapse = "\n"
   )
 
   expect_match(module_body, "eigenvalues = pca$eigenvalues", fixed = TRUE)
+  expect_match(module_body, "pca$requested_components", fixed = TRUE)
   expect_false(grepl("eigenvalues = pca$object$eigenval", module_body, fixed = TRUE))
 })
