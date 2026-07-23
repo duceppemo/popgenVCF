@@ -129,7 +129,7 @@ evaluate_release_candidate_dossier <- function(policy_path, index_path, evidence
     stop("Evidence index mode is invalid", call. = FALSE)
   candidate_id <- rc_scalar(idx$candidate_id, "candidate id")
   target <- rc_scalar(idx$target_release, "target release")
-  version <- rc_scalar(idx$package_version, "packae version")
+  version <- rc_scalar(idx$package_version, "package version")
   commit <- tolower(rc_scalar(idx$git_commit, "git commit"))
   if (!grepl("^[0-9a-f]{40}$", commit)) stop("git_commit must be a lowercase 40-character SHA", call. = FALSE)
   evaluated <- rc_datetime(idx$evaluated_at, "evaluated_at")
@@ -140,4 +140,34 @@ evaluate_release_candidate_dossier <- function(policy_path, index_path, evidence
 
   recs <- idx$records
   if (!is.list(recs)) stop("Evidence index records must be a list", call. = FALSE)
-  ids <- vapply(recs,
+  ids <- vapply(recs, function(x) rc_scalar(x$gate_id, "record gate_id"), character(1L))
+  expected <- policy$gate_table$gate_id
+  if (anyDuplicated(ids)) stop("Evidence index contains duplicate gate records", call. = FALSE)
+  missing <- setdiff(expected, ids); extra <- setdiff(ids, expected)
+  if (length(missing) || length(extra))
+    stop("Evidence index gate inventory mismatch; missing: ", paste(missing, collapse = ", "),
+         "; extra: ", paste(extra, collapse = ", "), call. = FALSE)
+
+  gate_rows <- vector("list", length(expected)); artifact_rows <- list()
+  for (i in seq_along(expected)) {
+    id <- expected[[i]]; gate <- policy$gate_table[i, , drop = FALSE]
+    rec <- recs[[match(id, ids)]]
+    status <- rc_scalar(rec$status, paste0(id, " status"))
+    if (!status %in% as.character(unlist(policy$allowed_statuses)))
+      stop("Invalid status for gate: ", id, call. = FALSE)
+    summary <- rc_scalar(rec$summary, paste0(id, " summary"))
+    approval <- rc_approval(rec$approval, isTRUE(gate$approval_required), id, status)
+    arts <- rec$artifacts; if (is.null(arts)) arts <- list()
+    if (!is.list(arts)) stop("artifacts must be a list for gate: ", id, call. = FALSE)
+    if (status == "passed" && !length(arts))
+      stop("Passed gate must retain at least one artifact: ", id, call. = FALSE)
+    if (length(arts)) artifact_rows <- c(artifact_rows, lapply(seq_along(arts), function(j)
+      rc_artifact(arts[[j]], evidence_root, id, j)))
+    passed <- status == "passed" &&
+      (!isTRUE(gate$approval_required) || approval$state == "approved")
+    reason <- if (passed) "" else if (status != "passed") paste0(status, ": ", summary) else
+      paste0("approval: ", approval$state)
+    gate_rows[[i]] <- data.frame(
+      order = gate$order, category = gate$category, gate_id = id,
+      required = gate$required, approval_required = gate$approval_required,
+      issue = gate$
