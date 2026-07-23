@@ -59,7 +59,7 @@ analysis_capability_table <- function(registry, capabilities) {
 
 resolve_capability_modules <- function(registry, capabilities, selected = NULL) {
   table <- analysis_capability_table(registry, capabilities)
-  available <- table[available, module]
+  available <- table[available == TRUE, module]
   if (is.null(selected)) return(available)
   requested_unavailable <- setdiff(selected, available)
   if (length(requested_unavailable)) {

@@ -19,9 +19,18 @@ run_module_pca <- function(analysis, context) {
   }
   artifacts <- write_pca_publication_artifacts(
     coordinates = coordinates,
-    eigenvalues = pca$object$eigenval,
+    eigenvalues = pca$eigenvalues,
     metadata = publication_metadata,
     output_dir = dirs$root
+  )
+  analysis <- record_analysis_message(
+    analysis,
+    "INFO",
+    "pca",
+    paste(
+      "requested", pca$requested_components,
+      "bounded component(s); eigensystem source:", pca$eigensystem_source
+    )
   )
   list(analysis = analysis, context = context, artifacts = artifacts)
 }

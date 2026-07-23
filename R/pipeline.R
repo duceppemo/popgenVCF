@@ -77,7 +77,7 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
   }
 
   vq <- stage("variant QC audit", variant_qc(gds, sample_ids, ids, cfg$qc$maf, 0.2))
-  qc_snps <- vq[pass_combined, snp_id]
+  qc_snps <- vq[pass_combined == TRUE, snp_id]
   analysis$variants$audit <- vq
   analysis$variants$qc_ids <- qc_snps
   final_snps <- stage(

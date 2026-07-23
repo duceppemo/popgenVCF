@@ -1,6 +1,6 @@
 # Installing and configuring ancestry backends
 
-popgenVCF provides one ancestry workflow over ADMIXTURE, fastStructure, and LEA/sNMF, but each backend has a different runtime. Install and test each backend before enabling it in an analysis configuration.
+popgenVCF provides one ancestry workflow over ADMIXTURE, fastStructure, and LEA/sNMF. Install and test each enabled backend before running an analysis configuration.
 
 Installation success establishes runtime availability only. The 0.10.0 release gate additionally requires one approved real-data case executed through all three backends, with commands, versions, inputs, sample order, Q matrices, K-selection evidence, alignment diagnostics, tolerances, logs, and scientific approval retained in the release-candidate dossier.
 
@@ -8,24 +8,32 @@ Installation success establishes runtime availability only. The 0.10.0 release g
 
 ADMIXTURE and fastStructure use a PLINK binary prefix containing matching `.bed`, `.bim`, and `.fam` files. LEA/sNMF uses a LEA `.geno` file.
 
-Every enabled backend also requires a `q_sample_file` containing sample identifiers in exactly the row order used by its Q matrix. The file prevents silently assigning ancestry coefficients to the wrong samples.
+Every enabled backend also requires a sample-order file containing identifiers in exactly the row order used by its Q matrix. The file prevents silently assigning ancestry coefficients to the wrong samples.
 
 Do not reuse a sample-order file unless its checksum and ordering were verified against the exact backend input.
 
-## ADMIXTURE
+## Main Conda environment
 
-The main Conda environment already declares the Bioconda `admixture` package:
+ADMIXTURE and fastStructure are both installed by the main popgenVCF environment:
 
 ```bash
 mamba env create --file inst/conda/environment.yml
 conda activate popgenvcf
+
 command -v admixture
-admixture 2>&1 | head
+command -v structure.py
+command -v chooseK.py
 ```
 
-The upstream ADMIXTURE project currently publishes Linux x86-64 binaries and its manual from the official download page:
+To update an existing environment after either dependency was added:
 
-<https://dalexander.github.io/admixture/download.html>
+```bash
+mamba env update --file inst/conda/environment.yml --prune
+```
+
+The current Bioconda fastStructure recipe is a Python 3 build and installs the `structure.py`, `chooseK.py`, and `distruct.py` entry points directly into the activated environment.
+
+## ADMIXTURE
 
 A minimal configuration is:
 
@@ -53,50 +61,34 @@ Retain the binary checksum when the executable is not supplied by a checksum-loc
 
 ## fastStructure
 
-fastStructure is isolated from the main R environment because its Python and compiled-library constraints can conflict with the current R stack.
-
-Create the supported build environment:
+Install or update the Bioconda package in the active popgenVCF environment:
 
 ```bash
-mamba env create --file inst/conda/faststructure-environment.yml
-conda activate popgenvcf-faststructure
+conda activate popgenvcf
+mamba install bioconda::faststructure
+
+structure.py 2>&1 | head
+chooseK.py 2>&1 | head
 ```
 
-Install the maintained Python 3 port using the project installer:
-
-```bash
-bash inst/scripts/install-faststructure.sh \
-  "$HOME/.local/opt/fastStructure3"
-```
-
-The installer prints the resulting executable paths. Confirm them:
-
-```bash
-python "$HOME/.local/opt/fastStructure3/structure.py" --help
-python "$HOME/.local/opt/fastStructure3/chooseK.py" --help
-git -C "$HOME/.local/opt/fastStructure3" rev-parse HEAD
-```
-
-Bioconda also publishes a `faststructure` recipe and container images:
-
-<https://bioconda.github.io/recipes/faststructure/README.html>
-
-Use the project’s isolated environment and installer for the validated popgenVCF path unless a different runtime is explicitly recorded and tested.
-
-Configure absolute paths:
+The default configuration uses those commands directly:
 
 ```yaml
 analyses:
   faststructure:
     enabled: true
-    structure_executable: /home/user/.local/opt/fastStructure3/structure.py
-    choosek_executable: /home/user/.local/opt/fastStructure3/chooseK.py
+    structure_executable: structure.py
+    choosek_executable: chooseK.py
     plink_prefix: /data/cohort
     q_sample_file: /data/cohort.samples.txt
     k: "2:10"
 ```
 
-Retain the Git commit, Python version, environment export, commands, and logs.
+Absolute executable paths remain supported for custom or manually managed installations. Retain the Conda package manifest, executable paths, commands, and logs as release evidence.
+
+Official Bioconda recipe:
+
+<https://bioconda.github.io/recipes/faststructure/README.html>
 
 ## LEA/sNMF
 
@@ -130,7 +122,7 @@ analyses:
   snmf:
     enabled: true
     geno_file: /data/cohort.geno
-    q_sample_file: /data/cohort.samples.txt
+    q_sample_file: /data/geno_sample_order.txt
     k: "2:10"
     repetitions: 5
     entropy: true

@@ -1,20 +1,239 @@
+normalize_pca_eigenvalues <- function(eigenvalues,
+                                      relative_tolerance = sqrt(.Machine$double.eps)) {
+  eigenvalues <- as.numeric(eigenvalues)
+  if (!length(eigenvalues)) {
+    stop("SNPRelate PCA returned no eigenvalues", call. = FALSE)
+  }
+  if (any(!is.finite(eigenvalues))) {
+    stop(
+      sprintf(
+        "SNPRelate PCA returned %d non-finite eigenvalue(s)",
+        sum(!is.finite(eigenvalues))
+      ),
+      call. = FALSE
+    )
+  }
+
+  relative_tolerance <- as.numeric(relative_tolerance)[1L]
+  if (!is.finite(relative_tolerance) || relative_tolerance < 0) {
+    stop("relative_tolerance must be one finite nonnegative value", call. = FALSE)
+  }
+  scale <- max(abs(eigenvalues))
+  tolerance <- max(
+    .Machine$double.eps * max(1, scale),
+    relative_tolerance * scale
+  )
+  materially_negative <- eigenvalues < -tolerance
+  if (any(materially_negative)) {
+    stop(
+      sprintf(
+        paste0(
+          "SNPRelate PCA returned materially negative eigenvalues ",
+          "(minimum=%.6g; tolerance=%.6g)"
+        ),
+        min(eigenvalues), tolerance
+      ),
+      call. = FALSE
+    )
+  }
+
+  adjusted <- eigenvalues
+  adjusted[abs(adjusted) <= tolerance] <- 0
+  if (sum(adjusted) <= 0) {
+    stop("SNPRelate PCA retained no positive genetic variance", call. = FALSE)
+  }
+
+  list(
+    values = adjusted,
+    adjusted_negative = sum(eigenvalues < 0),
+    tolerance = tolerance
+  )
+}
+
+pca_component_count <- function(n_pcs, sample_ids, snp_ids) {
+  n_pcs <- as.integer(n_pcs)[1L]
+  if (is.na(n_pcs) || n_pcs < 2L) {
+    stop("n_pcs must request at least two PCA components", call. = FALSE)
+  }
+  n_samples <- length(sample_ids)
+  n_snps <- length(snp_ids)
+  available <- min(n_samples - 1L, n_snps)
+  requested <- min(n_pcs, available)
+  if (requested < 2L) {
+    stop(
+      sprintf(
+        paste0(
+          "PCA requires at least two estimable components ",
+          "(retained samples=%d; retained SNPs=%d)"
+        ),
+        n_samples, n_snps
+      ),
+      call. = FALSE
+    )
+  }
+  requested
+}
+
+pca_eigensystem_is_finite <- function(pca, requested_components) {
+  if (is.null(pca$eigenval) || is.null(pca$eigenvect)) return(FALSE)
+  values <- as.numeric(pca$eigenval)
+  vectors <- as.matrix(pca$eigenvect)
+  if (length(values) < requested_components || ncol(vectors) < requested_components) {
+    return(FALSE)
+  }
+  if (nrow(vectors) != length(pca$sample.id)) return(FALSE)
+  index <- seq_len(requested_components)
+  all(is.finite(values[index])) &&
+    all(is.finite(vectors[, index, drop = FALSE]))
+}
+
+recover_pca_eigensystem <- function(pca, requested_components) {
+  if (is.null(pca$genmat)) {
+    stop(
+      "SNPRelate PCA eigensystem was non-finite and no genetic covariance matrix was returned",
+      call. = FALSE
+    )
+  }
+  covariance <- as.matrix(pca$genmat)
+  if (nrow(covariance) != ncol(covariance) ||
+      nrow(covariance) != length(pca$sample.id)) {
+    stop(
+      "SNPRelate PCA returned an invalid genetic covariance matrix",
+      call. = FALSE
+    )
+  }
+  if (any(!is.finite(covariance))) {
+    stop(
+      sprintf(
+        "SNPRelate PCA genetic covariance matrix contains %d non-finite value(s)",
+        sum(!is.finite(covariance))
+      ),
+      call. = FALSE
+    )
+  }
+
+  covariance <- (covariance + t(covariance)) / 2
+  decomposition <- eigen(covariance, symmetric = TRUE)
+  component_count <- min(
+    as.integer(requested_components),
+    length(decomposition$values),
+    ncol(decomposition$vectors)
+  )
+  if (component_count < 2L) {
+    stop(
+      "PCA covariance fallback produced fewer than two components",
+      call. = FALSE
+    )
+  }
+
+  index <- seq_len(component_count)
+  positive_total <- sum(pmax(decomposition$values, 0))
+  pca$eigenval <- decomposition$values[index]
+  pca$eigenvect <- decomposition$vectors[, index, drop = FALSE]
+  pca$varprop <- if (is.finite(positive_total) && positive_total > 0) {
+    pca$eigenval / positive_total
+  } else {
+    rep(NaN, component_count)
+  }
+  pca
+}
+
 run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads) {
-  z <- SNPRelate::snpgdsPCA(gds, sample.id = sample_ids, snp.id = snp_ids,
-                            autosome.only = FALSE, num.thread = threads, verbose = FALSE)
-  npc <- min(n_pcs, ncol(z$eigenvect))
+  requested_components <- pca_component_count(n_pcs, sample_ids, snp_ids)
+  run_snprelate <- function(need_genmat = FALSE) {
+    SNPRelate::snpgdsPCA(
+      gds,
+      sample.id = sample_ids,
+      snp.id = snp_ids,
+      autosome.only = FALSE,
+      remove.monosnp = TRUE,
+      maf = NaN,
+      missing.rate = NaN,
+      eigen.cnt = requested_components,
+      num.thread = threads,
+      need.genmat = need_genmat,
+      verbose = FALSE
+    )
+  }
+
+  log_msg(
+    "PCA inputs: ", length(sample_ids), " retained sample(s), ",
+    length(snp_ids), " retained SNP(s), ", requested_components,
+    " requested component(s)",
+    level = "INFO"
+  )
+  z <- run_snprelate(FALSE)
+  eigensystem_source <- "SNPRelate"
+  raw_nonfinite_eigenvalues <- if (is.null(z$eigenval)) {
+    requested_components
+  } else {
+    sum(!is.finite(as.numeric(z$eigenval)))
+  }
+
+  if (!pca_eigensystem_is_finite(z, requested_components)) {
+    log_msg(
+      "SNPRelate returned an incomplete or non-finite PCA eigensystem ",
+      "(", raw_nonfinite_eigenvalues, " non-finite eigenvalue(s)); ",
+      "recovering from the genetic covariance matrix",
+      level = "WARNING"
+    )
+    z <- recover_pca_eigensystem(run_snprelate(TRUE), requested_components)
+    eigensystem_source <- "covariance_eigendecomposition"
+  }
+
+  eig <- normalize_pca_eigenvalues(z$eigenval)
+  if (eig$adjusted_negative > 0L) {
+    log_msg(
+      "Clamped ", eig$adjusted_negative,
+      " negligible negative PCA eigenvalue(s) to zero (tolerance=",
+      signif(eig$tolerance, 6), ")",
+      level = "WARNING"
+    )
+  }
+
+  available_components <- which(
+    seq_along(eig$values) <= ncol(z$eigenvect) & eig$values > 0
+  )
+  npc <- min(requested_components, length(available_components))
+  if (npc < 2L) {
+    stop(
+      sprintf(
+        paste0(
+          "PCA produced only %d positive-variance component(s) after %s; ",
+          "at least two are required"
+        ),
+        npc, eigensystem_source
+      ),
+      call. = FALSE
+    )
+  }
+  component_index <- available_components[seq_len(npc)]
+  variance_proportion <- eig$values / sum(eig$values)
+
   public_ids <- public_sample_ids(metadata, z$sample.id)
   scores <- data.table::data.table(sample = public_ids, vcf_sample = z$sample.id)
-  for (i in seq_len(npc)) scores[[paste0("PC", i)]] <- z$eigenvect[, i]
+  for (i in seq_len(npc)) {
+    scores[[paste0("PC", i)]] <- z$eigenvect[, component_index[[i]]]
+  }
   if ("population" %in% names(metadata)) {
     data.table::set(scores, j = "population",
                     value = metadata$population[match(scores$vcf_sample, metadata$sample)])
   }
   variance <- data.table::data.table(
     PC = paste0("PC", seq_len(npc)),
-    proportion = z$varprop[seq_len(npc)],
-    percent = 100 * z$varprop[seq_len(npc)]
+    proportion = variance_proportion[component_index],
+    percent = 100 * variance_proportion[component_index]
   )
-  list(scores = scores, variance = variance, object = z)
+  list(
+    scores = scores,
+    variance = variance,
+    object = z,
+    eigenvalues = eig$values,
+    eigenvalue_tolerance = eig$tolerance,
+    eigensystem_source = eigensystem_source,
+    raw_nonfinite_eigenvalues = raw_nonfinite_eigenvalues,
+    requested_components = requested_components
+  )
 }
 
 plot_pca <- function(pca, cfg, dirs) {
@@ -51,8 +270,17 @@ plot_pca <- function(pca, cfg, dirs) {
 }
 
 run_ibs <- function(gds, sample_ids, snp_ids, metadata, threads) {
-  z <- SNPRelate::snpgdsIBS(gds, sample.id = sample_ids, snp.id = snp_ids,
-                            autosome.only = FALSE, num.thread = threads, verbose = FALSE)
+  z <- SNPRelate::snpgdsIBS(
+    gds,
+    sample.id = sample_ids,
+    snp.id = snp_ids,
+    autosome.only = FALSE,
+    remove.monosnp = TRUE,
+    maf = NaN,
+    missing.rate = NaN,
+    num.thread = threads,
+    verbose = FALSE
+  )
   sim <- as.matrix(z$ibs)
   original_ids <- as.character(z$sample.id)
   public_ids <- public_sample_ids(metadata, original_ids)
