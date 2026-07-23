@@ -68,3 +68,16 @@ resolve_capability_modules <- function(registry, capabilities, selected = NULL) 
   }
   intersect(selected, available)
 }
+
+resolve_pipeline_modules <- function(registry, capabilities, config, selected = NULL) {
+  configured <- selected
+  if (is.null(configured)) {
+    configured <- names(registry$modules)[vapply(
+      registry$modules,
+      module_is_enabled,
+      logical(1L),
+      config = config
+    )]
+  }
+  resolve_capability_modules(registry, capabilities, configured)
+}
