@@ -1,100 +1,60 @@
-release_candidate_implementation <- function() {
-  installed <- system.file(
-    "scripts", "build_release_candidate_dossier.R",
-    package = "popgenVCF"
-  )
+rc_impl_path <- function() {
+  installed <- system.file("scripts", "build_release_candidate_dossier.R", package = "popgenVCF")
   if (nzchar(installed)) return(installed)
-  testthat::test_path(
-    "..", "..", "inst", "scripts", "build_release_candidate_dossier.R"
-  )
+  testthat::test_path("..", "..", "inst", "scripts", "build_release_candidate_dossier.R")
 }
 
-release_candidate_policy_path <- function() {
-  installed <- system.file(
-    "metadata", "release-candidate-policy.json",
-    packae = "popgenVCF"
-  )
+rc_policy_path <- function() {
+  installed <- system.file("metadata", "release-candidate-policy.json", package = "popgenVCF")
   if (nzchar(installed)) return(installed)
-  testthat::test_path(
-    "..", "..", "inst", "metadata", "release-candidate-policy.json"
-  )
+  testthat::test_path("..", "..", "inst", "metadata", "release-candidate-policy.json")
 }
 
-release_candidate_environment <- function() {
-  environment <- new.env(parent = globalenv())
-  sys.source(release_candidate_implementation(), envir = environment)
-  environment
+rc_env <- function() {
+  env <- new.env(parent = globalenv())
+  sys.source(rc_impl_path(), envir = env)
+  env
 }
 
-write_release_candidate_fixture <- function(
-    environment,
-    mode = "production",
-    blocked_gate = NULL,
-    omit_gate = NULL,
-    omit_approval = NULL) {
-  fixture <- tempfile("popgenvcf-release-candidate-")
-  evidence_root <- file.path(fixture, "evidence")
-  dir.create(evidence_root, recursive = TRUE)
-  policy_path <- release_candidate_policy_path()
-  policy <- environment$read_release_candidate_policy(policy_path)
+rc_fixture <- function(env, mode = "production", blocked = NULL,
+                       omit_gate = NULL, omit_approval = NULL) {
+  root <- tempfile("popgenvcf-rc-")
+  evidence <- file.path(root, "evidence")
+  dir.create(evidence, recursive = TRUE)
+  policy_path <- rc_policy_path()
+  policy <- env$read_release_candidate_policy(policy_path)
 
-  records <- lapply(seq_len(nrow(policy$gate_table), function(i) {
+  records <- lapply(seq_len(nrow(policy$gate_table)), function(i) {
     gate <- policy$gate_table[i, , drop = FALSE]
-    artifact_path <- paste0(sprintf("%02d", gate$order), "-", gate$gate_id, ".txt")
-    artifact_absolute <- file.path(evidence_root, artifact_path)
-    writeLines(
-      paste("verified evidence for", gate$gate_id),
-      artifact_absolute,
-      useBytes = TRUE
-   )
-    status <- if (identical(gate$gate_id, blocked_gate)) "blocked" else "passed"
-    artifacts <- if (identical(status, "passed")) {
-      list(list(
-        path = artifact_path,
-        size_bytes = as.numeric(file.info(artifact_absolute)$size),
-        sha256 = digest::digest(artifact_absolute, algo = "sha256", file = TRUE)
-      ))
-    } else {
-      list()
-    }
-    approval <- if (isTRUE(gate$approval_required) &&
-                    !identical(gate$gate_id, omit_approval)) {
-      if (identical(status, "passed")) {
-        list(
-          state = "approved",
-          reviewer = "Scientific Reviewer",
-          reviewed_at = "2026-07-22",
-          notes = "Reviewed against the retained evidence."
-        )
+    rel <- paste0(sprintf("%02d", gate$order), "-", gate$gate_id, ".txt")
+    abs <- file.path(evidence, rel)
+    writeLines(paste("verified evidence for", gate$gate_id), abs, useBytes = TRUE)
+    status <- if (identical(gate$gate_id, blocked)) "blocked" else "passed"
+    artifacts <- if (status == "passed") list(list(
+      path = rel,
+      size_bytes = as.numeric(file.info(abs)$size),
+      sha256 = digest::digest(abs, algo = "sha256", file = TRUE)
+    )) else list()
+    approval <- NULL
+    if (isTRUE(gate$approval_required) && !identical(gate$gate_id, omit_approval)) {
+      approval <- if (status == "passed") {
+        list(state = "approved", reviewer = "Scientific Reviewer",
+             reviewed_at = "2026-07-22", notes = "Reviewed retained evidence.")
       } else {
-        list(
-          state = "pending",
-          notes = "Approval is pending."
-        )
+        list(state = "pending", notes = "Approval pending.")
       }
-    } else {
-      NULL
     }
     list(
       gate_id = gate$gate_id,
       status = status,
-      summary = if (identical(status, "passed")) {
-        "Evidence is complete and verified."
-      } else {
-        "Production evidence remains incomplete."
-      },
+      summary = if (status == "passed") "Evidence is complete." else "Evidence is incomplete.",
       artifacts = artifacts,
       approval = approval
     )
   })
   if (!is.null(omit_gate)) {
-    records <- records[vapply(
-      records,
-      function(record) !identical(record$gate_id, omit_gate),
-      logical(1L)
-    )]
+    records <- records[vapply(records, function(x) !identical(x$gate_id, omit_gate), logical(1L))]
   }
-
   index <- list(
     schema_version = "1.0",
     mode = mode,
@@ -105,190 +65,117 @@ write_release_candidate_fixture <- function(
     evaluated_at = "2026-07-22T23:59:59Z",
     records = records
   )
-  index_path <- file.path(fixture, "release-candidate-evidence-index.json")
-  jsonlite::write_json(
-    index,
-    index_path,
-    auto_unbox = TRUE,
-    pretty = TRUE,
-    null = "null",
-    na = "null"
-  )
-  list(
-    fixture = fixture,
-    evidence_root = evidence_root,
-    policy_path = policy_path,
-    index_path = index_path,
-    index = index,
-    policy = policy
-  )
+  index_path <- file.path(root, "release-candidate-evidence-index.json")
+  jsonlite::write_json(index, index_path, auto_unbox = TRUE, pretty = TRUE,
+                       null = "null", na = "null")
+  list(root = root, evidence = evidence, policy = policy,
+       policy_path = policy_path, index_path = index_path)
 }
 
-test_that("complete approved production evidence yields a deterministic ready dossier", {
-  environment <- release_candidate_environment()
-  fixture <- write_release_candidate_fixture(environment)
-  result <- environment$evaluate_release_candidate_dossier(
-    fixture$policy_path,
-    fixture$index_path,
-    fixture$evidence_root
+test_that("complete approved production evidence is deterministic and ready", {
+  env <- rc_env()
+  fixture <- rc_fixture(env)
+  result <- env$evaluate_release_candidate_dossier(
+    fixture$policy_path, fixture$index_path, fixture$evidence
   )
   expect_true(result$release_ready)
   expect_equal(nrow(result$blockers), 0L)
-  expect_equal(
-    nrow(result$artifacts),
-    nrow(fixture$policy$gate_table)
-  )
+  expect_equal(nrow(result$artifacts), nrow(fixture$policy$gate_table))
 
-  first <- file.path(fixture$fixture, "dossier-a")
-  second <- file.path(fixture$fixture, "dossier-b")
-  environment$write_release_candidate_dossier(result, first)
-  environment$write_release_candidate_dossier(result, second)
-  files <- c(
-    "release-candidate-gates.tsv",
-    "release-candidate-blockers.tsv",
-    "release-candidate-artifacts.tsv",
-    "release-candidate-dossier.json",
-    "release-candidate-readiness.md",
-    "release-candidate-SHA256SUMS.txt"
-  )
+  dirs <- file.path(fixture$root, c("dossier-a", "dossier-b"))
+  env$write_release_candidate_dossier(result, dirs[[1L]])
+  env$write_release_candidate_dossier(result, dirs[[2L]])
+  files <- c("release-candidate-gates.tsv", "release-candidate-blockers.tsv",
+             "release-candidate-artifacts.tsv", "release-candidate-dossier.json",
+             "release-candidate-readiness.md", "release-candidate-SHA256SUMS.txt")
   expect_identical(
-    lapply(file.path(first, files), readBin, what = "raw", n = 1e7),
-    lapply(file.path(second, files), readBin, what = "raw", n = 1e7)
+    lapply(file.path(dirs[[1L]], files), readBin, what = "raw", n = 1e7),
+    lapply(file.path(dirs[[2L]], files), readBin, what = "raw", n = 1e7)
   )
-  expect_true(environment$verify_release_candidate_dossier(first))
+  expect_true(env$verify_release_candidate_dossier(dirs[[1L]]))
 })
 
 test_that("rehearsal and incomplete production evidence remain blocked", {
-  environment <- release_candidate_environment()
-  rehearsal <- write_release_candidate_fixture(
-    environment,
-    mode = "rehearsal"
+  env <- rc_env()
+  rehearsal <- rc_fixture(env, mode = "rehearsal")
+  result <- env$evaluate_release_candidate_dossier(
+    rehearsal$policy_path, rehearsal$index_path, rehearsal$evidence
   )
-  rehearsal_result <- environment$evaluate_release_candidate_dossier(
-    rehearsal$policy_path,
-    rehearsal$index_path,
-    rehearsal$evidence_root
-  )
-  expect_false(rehearsal_result$release_ready)
-  expect_true(any(rehearsal_result$blockers$gate_id == "evaluation_mode"))
+  expect_false(result$release_ready)
+  expect_true(any(result$blockers$gate_id == "evaluation_mode"))
 
-  blocked <- write_release_candidate_fixture(
-    environment,
-    blocked_gate = "production_baseline"
+  incomplete <- rc_fixture(env, blocked = "production_baseline")
+  result <- env$evaluate_release_candidate_dossier(
+    incomplete$policy_path, incomplete$index_path, incomplete$evidence
   )
-  blocked_result <- environment$evaluate_release_candidate_dossier(
-    blocked$policy_path,
-    blocked$index_path,
-    blocked$evidence_root
-  )
-  expect_false(blocked_result$release_ready)
-  expect_true(any(blocked_result$blockers$gate_id == "production_baseline"))
+  expect_false(result$release_ready)
+  expect_true(any(result$blockers$gate_id == "production_baseline"))
 })
 
-test_that("release-candidate evidence fails closed on approval and inventory defects", {
-  environment <- release_candidate_environment()
-  missing_approval <- write_release_candidate_fixture(
-    environment,
-    omit_approval = "scientific_approval"
-  )
+test_that("approval, inventory, and artifact defects fail closed", {
+  env <- rc_env()
+  missing_approval <- rc_fixture(env, omit_approval = "scientific_approval")
   expect_error(
-    environment$evaluate_release_candidate_dossier(
-      missing_approval$policy_path,
-      missing_approval$index_path,
-      missing_approval$evidence_root
+    env$evaluate_release_candidate_dossier(
+      missing_approval$policy_path, missing_approval$index_path, missing_approval$evidence
     ),
     "requires approval metadata"
   )
 
-  missing_gate <- write_release_candidate_fixture(
-    environment,
-    omit_gate = "external_concordance"
-  )
+  missing_gate <- rc_fixture(env, omit_gate = "external_concordance")
   expect_error(
-    environment$evaluate_release_candidate_dossier(
-      missing_gate$policy_path,
-      missing_gate$index_path,
-      missing_gate$evidence_root
+    env$evaluate_release_candidate_dossier(
+      missing_gate$policy_path, missing_gate$index_path, missing_gate$evidence
     ),
     "gate inventory mismatch"
   )
-})
 
-test_that("release-candidate evidence detects artifact tampering", {
-  environment <- release_candidate_environment()
-  fixture <- write_release_candidate_fixture(environment)
-  tampered <- file.path(
-    fixture$evidence_root,
-    "01-metadata_consistency.txt"
-  )
-  cat("\ntampered\n", file = tampered, append = TRUE)
+  tampered <- rc_fixture(env)
+  cat("\ntampered\n", file = file.path(tampered$evidence, "01-metadata_consistency.txt"), append = TRUE)
   expect_error(
-    environment$evaluate_release_candidate_dossier(
-      fixture$policy_path,
-      fixture$index_path,
-      fixture$evidence_root
+    env$evaluate_release_candidate_dossier(
+      tampered$policy_path, tampered$index_path, tampered$evidence
     ),
     "size mismatch|checksum mismatch"
   )
 })
 
-
-release_candidate_source_root <- function() {
-  required <- c(
-    "DESCRIPTION",
-    "docs/developer/release-candidate-closure.md",
-    "docs/user/ancestry-backends.md",
-    "inst/metadata/release-candidate-policy.json"
-  )
+rc_source_root <- function() {
+  required <- c("DESCRIPTION", "docs/developer/release-candidate-closure.md",
+                "docs/user/ancestry-backends.md",
+                "inst/metadata/release-candidate-policy.json")
   ancestors <- function(path) {
     out <- character()
-    current <- path
     repeat {
-      out <- c(out, current)
-      parent <- dirname(current)
-      if (identical(parent, current)) break
-      current <- parent
+      out <- c(out, path)
+      parent <- dirname(path)
+      if (identical(parent, path)) break
+      path <- parent
     }
     out
   }
-  workspace <- Sys.getenv("GITHUB_WORKSPACE", unset = "")
-  test_dir <- normalizePath(testthat::test_path(), winslash = "/", mustWork = TRUE)
-  working_dir <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
-  candidates <- unique(c(workspace, ancestors(test_dir), ancestors(working_dir)))
-  candidates <- candidates[nzchar(candidates)]
-  candidates <- unique(c(
-    candidates,
-    file.path(candidates, "popgenVCF"),
-    file.path(candidates, "00_pkg_src", "popgenVCF")
-  ))
+  bases <- unique(c(Sys.getenv("GITHUB_WORKSPACE", unset = ""),
+                    ancestors(normalizePath(testthat::test_path(), mustWork = TRUE)),
+                    ancestors(normalizePath(getwd(), mustWork = TRUE))))
+  bases <- bases[nzchar(bases)]
+  candidates <- unique(c(bases, file.path(bases, "popgenVCF"),
+                         file.path(bases, "00_pkg_src", "popgenVCF")))
   candidates <- normalizePath(candidates, winslash = "/", mustWork = FALSE)
-  matches <- candidates[vapply(
-    candidates,
-    function(path) dir.exists(path) && all(file.exists(file.path(path, required))),
-    logical(1L)
-  )]
-  if (!length(matches)) return(NA_character_)
-  matches[[1L]]
+  matches <- candidates[vapply(candidates, function(x) {
+    dir.exists(x) && all(file.exists(file.path(x, required)))
+  }, logical(1L))]
+  if (length(matches)) matches[[1L]] else NA_character_
 }
 
-test_that("release-candidate and ancestry operator documentation is retained", {
-  source_root <- release_candidate_source_root()
-  if (is.na(source_root)) {
-    testthat::skip("Repository-only release-candidate documentation is unavailable")
+test_that("closure and ancestry operator documentation is retained", {
+  root <- rc_source_root()
+  if (is.na(root)) testthat::skip("Repository-only closure documentation is unavailable")
+  closure <- readLines(file.path(root, "docs/developer/release-candidate-closure.md"), warn = FALSE)
+  ancestry <- readLines(file.path(root, "docs/user/ancestry-backends.md"), warn = FALSE)
+  expect_true(all(c("rehearsal", "production", "release-candidate-SHA256SUMS.txt") %in%
+                    unlist(lapply(c("rehearsal", "production", "release-candidate-SHA256SUMS.txt"),
+                                  function(x) x[any(grepl(x, closure, fixed = TRUE))]))))
+  for (term in c("ADMIXTURE", "fastStructure", "LEA/sNMF", "q_sample_file")) {
+    expect_true(any(grepl(term, ancestry, fixed = TRUE)))
   }
-  closure <- readLines(
-    file.path(source_root, "docs", "developer", "release-candidate-closure.md"),
-    warn = FALSE
-  )
-  ancestry <- readLines(
-    file.path(source_root, "docs", "user", "ancestry-backends.md"),
-    warn = FALSE
-  )
-  expect_true(any(grepl("rehearsal", closure, fixed = TRUE)))
-  expect_true(any(grepl("production", closure, fixed = TRUE)))
-  expect_true(any(grepl("release-candidate-SHA256SUMS.txt", closure, fixed = TRUE)))
-  expect_true(any(grepl("ADMIXTURE", ancestry, fixed = TRUE)))
-  expect_true(any(grepl("fastStructure", ancestry, fixed = TRUE)))
-  expect_true(any(grepl("LEA/sNMF", ancestry, fixed = TRUE)))
-  expect_true(any(grepl("q_sample_file", ancestry, fixed = TRUE)))
 })
