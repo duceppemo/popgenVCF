@@ -21,7 +21,12 @@ test_that("ancestry backends generate and reuse the retained PLINK bundle", {
   root <- tempfile("ancestry-plink-")
   dir.create(root)
   samples <- paste0("sample", 1:4)
-  snps <- paste0("snp", 1:7)
+  snps <- seq_len(7L)
+  observed <- new.env(parent = emptyenv())
+  converter <- function(gdsobj, bed.fn, sample.id, snp.id, verbose = FALSE) {
+    observed$snp_id_type <- typeof(snp.id)
+    fake_gds_to_bed(gdsobj, bed.fn, sample.id, snp.id, verbose)
+  }
 
   generated <- popgenVCF:::prepare_structure_plink_input(
     gds = NULL,
@@ -29,9 +34,10 @@ test_that("ancestry backends generate and reuse the retained PLINK bundle", {
     snp_ids = snps,
     preferred_prefix = file.path(root, "missing-configured-prefix"),
     cache_dir = root,
-    converter = fake_gds_to_bed
+    converter = converter
   )
 
+  expect_identical(observed$snp_id_type, "integer")
   expect_identical(generated$source, "generated")
   expect_true(all(file.exists(popgenVCF:::plink_bundle_paths(generated$prefix))))
   expect_equal(readLines(generated$sample_file), samples)
