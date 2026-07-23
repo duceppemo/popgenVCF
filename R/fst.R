@@ -1,9 +1,18 @@
 fst_pair <- function(gds, snp_ids, metadata, p1, p2) {
   s1 <- metadata[population == p1, sample]; s2 <- metadata[population == p2, sample]
   if (length(s1) < 2L || length(s2) < 2L) return(NA_real_)
-  z <- SNPRelate::snpgdsFst(gds, sample.id = c(s1, s2), snp.id = snp_ids,
-                            population = factor(c(rep(p1, length(s1)), rep(p2, length(s2)))),
-                            method = "W&C84", autosome.only = FALSE, verbose = FALSE)
+  z <- SNPRelate::snpgdsFst(
+    gds,
+    sample.id = c(s1, s2),
+    snp.id = snp_ids,
+    population = factor(c(rep(p1, length(s1)), rep(p2, length(s2)))),
+    method = "W&C84",
+    autosome.only = FALSE,
+    remove.monosnp = TRUE,
+    maf = NaN,
+    missing.rate = NaN,
+    verbose = FALSE
+  )
   as.numeric(z$Fst)
 }
 
@@ -11,9 +20,18 @@ run_fst <- function(gds, snp_ids, metadata) {
   valid <- metadata[, .N, by = population][N >= 2, population]
   m <- metadata[population %in% valid]
   global <- if (data.table::uniqueN(m$population) >= 2L) {
-    as.numeric(SNPRelate::snpgdsFst(gds, sample.id = m$sample, snp.id = snp_ids,
-                                    population = factor(m$population), method = "W&C84",
-                                    autosome.only = FALSE, verbose = FALSE)$Fst)
+    as.numeric(SNPRelate::snpgdsFst(
+      gds,
+      sample.id = m$sample,
+      snp.id = snp_ids,
+      population = factor(m$population),
+      method = "W&C84",
+      autosome.only = FALSE,
+      remove.monosnp = TRUE,
+      maf = NaN,
+      missing.rate = NaN,
+      verbose = FALSE
+    )$Fst)
   } else NA_real_
   pops <- sort(unique(metadata$population)); pairs <- if (length(pops) >= 2L) utils::combn(pops, 2, simplify = FALSE) else list()
   long <- data.table::rbindlist(lapply(pairs, function(pp) data.table::data.table(
