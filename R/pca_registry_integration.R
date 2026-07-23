@@ -23,6 +23,12 @@ run_module_pca <- function(analysis, context) {
     metadata = publication_metadata,
     output_dir = dirs$root
   )
+  analysis <- record_analysis_message(
+    analysis,
+    "INFO",
+    "pca",
+    paste("requested", pca$requested_components, "bounded component(s) from SNPRelate")
+  )
   list(analysis = analysis, context = context, artifacts = artifacts)
 }
 
