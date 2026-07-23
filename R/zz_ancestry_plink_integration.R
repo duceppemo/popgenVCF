@@ -59,15 +59,17 @@ prepare_structure_plink_input <- function(gds, sample_ids, snp_ids,
                                           preferred_prefix = NULL,
                                           cache_dir,
                                           converter = SNPRelate::snpgdsGDS2BED) {
-  sample_ids <- as.character(sample_ids)
-  snp_ids <- as.character(snp_ids)
-  if (length(sample_ids) < 2L) stop("PLINK export requires at least two retained samples", call. = FALSE)
-  if (!length(snp_ids)) stop("PLINK export requires retained SNPs", call. = FALSE)
+  selected_sample_ids <- sample_ids
+  selected_snp_ids <- snp_ids
+  sample_keys <- as.character(selected_sample_ids)
+  snp_keys <- as.character(selected_snp_ids)
+  if (length(selected_sample_ids) < 2L) stop("PLINK export requires at least two retained samples", call. = FALSE)
+  if (!length(selected_snp_ids)) stop("PLINK export requires retained SNPs", call. = FALSE)
 
   preferred_prefix <- as.character(preferred_prefix %||% "")[1L]
   if (nzchar(preferred_prefix)) {
     preferred_prefix <- path.expand(preferred_prefix)
-    preferred <- inspect_plink_bundle(preferred_prefix, sample_ids, snp_ids)
+    preferred <- inspect_plink_bundle(preferred_prefix, sample_keys, snp_keys)
     if (isTRUE(preferred$valid)) {
       sample_file <- write_structure_sample_order(
         preferred$sample_ids,
@@ -100,7 +102,7 @@ prepare_structure_plink_input <- function(gds, sample_ids, snp_ids,
   manifest_file <- paste0(prefix, ".manifest.rds")
   sample_file <- paste0(prefix, ".samples.txt")
   signature <- digest::digest(
-    list(sample_ids = sample_ids, snp_ids = snp_ids),
+    list(sample_ids = sample_keys, snp_ids = snp_keys),
     algo = "sha256",
     serialize = TRUE
   )
@@ -108,7 +110,7 @@ prepare_structure_plink_input <- function(gds, sample_ids, snp_ids,
   manifest <- if (file.exists(manifest_file)) {
     tryCatch(readRDS(manifest_file), error = function(e) NULL)
   } else NULL
-  cached <- inspect_plink_bundle(prefix, sample_ids, snp_ids)
+  cached <- inspect_plink_bundle(prefix, sample_keys, snp_keys)
   if (isTRUE(cached$valid) && identical(manifest$signature, signature)) {
     write_structure_sample_order(cached$sample_ids, sample_file)
     log_msg(
@@ -132,11 +134,11 @@ prepare_structure_plink_input <- function(gds, sample_ids, snp_ids,
   converter(
     gds,
     bed.fn = temporary_prefix,
-    sample.id = sample_ids,
-    snp.id = snp_ids,
+    sample.id = selected_sample_ids,
+    snp.id = selected_snp_ids,
     verbose = FALSE
   )
-  generated <- inspect_plink_bundle(temporary_prefix, sample_ids, snp_ids)
+  generated <- inspect_plink_bundle(temporary_prefix, sample_keys, snp_keys)
   if (!isTRUE(generated$valid)) {
     stop("Canonical PLINK export failed: ", generated$reason, call. = FALSE)
   }
