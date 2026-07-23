@@ -1,0 +1,56 @@
+name: Release candidate contract diagnostics
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/release-candidate-contract-debug.yml'
+      - 'inst/metada/release-candidate-policy.json'
+      - 'inst/scripts/release_candidate_*.R'
+      - 'tests/testthat/helper-release-candidate-dossier.R'
+      - 'tests/testthat/test-release-candidate-*.R'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
+        with:
+          r-version: release
+          use-public-rspm: true
+      - uses: r-lib/actions/setup-r-dependencies@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
+        with:
+          extra-packages: |
+            any::data.table
+            any::digest
+            any::jsonlite
+            any::testthat
+          needs: check
+      - name: Run contract tests
+        id: tests
+        continue-on-error: true
+        shell: bash
+        run: |
+          Rscript -e 'testthat::test_dir("tests/testthat", filter = "release-candidate", reporter = "summary")' \
+            > release-candidate-contract-tests.log 2>&1
+          status=$?
+          cat release-candidate-contract-tests.log
+          exit "$status"
+      - name: Upload diagnostic log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-candidate-contract-tests
+          path: release-candidate-contract-tests.log
+          if-no-files-found: error
+          retention-days: 7
+      - name: Enforce contract result
+        if: always()
+        env:
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
+        run: test "$TEST_OUTCOME" = success
