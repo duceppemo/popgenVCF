@@ -1,39 +1,237 @@
-name: Canonical real-data validation
+name: Canonical real-data production validation
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/canonical-real-data.yml"
+      - "inst/scripts/canonical_production_execution.R"
+      - "scripts/run-approved-canonical-validation.R"
+      - "tests/testthat/helper-canonical-production-execution.R"
+      - "tests/testthat/test-canonical-production-execution.R"
+      - "docs/developer/canonical-production-execution.md"
+      - "docs/FIRST_APPROVED_CANONICAL_DATASET.md"
+      - "NEWS.md"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/canonical-real-data.yml"
+      - "inst/scripts/canonical_production_execution.R"
+      - "scripts/run-approved-canonical-validation.R"
+      - "tests/testthat/helper-canonical-production-execution.R"
+      - "tests/testthat/test-canonical-production-execution.R"
+      - "docs/developer/canonical-production-execution.md"
+      - "docs/FIRST_APPROVED_CANONICAL_DATASET.md"
+      - "NEWS.md"
   workflow_dispatch:
+    inputs:
+      candidate_ref:
+        description: Git ref or full commit SHA to execute
+        required: false
+        default: main
+        type: string
+      candidate_id:
+        description: Stable production execution identifier
+        required: false
+        default: 0.10.0-production-1
+        type: string
+      confirm_production:
+        description: Download and execute the approved canonical real-data workflow
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
 
+concurrency:
+  group: canonical-production-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  validate-1000g-chry:
-    runs-on: ubuntu-latest
+  contract:
+    name: Validate production execution contract
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
+      - name: Resolve validation revision
+        id: candidate
+        shell: bash
+        env:
+          REQUESTED_REF: ${{ inputs.candidate_ref }}
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            ref="${REQUESTED_REF:-main}"
+          else
+            ref="${GITHUB_SHA}"
+          fi
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+
+      - name: Check out validation revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          ref: ${{ steps.candidate.outputs.ref }}
+          fetch-depth: 0
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
+        with:
+          r-version: release
           use-public-rspm: true
-      - uses: r-lib/actions/setup-r-dependencies@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
+
+      - name: Install package dependencies
+        uses: r-lib/actions/setup-r-dependencies@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
         with:
-          extra-packages: any::rcmdcheck
+          extra-packages: any::testthat
           needs: check
-      - name: Install package
+
+      - name: Install candidate package
         run: R CMD INSTALL .
-      - name: Download approved source files
+
+      - name: Test production execution contract
+        run: >-
+          Rscript -e 'testthat::test_dir(
+          "tests/testthat",
+          filter = "canonical-production-execution",
+          reporter = "summary"
+          )'
+
+  production:
+    name: Execute approved canonical dataset
+    if: github.event_name == 'workflow_dispatch' && inputs.confirm_production == true
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+
+    steps:
+      - name: Resolve production candidate
+        id: candidate
+        shell: bash
+        env:
+          REQUESTED_REF: ${{ inputs.candidate_ref }}
+          REQUESTED_ID: ${{ inputs.candidate_id }}
+        run: |
+          set -euo pipefail
+          ref="${REQUESTED_REF:-main}"
+          candidate_id="${REQUESTED_ID:-0.10.0-production-1}"
+          test -n "$candidate_id"
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+          echo "candidate_id=${candidate_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Check out exact candidate revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.candidate.outputs.ref }}
+          fetch-depth: 0
+
+      - name: Install bcftools and tabix
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p canonical-source
-          base='https://zenodo.org/records/3359882/files'
-          curl --fail --location --retry 3 --output canonical-source/ALL.chrY.phase3_integrated_v2a.20130502.genotypes.vcf.gz "$base/ALL.chrY.phase3_integrated_v2a.20130502.genotypes.vcf.gz?download=1"
-          curl --fail --location --retry 3 --output canonical-source/ALL.chrY.phase3_integrated_v2a.20130502.genotypes.vcf.gz.tbi "$base/ALL.chrY.phase3_integrated_v2a.20130502.genotypes.vcf.gz.tbi?download=1"
-          curl --fail --location --retry 3 --output canonical-source/integrated_call_male_samples_v3.20130502.ALL.panel "$base/integrated_call_male_samples_v3.20130502.ALL.panel?download=1"
-      - name: Verify and write evidence
-        run: Rscript scripts/run-approved-canonical-validation.R canonical-source canonical-validation-evidence
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends bcftools tabix
+          bcftools --version
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
         with:
-          name: canonical-1000g-chry-evidence
-          path: canonical-validation-evidence
+          r-version: release
+          use-public-rspm: true
+
+      - name: Install package dependencies
+        uses: r-lib/actions/setup-r-dependencies@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
+        with:
+          needs: check
+
+      - name: Install exact candidate package
+        run: R CMD INSTALL .
+
+      - name: Execute candidate-bound canonical validation
+        id: execute
+        shell: bash
+        env:
+          CANDIDATE_ID: ${{ steps.candidate.outputs.candidate_id }}
+        run: |
+          set -euo pipefail
+          candidate_commit="$(git rev-parse HEAD)"
+          generated_at="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          data_dir="${RUNNER_TEMP}/popgenvcf-canonical-source"
+          evidence_dir="${GITHUB_WORKSPACE}/canonical-production-evidence"
+
+          Rscript scripts/run-approved-canonical-validation.R \
+            "$evidence_dir" \
+            "$data_dir" \
+            "$CANDIDATE_ID" \
+            "$candidate_commit" \
+            "$generated_at" \
+            --allow-download \
+            --verbose \
+            2>&1 | tee canonical-production-run.log
+
+          printf '%s\n' "$candidate_commit" > canonical-production-candidate-sha.txt
+          sha256sum canonical-production-run.log \
+            canonical-production-candidate-sha.txt \
+            > canonical-production-run-SHA256SUMS.txt
+          echo "commit=${candidate_commit}" >> "$GITHUB_OUTPUT"
+          echo "evidence_dir=${evidence_dir}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify candidate identity and gate boundary
+        shell: bash
+        env:
+          CANDIDATE_COMMIT: ${{ steps.execute.outputs.commit }}
+          EVIDENCE_DIR: ${{ steps.execute.outputs.evidence_dir }}
+        run: |
+          set -euo pipefail
+          package_version="$(awk -F': *' '$1 == "Version" {print $2}' DESCRIPTION)"
+          test "$(jq -r '.git_commit' "$EVIDENCE_DIR/canonical-production-execution.json")" = "$CANDIDATE_COMMIT"
+          test "$(jq -r '.package_version' "$EVIDENCE_DIR/canonical-production-execution.json")" = "$package_version"
+          test "$(jq -r '.status' "$EVIDENCE_DIR/canonical-production-execution.json")" = "passed"
+          test "$(jq -r '.gate_states.canonical_validation' "$EVIDENCE_DIR/canonical-production-execution.json")" = "passed"
+          test "$(jq -r '.gate_states.production_baseline' "$EVIDENCE_DIR/canonical-production-execution.json")" = "not_run"
+          test "$(jq -r '.gate_states.external_concordance' "$EVIDENCE_DIR/canonical-production-execution.json")" = "not_run"
+          test "$(jq -r '.gate_id' "$EVIDENCE_DIR/canonical-validation-gate-record.json")" = "canonical_validation"
+          test "$(jq -r '.status' "$EVIDENCE_DIR/canonical-validation-gate-record.json")" = "passed"
+          test "$(jq -r '.data_retention.raw_dataset_in_evidence_bundle' "$EVIDENCE_DIR/canonical-production-execution.json")" = "false"
+          ! find "$EVIDENCE_DIR" -type f \( -name '*.vcf' -o -name '*.vcf.gz' -o -name '*.tbi' \) -print -quit | grep -q .
+          (
+            cd "$EVIDENCE_DIR"
+            sha256sum --check canonical-production-SHA256SUMS.txt
+          )
+          sha256sum --check canonical-production-run-SHA256SUMS.txt
+
+      - name: Write workflow summary
+        shell: bash
+        env:
+          CANDIDATE_COMMIT: ${{ steps.execute.outputs.commit }}
+          EVIDENCE_DIR: ${{ steps.execute.outputs.evidence_dir }}
+        run: |
+          {
+            echo "## Canonical production execution"
+            echo
+            echo "- Candidate commit: \`$CANDIDATE_COMMIT\`"
+            echo "- Dataset: \`$(jq -r '.dataset.id + " " + .dataset.version' "$EVIDENCE_DIR/canonical-production-execution.json")\`"
+            echo "- Canonical validation: **passed**"
+            echo "- Production baseline: **not run**"
+            echo "- External concordance: **not run**"
+            echo "- Release authorization: **not granted**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload candidate-bound evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: canonical-production-evidence
+          path: |
+            canonical-production-evidence/
+            canonical-production-run.log
+            canonical-production-candidate-sha.txt
+            canonical-production-run-SHA256SUMS.txt
           if-no-files-found: error
+          retention-days: 90
