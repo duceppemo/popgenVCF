@@ -38,7 +38,6 @@ normalize_admixture_bim_chromosomes <- function(plink_prefix) {
     original_chromosome = chromosome[changed],
     admixture_chromosome = normalized[changed]
   ))
-  data.table::setorder(mapping, original_chromosome, na.last = TRUE)
   mapping_file <- paste0(plink_prefix, ".admixture_chromosome_map.tsv")
   data.table::fwrite(
     mapping,
@@ -50,7 +49,8 @@ normalize_admixture_bim_chromosomes <- function(plink_prefix) {
 
   bim[[1L]] <- normalized
   temporary <- tempfile("admixture-bim-", tmpdir = dirname(bim_path))
-  on.exit(unlink(temporary, force = TRUE), add = TRUE)
+  backup <- paste0(bim_path, ".pre_admixture")
+  on.exit(unlink(c(temporary, backup), force = TRUE), add = TRUE)
   data.table::fwrite(
     bim,
     temporary,
@@ -59,10 +59,16 @@ normalize_admixture_bim_chromosomes <- function(plink_prefix) {
     col.names = FALSE,
     na = "0"
   )
-  if (!file.rename(temporary, bim_path)) {
-    stop("Unable to atomically replace the ADMIXTURE-compatible BIM file",
+  unlink(backup, force = TRUE)
+  if (!file.rename(bim_path, backup)) {
+    stop("Unable to stage the original BIM file for ADMIXTURE normalization",
          call. = FALSE)
   }
+  if (!file.rename(temporary, bim_path)) {
+    file.rename(backup, bim_path)
+    stop("Unable to install the ADMIXTURE-compatible BIM file", call. = FALSE)
+  }
+  unlink(backup, force = TRUE)
 
   log_msg(
     "Normalized ", sum(changed), " BIM chromosome entr",
