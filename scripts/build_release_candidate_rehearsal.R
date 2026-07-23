@@ -66,7 +66,7 @@ index <- list(
   mode = "rehearsal",
   candidate_id = rc_scalar(args[[3L]], "candidate id"),
   target_release = rc_scalar(policy$target_release, "target release"),
-  package_version = rc_scalar(policy$package_version, "packae version"),
+  package_version = rc_scalar(policy$package_version, "package version"),
   git_commit = git_commit,
   evaluated_at = evaluated_at,
   records = records
@@ -81,4 +81,9 @@ jsonlite::write_json(
   null = "null",
   na = "null"
 )
-cat("Blocked rehearsal evidence index written to ", normalizePath(args[[2L]]), "\n", sep = "")
+cat(
+  "Blocked rehearsal evidence index written to ",
+  normalizePath(args[[2L]]),
+  "\n",
+  sep = ""
+)
