@@ -50,9 +50,44 @@ normalize_pca_eigenvalues <- function(eigenvalues,
   )
 }
 
+pca_component_count <- function(n_pcs, sample_ids, snp_ids) {
+  n_pcs <- as.integer(n_pcs)[1L]
+  if (is.na(n_pcs) || n_pcs < 2L) {
+    stop("n_pcs must request at least two PCA components", call. = FALSE)
+  }
+  n_samples <- length(sample_ids)
+  n_snps <- length(snp_ids)
+  available <- min(n_samples - 1L, n_snps)
+  requested <- min(n_pcs, available)
+  if (requested < 2L) {
+    stop(
+      sprintf(
+        paste0(
+          "PCA requires at least two estimable components ",
+          "(retained samples=%d; retained SNPs=%d)"
+        ),
+        n_samples, n_snps
+      ),
+      call. = FALSE
+    )
+  }
+  requested
+}
+
 run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads) {
-  z <- SNPRelate::snpgdsPCA(gds, sample.id = sample_ids, snp.id = snp_ids,
-                            autosome.only = FALSE, num.thread = threads, verbose = FALSE)
+  requested_components <- pca_component_count(n_pcs, sample_ids, snp_ids)
+  z <- SNPRelate::snpgdsPCA(
+    gds,
+    sample.id = sample_ids,
+    snp.id = snp_ids,
+    autosome.only = FALSE,
+    remove.monosnp = TRUE,
+    maf = NaN,
+    missing.rate = NaN,
+    eigen.cnt = requested_components,
+    num.thread = threads,
+    verbose = FALSE
+  )
   eig <- normalize_pca_eigenvalues(z$eigenval)
   if (eig$adjusted_negative > 0L) {
     log_msg(
@@ -66,7 +101,7 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads) {
   available_components <- which(
     seq_along(eig$values) <= ncol(z$eigenvect) & eig$values > 0
   )
-  npc <- min(as.integer(n_pcs), length(available_components))
+  npc <- min(requested_components, length(available_components))
   if (npc < 2L) {
     stop(
       sprintf(
@@ -98,7 +133,8 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads) {
     variance = variance,
     object = z,
     eigenvalues = eig$values,
-    eigenvalue_tolerance = eig$tolerance
+    eigenvalue_tolerance = eig$tolerance,
+    requested_components = requested_components
   )
 }
 
@@ -136,8 +172,17 @@ plot_pca <- function(pca, cfg, dirs) {
 }
 
 run_ibs <- function(gds, sample_ids, snp_ids, metadata, threads) {
-  z <- SNPRelate::snpgdsIBS(gds, sample.id = sample_ids, snp.id = snp_ids,
-                            autosome.only = FALSE, num.thread = threads, verbose = FALSE)
+  z <- SNPRelate::snpgdsIBS(
+    gds,
+    sample.id = sample_ids,
+    snp.id = snp_ids,
+    autosome.only = FALSE,
+    remove.monosnp = TRUE,
+    maf = NaN,
+    missing.rate = NaN,
+    num.thread = threads,
+    verbose = FALSE
+  )
   sim <- as.matrix(z$ibs)
   original_ids <- as.character(z$sample.id)
   public_ids <- public_sample_ids(metadata, original_ids)
