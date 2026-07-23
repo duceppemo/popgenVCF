@@ -97,5 +97,6 @@ test_that("PCA registry publishes and records bounded runtime eigenvalues", {
 
   expect_match(module_body, "eigenvalues = pca$eigenvalues", fixed = TRUE)
   expect_match(module_body, "pca$requested_components", fixed = TRUE)
+  expect_match(module_body, "pca$eigensystem_source", fixed = TRUE)
   expect_false(grepl("eigenvalues = pca$object$eigenval", module_body, fixed = TRUE))
 })
