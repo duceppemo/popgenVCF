@@ -1,12 +1,20 @@
-canonical_production_module_path <- function() {
-  installed <- system.file("scripts", "canonical_production_execution.R", package = "popgenVCF")
-  if (nzchar(installed) && file.exists(installed)) return(installed)
-  testthat::test_path("..", "..", "inst", "scripts", "canonical_production_execution.R")
+canonical_production_module_paths <- function() {
+  modules <- c(
+    "canonical_production_execution.R",
+    "canonical_production_checksum.R"
+  )
+  installed <- system.file("scripts", package = "popgenVCF")
+  if (nzchar(installed) && all(file.exists(file.path(installed, modules)))) {
+    return(file.path(installed, modules))
+  }
+  file.path(testthat::test_path("..", "..", "inst", "scripts"), modules)
 }
 
 canonical_production_test_env <- local({
   env <- new.env(parent = globalenv())
-  sys.source(canonical_production_module_path(), envir = env)
+  for (module in canonical_production_module_paths()) {
+    sys.source(module, envir = env)
+  }
   env
 })
 
