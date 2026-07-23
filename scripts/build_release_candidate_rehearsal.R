@@ -19,11 +19,11 @@ implementation <- normalizePath(
 sys.source(implementation, envir = environment())
 
 policy <- read_release_candidate_policy(args[[1L]])
-git_commit <- tolower(release_candidate_scalar(args[[4L]], "git commit"))
+git_commit <- tolower(rc_scalar(args[[4L]], "git commit"))
 if (!grepl("^[0-9a-f]{40}$", git_commit)) {
   stop("git commit must be a lowercase 40-character SHA", call. = FALSE)
 }
-evaluated_at <- release_candidate_iso_datetime(args[[5L]], "evaluated at")
+evaluated_at <- rc_datetime(args[[5L]], "evaluated at")
 
 records <- lapply(seq_len(nrow(policy$gate_table)), function(i) {
   gate <- policy$gate_table[i, , drop = FALSE]
@@ -57,9 +57,9 @@ records <- lapply(seq_len(nrow(policy$gate_table)), function(i) {
 index <- list(
   schema_version = "1.0",
   mode = "rehearsal",
-  candidate_id = release_candidate_scalar(args[[3L]], "candidate id"),
-  target_release = release_candidate_scalar(policy$target_release, "target release"),
-  package_version = release_candidate_scalar(policy$package_version, "package version"),
+  candidate_id = rc_scalar(args[[3L]], "candidate id"),
+  target_release = rc_scalar(policy$target_release, "target release"),
+  package_version = rc_scalar(policy$package_version, "package version"),
   git_commit = git_commit,
   evaluated_at = evaluated_at,
   records = records
