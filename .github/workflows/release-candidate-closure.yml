@@ -130,12 +130,20 @@ jobs:
               --dir release-candidate-evidence
             mode=production
           else
+            set +e
             Rscript scripts/build_release_candidate_rehearsal.R \
               inst/metadata/release-candidate-policy.json \
               release-candidate-evidence/release-candidate-evidence-index.json \
               "$CANDIDATE_ID" \
               "$(git rev-parse HEAD)" \
-              "1970-01-01T00:00:00Z"
+              "1970-01-01T00:00:00Z" \
+              >release-candidate-evidence/rehearsal-generation.log 2>&1
+            rehearsal_status=$?
+            set -e
+            cat release-candidate-evidence/rehearsal-generation.log
+            if [[ "$rehearsal_status" -ne 0 ]]; then
+              exit "$rehearsal_status"
+            fi
             mode=rehearsal
           fi
           test -s release-candidate-evidence/release-candidate-evidence-index.json
@@ -184,5 +192,6 @@ jobs:
           path: |
             release-candidate-dossier/
             release-candidate-evidence/release-candidate-evidence-index.json
+            release-candidate-evidence/rehearsal-generation.log
           if-no-files-found: error
           retention-days: 90
