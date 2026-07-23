@@ -18,8 +18,11 @@ normalize_pca_eigenvalues <- function(eigenvalues,
   if (!is.finite(relative_tolerance) || relative_tolerance < 0) {
     stop("relative_tolerance must be one finite nonnegative value", call. = FALSE)
   }
-  scale <- max(1, max(abs(eigenvalues)))
-  tolerance <- max(.Machine$double.eps, relative_tolerance * scale)
+  scale <- max(abs(eigenvalues))
+  tolerance <- max(
+    .Machine$double.eps * max(1, scale),
+    relative_tolerance * scale
+  )
   materially_negative <- eigenvalues < -tolerance
   if (any(materially_negative)) {
     stop(
