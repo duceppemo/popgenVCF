@@ -93,12 +93,13 @@ The authoritative development package version is **0.10.0**.
 - [x] **0.9.30.2 — Publication narrative completeness and maintained gallery** (#68)
 - [x] **0.9.30.3 — Citation, software, and reproducibility metadata reconciliation** (#291)
 - [x] **0.9.30.4 — DOI-ready archival metadata, SBOMs, checksums, and provenance** (#297)
+- [x] **0.9.31 — Release-candidate closure policy, reviewer dossier, and workflow** (#299)
 
-These milestones complete the software, documentation, metadata, and archival-readiness contracts. They do not substitute for executing, reviewing, approving, depositing, and publishing the first production real-data baseline, external-tool concordance suite, cross-backend ancestry evidence, release benchmark history, or final 0.10.0 release certificate.
+These milestones complete the software, documentation, metadata, archival-readiness, and release-candidate decision contracts. They do not substitute for executing, reviewing, approving, depositing, and publishing the first production real-data baseline, external-tool concordance suite, cross-backend ancestry evidence, release benchmark history, exact distribution evidence, or final 0.10.0 release authorization.
 
 ### Completed stabilization gate
 
-Repository health and Phase 0.9.30 are reconciled:
+Repository health and release-candidate infrastructure are reconciled:
 
 - [x] eliminate false release-readiness paths in concordance and benchmark evidence;
 - [x] replace runtime namespace mutation with explicit public exports;
@@ -109,7 +110,8 @@ Repository health and Phase 0.9.30 are reconciled:
 - [x] establish deterministic roxygen generation and a 613-entry canonical installed API baseline;
 - [x] pin external GitHub Actions to immutable commits with controlled update automation;
 - [x] generate source and OCI SBOM/provenance evidence and checksum-linked archival manifests;
-- [x] run the complete CI matrix on the reconciled state.
+- [x] define a checksum-verified 15-gate production evidence contract and deterministic reviewer dossier;
+- [x] run the complete relevant CI matrix on the reconciled state.
 
 ### Completed Phase 0.9.30 sequence
 
@@ -122,16 +124,28 @@ Repository health and Phase 0.9.30 are reconciled:
    - [x] reconcile citation, installed-package, CodeMeta, FAIR software, and reproducibility metadata with development-safe release boundaries (#291);
    - [x] add DOI-ready Zenodo metadata, source and OCI SBOMs, provenance evidence, release checksums, manifests, and archival instructions (#297).
 
-### Active Phase 0.9.31 — 0.10.0 release-candidate closure
+### Completed Phase 0.9.31 closure mechanism
 
-- synchronize final DESCRIPTION, NEWS, roadmap, metadata, and trackers;
-- execute full canonical validation and external-tool concordance;
-- approve the production quantitative baseline and real-data cross-backend ancestry evidence;
-- publish release benchmark history and issue the real release certificate;
-- validate source, container, and Apptainer distribution artifacts from clean environments;
-- assemble and review the complete archival asset set;
-- produce a reviewer-ready release-readiness report;
-- tag, publish, deposit, and assign the real DOI only after every required gate passes.
+- [x] define a canonical 15-gate release-candidate policy;
+- [x] require exactly one checksum-verifiable evidence record per gate;
+- [x] distinguish deliberately blocked rehearsal evaluation from production evaluation;
+- [x] require named reviewer identity and review dates for approval-gated evidence;
+- [x] reject missing, duplicate, malformed, traversing, resized, or checksum-mismatched evidence;
+- [x] generate deterministic gate, blocker, artifact, JSON, Markdown, and terminal checksum records;
+- [x] add a pull-request rehearsal and manual production-evaluation workflow;
+- [x] document backend-specific ADMIXTURE, fastStructure, and LEA/sNMF installation and provenance;
+- [x] preserve the 613-entry public API and all publication boundaries.
+
+### Remaining 0.10.0 production evidence and publication
+
+- [ ] execute full canonical validation and external-tool concordance (#22);
+- [ ] approve the production quantitative baseline and real-data cross-backend ancestry evidence (#22, #24);
+- [ ] publish approved release benchmark history and supporting trend evidence (#43);
+- [ ] validate the exact source, OCI, and Apptainer distribution artifacts from clean environments;
+- [ ] assemble and review the complete archival evidence release;
+- [ ] evaluate a production dossier for the exact candidate commit and obtain `READY` status;
+- [ ] obtain named scientific approval and final release authorization;
+- [ ] tag, publish, deposit, and assign the real DOI only after every required gate passes (#1).
 
 ### Validation datasets and benchmarking
 
@@ -148,18 +162,20 @@ Repository health and Phase 0.9.30 are reconciled:
 
 - [x] first-analysis tutorial, scientific interpretation, troubleshooting, reproducibility, and deployment/HPC guide set;
 - [x] maintained publication figure gallery and end-to-end narrative example;
+- [x] backend-specific ancestry installation, configuration, smoke-check, and provenance guidance;
 - [x] canonical `CITATION.cff`, `codemeta.json`, installed citation, FAIR software identity, and reproducibility statement;
 - [x] DOI-ready, development-safe Zenodo deposition metadata;
 - [x] source and OCI SBOMs, checksums, provenance, and archival verification instructions;
+- [x] release-candidate evidence-bundle and reviewer-dossier operating guidance;
 - [ ] record the real release date, DOI, concept DOI, and archive identifiers only after successful publication.
 
 ## Open tracking issues and deferred enhancements
 
 - **#4 — Publication-quality platform:** umbrella tracker for remaining 0.10 and 1.0 release work.
-- **#22 — Canonical real-data validation:** retains the uncompleted production baseline, external-tool execution, approval, and full-validation workflow work.
-- **#24 — Unified ancestry platform:** retains backend installation guidance and approved real-data three-backend release evidence.
+- **#22 — Canonical real-data validation:** retains the uncompleted production baseline, external-tool execution, approval, and full-validation work.
+- **#24 — Unified ancestry platform:** retains approved real-data three-backend execution, comparison, and release evidence; installation guidance is complete.
 - **#43 — Continuous scientific benchmarks:** retains approved historical baselines, dashboards, and published release benchmark artifacts.
-- **#1 — Reproducibility and release infrastructure:** remains open until production release evidence, final distribution validation, tagging, deposition, and publication are complete.
+- **#1 — Reproducibility and release infrastructure:** remains open until a production dossier is ready and tagging, deposition, DOI assignment, and publication are complete.
 
 ## 1.0: stable scientific release
 

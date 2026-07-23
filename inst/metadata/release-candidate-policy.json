@@ -1,0 +1,153 @@
+{
+  "schema_version": "1.0",
+  "policy_id": "popgenvcf-0.10.0-release-candidate",
+  "target_release": "v0.10.0",
+  "package_version": "0.10.0",
+  "allowed_modes": [
+    "rehearsal",
+    "production"
+  ],
+  "allowed_statuses": [
+    "passed",
+    "failed",
+    "blocked",
+    "not_run"
+  ],
+  "gates": [
+    {
+      "order": 1,
+      "id": "metadata_consistency",
+      "category": "software",
+      "required": true,
+      "approval_required": false,
+      "issue": "#1",
+      "description": "DESCRIPTION, citation, CodeMeta, Zenodo, license, and reproducibility metadata are synchronized and valid."
+    },
+    {
+      "order": 2,
+      "id": "public_api_contract",
+      "category": "software",
+      "required": true,
+      "approval_required": false,
+      "issue": "#4",
+      "description": "The canonical installed public API baseline is unchanged and all API compatibility checks pass."
+    },
+    {
+      "order": 3,
+      "id": "source_package_check",
+      "category": "distribution",
+      "required": true,
+      "approval_required": false,
+      "issue": "#1",
+      "description": "The exact source tarball passes clean R CMD check and clean-library installation."
+    },
+    {
+      "order": 4,
+      "id": "scientific_validation",
+      "category": "scientific",
+      "required": true,
+      "approval_required": false,
+      "issue": "#22",
+      "description": "Deterministic core and population-structure scientific validation suites pass."
+    },
+    {
+      "order": 5,
+      "id": "canonical_validation",
+      "category": "scientific",
+      "required": true,
+      "approval_required": false,
+      "issue": "#22",
+      "description": "The checksum-pinned canonical real-data validation workflow executes successfully from a clean environment."
+    },
+    {
+      "order": 6,
+      "id": "production_baseline",
+      "category": "scientific",
+      "required": true,
+      "approval_required": true,
+      "issue": "#22",
+      "description": "The first quantitative production baseline snapshot is complete and scientifically approved."
+    },
+    {
+      "order": 7,
+      "id": "external_concordance",
+      "category": "scientific",
+      "required": true,
+      "approval_required": true,
+      "issue": "#22",
+      "description": "Required external-tool equivalence and diagnostic comparisons are executed, retained, and approved."
+    },
+    {
+      "order": 8,
+      "id": "ancestry_three_backend",
+      "category": "scientific",
+      "required": true,
+      "approval_required": true,
+      "issue": "#24",
+      "description": "ADMIXTURE, fastStructure, and LEA/sNMF complete the approved real-data cross-backend validation case."
+    },
+    {
+      "order": 9,
+      "id": "benchmark_history",
+      "category": "performance",
+      "required": true,
+      "approval_required": true,
+      "issue": "#43",
+      "description": "Release benchmark observations, budgets, historical comparisons, and trend evidence are retained and approved."
+    },
+    {
+      "order": 10,
+      "id": "source_distribution",
+      "category": "distribution",
+      "required": true,
+      "approval_required": false,
+      "issue": "#1",
+      "description": "The source release asset set, SBOM, provenance, manifest, and checksums verify from a clean environment."
+    },
+    {
+      "order": 11,
+      "id": "oci_distribution",
+      "category": "distribution",
+      "required": true,
+      "approval_required": false,
+      "issue": "#1",
+      "description": "The release OCI image passes digest-based smoke tests and its SBOM/provenance evidence verifies."
+    },
+    {
+      "order": 12,
+      "id": "apptainer_distribution",
+      "category": "distribution",
+      "required": true,
+      "approval_required": false,
+      "issue": "#1",
+      "description": "The release Apptainer SIF passes clean-environment smoke tests and has an independently retained checksum."
+    },
+    {
+      "order": 13,
+      "id": "archival_assets",
+      "category": "archive",
+      "required": true,
+      "approval_required": false,
+      "issue": "#1",
+      "description": "The complete archival asset inventory is checksum-linked and independently verifiable."
+    },
+    {
+      "order": 14,
+      "id": "scientific_approval",
+      "category": "approval",
+      "required": true,
+      "approval_required": true,
+      "issue": "#1",
+      "description": "A named scientific reviewer approves the complete scientific evidence set for release."
+    },
+    {
+      "order": 15,
+      "id": "release_authorization",
+      "category": "approval",
+      "required": true,
+      "approval_required": true,
+      "issue": "#1",
+      "description": "The release owner authorizes tagging, publication, deposition, and DOI assignment for this exact commit."
+    }
+  ]
+}
