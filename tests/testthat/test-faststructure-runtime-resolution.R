@@ -54,3 +54,9 @@ test_that("the fastStructure runner reports backend failures and missing Q files
   expect_match(body_text, "did not create", fixed = TRUE)
   expect_false(grepl("popgenvcf-faststructure", body_text, fixed = TRUE))
 })
+
+test_that("the primary Conda environment declares fastStructure", {
+  environment_file <- testthat::test_path("..", "..", "inst", "conda", "environment.yml")
+  environment_text <- readLines(environment_file, warn = FALSE)
+  expect_true(any(grepl("^[[:space:]]*-[[:space:]]+faststructure[[:space:]]*$", environment_text)))
+})
