@@ -96,6 +96,15 @@ The authoritative development package version is **0.10.0**.
 - [x] **0.9.31 — Release-candidate closure policy, reviewer dossier, and workflow** (#299)
 - [ ] **0.9.32 — Autosomal production validation execution and evidence** (#22)
 
+### Phase 0.9.32 execution status
+
+- [x] approve and checksum-pin the 1000 Genomes Phase 3 chromosome 22 source;
+- [x] execute and retain candidate-bound structural validation for the complete chromosome 22 source;
+- [x] define a bounded chromosome 22 QC, LD-pruning, and PCA proposal workflow;
+- [ ] execute the quantitative proposal workflow from the reviewed implementation;
+- [ ] scientifically review and approve or revise the proposed metric values and tolerances;
+- [ ] complete external-tool concordance and remaining full-validation evidence.
+
 These milestones complete the software, documentation, metadata, archival-readiness, and release-candidate decision contracts. They do not substitute for executing, reviewing, approving, depositing, and publishing the first production real-data baseline, external-tool concordance suite, cross-backend ancestry evidence, release benchmark history, exact distribution evidence, or final 0.10.0 release authorization.
 
 ### Completed stabilization gate

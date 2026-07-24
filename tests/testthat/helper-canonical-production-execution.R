@@ -2,7 +2,8 @@ canonical_production_module_paths <- function() {
   modules <- c(
     "canonical_production_execution.R",
     "canonical_production_bcftools.R",
-    "canonical_production_checksum.R"
+    "canonical_production_checksum.R",
+    "canonical_autosomal_baseline.R"
   )
   installed <- system.file("scripts", package = "popgenVCF")
   if (nzchar(installed) && all(file.exists(file.path(installed, modules)))) {
