@@ -18,6 +18,23 @@ test_that("metadata requires only a sample column", {
   expect_true("collection_site" %in% names(metadata))
 })
 
+test_that("metadata preserves headers with trailing empty delimiters", {
+  path <- tempfile(fileext = ".panel")
+  writeLines(c(
+    "sample\tpop\tsuper_pop\tgender\t\t",
+    "HG00096\tGBR\tEUR\tmale",
+    "HG00097\tGBR\tEUR\tfemale"
+  ), path, useBytes = TRUE)
+
+  metadata <- popgenVCF:::read_metadata(path, "auto")
+
+  expect_equal(metadata$sample, c("HG00096", "HG00097"))
+  expect_equal(metadata$population, c("GBR", "GBR"))
+  expect_equal(metadata$super_pop, c("EUR", "EUR"))
+  expect_equal(metadata$gender, c("male", "female"))
+  expect_false(any(grepl("^v[0-9]+$", names(metadata))))
+})
+
 test_that("metadata sample IDs must exactly match VCF sample IDs", {
   metadata <- data.table::data.table(
     sample = c("s2", "s1"),
