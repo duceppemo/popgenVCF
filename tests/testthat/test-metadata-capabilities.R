@@ -109,3 +109,54 @@ test_that("capability table keeps sample analyses available without metadata", {
   expect_true(all(tab[module %in% c("pca", "ibs", "fst", "dapc"), available]))
   expect_false(any(tab[module %in% c("mantel", "isolation_by_distance"), available]))
 })
+
+test_that("pipeline module resolution honors configured enablement", {
+  runner <- function(analysis, context) list(analysis = analysis, context = context)
+  registry <- popgenVCF::new_analysis_registry()
+  registry <- popgenVCF::register_analysis(registry, "pca", runner)
+  registry <- popgenVCF::register_analysis(
+    registry, "admixture", runner,
+    enabled = function(cfg) isTRUE(cfg$analyses$admixture$enabled)
+  )
+  registry <- popgenVCF::register_analysis(
+    registry, "faststructure", runner,
+    enabled = function(cfg) isTRUE(cfg$analyses$faststructure$enabled)
+  )
+  registry <- popgenVCF::register_analysis(
+    registry, "snmf", runner,
+    enabled = function(cfg) isTRUE(cfg$analyses$snmf$enabled)
+  )
+
+  capabilities <- popgenVCF:::metadata_capabilities(
+    data.table::data.table(sample = c("s1", "s2"), population = c("A", "B")),
+    metadata_supplied = TRUE
+  )
+  cfg <- popgenVCF::default_config()
+
+  expect_identical(
+    popgenVCF:::resolve_pipeline_modules(registry, capabilities, cfg),
+    "pca"
+  )
+
+  cfg$analyses$snmf$enabled <- TRUE
+  expect_identical(
+    popgenVCF:::resolve_pipeline_modules(registry, capabilities, cfg),
+    c("pca", "snmf")
+  )
+
+  cfg$analyses$snmf$enabled <- FALSE
+  expect_identical(
+    popgenVCF:::resolve_pipeline_modules(
+      registry, capabilities, cfg, selected = c("snmf", "pca")
+    ),
+    c("snmf", "pca")
+  )
+
+  pipeline_body <- paste(deparse(body(popgenVCF::run_pipeline)), collapse = "\n")
+  pipeline_body <- gsub("[[:space:]]+", " ", pipeline_body)
+  expect_match(
+    pipeline_body,
+    "resolve_pipeline_modules(registry, capabilities, cfg, selected)",
+    fixed = TRUE
+  )
+})
