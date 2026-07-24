@@ -101,7 +101,7 @@ The authoritative development package version is **0.10.0**.
 - [x] approve and checksum-pin the 1000 Genomes Phase 3 chromosome 22 source;
 - [x] execute and retain candidate-bound structural validation for the complete chromosome 22 source;
 - [x] define a bounded chromosome 22 QC, LD-pruning, and PCA proposal workflow;
-- [x] execute the quantitative proposal workflow from the reviewed implementation;
+- [x] execute the quantitative proposal workflow from the reviewed implementation and retain an importable, filename-bound proposal snapshot;
 - [ ] scientifically review and approve or revise the proposed metric values and tolerances;
 - [ ] complete external-tool concordance and remaining full-validation evidence.
 
@@ -162,7 +162,8 @@ Repository health and release-candidate infrastructure are reconciled:
 - [x] retain tiny synthetic fixtures in every CI run;
 - [x] adopt a licensed, checksum-pinned canonical dataset under an approved registry entry;
 - [x] define production baseline, scientific concordance, performance-budget, and release-evidence contracts;
-- [ ] execute, approve, and retain the first production quantitative baseline snapshot from the canonical real dataset;
+- [x] execute and retain the first reviewable production quantitative baseline proposal from the canonical real dataset;
+- [ ] scientifically approve or revise the production quantitative baseline proposal;
 - [ ] execute and publish complete external-tool scientific concordance evidence;
 - [ ] execute and approve a real-data three-backend ancestry validation case;
 - [ ] publish runtime, memory, scaling, and historical regression artifacts per release;
