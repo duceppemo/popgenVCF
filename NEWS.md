@@ -1,5 +1,6 @@
 # popgenVCF 0.10.0 development
 
+- Hardened approved canonical-source acquisition with a scoped 10-minute minimum download timeout so large checksum-pinned archives are not truncated by R's 60-second default; incomplete transfers continue to fail closed.
 - Added a fixed-interval chromosome 22 QC, LD-pruning, and PCA execution that emits six checksum-bound quantitative observations as an explicitly unapproved scientific-review proposal while keeping raw genotypes outside evidence and the production-baseline gate unpassed.
 - Phase 0.9.32 adds a checksum-pinned 1000 Genomes chromosome 22 source and source-specific mixed-sex production inspection for bounded autosomal validation.
 - Added the first candidate-bound canonical production execution path for #22: the approved 1000 Genomes chromosome Y source is acquired only through an explicit manual run, verified against upstream MD5 and promoted SHA-256 identities, structurally inspected with `bcftools`, bound to the exact candidate commit, and emitted as checksum-linked `canonical_validation` gate evidence while the production baseline and external concordance remain `not_run`.

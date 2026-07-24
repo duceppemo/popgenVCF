@@ -74,6 +74,19 @@ canonical_production_system2 <- function(command, args, label) {
   output
 }
 
+canonical_production_download <- function(url, destination, quiet = TRUE,
+                                          download = utils::download.file) {
+  if (!is.function(download)) stop("download must be a function", call. = FALSE)
+  current_timeout <- suppressWarnings(as.numeric(getOption("timeout", 60)))
+  if (length(current_timeout) != 1L || !is.finite(current_timeout) ||
+      current_timeout < 1) {
+    current_timeout <- 60
+  }
+  previous <- options(timeout = max(current_timeout, 600))
+  on.exit(options(previous), add = TRUE)
+  download(url, destination, mode = "wb", quiet = quiet)
+}
+
 canonical_production_stage_source <- function(source, destination, source_dir = NULL,
                                               allow_download = FALSE, quiet = TRUE) {
   popgenVCF::validate_canonical_source(source)
@@ -105,7 +118,7 @@ canonical_production_stage_source <- function(source, destination, source_dir = 
         method <- "local_mirror"
       } else if (isTRUE(allow_download) && !is.na(spec$source) && nzchar(spec$source)) {
         status <- tryCatch(
-          utils::download.file(spec$source, temporary, mode = "wb", quiet = quiet),
+          canonical_production_download(spec$source, temporary, quiet = quiet),
           error = identity
         )
         if (inherits(status, "error") || as.integer(status) != 0L) {
