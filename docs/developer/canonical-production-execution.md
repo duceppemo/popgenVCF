@@ -4,7 +4,7 @@ The **Canonical real-data production validation** workflow is the first producti
 
 Phase 0.9.32 adds chromosome 22 as the bounded autosomal production input. It is the smallest archived autosome (about 215 MB compressed), contains all 2,504 Phase 3 samples, and supports mixed-sex diploid analyses that chromosome Y cannot validate. The manual workflow defaults to `chr22`; `chrY` remains selectable for the existing haploid structural-validation path.
 
-A successful run does **not** approve a quantitative production baseline, external-tool concordance, ancestry evidence, or the 0.10.0 release. Those gates remain `not_run` until their own retained evidence and named scientific approvals exist.
+A successful chromosome 22 run now produces a bounded quantitative baseline proposal after structural validation. It does **not** approve that proposal, external-tool concordance, ancestry evidence, or the 0.10.0 release. The proposal record keeps the production-baseline gate explicitly `not_passed` until retained evidence receives named scientific approval.
 
 ## Safety boundary
 
@@ -16,7 +16,7 @@ The real-data job runs only through `workflow_dispatch` when all of the followin
 - a stable production-run identifier;
 - `confirm_production: true`.
 
-The workflow checks out the requested revision, records the resulting full commit SHA, installs the package and `bcftools` in a clean GitHub-hosted environment, and executes the approved source specification returned by `canonical_1000g_chrY_source()`.
+The workflow checks out the requested revision, records the resulting full commit SHA, installs the package and `bcftools` in a clean GitHub-hosted environment, and executes the approved source specification selected for chromosome 22 or chromosome Y.
 
 ## Production checks
 
@@ -56,6 +56,7 @@ Rscript scripts/run-approved-canonical-validation.R \
   0.10.0-production-1 \
   "$(git rev-parse HEAD)" \
   "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+  --dataset=chr22 \
   --allow-download \
   --verbose
 ```
@@ -110,6 +111,8 @@ cd canonical-production-evidence
 sha256sum --check canonical-production-SHA256SUMS.txt
 ```
 
+For chromosome 22, the workflow also uploads the checksum-independent sibling `autosomal-baseline-proposal/` bundle documented in [Autosomal quantitative baseline proposal](canonical-autosomal-baseline-proposal.md). Raw source, derived VCF, tabix, and GDS files are excluded from both evidence directories.
+
 ## Scientific review sequence
 
 After a successful run:
@@ -119,7 +122,7 @@ After a successful run:
 3. inspect the acquisition, upstream MD5, promoted SHA-256, VCF structure, and sample metadata tables;
 4. retain the successful workflow run and artifact as candidate-specific evidence;
 5. incorporate the gate record into the production evidence index only for the same exact commit;
-6. proceed to generation and scientific review of the first quantitative baseline snapshot;
+6. review the chromosome 22 quantitative proposal without treating it as an approved baseline;
 7. execute the required external-tool comparisons separately.
 
-The production baseline and concordance gates require named approval and cannot be inferred from this workflow's success.
+The production baseline and concordance gates require named approval and cannot be inferred from this workflow's success. Baseline promotion is a separate reviewed change.

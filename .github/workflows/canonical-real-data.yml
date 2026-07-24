@@ -7,12 +7,19 @@ on:
       - "inst/scripts/canonical_production_execution.R"
       - "inst/scripts/canonical_production_bcftools.R"
       - "inst/scripts/canonical_production_checksum.R"
+      - "inst/scripts/canonical_autosomal_baseline.R"
       - "R/canonical_1000g_chrY.R"
       - "scripts/run-approved-canonical-validation.R"
+      - "scripts/run-autosomal-baseline-proposal.R"
       - "tests/testthat/helper-canonical-production-execution.R"
+      - "tests/testthat/test-canonical-autosomal-baseline.R"
       - "tests/testthat/test-canonical-production-execution.R"
       - "tests/testthat/test-canonical-production-execution-index-fallback.R"
+      - "docs/developer/canonical-autosomal-baseline-proposal.md"
       - "docs/developer/canonical-production-execution.md"
+      - "docs/CANONICAL_REAL_DATA_BASELINES.md"
+      - "docs/ROADMAP.md"
+      - "inst/doc/ROADMAP.md"
       - "docs/FIRST_APPROVED_CANONICAL_DATASET.md"
       - "NEWS.md"
   push:
@@ -22,12 +29,19 @@ on:
       - "inst/scripts/canonical_production_execution.R"
       - "inst/scripts/canonical_production_bcftools.R"
       - "inst/scripts/canonical_production_checksum.R"
+      - "inst/scripts/canonical_autosomal_baseline.R"
       - "R/canonical_1000g_chrY.R"
       - "scripts/run-approved-canonical-validation.R"
+      - "scripts/run-autosomal-baseline-proposal.R"
       - "tests/testthat/helper-canonical-production-execution.R"
+      - "tests/testthat/test-canonical-autosomal-baseline.R"
       - "tests/testthat/test-canonical-production-execution.R"
       - "tests/testthat/test-canonical-production-execution-index-fallback.R"
+      - "docs/developer/canonical-autosomal-baseline-proposal.md"
       - "docs/developer/canonical-production-execution.md"
+      - "docs/CANONICAL_REAL_DATA_BASELINES.md"
+      - "docs/ROADMAP.md"
+      - "inst/doc/ROADMAP.md"
       - "docs/FIRST_APPROVED_CANONICAL_DATASET.md"
       - "NEWS.md"
   workflow_dispatch:
@@ -114,7 +128,7 @@ jobs:
           set -o pipefail
           Rscript -e 'testthat::test_dir(
             "tests/testthat",
-            filter = "canonical-production-execution",
+            filter = "canonical-(production-execution|autosomal-baseline)",
             reporter = "summary"
           )' 2>&1 | tee canonical-production-contract-tests.log
 
@@ -210,11 +224,41 @@ jobs:
           echo "commit=${candidate_commit}" >> "$GITHUB_OUTPUT"
           echo "evidence_dir=${evidence_dir}" >> "$GITHUB_OUTPUT"
 
+      - name: Execute autosomal baseline proposal
+        if: inputs.dataset == 'chr22'
+        id: baseline
+        shell: bash
+        env:
+          CANDIDATE_ID: ${{ steps.candidate.outputs.candidate_id }}
+          CANDIDATE_COMMIT: ${{ steps.execute.outputs.commit }}
+          EVIDENCE_DIR: ${{ steps.execute.outputs.evidence_dir }}
+        run: |
+          set -euo pipefail
+          generated_at="$(jq -r '.generated_at' "$EVIDENCE_DIR/canonical-production-execution.json")"
+          data_dir="${RUNNER_TEMP}/popgenvcf-canonical-source"
+          work_dir="${RUNNER_TEMP}/popgenvcf-autosomal-baseline-work"
+          baseline_dir="${GITHUB_WORKSPACE}/autosomal-baseline-proposal"
+
+          Rscript scripts/run-autosomal-baseline-proposal.R \
+            "$baseline_dir" \
+            "$work_dir" \
+            "$data_dir" \
+            "$CANDIDATE_ID" \
+            "$CANDIDATE_COMMIT" \
+            "$generated_at" \
+            2>&1 | tee autosomal-baseline-run.log
+
+          sha256sum autosomal-baseline-run.log \
+            > autosomal-baseline-run-SHA256SUMS.txt
+          echo "baseline_dir=${baseline_dir}" >> "$GITHUB_OUTPUT"
+
       - name: Verify candidate identity and gate boundary
         shell: bash
         env:
           CANDIDATE_COMMIT: ${{ steps.execute.outputs.commit }}
           EVIDENCE_DIR: ${{ steps.execute.outputs.evidence_dir }}
+          BASELINE_DIR: ${{ steps.baseline.outputs.baseline_dir }}
+          DATASET: ${{ inputs.dataset }}
         run: |
           set -euo pipefail
           package_version="$(awk -F': *' '$1 == "Version" {print $2}' DESCRIPTION)"
@@ -233,12 +277,28 @@ jobs:
             sha256sum --check canonical-production-SHA256SUMS.txt
           )
           sha256sum --check canonical-production-run-SHA256SUMS.txt
+          if [[ "$DATASET" == "chr22" ]]; then
+            test "$(jq -r '.git_commit' "$BASELINE_DIR/autosomal-baseline-proposal-record.json")" = "$CANDIDATE_COMMIT"
+            test "$(jq -r '.package_version' "$BASELINE_DIR/autosomal-baseline-proposal-record.json")" = "$package_version"
+            test "$(jq -r '.approval' "$BASELINE_DIR/autosomal-baseline-proposal-record.json")" = "proposed"
+            test "$(jq -r '.production_baseline_gate' "$BASELINE_DIR/autosomal-baseline-proposal-record.json")" = "not_passed"
+            test "$(jq -r '.metric_count' "$BASELINE_DIR/autosomal-baseline-proposal-record.json")" = "6"
+            test "$(jq -r '.raw_genotype_data_in_evidence' "$BASELINE_DIR/autosomal-baseline-proposal-record.json")" = "false"
+            test "$(jq -r '.approval' "$BASELINE_DIR/autosomal-baseline-proposal.json")" = "proposed"
+            ! find "$BASELINE_DIR" -type f \( -name '*.vcf' -o -name '*.vcf.gz' -o -name '*.tbi' -o -name '*.gds' \) -print -quit | grep -q .
+            (
+              cd "$BASELINE_DIR"
+              sha256sum --check autosomal-baseline-SHA256SUMS.txt
+            )
+            sha256sum --check autosomal-baseline-run-SHA256SUMS.txt
+          fi
 
       - name: Write workflow summary
         shell: bash
         env:
           CANDIDATE_COMMIT: ${{ steps.execute.outputs.commit }}
           EVIDENCE_DIR: ${{ steps.execute.outputs.evidence_dir }}
+          DATASET: ${{ inputs.dataset }}
         run: |
           {
             echo "## Canonical production execution"
@@ -246,7 +306,12 @@ jobs:
             echo "- Candidate commit: \`$CANDIDATE_COMMIT\`"
             echo "- Dataset: \`$(jq -r '.dataset.id + " " + .dataset.version' "$EVIDENCE_DIR/canonical-production-execution.json")\`"
             echo "- Canonical validation: **passed**"
-            echo "- Production baseline: **not run**"
+            if [[ "$DATASET" == "chr22" ]]; then
+              echo "- Quantitative baseline: **proposed; scientific approval required**"
+              echo "- Production baseline gate: **not passed**"
+            else
+              echo "- Production baseline: **not run**"
+            fi
             echo "- External concordance: **not run**"
             echo "- Release authorization: **not granted**"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -261,5 +326,8 @@ jobs:
             canonical-production-run.log
             canonical-production-candidate-sha.txt
             canonical-production-run-SHA256SUMS.txt
+            autosomal-baseline-proposal/
+            autosomal-baseline-run.log
+            autosomal-baseline-run-SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 90
