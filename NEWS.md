@@ -1,5 +1,6 @@
 # popgenVCF 0.10.0 development
 
+- Regenerated the chromosome 22 quantitative proposal from the reviewed serialization fix and independently verified a promotion-eligible, filename-bound snapshot; the observations are unchanged and the snapshot remains explicitly unapproved pending named scientific review.
 - Added a fail-closed JSON review path for canonical real-data baseline snapshots: source checksum filename bindings now survive serialization, absent approval fields are explicit `null` values, proposal imports reject unbound checksum arrays, and promotion requires explicit scientific reviewer metadata.
 - Executed and checksum-verified the first candidate-bound chromosome 22 quantitative baseline proposal, recording six reviewable observations while leaving scientific approval, the production-baseline gate, and external concordance explicitly incomplete.
 - Hardened metadata import for tabular panels whose headers contain trailing empty delimiter fields, preserving named sample/population columns while removing only generated empty columns.
