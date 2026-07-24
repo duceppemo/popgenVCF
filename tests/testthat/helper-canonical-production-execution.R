@@ -47,6 +47,8 @@ canonical_production_fixture <- function() {
     citation = "Canonical production execution fixture.",
     reviewed_by = "Fixture reviewer",
     reviewed_at = "2026-07-22",
+    chromosome_scope = "chrY",
+    sample_sex_policy = "male_only",
     analyses = c("pca", "fst"),
     files = data.frame(
       filename = filenames,
@@ -68,7 +70,9 @@ canonical_production_fixture <- function() {
         panel_sample_count = 2L,
         exact_sample_set = TRUE,
         complete_metadata = TRUE,
-        male_only = TRUE,
+        chromosome_scope = source$chromosome_scope,
+        sample_sex_policy = source$sample_sex_policy,
+        sex_policy_satisfied = TRUE,
         bcftools_version = "fixture-1.0",
         stringsAsFactors = FALSE
       ),

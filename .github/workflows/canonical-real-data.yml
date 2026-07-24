@@ -7,6 +7,7 @@ on:
       - "inst/scripts/canonical_production_execution.R"
       - "inst/scripts/canonical_production_bcftools.R"
       - "inst/scripts/canonical_production_checksum.R"
+      - "R/canonical_1000g_chrY.R"
       - "scripts/run-approved-canonical-validation.R"
       - "tests/testthat/helper-canonical-production-execution.R"
       - "tests/testthat/test-canonical-production-execution.R"
@@ -21,6 +22,7 @@ on:
       - "inst/scripts/canonical_production_execution.R"
       - "inst/scripts/canonical_production_bcftools.R"
       - "inst/scripts/canonical_production_checksum.R"
+      - "R/canonical_1000g_chrY.R"
       - "scripts/run-approved-canonical-validation.R"
       - "tests/testthat/helper-canonical-production-execution.R"
       - "tests/testthat/test-canonical-production-execution.R"
@@ -45,6 +47,14 @@ on:
         required: true
         default: false
         type: boolean
+      dataset:
+        description: Approved canonical dataset to execute
+        required: true
+        default: chr22
+        type: choice
+        options:
+          - chr22
+          - chrY
 
 permissions:
   contents: read
@@ -188,6 +198,7 @@ jobs:
             "$CANDIDATE_ID" \
             "$candidate_commit" \
             "$generated_at" \
+            --dataset="${{ inputs.dataset }}" \
             --allow-download \
             --verbose \
             2>&1 | tee canonical-production-run.log

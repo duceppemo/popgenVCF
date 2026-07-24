@@ -17,6 +17,15 @@ test_that("canonical production accepts positive index metadata counts", {
   expect_identical(calls, "bcftools indexed variant count")
 })
 
+test_that("canonical sex policies distinguish Y and autosomal panels", {
+  validate <- canonical_production_test_env$canonical_production_validate_sexes
+  expect_invisible(validate(c("male", "M", "1"), "male_only"))
+  expect_invisible(validate(c("male", "female", "1", "2"), "mixed"))
+  expect_error(validate(c("male", "female"), "male_only"), "chromosome Y")
+  expect_error(validate(c("male", "male"), "mixed"), "mixed-sex")
+  expect_error(validate(c("male", "unknown"), "mixed"), "mixed-sex")
+})
+
 test_that("canonical production falls back when legacy TBI count metadata is unavailable", {
   calls <- character()
   run <- function(command, args, label) {

@@ -253,7 +253,8 @@ canonical_production_validate_inspection <- function(inspection, source) {
   metadata <- as.data.frame(inspection$sample_metadata, stringsAsFactors = FALSE)
   summary_fields <- c(
     "dataset_id", "dataset_version", "variant_count", "vcf_sample_count",
-    "panel_sample_count", "exact_sample_set", "complete_metadata", "male_only",
+    "panel_sample_count", "exact_sample_set", "complete_metadata",
+    "chromosome_scope", "sample_sex_policy", "sex_policy_satisfied",
     "bcftools_version"
   )
   metadata_fields <- c("sample_id", "population", "superpopulation", "sex")
@@ -271,7 +272,9 @@ canonical_production_validate_inspection <- function(inspection, source) {
       !isTRUE(summary$variant_count[[1L]] > 0) ||
       !isTRUE(summary$vcf_sample_count[[1L]] > 0) ||
       as.numeric(summary$vcf_sample_count[[1L]]) != as.numeric(summary$panel_sample_count[[1L]]) ||
-      !all(vapply(c("exact_sample_set", "complete_metadata", "male_only"),
+      !identical(as.character(summary$chromosome_scope[[1L]]), source$chromosome_scope) ||
+      !identical(as.character(summary$sample_sex_policy[[1L]]), source$sample_sex_policy) ||
+      !all(vapply(c("exact_sample_set", "complete_metadata", "sex_policy_satisfied"),
                   function(field) isTRUE(summary[[field]][[1L]]), logical(1)))) {
     stop("inspection summary does not satisfy canonical production requirements", call. = FALSE)
   }
@@ -463,7 +466,8 @@ run_canonical_production_execution <- function(
     validation = list(
       upstream_md5_verified = TRUE, sha256_promoted = TRUE,
       indexed_vcf_readable = TRUE, sample_inventory_matched = TRUE,
-      metadata_complete = TRUE, male_only_chrY_panel = TRUE,
+      metadata_complete = TRUE, chromosome_scope = source$chromosome_scope,
+      sample_sex_policy = source$sample_sex_policy, sex_policy_satisfied = TRUE,
       variant_count = as.numeric(inspection$summary$variant_count[[1L]]),
       sample_count = as.integer(inspection$summary$vcf_sample_count[[1L]])
     ),

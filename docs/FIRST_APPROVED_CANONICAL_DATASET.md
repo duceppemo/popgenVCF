@@ -2,6 +2,16 @@
 
 The approved public production-validation source is the 1000 Genomes Project Phase 3 chromosome Y callset archived at Zenodo DOI `10.5281/zenodo.3359882`.
 
+## Approved bounded autosomal source
+
+Phase 0.9.32 also approves the chromosome 22 Phase 3 callset from the same Zenodo record as the first autosomal production-validation input:
+
+- `ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz` (MD5 `ad7d6e0c05edafd7faed7601f7f3eaba`);
+- its Tabix index (MD5 `4202e9a481aa8103b471531a96665047`);
+- `integrated_call_samples_v3.20130502.ALL.panel` (MD5 `7ee5675553088230530a7fe88c22f201`).
+
+Chromosome 22 is intentionally bounded: it is the smallest archived autosome while retaining all 2,504 samples. It enables diploid PCA, IBS/MDS, DAPC, FST, diversity, AMOVA, and tree execution without downloading the 19.4 GB whole archive. Its panel must contain complete recognized male and female assignments; it is not subject to the chromosome-Y male-only rule.
+
 ## Dataset
 
 The selected files are:

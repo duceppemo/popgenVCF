@@ -68,6 +68,28 @@ test_that("canonical production execution writes a checksum-verified gate bundle
   expect_true(all(file.exists(file.path(output, artifacts$path))))
 })
 
+test_that("production inspection accepts an explicit mixed-sex autosomal policy", {
+  fixture <- canonical_production_fixture()
+  fixture$source$chromosome_scope <- "chr22"
+  fixture$source$sample_sex_policy <- "mixed"
+  inspection <- fixture$inspect(fixture$source, fixture$mirror)
+  inspection$sample_metadata$sex <- c("male", "female")
+
+  validated <- canonical_production_test_env$canonical_production_validate_inspection(
+    inspection, fixture$source
+  )
+  expect_equal(validated$summary$chromosome_scope, "chr22")
+  expect_equal(validated$summary$sample_sex_policy, "mixed")
+
+  inspection$summary$sex_policy_satisfied <- FALSE
+  expect_error(
+    canonical_production_test_env$canonical_production_validate_inspection(
+      inspection, fixture$source
+    ),
+    "does not satisfy"
+  )
+})
+
 test_that("canonical production execution fails closed on altered source data", {
   fixture <- canonical_production_fixture()
   cat("tampered\n", file = file.path(fixture$mirror, fixture$source$files$filename[[1L]]),

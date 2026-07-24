@@ -7,6 +7,23 @@ canonical_production_parse_index_count <- function(output) {
   unname(values[valid][[1L]])
 }
 
+canonical_production_validate_sexes <- function(sex, policy) {
+  normalized <- tolower(trimws(as.character(sex)))
+  male <- normalized %in% c("male", "m", "1")
+  female <- normalized %in% c("female", "f", "2")
+  satisfied <- switch(policy,
+    male_only = length(normalized) > 0L && all(male),
+    mixed = any(male) && any(female) && all(male | female),
+    FALSE
+  )
+  if (!satisfied && identical(policy, "male_only")) {
+    stop("canonical chromosome Y panel contains a non-male sex assignment", call. = FALSE)
+  }
+  if (!satisfied) stop(
+    "canonical autosomal panel does not contain complete mixed-sex assignments", call. = FALSE)
+  invisible(TRUE)
+}
+
 canonical_production_variant_inventory <- function(
     executable,
     vcf_path,
@@ -143,9 +160,7 @@ canonical_production_inspect_bcftools_compatible <- function(
   }
   metadata <- metadata[match(sample_ids, metadata$sample_id), , drop = FALSE]
   rownames(metadata) <- NULL
-  if (!all(tolower(metadata$sex) %in% c("male", "m", "1"))) {
-    stop("canonical chromosome Y panel contains a non-male sex assignment", call. = FALSE)
-  }
+  canonical_production_validate_sexes(metadata$sex, source$sample_sex_policy)
 
   list(
     summary = data.frame(
@@ -160,7 +175,9 @@ canonical_production_inspect_bcftools_compatible <- function(
       panel_sample_count = nrow(metadata),
       exact_sample_set = TRUE,
       complete_metadata = TRUE,
-      male_only = TRUE,
+      chromosome_scope = source$chromosome_scope,
+      sample_sex_policy = source$sample_sex_policy,
+      sex_policy_satisfied = TRUE,
       bcftools_version = version,
       stringsAsFactors = FALSE
     ),
