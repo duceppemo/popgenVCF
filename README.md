@@ -1,231 +1,96 @@
-# popgenVCF
+<p align="center">
+  <img src="man/figures/popgenVCF-logo.svg" width="560" alt="popgenVCF — Population Genomics Toolkit">
+</p>
 
-> **Scientifically correct. Reproducible by design. Publication ready by default.**
+<p align="center">
+  <a href="https://github.com/duceppemo/popgenVCF/actions/workflows/R-CMD-check.yaml"><img alt="R CMD check" src="https://github.com/duceppemo/popgenVCF/actions/workflows/R-CMD-check.yaml/badge.svg?branch=main"></a>
+  <a href="https://github.com/duceppemo/popgenVCF/actions/workflows/scientific-validation.yaml"><img alt="Scientific validation" src="https://github.com/duceppemo/popgenVCF/actions/workflows/scientific-validation.yaml/badge.svg?branch=main"></a>
+  <a href="https://github.com/duceppemo/popgenVCF/actions/workflows/test-coverage.yaml"><img alt="Test coverage" src="https://codecov.io/gh/duceppemo/popgenVCF/branch/main/graph/badge.svg"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-0B6B62.svg"></a>
+  <a href="https://github.com/duceppemo/popgenVCF/wiki"><img alt="Documentation: Wiki" src="https://img.shields.io/badge/docs-wiki-123B4A.svg"></a>
+</p>
 
-**popgenVCF** is a modular R toolkit and command-line application for population-genomic analysis of diploid, biallelic SNP VCF files. It supports VCF-only quality control and sample-level analyses, analyses with population metadata, and spatial analyses when geographic coordinates are available.
+**popgenVCF** is an R toolkit and command-line application for reproducible
+population-genomic analysis of diploid, biallelic SNP VCF files. It provides
+quality control, PCA, IBS/MDS, diversity, FST, DAPC, AMOVA, population
+structure, spatial genetics, publication outputs, and machine-readable
+validation evidence.
 
-> Development series: **0.10.0**. The public API is under release-conformance review; interfaces and output schemas may still evolve before 1.0.
+> Development series: **0.10.0** — under release-conformance review.
+> Interfaces and output schemas may change before 1.0. No development build
+> should be treated as release-approved unless its production dossier reports
+> `READY`.
 
-## Repository status
+## Quick start with Docker
 
-Implementation contracts are complete through Phase **0.9.31**. The release-candidate closure layer now includes a versioned 15-gate policy, checksum-verified evidence-index contract, deterministic reviewer dossier, terminal checksum inventory, deliberately blocked pull-request rehearsal, manual production evaluation, named approval requirements, and backend-specific ADMIXTURE, fastStructure, and LEA/sNMF setup guidance.
-
-The closure mechanism is complete, but the current 0.10.0 candidate is **not release-ready**. The first approved production baseline, complete external-tool concordance suite, approved real-data three-backend ancestry case, historical release benchmark archive, exact distribution evidence, final scientific approval, release authorization, release tag, and published DOI still require execution, review, and retention. A release may proceed only when a production dossier for the exact candidate commit reports `READY`. See the [roadmap](docs/ROADMAP.md) and [release-candidate closure guide](docs/developer/release-candidate-closure.md).
-
-## Highlights
-
-- Accepts `.vcf` and `.vcf.gz` input.
-- Automatically sorts, BGZF-compresses, and Tabix-indexes input when required.
-- Runs PCA, IBS/MDS, QC, filtering, and LD pruning directly from VCF sample IDs without metadata.
-- Validates metadata sample IDs against the VCF before attaching annotations.
-- Detects which analyses are possible from the available metadata columns.
-- Performs exact audited SNPRelate QC and LD pruning.
-- Provides diversity, FST, DAPC, population-structure, AMOVA, Mantel, and isolation-by-distance workflows when their requirements are met.
-- Produces publication artifacts, validation records, and reproducible container images.
-- Preserves canonical dataset checksums, scientific approval state, external-tool provenance, and release benchmark budgets as machine-readable evidence.
-- Synchronizes the installed package citation, `CITATION.cff`, CodeMeta, FAIR software records, Zenodo deposition metadata, and reproducibility statement against one development-safe software identity.
-- Produces checksum-linked source and OCI SBOM/provenance evidence without claiming an unpublished release date or DOI.
-- Builds a checksum-verified release-candidate dossier that cannot report readiness from rehearsal mode or incomplete, malformed, unapproved, or tampered evidence.
-
-## Start here
-
-The public guide sequence is:
-
-1. [Run your first analysis](vignettes/getting-started.Rmd)
-2. [Interpret population-genomic results](vignettes/interpreting-results.Rmd)
-3. [Explore the maintained publication gallery](vignettes/publication-gallery.Rmd)
-4. [Troubleshoot analyses and deployments](vignettes/troubleshooting.Rmd)
-5. [Computational reproducibility](vignettes/reproducibility.Rmd)
-6. [Containers and HPC deployment](vignettes/containers-and-hpc.Rmd)
-7. [Install and configure ancestry backends](docs/user/ancestry-backends.md)
-
-The rendered versions are available from the [pkgdown site](https://duceppemo.github.io/popgenVCF/).
-
-## Recommended installation: container image
-
-For current development and evaluation:
+Docker is the simplest evaluation path:
 
 ```bash
-export POPGENVCF_IMAGE="ghcr.io/duceppemo/popgenvcf:latest"
-docker pull "$POPGENVCF_IMAGE"
-```
+docker pull ghcr.io/duceppemo/popgenvcf:latest
 
-For a reproducible release analysis, replace `latest` with the immutable digest recorded by the corresponding GitHub Release:
-
-```bash
-export POPGENVCF_IMAGE="ghcr.io/duceppemo/popgenvcf@sha256:<digest>"
-docker pull "$POPGENVCF_IMAGE"
-```
-
-Generate a default configuration from the analysis directory:
-
-```bash
-docker run --rm \
-  --user "$(id -u):$(id -g)" \
-  -e HOME=/tmp \
-  -v "$PWD:/data" \
-  "$POPGENVCF_IMAGE" \
+docker run --rm --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp -v "$PWD:/data" \
+  ghcr.io/duceppemo/popgenvcf:latest \
   --write-config /data/analysis.yml
 ```
 
-Run the analysis:
+Edit `analysis.yml` to use container paths such as `/data/cohort.vcf.gz`, then
+run:
 
 ```bash
-docker run --rm \
-  --user "$(id -u):$(id -g)" \
-  -e HOME=/tmp \
-  -v "$PWD:/data" \
-  "$POPGENVCF_IMAGE" \
+docker run --rm --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp -v "$PWD:/data" \
+  ghcr.io/duceppemo/popgenvcf:latest \
   --config /data/analysis.yml
 ```
 
-Paths in `analysis.yml` must use container paths such as `/data/cohort.vcf.gz`, not host paths.
+Use an immutable image digest from a GitHub Release for a reproducible
+production analysis.
 
-## VCF input
+## Local installation
 
-The input may be:
-
-- an uncompressed `.vcf`;
-- a BGZF-compressed `.vcf.gz` with `.tbi` or `.csi`;
-- a BGZF-compressed `.vcf.gz` without an index;
-- an ordinary gzip-compressed `.vcf.gz`;
-- an unsorted VCF.
-
-popgenVCF reuses a valid existing index. When a writable BGZF file lacks an index, it creates the `.tbi` beside the source. Otherwise it creates a coordinate-sorted BGZF copy and Tabix index in the analysis cache using `bcftools sort -Oz` and `bcftools index --tbi`.
-
-```yaml
-input:
-  vcf: /data/cohort.vcf.gz
-```
-
-## Workflow modes
-
-### VCF-only mode
-
-A metadata file is optional:
-
-```yaml
-input:
-  vcf: /data/cohort.vcf.gz
-  metadata: null
-```
-
-The VCF sample names are the canonical sample identifiers. Without metadata, popgenVCF can perform sample and variant QC, filtering, LD pruning, PCA, IBS/MDS, and configured ancestry analyses. Population and spatial modules are skipped transparently because their annotations are unavailable.
-
-### Sample metadata mode
-
-A metadata file may add descriptive columns such as location, collection date, sex, or species. PCA and IBS/MDS do not require this file; metadata annotates their samples and figures.
-
-### Population metadata mode
-
-A complete `population` column enables population diversity, FST, DAPC, AMOVA, and population-level summaries.
-
-### Spatial metadata mode
-
-Valid `latitude` and `longitude` values enable Mantel tests, isolation by distance, geographic figures, and other spatial modules. Samples without coordinates are excluded only from the spatial calculation; the module must still meet its minimum complete-pair requirement.
-
-## Metadata identity contract
-
-When metadata is supplied, its `sample` column must match the VCF sample names **exactly**.
-
-popgenVCF enforces all of the following before downstream analysis:
-
-- every metadata sample ID exists in the VCF;
-- every VCF sample ID occurs exactly once in metadata;
-- duplicate metadata sample IDs are rejected;
-- metadata rows are reordered to VCF sample order;
-- matching is case-sensitive;
-- internal whitespace in identifiers is not silently changed.
-
-A mismatch is a fatal input error because silent dropping or reordering could attach population, location, or other metadata to the wrong individual.
-
-### Metadata example
-
-```text
-sample	population	latitude	longitude	location
-Sample01	Ontario	45.4215	-75.6972	Ottawa
-Sample02	Ontario	45.4200	-75.6900	Ottawa
-Sample03	Quebec	45.5019	-73.5674	Montreal
-Sample04	Quebec	NA	NA	Montreal
-```
-
-Only `sample` is mandatory when metadata is supplied. Recognized optional fields include `population`, `latitude`, `longitude`, `location`, `collection_date`, `sex`, `species`, and `group`. Additional columns are retained rather than discarded.
-
-## Capability and execution evidence
-
-Every run writes machine-readable evidence before results should be interpreted:
-
-- `analysis_capabilities.tsv` records available and skipped modules with reasons;
-- `analysis_execution_plan.tsv` records the dependency-resolved plan;
-- `analysis_execution_ledger.tsv` records success, failure, blocking, retries, and timeouts;
-- `analysis_module_contracts.tsv` records registered module contracts;
-- `analysis_artifacts.tsv` records produced artifacts when present;
-- `analysis_validation.tsv` records module validation when present;
-- `analysis_summary.tsv` provides a stable summary;
-- `analysis_results.rds` stores the complete analysis object;
-- `sessionInfo.txt` records the R environment.
-
-A skipped or unavailable module is not a negative biological result. A blocked, failed, or timed-out module must not be interpreted.
-
-## Example configuration
-
-```yaml
-input:
-  vcf: /data/cohort.vcf.gz
-  metadata: /data/metadata.tsv
-  metadata_header: auto
-
-output:
-  directory: /data/results
-
-compute:
-  threads: 8
-  seed: 42
-
-qc:
-  maf: 0.05
-  max_sample_missing: 0.20
-
-report:
-  enabled: true
-```
-
-For VCF-only operation, remove `metadata` or set it to `null`.
-
-## Local Conda/Mamba installation
+System requirements include R 4.3 or newer, BCFtools, and HTSlib:
 
 ```bash
 git clone https://github.com/duceppemo/popgenVCF.git
 cd popgenVCF
-conda config --set channel_priority strict
-mamba env create --file inst/conda/environment.yml
-conda activate popgenvcf
-Rscript inst/scripts/install-bioconductor.R
-R CMD INSTALL .
-bash inst/scripts/verify-environment.sh
+Rscript install_popgenVCF.R
 ```
 
-## Scientific validation
+Create and run a configuration through the R entry point:
 
-Routine offline validation uses deterministic fixtures:
-
-```r
-core <- popgenVCF::run_scientific_validation(integration = TRUE, threads = 4)
-structure <- popgenVCF::run_population_structure_validation(integration = TRUE)
-stopifnot(core$passed, structure$passed)
+```bash
+Rscript -e 'popgenVCF::cli_main(c("--write-config", "analysis.yml"))'
+Rscript -e 'popgenVCF::cli_main(c("--config", "analysis.yml"))'
 ```
 
-Canonical real-data acquisition and external-tool execution are deliberately excluded from ordinary package checks. They run only in opt-in or scheduled full-validation workflows, with checksum verification and explicit approval before evidence can gate a release.
+Conda/Mamba, Apptainer, HPC, ancestry-backend, and development installation
+paths are covered in the wiki.
 
-## Project documentation
+## Documentation
 
-- [Project charter](docs/PROJECT_CHARTER.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Reproducibility statement](docs/reproducibility.md)
-- [Release archival readiness](docs/developer/release-archival-readiness.md)
-- [Release-candidate closure](docs/developer/release-candidate-closure.md)
-- [Ancestry backend installation](docs/user/ancestry-backends.md)
-- [Citation metadata](CITATION.cff)
-- [Zenodo deposition metadata](.zenodo.json)
-- [CodeMeta software record](codemeta.json)
-- [Container images](docs/user/container-images.md)
+Choose the section that matches your role:
+
+| Audience | Start here |
+| --- | --- |
+| Users | [Getting started](https://github.com/duceppemo/popgenVCF/wiki/Getting-Started) · [User guide](https://github.com/duceppemo/popgenVCF/wiki/User-Guide) · [Results and interpretation](https://github.com/duceppemo/popgenVCF/wiki/Results-and-Interpretation) |
+| Deployers | [Containers, HPC, and troubleshooting](https://github.com/duceppemo/popgenVCF/wiki/Deployment-and-Troubleshooting) |
+| Validators and scientific reviewers | [Validation and scientific review](https://github.com/duceppemo/popgenVCF/wiki/Validation-and-Scientific-Review) |
+| Developers and contributors | [Developer guide](https://github.com/duceppemo/popgenVCF/wiki/Developer-Guide) |
+| Maintainers and release owners | [Release and governance](https://github.com/duceppemo/popgenVCF/wiki/Release-and-Governance) |
+
+- [Wiki home](https://github.com/duceppemo/popgenVCF/wiki) — task-oriented
+  documentation and project processes.
+- [pkgdown reference](https://duceppemo.github.io/popgenVCF/) — generated API
+  reference and long-form vignettes.
+- [Documentation map](https://github.com/duceppemo/popgenVCF/wiki/Documentation-Map)
+  — canonical repository documents and specifications.
+
+## Contributing and citation
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change. Scientific
+changes require estimator definitions, independent validation, and retained
+evidence appropriate to their risk.
+
+Citation metadata are available in [CITATION.cff](CITATION.cff). popgenVCF is
+licensed under the [MIT License](LICENSE).

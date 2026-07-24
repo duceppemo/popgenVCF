@@ -11,6 +11,7 @@ This directory is the living blueprint for popgenVCF. Documents are normative un
 
 - [Architecture](ARCHITECTURE.md) — shared analysis state, registry, module contract, artifact model, deterministic execution runtime, and external-engine boundaries.
 - [Scientific Validation](SCIENTIFIC_VALIDATION.md) — validation hierarchy, dataset tiers, tolerances, and failure policy.
+- [Scientific Review Assignment](SCIENTIFIC_REVIEW_ASSIGNMENT.md) — assigned reviewer, executable review-packet workflow, scientific checklists, decision record, and release-evidence return path.
 - [Execution Timeouts](execution-timeouts.md) — elapsed-time policies, timeout safety boundaries, retry interaction, and recorded metadata.
 
 ## Contributor guidance

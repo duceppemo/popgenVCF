@@ -50,14 +50,17 @@ validate_popgenvcf_software_identity <- function(identity) {
     stop("software identity citation_year is invalid", call. = FALSE)
   }
 
-  author_required <- c("given_name", "family_name", "email", "roles")
+  author_required <- c("given_name", "family_name", "email", "orcid", "roles")
   author_missing <- setdiff(author_required, names(identity$author))
   if (length(author_missing)) {
     stop("software identity author is missing: ", paste(author_missing, collapse = ", "), call. = FALSE)
   }
-  invisible(lapply(c("given_name", "family_name", "email"), function(field) {
+  invisible(lapply(c("given_name", "family_name", "email", "orcid"), function(field) {
     software_identity_scalar(identity$author[[field]], paste("author", field))
   }))
+  if (!grepl("^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$", identity$author$orcid)) {
+    stop("software identity author ORCID is invalid", call. = FALSE)
+  }
   if (!all(c("aut", "cre") %in% identity$author$roles)) {
     stop("software identity author must include aut and cre roles", call. = FALSE)
   }

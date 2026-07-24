@@ -4,7 +4,8 @@
   "description": "A modular R package and command-line toolkit for reproducible population-genomic analysis of diploid, biallelic SNP data stored in VCF files.",
   "creators": [
     {
-      "name": "Duceppe, Marc-Olivier"
+      "name": "Duceppe, Marc-Olivier",
+      "orcid": "0000-0003-2130-0427"
     }
   ],
   "access_right": "open",
