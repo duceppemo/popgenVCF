@@ -94,6 +94,7 @@ The authoritative development package version is **0.10.0**.
 - [x] **0.9.30.3 — Citation, software, and reproducibility metadata reconciliation** (#291)
 - [x] **0.9.30.4 — DOI-ready archival metadata, SBOMs, checksums, and provenance** (#297)
 - [x] **0.9.31 — Release-candidate closure policy, reviewer dossier, and workflow** (#299)
+- [ ] **0.9.32 — Autosomal production validation execution and evidence** (#22)
 
 These milestones complete the software, documentation, metadata, archival-readiness, and release-candidate decision contracts. They do not substitute for executing, reviewing, approving, depositing, and publishing the first production real-data baseline, external-tool concordance suite, cross-backend ancestry evidence, release benchmark history, exact distribution evidence, or final 0.10.0 release authorization.
 

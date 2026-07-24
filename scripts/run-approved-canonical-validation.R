@@ -4,10 +4,14 @@ args <- commandArgs(trailingOnly = TRUE)
 allow_download <- "--allow-download" %in% args
 verbose <- "--verbose" %in% args
 source_arg <- grep("^--source-dir=", args, value = TRUE)
+dataset_arg <- grep("^--dataset=", args, value = TRUE)
 if (length(source_arg) > 1L) {
   stop("--source-dir may be supplied at most once", call. = FALSE)
 }
+if (length(dataset_arg) > 1L) stop("--dataset may be supplied at most once", call. = FALSE)
 source_dir <- if (length(source_arg)) sub("^--source-dir=", "", source_arg[[1L]]) else NULL
+dataset <- if (length(dataset_arg)) sub("^--dataset=", "", dataset_arg[[1L]]) else "chrY"
+if (!dataset %in% c("chrY", "chr22")) stop("--dataset must be chrY or chr22", call. = FALSE)
 positional <- args[!grepl("^--", args)]
 
 if (length(positional) != 5L) {
@@ -15,7 +19,7 @@ if (length(positional) != 5L) {
     paste(
       "Usage: run-approved-canonical-validation.R",
       "<output-dir> <data-dir> <candidate-id> <git-commit> <generated-at>",
-      "[--source-dir=PATH] [--allow-download] [--verbose]"
+      "[--dataset=chrY|chr22] [--source-dir=PATH] [--allow-download] [--verbose]"
     ),
     call. = FALSE
   )
@@ -42,6 +46,8 @@ result <- run_canonical_production_execution(
   candidate_id = positional[[3L]],
   git_commit = positional[[4L]],
   generated_at = positional[[5L]],
+  source = if (identical(dataset, "chr22")) popgenVCF::canonical_1000g_chr22_source() else
+    popgenVCF::canonical_1000g_chrY_source(),
   source_dir = source_dir,
   allow_download = allow_download,
   quiet = !verbose,

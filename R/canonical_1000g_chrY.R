@@ -19,6 +19,8 @@ canonical_1000g_chrY_source <- function() {
     ),
     reviewed_by = "popgenVCF scientific validation maintainers",
     reviewed_at = "2026-07-22",
+    chromosome_scope = "chrY",
+    sample_sex_policy = "male_only",
     analyses = c("diversity", "fst", "pca", "ibs", "tree"),
     files = data.frame(
       filename = c(
@@ -41,13 +43,57 @@ canonical_1000g_chrY_source <- function() {
   )
 }
 
+#' Describe the approved 1000 Genomes Phase 3 chromosome 22 source
+#'
+#' Chromosome 22 is the smallest autosome in the archived Phase 3 callset and
+#' retains all 2,504 samples, making it the bounded production input for
+#' diploid, mixed-sex population-genetic validation.
+#'
+#' @return A named source specification.
+#' @export
+canonical_1000g_chr22_source <- function() {
+  filenames <- c(
+    "ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz",
+    "ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz.tbi",
+    "integrated_call_samples_v3.20130502.ALL.panel"
+  )
+  list(
+    schema_version = "1.0", id = "1000g_phase3_chr22_v5a",
+    version = "20130502-v5a",
+    title = "1000 Genomes Project Phase 3 chromosome 22 genotypes",
+    organism = "Homo sapiens", assembly = "GRCh37",
+    doi = "10.5281/zenodo.3359882",
+    license = "Zenodo open dataset; use subject to record rights",
+    citation = paste(
+      "The 1000 Genomes Project Consortium (2015).",
+      "A global reference for human genetic variation. Nature 526:68-74.",
+      "doi:10.1038/nature15393"
+    ),
+    reviewed_by = "popgenVCF scientific validation maintainers",
+    reviewed_at = "2026-07-23", chromosome_scope = "chr22",
+    sample_sex_policy = "mixed",
+    analyses = c("diversity", "fst", "pca", "ibs", "mds", "dapc", "amova", "tree"),
+    files = data.frame(
+      filename = filenames,
+      upstream_md5 = c(
+        "ad7d6e0c05edafd7faed7601f7f3eaba",
+        "4202e9a481aa8103b471531a96665047",
+        "7ee5675553088230530a7fe88c22f201"
+      ),
+      source = paste0("https://zenodo.org/records/3359882/files/", filenames, "?download=1"),
+      stringsAsFactors = FALSE
+    )
+  )
+}
+
 #' Validate an approved canonical source specification
 #' @param source Canonical source specification.
 #' @return `source`, invisibly.
 #' @export
 validate_canonical_source <- function(source) {
   required <- c("id", "version", "title", "license", "citation", "doi",
-                "reviewed_by", "reviewed_at", "files")
+                "reviewed_by", "reviewed_at", "chromosome_scope",
+                "sample_sex_policy", "files")
   if (!is.list(source) || !all(required %in% names(source)))
     stop("invalid canonical source specification", call. = FALSE)
   files <- as.data.frame(source$files, stringsAsFactors = FALSE)
@@ -58,6 +104,8 @@ validate_canonical_source <- function(source) {
     stop("canonical source MD5 inventory is invalid", call. = FALSE)
   if (!grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", source$reviewed_at))
     stop("canonical source review date must be ISO-8601", call. = FALSE)
+  if (!source$sample_sex_policy %in% c("male_only", "mixed"))
+    stop("canonical source sample sex policy is invalid", call. = FALSE)
   invisible(source)
 }
 

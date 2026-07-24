@@ -7,6 +7,19 @@ test_that("approved 1000 Genomes source metadata is complete", {
   expect_true(all(grepl("^[a-f0-9]{32}$", source$files$upstream_md5)))
 })
 
+test_that("approved chromosome 22 source pins the bounded autosomal callset", {
+  source <- canonical_1000g_chr22_source()
+  expect_invisible(validate_canonical_source(source))
+  expect_equal(source$id, "1000g_phase3_chr22_v5a")
+  expect_equal(source$chromosome_scope, "chr22")
+  expect_equal(source$sample_sex_policy, "mixed")
+  expect_identical(source$files$upstream_md5, c(
+    "ad7d6e0c05edafd7faed7601f7f3eaba",
+    "4202e9a481aa8103b471531a96665047",
+    "7ee5675553088230530a7fe88c22f201"
+  ))
+})
+
 test_that("source verification fails closed when files are absent", {
   source <- canonical_1000g_chrY_source()
   result <- verify_canonical_source(source, tempfile())

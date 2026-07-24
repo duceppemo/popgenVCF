@@ -1,6 +1,8 @@
 # Canonical production execution
 
-The **Canonical real-data production validation** workflow is the first production-evidence execution path for issue #22. It acquires the approved 1000 Genomes Phase 3 chromosome Y dataset from its checksum-pinned Zenodo record, validates the source inventory from a clean external data directory, and emits evidence for the `canonical_validation` release-candidate gate.
+The **Canonical real-data production validation** workflow is the first production-evidence execution path for issue #22. It acquires an approved 1000 Genomes Phase 3 dataset from its checksum-pinned Zenodo record, validates the source inventory from a clean external data directory, and emits evidence for the `canonical_validation` release-candidate gate.
+
+Phase 0.9.32 adds chromosome 22 as the bounded autosomal production input. It is the smallest archived autosome (about 215 MB compressed), contains all 2,504 Phase 3 samples, and supports mixed-sex diploid analyses that chromosome Y cannot validate. The manual workflow defaults to `chr22`; `chrY` remains selectable for the existing haploid structural-validation path.
 
 A successful run does **not** approve a quantitative production baseline, external-tool concordance, ancestry evidence, or the 0.10.0 release. Those gates remain `not_run` until their own retained evidence and named scientific approvals exist.
 
@@ -27,7 +29,7 @@ The execution fails closed unless it establishes all of the following:
 5. the VCF sample inventory is non-empty and unique;
 6. the panel contains complete sample, population, superpopulation, and sex metadata;
 7. the VCF and panel sample sets match exactly;
-8. the chromosome Y panel contains only male samples;
+8. the source-specific sample-sex policy passes: male-only for chromosome Y, or complete mixed male/female assignments for chromosome 22;
 9. every retained evidence artifact is bound by byte size and SHA-256;
 10. the terminal checksum inventory verifies after evidence construction.
 
