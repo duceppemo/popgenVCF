@@ -5,7 +5,8 @@ type: software
 authors:
   - family-names: Duceppe
     given-names: Marc-Olivier
-    email: duceppemo@users.noreply.github.com
+    email: marc-olivier.duceppe@inspection.gc.ca
+    orcid: "https://orcid.org/0000-0003-2130-0427"
 repository-code: "https://github.com/duceppemo/popgenVCF"
 repository-artifact: "https://github.com/duceppemo/popgenVCF/releases"
 url: "https://duceppemo.github.io/popgenVCF/"

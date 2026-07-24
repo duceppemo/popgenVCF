@@ -62,6 +62,11 @@ record_check(
   "canonical author must include aut and cre"
 )
 record_check(
+  "identity.author_orcid",
+  grepl("^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$", scalar(identity$author$orcid)),
+  "canonical author must include a valid ORCID"
+)
+record_check(
   "identity.license",
   identical(scalar(identity$license$spdx), "MIT") &&
     identical(scalar(identity$license$url), "https://spdx.org/licenses/MIT.html"),
@@ -102,9 +107,10 @@ record_check(
   "description.authors_at_r",
   all(vapply(c(
     scalar(identity$author$given_name), scalar(identity$author$family_name),
-    scalar(identity$author$email), '"aut"', '"cre"'
+    scalar(identity$author$email), scalar(identity$author$orcid),
+    '"aut"', '"cre"'
   ), grepl, logical(1L), x = unname(description[["Authors@R"]]), fixed = TRUE)),
-  "Authors@R must include canonical names, email, and roles"
+  "Authors@R must include canonical names, email, ORCID, and roles"
 )
 description_urls <- trimws(strsplit(unname(description[["URL"]]), ",", fixed = TRUE)[[1L]])
 record_check(
@@ -138,7 +144,8 @@ record_check(
   "cff.author",
   identical(scalar(cff_author[["given-names"]]), scalar(identity$author$given_name)) &&
     identical(scalar(cff_author[["family-names"]]), scalar(identity$author$family_name)) &&
-    identical(scalar(cff_author$email), scalar(identity$author$email)),
+    identical(scalar(cff_author$email), scalar(identity$author$email)) &&
+    identical(scalar(cff_author$orcid), paste0("https://orcid.org/", scalar(identity$author$orcid))),
   "CFF author must match canonical identity"
 )
 record_check(
@@ -173,14 +180,16 @@ record_check(
   "codemeta.author",
   identical(scalar(cm_author$givenName), scalar(identity$author$given_name)) &&
     identical(scalar(cm_author$familyName), scalar(identity$author$family_name)) &&
-    identical(scalar(cm_author$email), scalar(identity$author$email)),
+    identical(scalar(cm_author$email), scalar(identity$author$email)) &&
+    identical(scalar(cm_author[["@id"]]), paste0("https://orcid.org/", scalar(identity$author$orcid))),
   "CodeMeta author must match canonical identity"
 )
 record_check(
   "codemeta.maintainer",
   identical(scalar(cm_maintainer$givenName), scalar(identity$author$given_name)) &&
     identical(scalar(cm_maintainer$familyName), scalar(identity$author$family_name)) &&
-    identical(scalar(cm_maintainer$email), scalar(identity$author$email)),
+    identical(scalar(cm_maintainer$email), scalar(identity$author$email)) &&
+    identical(scalar(cm_maintainer[["@id"]]), paste0("https://orcid.org/", scalar(identity$author$orcid))),
   "CodeMeta maintainer must match canonical identity"
 )
 record_check(

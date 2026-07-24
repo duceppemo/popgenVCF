@@ -30,15 +30,17 @@
   "author": [
     {
       "@type": "Person",
+      "@id": "https://orcid.org/0000-0003-2130-0427",
       "givenName": "Marc-Olivier",
       "familyName": "Duceppe",
-      "email": "duceppemo@users.noreply.github.com"
+      "email": "marc-olivier.duceppe@inspection.gc.ca"
     }
   ],
   "maintainer": {
     "@type": "Person",
+    "@id": "https://orcid.org/0000-0003-2130-0427",
     "givenName": "Marc-Olivier",
     "familyName": "Duceppe",
-    "email": "duceppemo@users.noreply.github.com"
+    "email": "marc-olivier.duceppe@inspection.gc.ca"
   }
 }

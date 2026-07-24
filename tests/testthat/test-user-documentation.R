@@ -104,22 +104,26 @@ test_that("public user documentation uses current or release-neutral image examp
   expect_length(stale, 0L)
 })
 
-test_that("README and release identity expose the user guide entry points", {
+test_that("README is a minimal landing page for the Wiki and pkgdown", {
   root <- require_user_documentation_root()
   description <- read.dcf(file.path(root, "DESCRIPTION"))
   expect_identical(unname(description[1L, "Version"]), "0.10.0")
 
   readme <- readLines(file.path(root, "README.md"), warn = FALSE)
-  required_links <- c(
-    "vignettes/getting-started.Rmd",
-    "vignettes/interpreting-results.Rmd",
-    "vignettes/publication-gallery.Rmd",
-    "vignettes/troubleshooting.Rmd",
-    "vignettes/reproducibility.Rmd",
-    "vignettes/containers-and-hpc.Rmd"
+  required_text <- c(
+    "man/figures/popgenVCF-logo.svg",
+    "actions/workflows/R-CMD-check.yaml/badge.svg",
+    "actions/workflows/scientific-validation.yaml/badge.svg",
+    "github.com/duceppemo/popgenVCF/wiki/Getting-Started",
+    "github.com/duceppemo/popgenVCF/wiki/Validation-and-Scientific-Review",
+    "github.com/duceppemo/popgenVCF/wiki/Developer-Guide",
+    "duceppemo.github.io/popgenVCF/"
   )
-  expect_true(all(vapply(required_links, function(path) {
-    any(grepl(path, readme, fixed = TRUE))
+  expect_true(all(vapply(required_text, function(text) {
+    any(grepl(text, readme, fixed = TRUE))
   }, logical(1L))))
+  expect_lte(length(readme), 120L)
+  expect_false(any(grepl("## Workflow modes", readme, fixed = TRUE)))
+  expect_false(any(grepl("## Metadata identity contract", readme, fixed = TRUE)))
   expect_false(any(grepl("before Phase 0.9.30", readme, fixed = TRUE)))
 })

@@ -5,10 +5,11 @@ Version: 0.10.0
 Authors@R: c(
     person(given = "Marc-Olivier", family = "Duceppe",
            role = c("aut", "cre"),
-           email = "duceppemo@users.noreply.github.com")
+           email = "marc-olivier.duceppe@inspection.gc.ca",
+           comment = c(ORCID = "0000-0003-2130-0427"))
     )
 Author: Marc-Olivier Duceppe [aut, cre]
-Maintainer: Marc-Olivier Duceppe <duceppemo@users.noreply.github.com>
+Maintainer: Marc-Olivier Duceppe <marc-olivier.duceppe@inspection.gc.ca>
 Description: A modular command-line toolkit and R application programming
     interface for reproducible population-genomic analysis of diploid,
     biallelic single-nucleotide polymorphism data stored in Variant Call

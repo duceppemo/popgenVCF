@@ -118,3 +118,8 @@ baseline.
 The snapshot and proposal record both state `approval: proposed`; the record separately states `production_baseline_gate: not_passed`. Code paths that require an approved real-data snapshot continue to fail closed.
 
 Scientific review must independently verify the exact candidate commit, source and derived-input checksums, sample inventory, QC and LD-pruning evidence, PCA output, metric definitions, expected values, and tolerances. Approval requires named reviewer metadata and a separate reviewed change. A successful workflow run alone cannot promote this proposal.
+
+Marc-Olivier Duceppe
+([ORCID 0000-0003-2130-0427](https://orcid.org/0000-0003-2130-0427))
+is assigned to perform this review. The assignment records responsibility only;
+it does not change the proposal or gate approval state.

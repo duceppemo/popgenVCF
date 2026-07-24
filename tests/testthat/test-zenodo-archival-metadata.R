@@ -84,6 +84,7 @@ test_that("Zenodo metadata is complete, synchronized, and DOI-free", {
     zenodo$creators[[1L]]$name,
     paste0(identity$author$family_name, ", ", identity$author$given_name)
   )
+  expect_identical(zenodo$creators[[1L]]$orcid, identity$author$orcid)
   expect_false(any(c(
     "doi", "conceptdoi", "conceptrecid", "recid", "record_id",
     "publication_date", "date_released"

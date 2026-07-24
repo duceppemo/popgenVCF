@@ -94,8 +94,9 @@ expected_creator <- paste0(
 )
 record_check(
   "zenodo.creators",
-  length(creators) >= 1L && identical(scalar(creators[[1L]]$name), expected_creator),
-  "first creator must match canonical author in Family, Given format"
+  length(creators) >= 1L && identical(scalar(creators[[1L]]$name), expected_creator) &&
+    identical(scalar(creators[[1L]]$orcid), scalar(identity$author$orcid)),
+  "first creator name and ORCID must match canonical author"
 )
 
 prohibited <- c(

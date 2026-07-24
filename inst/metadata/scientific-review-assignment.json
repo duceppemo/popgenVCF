@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "record_type": "popgenvcf_scientific_review_assignment",
+  "target_release": "v0.10.0",
+  "assigned_at": "2026-07-24",
+  "reviewer": {
+    "name": "Marc-Olivier Duceppe",
+    "email": "marc-olivier.duceppe@inspection.gc.ca",
+    "orcid": "0000-0003-2130-0427"
+  },
+  "gate_ids": [
+    "production_baseline",
+    "external_concordance",
+    "ancestry_three_backend",
+    "benchmark_history",
+    "scientific_approval"
+  ],
+  "state": "assigned",
+  "approval_conferred": false,
+  "notes": "The named reviewer will personally review each retained scientific result. This assignment does not approve evidence or authorize release."
+}

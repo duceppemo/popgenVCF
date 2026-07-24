@@ -10,6 +10,8 @@ test_that("packaged software identity is complete and development-safe", {
   expect_null(identity$date_released)
   expect_null(identity$doi)
   expect_identical(identity$license$spdx, "MIT")
+  expect_identical(identity$author$email, "marc-olivier.duceppe@inspection.gc.ca")
+  expect_identical(identity$author$orcid, "0000-0003-2130-0427")
   expect_true(all(c("aut", "cre") %in% identity$author$roles))
   expect_invisible(validate_popgenvcf_software_identity(identity))
 })

@@ -5,7 +5,11 @@ meta <- packageDescription("popgenVCF")
 bibentry(
   bibtype = "Manual",
   title = "popgenVCF: Population Genomics Toolkit for VCF Data",
-  author = person("Marc-Olivier", "Duceppe"),
+  author = person(
+    "Marc-Olivier", "Duceppe",
+    email = "marc-olivier.duceppe@inspection.gc.ca",
+    comment = c(ORCID = "0000-0003-2130-0427")
+  ),
   year = "2026",
   note = sprintf("R package version %s", meta$Version),
   url = "https://github.com/duceppemo/popgenVCF"
