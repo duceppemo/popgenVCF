@@ -77,6 +77,17 @@ This execution completes proposal generation only. Its record remains
 `approval: proposed`, its `production_baseline_gate` remains `not_passed`, and
 external concordance remains `not_run`.
 
+### Pre-approval serialization finding
+
+A subsequent import audit found that proposal 3 serialized the three source
+SHA-256 values without their filename keys. The bundle manifests, structural
+evidence, and quantitative observations remain valid execution evidence, but
+the snapshot does not satisfy the filename-bound adoption contract and cannot
+be promoted. The fail-closed reader rejects this legacy array representation;
+reviewers must not infer the missing associations from file order. A new
+candidate-bound production proposal must be generated after the serialization
+fix before named scientific review can approve or revise a snapshot.
+
 ## Review boundary
 
 The snapshot and proposal record both state `approval: proposed`; the record separately states `production_baseline_gate: not_passed`. Code paths that require an approved real-data snapshot continue to fail closed.

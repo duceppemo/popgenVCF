@@ -68,9 +68,58 @@ test_that("snapshot JSON is deterministic and approval-aware", {
   proposed <- real_data_snapshot_fixture()
   path <- tempfile(fileext = ".json")
   expect_equal(write_canonical_real_data_baseline_snapshot(proposed, path), normalizePath(path))
-  payload <- jsonlite::read_json(path, simplifyVector = TRUE)
+  payload <- jsonlite::read_json(path, simplifyVector = FALSE)
   expect_equal(payload$dataset_id, "dataset_a")
   expect_equal(payload$sample_count, 2L)
+  expect_identical(names(payload$dataset_sha256), names(proposed$dataset_sha256))
+  expect_null(payload$approved_by)
+  expect_null(payload$approved_at)
+  roundtrip <- read_canonical_real_data_baseline_snapshot(path)
+  expect_equal(roundtrip, proposed)
   expect_error(write_canonical_real_data_baseline_snapshot(
     proposed, tempfile(fileext = ".json"), require_approved = TRUE), "not approved")
+})
+
+test_that("snapshot review requires explicit approval metadata", {
+  proposed <- real_data_snapshot_fixture()
+  approved <- approve_canonical_real_data_baseline_snapshot(
+    proposed, approved_by = "Scientific Reviewer", approved_at = "2026-07-24",
+    notes = "Reviewed dataset identity, metrics, tolerances, and provenance."
+  )
+  expect_equal(approved$approval, "approved")
+  expect_equal(approved$approved_by, "Scientific Reviewer")
+  path <- tempfile(fileext = ".json")
+  write_canonical_real_data_baseline_snapshot(
+    approved, path, require_approved = TRUE
+  )
+  expect_equal(
+    read_canonical_real_data_baseline_snapshot(path, require_approved = TRUE),
+    approved
+  )
+  expect_error(
+    approve_canonical_real_data_baseline_snapshot(
+      approved, "Another Reviewer", "2026-07-25"
+    ),
+    "only proposed snapshots"
+  )
+})
+
+test_that("snapshot JSON rejects checksum inventories without filename binding", {
+  proposed <- real_data_snapshot_fixture()
+  path <- tempfile(fileext = ".json")
+  write_canonical_real_data_baseline_snapshot(proposed, path)
+  payload <- jsonlite::read_json(path, simplifyVector = FALSE)
+  payload$dataset_sha256 <- unname(payload$dataset_sha256)
+  jsonlite::write_json(
+    payload, path, auto_unbox = TRUE, pretty = TRUE, null = "null"
+  )
+  expect_error(
+    read_canonical_real_data_baseline_snapshot(path),
+    "preserve filename keys"
+  )
+  proposed$dataset_sha256 <- unname(proposed$dataset_sha256)
+  expect_error(
+    validate_canonical_real_data_baseline_snapshot(proposed),
+    "named SHA-256 inventory"
+  )
 })
