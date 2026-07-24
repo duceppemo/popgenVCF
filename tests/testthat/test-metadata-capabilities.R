@@ -155,7 +155,6 @@ test_that("pipeline module resolution honors configured enablement", {
   pipeline_body <- paste(deparse(body(popgenVCF::run_pipeline)), collapse = "\n")
   expect_match(
     pipeline_body,
-    "resolve_pipeline_modules(registry, capabilities, cfg, selected)",
-    fixed = TRUE
+    "resolve_pipeline_modules\\s*\\(registry,\\s*capabilities,\\s*cfg,\\s*selected\\)"
   )
 })
