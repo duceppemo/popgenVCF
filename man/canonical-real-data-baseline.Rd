@@ -1,6 +1,8 @@
 \name{canonical-real-data-baseline}
 \alias{new_canonical_real_data_baseline_snapshot}
 \alias{validate_canonical_real_data_baseline_snapshot}
+\alias{read_canonical_real_data_baseline_snapshot}
+\alias{approve_canonical_real_data_baseline_snapshot}
 \alias{write_canonical_real_data_baseline_snapshot}
 \title{Canonical real-data baseline snapshots}
 \usage{
@@ -21,6 +23,15 @@ new_canonical_real_data_baseline_snapshot(
 validate_canonical_real_data_baseline_snapshot(
   snapshot,
   require_approved = FALSE
+)
+
+read_canonical_real_data_baseline_snapshot(path, require_approved = FALSE)
+
+approve_canonical_real_data_baseline_snapshot(
+  snapshot,
+  approved_by,
+  approved_at,
+  notes = snapshot$notes
 )
 
 write_canonical_real_data_baseline_snapshot(
@@ -46,8 +57,8 @@ write_canonical_real_data_baseline_snapshot(
 \item{path}{Destination JSON path.}
 }
 \value{
-The constructor returns a validated \code{PopgenVCFCanonicalRealDataBaselineSnapshot}. The validator returns the snapshot invisibly. The writer returns the normalized output path.
+The constructor and reader return a validated \code{PopgenVCFCanonicalRealDataBaselineSnapshot}. The approval helper returns a validated approved snapshot, the validator returns the snapshot invisibly, and the writer returns the normalized output path.
 }
 \description{
-Creates, validates, and serializes deterministic production baseline snapshots that bind an approved canonical dataset, complete sample metadata, quantitative metrics, workflow provenance, and explicit scientific approval.
+Creates, validates, reads, explicitly approves, and serializes deterministic production baseline snapshots that bind an approved canonical dataset, filename-bound source checksums, complete sample metadata, quantitative metrics, workflow provenance, and scientific approval metadata.
 }

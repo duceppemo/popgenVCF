@@ -23,6 +23,15 @@ Snapshots are generated as `proposed`. Scientific reviewers promote a snapshot t
 
 No numerical value becomes authoritative merely because a workflow produced it. Approval is an explicit scientific action recorded with reviewer identity and ISO-8601 review date.
 
+`read_canonical_real_data_baseline_snapshot()` reconstructs and validates a
+serialized proposal, including its filename-bound source checksum inventory.
+After completing the scientific checks,
+`approve_canonical_real_data_baseline_snapshot()` records the explicit reviewer
+identity and review date. The approved object must then be serialized with
+`require_approved = TRUE`. Legacy proposal JSON that contains checksum values
+without their filename keys is rejected and must be regenerated; the keys
+cannot be inferred during review.
+
 ## CI policy
 
 Ordinary pull-request CI remains synthetic, deterministic, offline, and fast. Acquisition and computation against the approved 1000 Genomes Phase 3 chromosome 22 or chromosome Y datasets belong only in opt-in full-validation CI.
