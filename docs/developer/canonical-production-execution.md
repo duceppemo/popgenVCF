@@ -33,7 +33,7 @@ The execution fails closed unless it establishes all of the following:
 9. every retained evidence artifact is bound by byte size and SHA-256;
 10. the terminal checksum inventory verifies after evidence construction.
 
-A checksum mismatch, incomplete panel, missing executable, malformed source, stale output directory, unsafe path, or attempt to place raw canonical data inside the evidence directory aborts the run before a passing gate record can be finalized.
+A checksum mismatch, incomplete panel, missing executable, malformed source, stale output directory, unsafe path, or attempt to place raw canonical data inside the evidence directory aborts the run before a passing gate record can be finalized. Approved remote acquisitions use a bounded minimum 10-minute R download timeout and restore the caller's prior option afterward; incomplete transfers still fail closed before installation.
 
 ## Manual workflow execution
 

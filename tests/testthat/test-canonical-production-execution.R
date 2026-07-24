@@ -175,6 +175,31 @@ test_that("canonical production execution keeps raw data outside evidence", {
   )
 })
 
+test_that("canonical production downloads use and restore a bounded timeout", {
+  previous <- getOption("timeout")
+  options(timeout = 3)
+  on.exit(options(timeout = previous), add = TRUE)
+  observed_timeout <- NULL
+  destination <- tempfile("canonical-download-")
+
+  status <- canonical_production_test_env$canonical_production_download(
+    "https://example.invalid/canonical-source", destination, quiet = TRUE,
+    download = function(url, destfile, mode, quiet) {
+      observed_timeout <<- getOption("timeout")
+      expect_identical(url, "https://example.invalid/canonical-source")
+      expect_identical(mode, "wb")
+      expect_true(quiet)
+      writeLines("fixture", destfile)
+      0L
+    }
+  )
+
+  expect_identical(status, 0L)
+  expect_identical(observed_timeout, 600)
+  expect_identical(getOption("timeout"), 3)
+  expect_true(file.exists(destination))
+})
+
 test_that("canonical production evidence rejects unlisted injected files", {
   fixture <- canonical_production_fixture()
   output <- tempfile("canonical-evidence-")
