@@ -5,7 +5,16 @@ read_metadata <- function(path, header = "auto") {
   detected <- any(tolower(tokens) %in% c("sample", "sample_id", "id", "individual", "population", "pop"))
   use_header <- switch(tolower(as.character(header)), auto = detected, yes = TRUE, true = TRUE,
                        no = FALSE, false = FALSE, stopf("Invalid metadata_header: %s", header))
-  x <- data.table::fread(path, sep = sep, header = use_header, data.table = TRUE, showProgress = FALSE)
+  x <- data.table::fread(
+    path, sep = sep, header = use_header, fill = TRUE,
+    data.table = TRUE, showProgress = FALSE
+  )
+  generated_empty <- grepl("^V[0-9]+$", names(x)) & vapply(x, function(column) {
+    all(is.na(column) | !nzchar(trimws(as.character(column))))
+  }, logical(1))
+  if (any(generated_empty)) {
+    x[, (names(x)[generated_empty]) := NULL]
+  }
   if (!use_header) {
     if (ncol(x) < 1L) stop("Headerless metadata requires at least one column", call. = FALSE)
     data.table::setnames(x, 1L, "sample")
