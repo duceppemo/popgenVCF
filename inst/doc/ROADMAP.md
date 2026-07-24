@@ -101,7 +101,7 @@ The authoritative development package version is **0.10.0**.
 - [x] approve and checksum-pin the 1000 Genomes Phase 3 chromosome 22 source;
 - [x] execute and retain candidate-bound structural validation for the complete chromosome 22 source;
 - [x] define a bounded chromosome 22 QC, LD-pruning, and PCA proposal workflow;
-- [ ] execute the quantitative proposal workflow from the reviewed implementation;
+- [x] execute the quantitative proposal workflow from the reviewed implementation;
 - [ ] scientifically review and approve or revise the proposed metric values and tolerances;
 - [ ] complete external-tool concordance and remaining full-validation evidence.
 

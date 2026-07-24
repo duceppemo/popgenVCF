@@ -43,6 +43,40 @@ autosomal-baseline-proposal/
 
 Every retained file is covered by the terminal SHA-256 inventory. Verification rejects missing, injected, altered, symlinked, or raw-genotype files.
 
+## First retained production execution
+
+The first successful quantitative proposal execution was
+[workflow run 30063524586](https://github.com/duceppemo/popgenVCF/actions/runs/30063524586),
+generated on 2026-07-24 from exact commit
+`946eb6a8b980a53bc014dd822d43d41d9f2ce5cf` with candidate ID
+`0.10.0-autosomal-baseline-proposal-3`. The run used approved dataset
+`1000g_phase3_chr22_v5a` version `20130502-v5a` and produced these
+observations:
+
+| Metric | Proposed value |
+| --- | ---: |
+| subset variant count | 21,418 |
+| retained sample count | 2,504 |
+| QC variant count | 2,028 |
+| LD-pruned variant count | 350 |
+| PC1 variance proportion | 0.26553988138366075 |
+| PC2 variance proportion | 0.17740063253018323 |
+
+The candidate-bound structural validation also passed with 1,103,547 indexed
+source variants and all 2,504 samples matched to complete panel metadata. The
+downloaded `canonical-production-evidence` artifact (artifact ID `8585500298`,
+artifact digest
+`sha256:8026ae399d9413eae015b233d6f91f49d189d82e528874eab51e905b3a7af673`)
+was independently checked against both outer run manifests and both inner
+terminal SHA-256 inventories. No raw or derived genotype data were present.
+The GitHub Actions copy is scheduled to expire on 2026-10-22, so scientific
+review and any longer-lived archival action must complete before then or use a
+reproduced, equivalently verified run.
+
+This execution completes proposal generation only. Its record remains
+`approval: proposed`, its `production_baseline_gate` remains `not_passed`, and
+external concordance remains `not_run`.
+
 ## Review boundary
 
 The snapshot and proposal record both state `approval: proposed`; the record separately states `production_baseline_gate: not_passed`. Code paths that require an approved real-data snapshot continue to fail closed.
