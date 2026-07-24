@@ -16,7 +16,7 @@ quality control, PCA, IBS/MDS, diversity, FST, DAPC, AMOVA, population
 structure, spatial genetics, publication outputs, and machine-readable
 validation evidence.
 
-> **Development status:** version 0.10.0 is under release-conformance review.
+> Development series: **0.10.0** — under release-conformance review.
 > Interfaces and output schemas may change before 1.0. No development build
 > should be treated as release-approved unless its production dossier reports
 > `READY`.
