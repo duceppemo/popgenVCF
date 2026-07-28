@@ -47,6 +47,9 @@ comm -3 <(sort vcf_samples.txt) <(sort metadata_samples.txt)
 
 Do not silently drop unmatched samples. Correct the source metadata or create an explicit, reviewed identity mapping.
 
+See the [metadata guide](metadata.html) for alias collision rules, accepted
+coordinate formats, population completeness, and missing-value behavior.
+
 ### Population or spatial modules are skipped
 
 Read `analysis_capabilities.tsv`. Population analyses require usable population annotations; spatial analyses require complete latitude/longitude pairs and module-specific minimum sample counts. A skip is not evidence that the biological pattern is absent.

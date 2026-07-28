@@ -74,6 +74,9 @@ Compare exact VCF sample IDs with the `sample` column. Check case, whitespace,
 duplicate rows, missing samples, and unexpected extra samples. Do not use fuzzy
 matching.
 
+Review the [metadata contract](User-Guide#metadata-file-contract) for aliases,
+coordinate formats, and missing values before editing or dropping rows.
+
 ### Module skipped
 
 Inspect `analysis_capabilities.tsv`. Missing population or coordinate metadata

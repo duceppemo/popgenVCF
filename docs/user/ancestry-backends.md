@@ -6,9 +6,9 @@ Installation success establishes runtime availability only. The 0.10.0 release g
 
 ## Shared input requirements
 
-ADMIXTURE and fastStructure use a PLINK binary prefix containing matching `.bed`, `.bim`, and `.fam` files. LEA/sNMF uses a LEA `.geno` file.
+ADMIXTURE and fastStructure use a PLINK binary prefix containing matching `.bed`, `.bim`, and `.fam` files. LEA/sNMF uses a LEA `.geno` file. By default, popgenVCF generates both formats from the retained samples and LD-pruned SNPs and caches them under the analysis output.
 
-Every enabled backend also requires a sample-order file containing identifiers in exactly the row order used by its Q matrix. The file prevents silently assigning ancestry coefficients to the wrong samples.
+Every enabled backend records sample identifiers in exactly the row order used by its Q matrix. popgenVCF derives this order from the selected PLINK `.fam` file or from the GDS extraction used to create the sNMF input. Explicit sample order prevents silently assigning ancestry coefficients to the wrong samples.
 
 Do not reuse a sample-order file unless its checksum and ordering were verified against the exact backend input.
 
@@ -42,8 +42,6 @@ analyses:
   admixture:
     enabled: true
     executable: admixture
-    plink_prefix: /data/cohort
-    q_sample_file: /data/cohort.samples.txt
     k: "2:10"
     threads: 4
     cv_folds: 5
@@ -79,12 +77,16 @@ analyses:
     enabled: true
     structure_executable: structure.py
     choosek_executable: chooseK.py
-    plink_prefix: /data/cohort
-    q_sample_file: /data/cohort.samples.txt
     k: "2:10"
 ```
 
 Absolute executable paths remain supported for custom or manually managed installations. Retain the Conda package manifest, executable paths, commands, and logs as release evidence.
+
+To prefer an existing PLINK bundle for either ADMIXTURE or fastStructure, set
+`plink_prefix` to the common path before `.bed`, `.bim`, and `.fam`. The bundle
+is used only when its sample order and variant count match the retained
+analysis data; otherwise popgenVCF logs a warning and generates the canonical
+cached bundle.
 
 Official Bioconda recipe:
 
@@ -121,12 +123,16 @@ Configure sNMF:
 analyses:
   snmf:
     enabled: true
-    geno_file: /data/cohort.geno
-    q_sample_file: /data/geno_sample_order.txt
     k: "2:10"
     repetitions: 5
     entropy: true
 ```
+
+To prefer an existing sNMF input, configure both `geno_file` and
+`q_sample_file`. The `.geno` dimensions and sample order must match the
+retained analysis data. If either file is missing or incompatible, popgenVCF
+logs a warning and generates the canonical cached `.geno` and sample-order
+files instead.
 
 Record the R version, Bioconductor version, LEA version, package-library manifest, seeds, repetitions, and entropy setting.
 

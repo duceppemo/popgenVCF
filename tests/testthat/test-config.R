@@ -18,3 +18,22 @@ test_that("configuration schema is explicit and validated", {
   cfg$schema_version <- "999"
   expect_error(popgenVCF::validate_config(cfg), "Unsupported configuration schema_version")
 })
+
+test_that("ancestry backend inputs can be generated from retained VCF data", {
+  cfg <- popgenVCF::default_config()
+  cfg$input$vcf <- tempfile(fileext = ".vcf")
+  cfg$output$directory <- tempfile("popgenvcf-output-")
+  file.create(cfg$input$vcf)
+  cfg$analyses$admixture$enabled <- TRUE
+  cfg$analyses$faststructure$enabled <- TRUE
+  cfg$analyses$snmf$enabled <- TRUE
+
+  validated <- popgenVCF::validate_config(cfg)
+
+  expect_null(validated$analyses$admixture$plink_prefix)
+  expect_null(validated$analyses$admixture$q_sample_file)
+  expect_null(validated$analyses$faststructure$plink_prefix)
+  expect_null(validated$analyses$faststructure$q_sample_file)
+  expect_null(validated$analyses$snmf$geno_file)
+  expect_null(validated$analyses$snmf$q_sample_file)
+})

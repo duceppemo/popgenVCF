@@ -100,21 +100,11 @@ validate_config <- function(cfg) {
   if (!is.finite(cfg$analyses$structure$reproducibility_rmse) || cfg$analyses$structure$reproducibility_rmse < 0) stop("analyses.structure.reproducibility_rmse must be non-negative", call. = FALSE)
   if (!is.finite(cfg$analyses$structure$minimum_cluster_correlation) || cfg$analyses$structure$minimum_cluster_correlation < -1 || cfg$analyses$structure$minimum_cluster_correlation > 1) stop("analyses.structure.minimum_cluster_correlation must be between -1 and 1", call. = FALSE)
 
-  if (isTRUE(cfg$analyses$admixture$enabled)) {
-    ac <- cfg$analyses$admixture
-    if (is.null(ac$plink_prefix) || !nzchar(ac$plink_prefix)) stop("analyses.admixture.plink_prefix is required when ADMIXTURE is enabled", call. = FALSE)
-    if (is.null(ac$q_sample_file) || !file.exists(ac$q_sample_file)) stop("A valid analyses.admixture.q_sample_file is required", call. = FALSE)
-  }
-  if (isTRUE(cfg$analyses$faststructure$enabled)) {
-    fc <- cfg$analyses$faststructure
-    if (is.null(fc$plink_prefix) || !nzchar(fc$plink_prefix)) stop("analyses.faststructure.plink_prefix is required", call. = FALSE)
-    if (is.null(fc$q_sample_file) || !file.exists(fc$q_sample_file)) stop("A valid analyses.faststructure.q_sample_file is required", call. = FALSE)
-  }
-  if (isTRUE(cfg$analyses$snmf$enabled)) {
-    sc <- cfg$analyses$snmf
-    if (is.null(sc$geno_file) || !file.exists(sc$geno_file)) stop("A valid analyses.snmf.geno_file is required", call. = FALSE)
-    if (is.null(sc$q_sample_file) || !file.exists(sc$q_sample_file)) stop("A valid analyses.snmf.q_sample_file is required", call. = FALSE)
-  }
+  # ADMIXTURE and fastStructure PLINK inputs are prepared from the retained
+  # samples and LD-pruned SNPs at runtime. A configured prefix is only a
+  # preferred, compatibility-checked override, and sample order is derived
+  # from the selected PLINK bundle. sNMF uses the same retained data to prepare
+  # its .geno and sample-order files; configured files are optional overrides.
   cfg
 }
 

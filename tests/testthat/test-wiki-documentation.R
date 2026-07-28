@@ -46,6 +46,27 @@ test_that("Wiki provides role-oriented documentation sections", {
   }
 })
 
+test_that("Wiki User Guide contains the complete metadata contract", {
+  root <- wiki_documentation_source_root()
+  if (is.na(root)) testthat::skip("Repository Wiki source is unavailable")
+  text <- paste(readLines(
+    file.path(root, "wiki", "User-Guide.md"), warn = FALSE
+  ), collapse = "\n")
+  required <- c(
+    "optional `alias`", "immutable VCF/GDS key", "display_order",
+    "signed decimal degrees", "-90", "-180", "WGS84",
+    "At least four", "Missing `population`", "literal `NA`",
+    "qc.max_sample_missing", "qc.max_variant_missing",
+    "02_sample_metadata_match.tsv", "analysis_capabilities.tsv"
+  )
+  for (term in required) {
+    expect_true(
+      grepl(term, text, fixed = TRUE),
+      info = paste("Wiki metadata contract is missing:", term)
+    )
+  }
+})
+
 test_that("internal Wiki page links resolve to maintained source pages", {
   root <- wiki_documentation_source_root()
   if (is.na(root)) testthat::skip("Repository Wiki source is unavailable")

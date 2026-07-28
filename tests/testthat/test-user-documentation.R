@@ -52,6 +52,7 @@ test_that("Phase 0.9.30 user guides are complete and site-linked", {
   root <- require_user_documentation_root()
   guides <- c(
     "vignettes/getting-started.Rmd",
+    "vignettes/metadata.Rmd",
     "vignettes/interpreting-results.Rmd",
     "vignettes/publication-gallery.Rmd",
     "vignettes/troubleshooting.Rmd",
@@ -73,6 +74,27 @@ test_that("Phase 0.9.30 user guides are complete and site-linked", {
       testthat::fail(paste("Missing VignetteIndexEntry in", path))
     }
   }
+})
+
+test_that("metadata guide documents identity, geography, and missingness", {
+  root <- require_user_documentation_root()
+  path <- file.path(root, "vignettes", "metadata.Rmd")
+  expect_true(file.exists(path))
+  text <- paste(readLines(path, warn = FALSE), collapse = "\n")
+  required <- c(
+    "immutable identifier", "alias", "individual", "family", "replicate",
+    "display_order", "signed decimal degrees", "-90", "-180", "WGS84",
+    "at least four", "Missing `population`", "literal `NA`",
+    "qc.max_sample_missing", "qc.max_variant_missing",
+    "02_sample_metadata_match.tsv", "analysis_capabilities.tsv"
+  )
+  for (term in required) {
+    expect_true(
+      grepl(term, text, fixed = TRUE),
+      info = paste("Metadata guide is missing:", term)
+    )
+  }
+  expect_false(file.exists(file.path(root, "docs", "sample_aliases.md")))
 })
 
 test_that("public user documentation uses current or release-neutral image examples", {
