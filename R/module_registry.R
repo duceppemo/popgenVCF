@@ -168,13 +168,27 @@ run_module_faststructure <- function(analysis, context) {
 
 run_module_snmf <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs; sc <- cfg$analyses$snmf
-  result <- run_snmf(sc$geno_file, parse_int_range(sc$k), sc$repetitions,
-                     sc$entropy, cfg$compute$seed)
-  write_tsv(result$diagnostics, file.path(dirs$tables, "30_sNMF_cross_entropy.tsv"))
-  sample_order <- data.table::fread(sc$q_sample_file, header = FALSE)[[1]] |> as.character()
+  snmf_input <- prepare_snmf_input(
+    context$gds, context$sample_ids, context$final_snps,
+    preferred_geno_file = sc$geno_file,
+    preferred_sample_file = sc$q_sample_file,
+    cache_dir = dirs$cache
+  )
+  context$snmf_input <- snmf_input
+  result <- run_snmf(
+    snmf_input$geno_file, parse_int_range(sc$k), sc$repetitions,
+    sc$entropy, cfg$compute$seed
+  )
+  write_tsv(
+    result$diagnostics,
+    file.path(dirs$tables, "30_sNMF_cross_entropy.tsv")
+  )
+  sample_order <- readLines(snmf_input$sample_file, warn = FALSE)
   for (k in names(result$q)) {
     q <- result$q[[k]]
-    if (nrow(q) != length(sample_order)) stop("sNMF Q rows do not match sample-order file", call. = FALSE)
+    if (nrow(q) != length(sample_order)) {
+      stop("sNMF Q rows do not match sample-order file", call. = FALSE)
+    }
     qdt <- data.table::as.data.table(q); qdt[, sample := sample_order]
     qdt[, population := context$metadata$population[match(sample, context$metadata$sample)]]
     if (anyNA(qdt$population)) stop("Some sNMF samples are absent from retained metadata", call. = FALSE)
@@ -184,6 +198,11 @@ run_module_snmf <- function(analysis, context) {
     plot_q_matrix(qdt, as.integer(k), cfg, dirs, prefix = "sNMF_Q")
   }
   analysis <- set_analysis_result(analysis, "snmf", result)
+  analysis <- record_analysis_message(
+    analysis, "INFO", "snmf",
+    paste("sNMF input", snmf_input$source, "with", snmf_input$n_samples,
+          "samples and", snmf_input$n_snps, "SNPs")
+  )
   module_result(analysis, context)
 }
 

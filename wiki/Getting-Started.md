@@ -48,17 +48,30 @@ BGZF-compressed and indexed working copy. Preserve the original input and its
 checksum.
 
 Metadata are optional. When supplied, the required `sample` column must match
-every VCF sample identifier exactly and uniquely:
+every VCF sample identifier exactly and uniquely. An optional `alias` provides
+a public label without changing the immutable VCF/GDS identity:
 
 ```text
-sample	population	latitude	longitude	location
-Sample01	Ontario	45.4215	-75.6972	Ottawa
-Sample02	Ontario	45.4200	-75.6900	Ottawa
-Sample03	Quebec	45.5019	-73.5674	Montreal
+sample	alias	population	latitude	longitude	location
+Sample01	Ottawa_01	Ontario	45.4215	-75.6972	Ottawa
+Sample02	NA	Ontario	45.4200	-75.6900	Ottawa
+Sample03	Montreal_01	Quebec	45.5019	-73.5674	Montreal
+Sample04	Montreal_02	Quebec	NA	NA	Montreal
 ```
 
 Matching is case-sensitive. A mismatch is fatal because silent reordering could
 attach population or location information to the wrong individual.
+
+Coordinates must be signed decimal degrees in latitude-longitude order: north
+and east are positive, south and west are negative. Do not use DMS, compass
+suffixes, UTM, or projected coordinates.
+
+Use `NA` for unavailable optional values and keep every sample row. Missing
+aliases fall back to `sample`; incomplete coordinate pairs exclude only that
+sample spatially, while any missing `population` disables population modules.
+
+See the [User Guide metadata contract](User-Guide#metadata-file-contract) for
+all supported columns, identity rules, and missing-data behavior.
 
 ## 3. Create a configuration
 

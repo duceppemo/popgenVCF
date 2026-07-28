@@ -1,0 +1,190 @@
+---
+title: "Prepare sample metadata"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Prepare sample metadata}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+# Metadata
+
+Metadata are optional. Without a metadata file, popgenVCF uses VCF sample names
+as public labels and runs analyses that do not require groups or geography.
+
+When metadata are supplied, the file must contain exactly one row for every
+VCF sample. Do not omit a row merely because some annotations are unavailable.
+
+## Recommended file structure
+
+Use a headered, tab-separated UTF-8 text file. Comma-separated and
+whitespace-separated files are accepted, but tabs are the safest choice when
+optional fields are empty or labels contain spaces.
+
+The parser detects tabs, commas, or whitespace from the first line. Header
+names are converted to lowercase and non-alphanumeric runs become underscores.
+Headerless files support only the first column as `sample` and the second as
+`population`; use a header for aliases, coordinates, and other annotations.
+
+Configure the file as follows:
+
+```yaml
+input:
+  metadata: /data/metadata.tsv
+  metadata_header: auto
+  geographic_columns: [latitude, longitude]
+```
+
+`metadata_header` accepts `auto`, `yes`/`true`, or `no`/`false`. Prefer `auto`
+or `yes` for a headered file. The default geographic-column order is latitude
+first and longitude second.
+
+## Column reference
+
+| Column | Requirement and meaning | Missing values |
+|---|---|---|
+| `sample` | Required immutable key; must match one VCF sample name exactly and uniquely | Never allowed |
+| `alias` | Optional public label used in tables, figures, trees, and reports | Falls back to `sample` |
+| `population` | Group used by diversity, FST, DAPC, AMOVA, bootstrap, and spatial modules | Allowed for annotation-only use, but any missing value disables population-dependent modules |
+| `latitude` | North-south coordinate in signed decimal degrees | Sample is excluded from spatial calculations if either coordinate is missing |
+| `longitude` | East-west coordinate in signed decimal degrees | Sample is excluded from spatial calculations if either coordinate is missing |
+| `individual` | Optional biological-individual grouping | Allowed |
+| `family` | Optional family or pedigree grouping | Allowed; repeated values are expected |
+| `replicate` | Optional technical or biological replicate grouping | Allowed; repeated values are expected |
+| `display_order` | Optional positive integer for stable identity-table ordering | Allowed; non-missing values must be unique |
+| Any other column | Preserved as descriptive metadata | Allowed |
+
+Use the exact names above in new files. The reader also recognizes common
+sample-key headers (`sample_id`, `id`, `individual`, `individual_id`) and `pop`
+as a population header, but explicit `sample` and `population` names avoid
+ambiguity when an `individual` grouping column is also present.
+
+## Complete example
+
+```text
+sample	alias	population	latitude	longitude	location	individual	family	replicate	display_order
+VCF_001	Birch_01	North	45.4215	-75.6972	Ottawa	Tree_01	Family_A	NA	1
+VCF_002	NA	North	NA	NA	Ottawa	Tree_02	Family_A	NA	2
+VCF_003	Birch_03	South	-33.8688	151.2093	Sydney	Tree_03	Family_B	Batch_2	3
+VCF_004	Birch_04	South	48.8566	2.3522	Paris	Tree_04	Family_B	Batch_2	4
+```
+
+Here `VCF_002` remains available to non-spatial analyses, uses `VCF_002` as
+its public label, and is omitted only from calculations requiring coordinates.
+
+## Sample aliases
+
+The metadata `sample` column remains the immutable identifier used to match
+the VCF and GDS sample IDs exactly.
+
+An optional `alias` column may provide a clearer public name for each sample:
+
+```text
+sample	alias	population
+VH01903_AAGMVNWM5_S12_L001	Plant_01	Ontario
+VH01903_AAGMVNWM5_S18_L001	Plant_02	Quebec
+```
+
+Column names are normalized to lowercase internally, so `Alias`, `alias`, and
+equivalent capitalization are accepted.
+
+### Alias rules
+
+- `sample` is still mandatory and must match the VCF sample name exactly.
+- `alias` is optional.
+- Blank or missing aliases fall back to the original VCF sample ID.
+- Non-missing aliases must be unique.
+- The final public names must also be globally unique. For example, an alias
+  cannot equal another sample's unaliased VCF ID.
+
+### Output behavior
+
+The public name is used in sample-level QC tables, PCA coordinates and labels,
+IBS/MDS matrices, neighbour-joining trees, diversity tables, DAPC coordinates
+and membership matrices, figures, and downstream report artifacts.
+
+The original VCF identity is retained as `vcf_sample` in identity-sensitive
+tables and provenance. The VCF/GDS itself is never renamed, so exact
+genotype-to-metadata linkage remains auditable.
+
+## Geographic coordinates
+
+Coordinates are interpreted as geographic latitude and longitude in signed
+decimal degrees. Pairwise distances are calculated with the Haversine formula
+and reported in kilometres.
+
+Use the following conventions:
+
+- latitude is positive north and negative south, from `-90` to `90`;
+- longitude is positive east and negative west, from `-180` to `180`;
+- WGS84/EPSG:4326 coordinates are recommended;
+- use a period as the decimal separator, with no degree symbol;
+- do not use degrees-minutes-seconds, `N/S/E/W` suffixes, UTM, or projected
+  easting/northing values.
+
+Examples:
+
+| Location | Latitude | Longitude |
+|---|---:|---:|
+| Ottawa, Canada | `45.4215` | `-75.6972` |
+| Sydney, Australia | `-33.8688` | `151.2093` |
+
+Do not use `0` as a missing marker: zero is a valid coordinate. Values that
+cannot be converted to numbers become missing; out-of-range values are not a
+substitute for a missing marker and must be corrected before analysis.
+
+A sample is spatially usable only when both coordinates are finite. Spatial
+analysis excludes incomplete coordinate rows and requires at least four
+retained samples with complete pairs. It also requires complete `population`
+annotations because spatial modules are population-dependent in this workflow.
+
+## Missing metadata values
+
+Use the literal `NA` or an empty tab/CSV field for an unavailable optional
+value. Keep the row and its `sample` key. Explicit `NA` is clearer and is the
+recommended form for reproducible files.
+
+Do not use `.`, `N/A`, `unknown`, `-999`, or `0` as generic missing markers;
+they may be interpreted as real labels or coordinates.
+
+| Situation | Behavior |
+|---|---|
+| Missing `sample` | Invalid; every VCF sample must have one metadata row |
+| Missing `alias` | Public label falls back to the immutable VCF sample ID |
+| Missing `population` | Population-dependent and spatial modules are unavailable for the run |
+| One or both coordinates missing | That sample is excluded only from spatial calculations |
+| Missing optional descriptive/grouping field | Preserved as missing; unrelated modules can still run |
+| Entire metadata row omitted | Invalid because VCF and metadata sample sets must match exactly |
+
+Population annotations are deliberately all-or-nothing for population-level
+analysis: one missing value makes the population capability unavailable. If
+population is not known for every sample, either complete the annotation or
+run in sample-metadata/VCF-only mode rather than inventing a population label.
+
+Metadata missingness is separate from missing genotypes in the VCF. Genotype
+calls such as `./.` contribute to sample and variant missingness and are
+controlled by `qc.max_sample_missing` and `qc.max_variant_missing`; those QC
+thresholds do not fill or remove missing metadata annotations.
+
+## Preflight checklist
+
+Before starting a long run, confirm that:
+
+1. the file has a header and consistent tab delimiters;
+2. `sample` values match the VCF header exactly and case-sensitively;
+3. every VCF sample occurs once, with no extra or duplicate metadata rows;
+4. aliases are unique and do not collide with another public sample name;
+5. population labels are complete and consistently spelled when population
+   analyses are intended;
+6. coordinates use signed decimal degrees in latitude-longitude order;
+7. missing optional values use `NA`, not sentinel numbers or ad hoc strings;
+8. coordinate and sample exclusions are scientifically documented.
+
+After startup, inspect `02_sample_metadata_match.tsv`, `01_sample_QC.tsv`, and
+`analysis_capabilities.tsv` before interpreting results. These files show the
+identity mapping, genotype-missingness exclusions, and modules enabled by the
+retained metadata.

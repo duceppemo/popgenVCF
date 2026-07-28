@@ -16,10 +16,21 @@ input:
   vcf: /data/cohort.vcf.gz
   metadata: /data/metadata.tsv
   metadata_header: auto
+  geographic_columns: [latitude, longitude]
 ```
 
 `vcf` is required. `metadata` is optional. Inside Docker, all paths must use
 container paths below the mounted directory.
+
+`metadata_header` accepts `auto`, `yes`/`true`, or `no`/`false`. A headered
+tab-separated file is recommended. `geographic_columns` is ordered latitude
+first and longitude second; the canonical column names shown above support
+capability discovery.
+Coordinates must be signed decimal degrees, not DMS, UTM, or projected units.
+
+See the [User Guide metadata contract](User-Guide#metadata-file-contract) for
+aliases, identity fields, population completeness, coordinate ranges, and
+missing-value behavior.
 
 ## Output
 
@@ -79,9 +90,14 @@ unvalidated module into a usable result.
 
 ## Ancestry backends
 
-ADMIXTURE and fastStructure require a matching PLINK `.bed/.bim/.fam` prefix.
-LEA/sNMF requires a `.geno` file. Every backend requires an explicit
-sample-order file matching Q-matrix rows.
+ADMIXTURE and fastStructure automatically generate matching PLINK
+`.bed/.bim/.fam` files from the retained samples and LD-pruned SNPs. An
+optional `plink_prefix` may select an existing compatible bundle instead.
+The workflow records sample order from the selected PLINK `.fam` file so that
+Q-matrix rows remain explicit. LEA/sNMF similarly generates a `.geno` file and
+matching sample-order file from the same retained data. Existing sNMF files
+may be supplied through `geno_file` and `q_sample_file` only as a compatible
+pair of optional overrides.
 
 Use the maintained backend guide:
 

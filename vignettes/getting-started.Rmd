@@ -28,15 +28,28 @@ Missing metadata does not make a VCF-only analysis invalid. Modules whose requir
 
 ## 2. Prepare the VCF and metadata
 
-The VCF sample names are the immutable sample keys. When metadata is supplied, the `sample` column must match every VCF sample name exactly, once and only once.
+The VCF sample names are immutable sample keys. When metadata are supplied,
+the `sample` column must match every VCF sample name exactly, once and only
+once. An optional `alias` supplies a clearer public label without renaming the
+VCF/GDS identity.
 
 ```text
-sample	population	latitude	longitude	location
-Sample01	North	45.4215	-75.6972	Ottawa
-Sample02	North	45.4200	-75.6900	Ottawa
-Sample03	South	45.5019	-73.5674	Montreal
-Sample04	South	NA	NA	Montreal
+sample	alias	population	latitude	longitude	location
+Sample01	Ottawa_01	North	45.4215	-75.6972	Ottawa
+Sample02	NA	North	45.4200	-75.6900	Ottawa
+Sample03	Montreal_01	South	45.5019	-73.5674	Montreal
+Sample04	Montreal_02	South	NA	NA	Montreal
 ```
+
+Use signed decimal degrees: latitude is positive north/negative south and
+longitude is positive east/negative west. Use `NA` for missing optional
+values. A missing alias falls back to `sample`; incomplete coordinates exclude
+only that sample from spatial calculations. In contrast, any missing
+`population` value disables population-dependent modules. Never omit a sample
+row: the metadata and VCF sample sets must match exactly.
+
+See the [complete metadata guide](metadata.html) for accepted columns,
+identity fields, coordinate ranges, missing-data rules, and validation checks.
 
 The input VCF may be uncompressed, ordinary gzip-compressed, or BGZF-compressed. popgenVCF reuses a valid index and otherwise creates a sorted BGZF copy and Tabix index in the analysis cache. Preserve the original input and record its checksum before analysis.
 

@@ -175,6 +175,234 @@ prepare_structure_plink_input <- function(gds, sample_ids, snp_ids,
   )
 }
 
+inspect_snmf_geno <- function(geno_file, n_samples = NULL, n_snps = NULL) {
+  if (!file.exists(geno_file)) {
+    return(list(valid = FALSE, reason = "missing .geno file"))
+  }
+  size <- file.info(geno_file)$size
+  if (is.na(size) || size <= 0) {
+    return(list(valid = FALSE, reason = "the .geno file is empty"))
+  }
+
+  connection <- file(geno_file, open = "rt")
+  on.exit(close(connection), add = TRUE)
+  observed_snps <- 0L
+  repeat {
+    lines <- readLines(connection, n = 10000L, warn = FALSE)
+    if (!length(lines)) break
+    observed_snps <- observed_snps + length(lines)
+    if (!is.null(n_samples) &&
+        any(nchar(lines, type = "bytes") != as.integer(n_samples))) {
+      return(list(valid = FALSE, reason = "the .geno sample count does not match retained samples"))
+    }
+    if (any(grepl("[^0129]", lines))) {
+      return(list(valid = FALSE, reason = "the .geno file contains invalid genotype codes"))
+    }
+  }
+  if (!observed_snps) {
+    return(list(valid = FALSE, reason = "the .geno file has no SNP rows"))
+  }
+  if (!is.null(n_snps) && observed_snps != as.integer(n_snps)) {
+    return(list(valid = FALSE, reason = "the .geno SNP count does not match retained SNPs"))
+  }
+  list(valid = TRUE, reason = NULL, n_samples = as.integer(n_samples),
+       n_snps = observed_snps)
+}
+
+inspect_snmf_input <- function(geno_file, sample_file, sample_ids, snp_ids) {
+  paths <- c(geno = geno_file, samples = sample_file)
+  missing <- names(paths)[!nzchar(paths) | !file.exists(paths)]
+  if (length(missing)) {
+    labels <- ifelse(missing == "geno", ".geno file", "sample-order file")
+    return(list(valid = FALSE,
+                reason = paste("missing", paste(labels, collapse = " and "))))
+  }
+
+  ids <- tryCatch(
+    readLines(sample_file, warn = FALSE),
+    error = function(e) e
+  )
+  if (inherits(ids, "error")) {
+    return(list(valid = FALSE, reason = "the sample-order file is unreadable"))
+  }
+  if (!identical(ids, as.character(sample_ids))) {
+    return(list(valid = FALSE,
+                reason = "the sample order does not match retained samples"))
+  }
+
+  geno <- inspect_snmf_geno(geno_file, length(sample_ids), length(snp_ids))
+  if (!isTRUE(geno$valid)) return(geno)
+  list(
+    valid = TRUE,
+    reason = NULL,
+    geno_file = geno_file,
+    sample_file = sample_file,
+    sample_ids = ids,
+    n_samples = length(ids),
+    n_snps = geno$n_snps
+  )
+}
+
+write_snmf_geno <- function(genotypes, path, chunk_size = 10000L) {
+  genotypes <- as.matrix(genotypes)
+  if (length(dim(genotypes)) != 2L) {
+    stop("sNMF genotype input must be a matrix", call. = FALSE)
+  }
+  genotypes[is.na(genotypes)] <- 9L
+  if (any(!genotypes %in% c(0L, 1L, 2L, 9L))) {
+    stop(
+      "sNMF genotypes must contain only reference-allele counts 0, 1, 2, or NA",
+      call. = FALSE
+    )
+  }
+
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  connection <- file(path, open = "wb")
+  on.exit(close(connection), add = TRUE)
+  chunk_size <- max(1L, as.integer(chunk_size))
+  starts <- seq.int(1L, ncol(genotypes), by = chunk_size)
+  for (start in starts) {
+    indices <- seq.int(start, min(ncol(genotypes), start + chunk_size - 1L))
+    block <- genotypes[, indices, drop = FALSE]
+    lines <- apply(block, 2L, paste0, collapse = "")
+    writeLines(lines, connection, sep = "\n", useBytes = TRUE)
+  }
+  invisible(path)
+}
+
+prepare_snmf_input <- function(gds, sample_ids, snp_ids,
+                               preferred_geno_file = NULL,
+                               preferred_sample_file = NULL,
+                               cache_dir,
+                               extractor = SNPRelate::snpgdsGetGeno) {
+  sample_keys <- as.character(sample_ids)
+  snp_keys <- as.character(snp_ids)
+  if (length(sample_keys) < 2L) stop("sNMF export requires at least two retained samples", call. = FALSE)
+  if (!length(snp_keys)) stop("sNMF export requires retained SNPs", call. = FALSE)
+
+  preferred_geno_file <- as.character(preferred_geno_file %||% "")[1L]
+  preferred_sample_file <- as.character(preferred_sample_file %||% "")[1L]
+  if (is.na(preferred_geno_file)) preferred_geno_file <- ""
+  if (is.na(preferred_sample_file)) preferred_sample_file <- ""
+  if (nzchar(preferred_geno_file)) {
+    preferred_geno_file <- path.expand(preferred_geno_file)
+  }
+  if (nzchar(preferred_sample_file)) preferred_sample_file <- path.expand(preferred_sample_file)
+  if (nzchar(preferred_geno_file) || nzchar(preferred_sample_file)) {
+    preferred <- inspect_snmf_input(
+      preferred_geno_file, preferred_sample_file, sample_keys, snp_keys
+    )
+    if (isTRUE(preferred$valid)) {
+      log_msg(
+        "Using configured sNMF input: ", preferred_geno_file,
+        " (", preferred$n_samples, " samples; ", preferred$n_snps, " SNPs)",
+        level = "INFO"
+      )
+      return(list(
+        geno_file = preferred_geno_file,
+        sample_file = preferred_sample_file,
+        source = "configured",
+        n_samples = preferred$n_samples,
+        n_snps = preferred$n_snps
+      ))
+    }
+    log_msg(
+      "Configured sNMF input is unavailable or incompatible (", preferred$reason,
+      "); generating a canonical .geno file from the retained GDS data",
+      level = "WARNING"
+    )
+  }
+
+  ancestry_dir <- file.path(cache_dir, "ancestry")
+  dir.create(ancestry_dir, recursive = TRUE, showWarnings = FALSE)
+  geno_file <- file.path(ancestry_dir, "popgenVCF_snmf.geno")
+  sample_file <- file.path(ancestry_dir, "popgenVCF_snmf.samples.txt")
+  manifest_file <- file.path(ancestry_dir, "popgenVCF_snmf.manifest.rds")
+  signature <- digest::digest(
+    list(sample_ids = sample_keys, snp_ids = snp_keys),
+    algo = "sha256",
+    serialize = TRUE
+  )
+
+  manifest <- if (file.exists(manifest_file)) {
+    tryCatch(readRDS(manifest_file), error = function(e) NULL)
+  } else NULL
+  cached <- inspect_snmf_input(geno_file, sample_file, sample_keys, snp_keys)
+  if (isTRUE(cached$valid) && identical(manifest$signature, signature)) {
+    log_msg(
+      "Reusing canonical sNMF input: ", geno_file,
+      " (", cached$n_samples, " samples; ", cached$n_snps, " SNPs)",
+      level = "INFO"
+    )
+    return(list(
+      geno_file = geno_file,
+      sample_file = sample_file,
+      source = "cache",
+      n_samples = cached$n_samples,
+      n_snps = cached$n_snps
+    ))
+  }
+
+  extracted <- extractor(
+    gds,
+    sample.id = sample_ids,
+    snp.id = snp_ids,
+    snpfirstdim = FALSE,
+    with.id = TRUE,
+    verbose = FALSE
+  )
+  if (!is.list(extracted) || is.null(extracted$genotype)) {
+    stop("SNPRelate did not return an identifiable genotype matrix", call. = FALSE)
+  }
+  if (!identical(as.character(extracted$sample.id), sample_keys)) {
+    stop("sNMF export sample order does not match retained samples", call. = FALSE)
+  }
+  if (!identical(as.character(extracted$snp.id), snp_keys)) {
+    stop("sNMF export SNP order does not match retained SNPs", call. = FALSE)
+  }
+  genotypes <- extracted$genotype
+  expected <- c(length(sample_keys), length(snp_keys))
+  if (!identical(dim(genotypes), expected)) {
+    stop("sNMF export genotype dimensions do not match retained data", call. = FALSE)
+  }
+
+  temporary <- tempfile("popgenVCF-snmf-", tmpdir = ancestry_dir, fileext = ".geno")
+  on.exit(unlink(temporary, force = TRUE), add = TRUE)
+  write_snmf_geno(genotypes, temporary)
+  generated <- inspect_snmf_geno(temporary, length(sample_keys), length(snp_keys))
+  if (!isTRUE(generated$valid)) {
+    stop("Canonical sNMF export failed: ", generated$reason, call. = FALSE)
+  }
+
+  unlink(c(geno_file, sample_file, manifest_file), force = TRUE)
+  if (!file.rename(temporary, geno_file)) stop("Unable to finalize the canonical sNMF input", call. = FALSE)
+  write_structure_sample_order(sample_keys, sample_file)
+  saveRDS(
+    list(
+      signature = signature,
+      n_samples = length(sample_keys),
+      n_snps = length(snp_keys),
+      sample_ids = sample_keys,
+      snp_ids = snp_keys
+    ),
+    manifest_file,
+    version = 3
+  )
+
+  log_msg(
+    "Generated canonical sNMF input: ", geno_file,
+    " (", length(sample_keys), " samples; ", length(snp_keys), " SNPs)",
+    level = "SUCCESS"
+  )
+  list(
+    geno_file = geno_file,
+    sample_file = sample_file,
+    source = "generated",
+    n_samples = length(sample_keys),
+    n_snps = length(snp_keys)
+  )
+}
+
 # Late-loaded module definitions integrate ancestry backends with the exact
 # retained sample and LD-pruned SNP set rather than requiring separately
 # prepared, potentially mismatched external inputs.

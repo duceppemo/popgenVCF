@@ -1,8 +1,10 @@
 schema_version: "1.0"
 input:
   vcf: /path/to/cohort_filtered.vcf.gz
+  # Optional headered TSV: sample must match VCF; alias is display-only.
   metadata: /path/to/pop_map.tsv
   metadata_header: auto
+  # Signed decimal degrees, latitude first; use NA for missing pairs.
   geographic_columns: [latitude, longitude]
 output:
   directory: /path/to/popgen_results
@@ -43,22 +45,23 @@ analyses:
   admixture:
     enabled: false
     executable: admixture
-    plink_prefix: /path/to/cohort
+    # Optional: otherwise generated from retained samples and LD-pruned SNPs.
+    plink_prefix: null
     k: 2:10
     threads: 8
     cv_folds: 5
-    q_sample_file: /path/to/plink_sample_order.txt
   faststructure:
     enabled: false
     structure_executable: structure.py
     choosek_executable: chooseK.py
-    plink_prefix: /path/to/cohort
+    # Optional: otherwise generated from retained samples and LD-pruned SNPs.
+    plink_prefix: null
     k: 2:10
-    q_sample_file: /path/to/plink_sample_order.txt
   snmf:
     enabled: false
-    geno_file: /path/to/cohort.geno
-    q_sample_file: /path/to/geno_sample_order.txt
+    # Optional pair: otherwise generated from retained samples and LD-pruned SNPs.
+    geno_file: null
+    q_sample_file: null
     k: 2:10
     repetitions: 5
     entropy: true

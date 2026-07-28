@@ -91,3 +91,70 @@ test_that("ADMIXTURE and fastStructure modules use prepared PLINK inputs", {
   expect_match(faststructure_body, "prepare_structure_plink_input", fixed = TRUE)
   expect_match(faststructure_body, "context$structure_plink", fixed = TRUE)
 })
+
+fake_gds_to_snmf <- function(gdsobj, sample.id, snp.id, snpfirstdim,
+                             with.id, verbose) {
+  genotype <- matrix(
+    rep(c(0L, 1L, 2L, NA_integer_), length.out = length(sample.id) * length(snp.id)),
+    nrow = length(sample.id),
+    ncol = length(snp.id)
+  )
+  list(genotype = genotype, sample.id = sample.id, snp.id = snp.id)
+}
+
+test_that("sNMF input is generated, cached, and accepted when aligned", {
+  root <- tempfile("ancestry-snmf-")
+  dir.create(root)
+  samples <- paste0("sample", 1:3)
+  snps <- seq_len(5L)
+
+  generated <- popgenVCF:::prepare_snmf_input(
+    gds = NULL,
+    sample_ids = samples,
+    snp_ids = snps,
+    preferred_geno_file = NULL,
+    preferred_sample_file = NULL,
+    cache_dir = root,
+    extractor = fake_gds_to_snmf
+  )
+
+  expected <- fake_gds_to_snmf(NULL, samples, snps, FALSE, TRUE, FALSE)$genotype
+  expected[is.na(expected)] <- 9L
+  expected_lines <- apply(expected, 2L, paste0, collapse = "")
+  expect_identical(generated$source, "generated")
+  expect_true(file.exists(generated$geno_file))
+  expect_equal(readLines(generated$geno_file), expected_lines)
+  expect_equal(readLines(generated$sample_file), samples)
+  expect_identical(generated$n_samples, 3L)
+  expect_identical(generated$n_snps, 5L)
+
+  reused <- popgenVCF:::prepare_snmf_input(
+    gds = NULL,
+    sample_ids = samples,
+    snp_ids = snps,
+    cache_dir = root,
+    extractor = function(...) stop("extractor should not run for a valid cache")
+  )
+  expect_identical(reused$source, "cache")
+
+  configured_root <- tempfile("configured-snmf-")
+  dir.create(configured_root)
+  configured <- popgenVCF:::prepare_snmf_input(
+    gds = NULL,
+    sample_ids = samples,
+    snp_ids = snps,
+    preferred_geno_file = generated$geno_file,
+    preferred_sample_file = generated$sample_file,
+    cache_dir = configured_root,
+    extractor = function(...) stop("extractor should not run for aligned input")
+  )
+  expect_identical(configured$source, "configured")
+})
+
+test_that("sNMF module uses prepared retained inputs", {
+  body <- paste(deparse(body(popgenVCF:::run_module_snmf)), collapse = "\n")
+
+  expect_match(body, "prepare_snmf_input", fixed = TRUE)
+  expect_match(body, "context$final_snps", fixed = TRUE)
+  expect_match(body, "snmf_input$sample_file", fixed = TRUE)
+})
