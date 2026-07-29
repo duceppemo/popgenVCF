@@ -66,16 +66,28 @@ test_that("metadata capabilities distinguish workflow modes", {
   expect_true(basic$metadata_supplied)
   expect_false(basic$population)
   expect_false(basic$coordinates)
+  expect_identical(basic$population_levels, 0L)
 
   population <- data.table::data.table(sample = c("s1", "s2"), population = c("A", "B"))
   grouped <- popgenVCF:::metadata_capabilities(population, TRUE)
   expect_true(grouped$population)
   expect_false(grouped$coordinates)
+  expect_identical(grouped$population_levels, 2L)
+
+  one_population <- data.table::data.table(
+    sample = c("s1", "s2"), population = c("A", "A")
+  )
+  one_group <- popgenVCF:::metadata_capabilities(one_population, TRUE)
+  expect_true(one_group$population)
+  expect_identical(one_group$population_levels, 1L)
 
   incomplete_population <- data.table::data.table(
     sample = c("s1", "s2"), population = c("A", NA_character_)
   )
   expect_false(popgenVCF:::metadata_capabilities(incomplete_population, TRUE)$population)
+
+  whitespace_population <- data.table::data.table(sample = "s1", population = " ")
+  expect_false(popgenVCF:::metadata_capabilities(whitespace_population, TRUE)$population)
 
   spatial <- data.table::data.table(
     sample = c("s1", "s2"), population = c("A", "B"),
@@ -125,6 +137,39 @@ test_that("capability table keeps sample analyses available without metadata", {
   tab <- popgenVCF:::analysis_capability_table(registry, grouped)
   expect_true(all(tab[module %in% c("pca", "ibs", "fst", "dapc"), available]))
   expect_false(any(tab[module %in% c("mantel", "isolation_by_distance"), available]))
+})
+
+test_that("capability table requires two populations only for comparisons", {
+  runner <- function(analysis, context) list(analysis = analysis, context = context)
+  registry <- popgenVCF::new_analysis_registry()
+  for (name in c("diversity", "fst", "dapc", "amova", "bootstrap", "chromosome")) {
+    registry <- popgenVCF::register_analysis(registry, name, runner)
+  }
+
+  capabilities <- popgenVCF:::metadata_capabilities(
+    data.table::data.table(
+      sample = c("s1", "s2", "s3"),
+      population = c("A", "A", "A")
+    ),
+    TRUE
+  )
+  tab <- popgenVCF:::analysis_capability_table(registry, capabilities)
+
+  expect_true(all(tab[module %in% c("diversity", "dapc", "bootstrap"), available]))
+  expect_false(any(tab[module %in% c("fst", "amova", "chromosome"), available]))
+  expect_true(all(
+    tab[module %in% c("fst", "amova", "chromosome"), reason] ==
+      "at least two populations are required"
+  ))
+  expect_identical(unique(tab$n_populations), 1L)
+
+  expect_warning(
+    selected <- popgenVCF:::resolve_capability_modules(
+      registry, capabilities, selected = c("amova", "diversity")
+    ),
+    "amova \\(at least two populations are required\\)"
+  )
+  expect_identical(selected, "diversity")
 })
 
 test_that("pipeline module resolution honors configured enablement", {
