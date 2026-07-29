@@ -30,6 +30,7 @@ Output	Description
 chromosome_summary.tsv	Per-chromosome SNP counts, global FST, and PC1 variance.
 run_manifest.tsv	Input hashes, settings, sample/SNP counts, and fixed LD configuration.
 stage_timings.tsv	Elapsed runtime for each pipeline stage.
+report/population_genomics_report.html	Portable browser report containing result tables and embedded analysis figures.
 analysis_results.rds	Serialized complete result object used for report regeneration.
 
 analysis_summary.tsv	run	One-row summary of the serialized PopgenVCFAnalysis state

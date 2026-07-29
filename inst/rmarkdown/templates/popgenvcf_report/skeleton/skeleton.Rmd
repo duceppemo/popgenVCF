@@ -7,10 +7,12 @@ output:
     toc: true
     toc_float: true
     number_sections: true
+    self_contained: true
 params:
   results_rds: null
   title: Population genomics analysis
   author: ""
+  figures: null
 ---
 
 ```{r setup, include=FALSE}
@@ -28,9 +30,22 @@ if (inherits(r, "PopgenVCFAnalysis")) {
     a$results
   )
 }
+report_figures <- params$figures
+html_escape <- function(x) {
+  x <- gsub("&", "&amp;", x, fixed = TRUE)
+  x <- gsub("<", "&lt;", x, fixed = TRUE)
+  x <- gsub(">", "&gt;", x, fixed = TRUE)
+  x <- gsub('"', "&quot;", x, fixed = TRUE)
+  x
+}
 ```
 
 # Executive summary
+
+This HTML file is the portable, human-readable analysis report. Figures are
+embedded directly in the file so it can be opened in a standard web browser.
+The accompanying `analysis_results.rds` file is a reproducibility archive for
+R users; it is not required to read this report.
 
 The analysis retained **`r nrow(r$metadata)` samples** from **`r data.table::uniqueN(r$metadata$population)` populations**, with **`r length(r$qc_snps)` QC-passing SNPs** and **`r length(r$final_snps)` LD-pruned SNPs**.
 
@@ -60,7 +75,7 @@ knitr::kable(head(r$pca$scores, 20), digits=4)
 knitr::kable(r$fst$long, digits=4)
 ```
 
-# DAPC
+# Discriminant analysis of principal components
 
 ```{r}
 if (!is.null(r$dapc)) knitr::kable(r$dapc$diagnostics, digits=4)
@@ -91,6 +106,49 @@ if (!is.null(r$admixture_cv)) knitr::kable(r$admixture_cv, digits=6)
 
 ```{r}
 if (!is.null(r$chromosome_summary)) knitr::kable(r$chromosome_summary, digits=4)
+```
+
+# Figure gallery
+
+The gallery contains one browser-friendly version of every analysis figure.
+When several formats exist for the same figure, the report prefers scalable
+vector graphics, followed by PNG and other browser formats. Original figure
+files remain available in the sibling `figures/` directory.
+
+```{r figure-gallery, results='asis'}
+if (is.null(report_figures) || !nrow(report_figures)) {
+  cat("No browser-viewable figure files were found. Configure `output.figure_formats` to include `png` or `svg`, then regenerate the report.\n")
+} else {
+  for (i in seq_len(nrow(report_figures))) {
+    figure <- report_figures[i, , drop = FALSE]
+    caption <- html_escape(figure$caption[[1L]])
+    filename <- html_escape(basename(figure$path[[1L]]))
+    uri <- knitr::image_uri(figure$path[[1L]])
+    if (identical(figure$format[[1L]], "pdf")) {
+      cat(sprintf(
+        paste0(
+          '<figure style="margin:2em 0">',
+          '<figcaption><strong>%s</strong><br><small>%s</small></figcaption>',
+          '<p><a href="%s" target="_blank">Open the embedded PDF figure</a></p>',
+          '</figure>\n'
+        ),
+        caption, filename, uri
+      ))
+    } else {
+      cat(sprintf(
+        paste0(
+          '<figure style="margin:2em 0">',
+          '<img src="%s" alt="%s" loading="lazy" ',
+          'style="display:block;max-width:100%%;height:auto;margin:auto">',
+          '<figcaption style="text-align:center;margin-top:0.5em">',
+          '<strong>%s</strong><br><small>%s</small></figcaption>',
+          '</figure>\n'
+        ),
+        uri, caption, caption, filename
+      ))
+    }
+  }
+}
 ```
 
 # Reproducibility
