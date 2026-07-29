@@ -111,6 +111,45 @@ test_that("reduced HTML reports omit unavailable analysis sections", {
   )
 })
 
+test_that("populated reproducibility sections render mixed-type tables", {
+  skip_if_not(rmarkdown::pandoc_available())
+  root <- tempfile("populated-reproducibility-report-")
+  dir.create(root)
+  results <- file.path(root, "analysis_results.rds")
+  populated <- minimal_standard_report_result()
+  populated$dapc <- list(diagnostics = data.table::data.table(
+    K = 2L,
+    assignment_accuracy = 0.8,
+    replicate_max_rmse = 0.01
+  ))
+  populated$faststructure <- list(runs = data.table::data.table(
+    K = 2L,
+    exit_status = 0L,
+    executable = "structure.py",
+    log_file = "faststructure_K2.log",
+    q_file = "faststructure_K2.meanQ"
+  ))
+  populated$snmf <- list(diagnostics = data.table::data.table(
+    K = 2L, run = 1L, cross_entropy = 0.5
+  ))
+  saveRDS(populated, results)
+
+  rendered <- expect_no_error(render_report(
+    results, file.path(root, "report"),
+    title = "Populated reproducibility report", formats = "html"
+  ))
+  html <- paste(readLines(rendered[["html"]], warn = FALSE), collapse = "\n")
+
+  expect_match(
+    html, 'id="population-structure-reproducibility"', fixed = TRUE
+  )
+  expect_match(html, 'id="faststructure"', fixed = TRUE)
+  expect_match(
+    html, 'id="sparse-non-negative-matrix-factorization"', fixed = TRUE
+  )
+  expect_match(html, "structure.py", fixed = TRUE)
+})
+
 test_that("standard PDF report uses compact vector figure sources", {
   skip_if_not(rmarkdown::pandoc_available())
   skip_if(is.null(popgenVCF:::report_latex_engine()), "No LaTeX engine")

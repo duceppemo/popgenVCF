@@ -42,7 +42,12 @@ html_escape <- function(x) {
 report_table_section <- function(title, table, digits = NULL, level = 1L) {
   if (is.null(table)) return(invisible(FALSE))
   cat(strrep("#", level), " ", title, "\n\n", sep = "")
-  cat(knitr::kable(table, digits = digits), sep = "\n")
+  rendered <- if (is.null(digits)) {
+    knitr::kable(table)
+  } else {
+    knitr::kable(table, digits = digits)
+  }
+  cat(rendered, sep = "\n")
   cat("\n\n")
   invisible(TRUE)
 }
