@@ -225,15 +225,59 @@ run_snmf <- function(geno_file, k_values, repetitions = 5L, entropy = TRUE,
     geno_file, k_values, repetitions, entropy, project_mode, threads, seed
   ))
   diagnostics <- data.table::rbindlist(lapply(as.integer(k_values), function(k) {
-    ce <- LEA::cross.entropy(project, K = k)
-    data.table::data.table(K = k, run = seq_along(ce), cross_entropy = ce)
+    ce <- if (isTRUE(entropy)) LEA::cross.entropy(project, K = k) else numeric()
+    complete_snmf_cross_entropy(k, repetitions, ce)
   }))
   q <- lapply(as.integer(k_values), function(k) {
-    rows <- diagnostics[K == k]; best <- rows$run[which.min(rows$cross_entropy)]
+    rows <- diagnostics[K == k]
+    finite <- which(is.finite(rows$cross_entropy))
+    best <- if (length(finite)) {
+      rows$run[finite[[which.min(rows$cross_entropy[finite])]]]
+    } else {
+      rows$run[[1L]]
+    }
     normalize_q_matrix(LEA::Q(project, K = k, run = best))
   })
   names(q) <- as.character(k_values)
   list(project = project, diagnostics = diagnostics, q = q)
+}
+
+complete_snmf_cross_entropy <- function(k, repetitions, values = numeric()) {
+  values <- suppressWarnings(as.numeric(values))
+  repetitions <- max(as.integer(repetitions), length(values), 1L)
+  if (length(values) < repetitions) {
+    values <- c(values, rep(NA_real_, repetitions - length(values)))
+  }
+  data.table::data.table(
+    K = rep(as.integer(k), repetitions),
+    run = seq_len(repetitions),
+    cross_entropy = values
+  )
+}
+
+summarize_snmf_k_diagnostics <- function(diagnostics) {
+  x <- data.table::copy(data.table::as.data.table(diagnostics))
+  if (!"K" %in% names(x)) {
+    stop("sNMF diagnostics require a K column", call. = FALSE)
+  }
+  if (!"cross_entropy" %in% names(x)) {
+    x[, cross_entropy := NA_real_]
+  } else {
+    x[, cross_entropy := suppressWarnings(as.numeric(cross_entropy))]
+  }
+  x[, {
+    finite <- cross_entropy[is.finite(cross_entropy)]
+    list(
+      cross_entropy = if (length(finite)) mean(finite) else NA_real_,
+      cross_entropy_se = if (length(finite) > 1L) {
+        stats::sd(finite) / sqrt(length(finite))
+      } else if (length(finite) == 1L) {
+        0
+      } else {
+        NA_real_
+      }
+    )
+  }, by = K]
 }
 
 synthetic_structure_membership <- function(n_per_cluster = 20L, k = 3L, noise = 0.02, seed = 42L) {

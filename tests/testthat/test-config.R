@@ -105,6 +105,45 @@ test_that("sNMF forwards CPU and deterministic seed settings to LEA", {
   )
 })
 
+test_that("sNMF diagnostics remain well formed without cross-entropy values", {
+  completed <- popgenVCF:::complete_snmf_cross_entropy(
+    3L, repetitions = 3L, values = numeric()
+  )
+  expect_named(completed, c("K", "run", "cross_entropy"))
+  expect_identical(completed$K, rep(3L, 3L))
+  expect_identical(completed$run, 1:3)
+  expect_true(all(is.na(completed$cross_entropy)))
+
+  matrix_values <- matrix(c(0.52, 0.50, 0.51), nrow = 1L)
+  from_matrix <- popgenVCF:::complete_snmf_cross_entropy(
+    2L, repetitions = 3L, values = matrix_values
+  )
+  expect_named(from_matrix, c("K", "run", "cross_entropy"))
+  expect_equal(from_matrix$cross_entropy, as.numeric(matrix_values))
+  expect_identical(from_matrix$run, 1:3)
+
+  summarized <- popgenVCF:::summarize_snmf_k_diagnostics(
+    data.frame(K = rep(2:3, each = 2L), run = rep(1:2, 2L))
+  )
+  expect_identical(summarized$K, 2:3)
+  expect_true(all(is.na(summarized$cross_entropy)))
+  expect_true(all(is.na(summarized$cross_entropy_se)))
+})
+
+test_that("sNMF diagnostic summaries ignore non-finite replicate values", {
+  summarized <- popgenVCF:::summarize_snmf_k_diagnostics(data.frame(
+    K = rep(2:3, each = 3L),
+    run = rep(1:3, 2L),
+    cross_entropy = c(0.5, NA, 0.4, 0.3, Inf, 0.2)
+  ))
+
+  expect_equal(summarized$cross_entropy, c(0.45, 0.25))
+  expect_equal(
+    summarized$cross_entropy_se,
+    c(stats::sd(c(0.5, 0.4)), stats::sd(c(0.3, 0.2))) / sqrt(2)
+  )
+})
+
 test_that("template analysis toggles drive registry enablement", {
   registry <- popgenVCF::default_analysis_registry()
   cfg <- popgenVCF:::template_config()

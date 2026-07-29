@@ -189,23 +189,30 @@ run_module_snmf <- function(analysis, context) {
     snmf_input$geno_file, parse_int_range(sc$k), sc$repetitions,
     sc$entropy, cfg$compute$seed, threads = sc$threads
   )
-  selection_diagnostics <- result$diagnostics[, .(
-    cross_entropy = mean(cross_entropy),
-    cross_entropy_se = if (.N > 1L) stats::sd(cross_entropy) / sqrt(.N) else 0
-  ), by = K]
-  k_selection <- select_structure_k(selection_diagnostics)
+  result$diagnostics <- data.table::as.data.table(result$diagnostics)
+  selection_diagnostics <- summarize_snmf_k_diagnostics(result$diagnostics)
+  finite_cross_entropy <- selection_diagnostics$cross_entropy[
+    is.finite(selection_diagnostics$cross_entropy)
+  ]
+  k_selection <- if (length(unique(finite_cross_entropy)) > 1L) {
+    select_structure_k(selection_diagnostics)
+  } else {
+    NULL
+  }
   result$k_selection <- k_selection
   write_tsv(
     result$diagnostics,
     file.path(dirs$tables, "30_sNMF_cross_entropy.tsv")
   )
-  write_structure_k_selection(k_selection, dirs, "30b_sNMF_K_selection")
-  plot_structure_k_selection(
-    k_selection, cfg, dirs,
-    stem = "13c_sNMF_cluster_number_selection",
-    title = paste("Sparse non-negative matrix factorization",
-                  "cluster-number selection")
-  )
+  if (!is.null(k_selection)) {
+    write_structure_k_selection(k_selection, dirs, "30b_sNMF_K_selection")
+    plot_structure_k_selection(
+      k_selection, cfg, dirs,
+      stem = "13c_sNMF_cluster_number_selection",
+      title = paste("Sparse non-negative matrix factorization",
+                    "cluster-number selection")
+    )
+  }
   sample_order <- readLines(snmf_input$sample_file, warn = FALSE)
   for (k in names(result$q)) {
     q <- result$q[[k]]
@@ -224,6 +231,15 @@ run_module_snmf <- function(analysis, context) {
     )
   }
   analysis <- set_analysis_result(analysis, "snmf", result)
+  if (is.null(k_selection)) {
+    analysis <- record_analysis_message(
+      analysis, "WARNING", "snmf",
+      paste(
+        "Cross-entropy values were unavailable or did not vary;",
+        "cluster-number consensus was skipped"
+      )
+    )
+  }
   analysis <- record_analysis_message(
     analysis, "INFO", "snmf",
     paste("sNMF input", snmf_input$source, "with", snmf_input$n_samples,
