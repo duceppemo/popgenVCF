@@ -56,6 +56,27 @@ apptainer run --cleanenv \
 
 Input and output paths in the configuration must refer to paths visible inside the container, normally under `/data`. Bind reference, executable, or scratch directories explicitly when the configuration uses them.
 
+## PDF reports
+
+PDF generation requires XeLaTeX, LuaLaTeX, or pdfLaTeX inside the container. The
+published and repository container definitions intentionally omit a full TeX
+distribution to keep image sizes smaller. When no supported engine is available,
+popgenVCF warns, skips the PDF, and still produces the self-contained HTML
+report.
+
+Use a native or derived image with a supported LaTeX engine to create the compact
+PDF. You can render an existing completed analysis without rerunning it:
+
+```bash
+apptainer exec --cleanenv \
+  --bind "$PWD:/data" \
+  popgenvcf-tex.sif \
+  Rscript -e 'popgenVCF::render_report("/data/results/analysis_results.rds", "/data/results/report", formats = "pdf")'
+```
+
+The engine and required fonts must be visible inside the container; a host TeX
+installation is not automatically available in an isolated container.
+
 ## Slurm example
 
 ```bash
