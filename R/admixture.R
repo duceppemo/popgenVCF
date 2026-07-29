@@ -77,7 +77,9 @@ plot_admixture_cv <- function(cv, cfg, dirs) {
   save_plot(p, "13_ADMIXTURE_CV", dirs, cfg$output$figure_formats, 7, 5, cfg$output$dpi)
 }
 
-plot_q_matrix <- function(q, k, cfg, dirs, prefix = "ADMIXTURE_Q") {
+plot_q_matrix <- function(q, k, cfg, dirs, prefix = "ADMIXTURE_Q",
+                          title = NULL, subtitle = NULL,
+                          subtitle_is_warning = FALSE) {
   clusters <- grep("^cluster_", names(q), value = TRUE)
   x <- data.table::copy(q)
   x[, dominant := max.col(as.matrix(.SD), ties.method = "first"), .SDcols = clusters]
@@ -88,7 +90,13 @@ plot_q_matrix <- function(q, k, cfg, dirs, prefix = "ADMIXTURE_Q") {
   p <- ggplot2::ggplot(long, ggplot2::aes(order, ancestry, fill = cluster)) + ggplot2::geom_col(width = 1) +
     ggplot2::facet_grid(~population, scales = "free_x", space = "free_x") +
     ggplot2::scale_y_continuous(limits = c(0,1), expand = c(0,0)) + ggplot2::scale_x_continuous(expand = c(0,0)) +
-    ggplot2::labs(title = sprintf("ADMIXTURE ancestry proportions (K = %d)", k), x = NULL, y = "Ancestry proportion") +
+    ggplot2::labs(title = title %||% sprintf("ADMIXTURE ancestry proportions (K = %d)", k),
+                  subtitle = subtitle, x = NULL, y = "Ancestry proportion") +
     theme_publication() + ggplot2::theme(axis.text.x = ggplot2::element_blank(), axis.ticks.x = ggplot2::element_blank())
+  if (isTRUE(subtitle_is_warning)) {
+    p <- p + ggplot2::theme(
+      plot.subtitle = ggplot2::element_text(colour = "#B2182B", face = "bold")
+    )
+  }
   save_plot(p, sprintf("14_%s_K%d", prefix, k), dirs, cfg$output$figure_formats, max(10, nrow(q) * .08), 6, cfg$output$dpi)
 }

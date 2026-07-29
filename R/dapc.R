@@ -87,14 +87,64 @@ run_dapc_analysis <- function(geno, sample_ids, metadata, k_values, seed,
        replicate_membership = replicate_membership)
 }
 
+dapc_reproducibility_annotation <- function(dapc, k, cfg) {
+  threshold <- cfg$analyses$structure$reproducibility_rmse %||% 0.05
+  diagnostics <- data.table::as.data.table(dapc$diagnostics)
+  row <- diagnostics[as.character(K) == as.character(k)]
+  rmse <- if (nrow(row) && "replicate_max_rmse" %in% names(row)) {
+    suppressWarnings(as.numeric(row$replicate_max_rmse[[1L]]))
+  } else {
+    NA_real_
+  }
+  estimated <- !is.null(dapc$models[[as.character(k)]]$reproducibility)
+
+  if (!estimated || !length(rmse) || !is.finite(rmse)) {
+    return(list(
+      text = sprintf(
+        "Replicate membership RMSE not estimated (stability threshold = %.4g).",
+        threshold
+      ),
+      unstable = FALSE
+    ))
+  }
+  if (rmse > threshold) {
+    return(list(
+      text = sprintf(
+        paste0(
+          "WARNING: DAPC replicate membership is unstable ",
+          "(RMSE = %.4g > %.4g).\nAvoid interpreting these assignments."
+        ),
+        rmse, threshold
+      ),
+      unstable = TRUE
+    ))
+  }
+  list(
+    text = sprintf(
+      "Replicate membership RMSE = %.4g (stability threshold = %.4g).",
+      rmse, threshold
+    ),
+    unstable = FALSE
+  )
+}
+
 plot_dapc <- function(dapc, cfg, dirs) {
   for (k in names(dapc$models)) {
     d <- dapc$models[[k]]$coordinates
+    annotation <- dapc_reproducibility_annotation(dapc, k, cfg)
     axes <- grep("^LD", names(d), value = TRUE)
     if (length(axes) >= 2L) {
       p <- ggplot2::ggplot(d, ggplot2::aes(x = .data[[axes[1]]], y = .data[[axes[2]]], colour = population, shape = cluster)) +
         ggplot2::geom_point(size = 2.8, alpha = .85) + ggplot2::scale_colour_manual(values = population_palette(d$population)) +
-        ggplot2::labs(title = sprintf("Discriminant analysis of principal components (K = %s)", k), x = axes[1], y = axes[2]) + theme_publication()
+        ggplot2::labs(
+          title = sprintf("Discriminant analysis of principal components (K = %s)", k),
+          subtitle = annotation$text, x = axes[1], y = axes[2]
+        ) + theme_publication()
+      if (isTRUE(annotation$unstable)) {
+        p <- p + ggplot2::theme(
+          plot.subtitle = ggplot2::element_text(colour = "#B2182B", face = "bold")
+        )
+      }
       save_plot(p, sprintf("11_DAPC_K%s", k), dirs, cfg$output$figure_formats, 8, 6, cfg$output$dpi)
     }
     membership <- dapc$models[[k]]$membership
@@ -102,6 +152,11 @@ plot_dapc <- function(dapc, cfg, dirs) {
     q[, sample := rownames(membership)]
     q[, population := d$population[match(sample, d$sample)]]
     data.table::setcolorder(q, c("sample", "population", grep("^cluster_", names(q), value = TRUE)))
-    plot_q_matrix(q, as.integer(k), cfg, dirs, prefix = "DAPC_membership")
+    plot_q_matrix(
+      q, as.integer(k), cfg, dirs, prefix = "DAPC_membership",
+      title = sprintf("DAPC membership probabilities (K = %s)", k),
+      subtitle = annotation$text,
+      subtitle_is_warning = annotation$unstable
+    )
   }
 }
