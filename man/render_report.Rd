@@ -6,7 +6,8 @@ render_report(
   results_rds,
   output_dir,
   title = "Population genomics analysis",
-  author = ""
+  author = "",
+  formats = c("html", "pdf")
 )
 }
 \arguments{
@@ -14,6 +15,7 @@ render_report(
   \item{output_dir}{Report output directory.}
   \item{title}{Report title.}
   \item{author}{Report author.}
+  \item{formats}{One or more of \code{html} and \code{pdf}. Both are produced by default. PDF rendering requires XeLaTeX, LuaLaTeX, or pdfLaTeX. When both formats are requested and LaTeX is unavailable, HTML is still produced and PDF is skipped with a warning.}
 }
-\value{The path returned by \code{rmarkdown::render()}, invisibly.}
-\description{Renders the bundled manuscript-oriented HTML report template.}
+\value{Named rendered report paths, invisibly.}
+\description{Renders the bundled manuscript-oriented report template as portable HTML, compact PDF, or both.}

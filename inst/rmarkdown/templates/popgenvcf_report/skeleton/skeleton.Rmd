@@ -13,6 +13,7 @@ params:
   title: Population genomics analysis
   author: ""
   figures: null
+  report_format: html
 ---
 
 ```{r setup, include=FALSE}
@@ -42,9 +43,11 @@ html_escape <- function(x) {
 
 # Executive summary
 
-This HTML file is the portable, human-readable analysis report. Figures are
-embedded directly in the file so it can be opened in a standard web browser.
-The accompanying `analysis_results.rds` file is a reproducibility archive for
+This `r toupper(params$report_format)` file is a portable, human-readable
+analysis report. Figures are embedded directly in the file. The HTML version
+can be opened in a standard web browser, while the PDF version is optimized for
+compact exchange, printing, and email. The accompanying `analysis_results.rds`
+file is a reproducibility archive for
 R users; it is not required to read this report.
 
 The analysis retained **`r nrow(r$metadata)` samples** from **`r data.table::uniqueN(r$metadata$population)` populations**, with **`r length(r$qc_snps)` QC-passing SNPs** and **`r length(r$final_snps)` LD-pruned SNPs**.
@@ -110,15 +113,15 @@ if (!is.null(r$chromosome_summary)) knitr::kable(r$chromosome_summary, digits=4)
 
 # Figure gallery
 
-The gallery contains one browser-friendly version of every analysis figure.
-When several formats exist for the same figure, the report prefers scalable
-vector graphics, followed by PNG and other browser formats. Original figure
-files remain available in the sibling `figures/` directory.
+The gallery contains one version of every analysis figure. The HTML report
+prefers browser-friendly SVG or PNG files. The PDF report prefers the compact
+vector PDF source for each figure. Original files remain available in the
+sibling `figures/` directory.
 
 ```{r figure-gallery, results='asis'}
 if (is.null(report_figures) || !nrow(report_figures)) {
-  cat("No browser-viewable figure files were found. Configure `output.figure_formats` to include `png` or `svg`, then regenerate the report.\n")
-} else {
+  cat("No figure files were found. Configure `output.figure_formats` to include `pdf`, `png`, or `svg`, then regenerate the report.\n")
+} else if (knitr::is_html_output()) {
   for (i in seq_len(nrow(report_figures))) {
     figure <- report_figures[i, , drop = FALSE]
     caption <- html_escape(figure$caption[[1L]])
@@ -147,6 +150,16 @@ if (is.null(report_figures) || !nrow(report_figures)) {
         uri, caption, caption, filename
       ))
     }
+  }
+} else {
+  for (i in seq_len(nrow(report_figures))) {
+    figure <- report_figures[i, , drop = FALSE]
+    caption <- figure$caption[[1L]]
+    path <- gsub(" ", "%20", figure$path[[1L]], fixed = TRUE)
+    cat(sprintf(
+      "![%s](%s){width=95%%}\n\n\\newpage\n\n",
+      caption, path
+    ))
   }
 }
 ```
