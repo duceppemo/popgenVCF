@@ -99,6 +99,11 @@ input:
 
 output:
   directory: /data/results
+  figure_formats: [pdf, png]
+  dpi: 600
+  figure_style: accessibility-first
+  base_font_size: 11
+  label_samples: auto
 
 compute:
   threads: 8
@@ -116,6 +121,8 @@ report:
 ```
 
 Container paths must be visible inside the container. With the bind mount above, host files under the current directory appear under `/data`.
+
+The default `accessibility-first` figure style uses colour-vision-aware palettes and redundant point shapes where the plot geometry permits them. Use `grayscale-safe` for monochrome publication, and add `svg` to `figure_formats` when you need editable vector artwork. See the [publication figure styles guide](https://github.com/duceppemo/popgenVCF/blob/main/docs/PUBLICATION_FIGURE_STYLES.md) for export and palette details.
 
 ## 5. Run the analysis
 

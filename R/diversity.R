@@ -75,25 +75,98 @@ bootstrap_diversity <- function(locus_stats, replicates, seed, unit = "chromosom
 
 plot_diversity <- function(div, ci, cfg, dirs) {
   fmts <- cfg$output$figure_formats; dpi <- cfg$output$dpi
+  style <- figure_style_name(cfg)
+  population_colours <- population_palette(div$sample$population, style)
+  jitter_seed <- as.integer(cfg$compute$seed %||% 42L)
   p1 <- ggplot2::ggplot(div$sample, ggplot2::aes(population, observed_heterozygosity, fill = population)) +
-    ggplot2::geom_boxplot(outlier.shape = NA, alpha = .75) + ggplot2::geom_jitter(width = .15, alpha = .65) +
-    ggplot2::scale_fill_manual(values = population_palette(div$sample$population)) +
-    ggplot2::labs(title = "Observed heterozygosity by population", x = "Population", y = expression(H[O])) +
-    theme_publication() + ggplot2::theme(legend.position = "none", axis.text.x = ggplot2::element_text(angle = 35, hjust = 1))
+    ggplot2::geom_boxplot(
+      outlier.shape = NA, alpha = .30, width = 0.62,
+      colour = "#333333", linewidth = 0.55
+    ) +
+    ggplot2::geom_point(
+      ggplot2::aes(colour = population),
+      position = ggplot2::position_jitter(
+        width = .12, height = 0, seed = jitter_seed
+      ),
+      size = 1.8, alpha = .72
+    ) +
+    ggplot2::scale_fill_manual(values = population_colours) +
+    ggplot2::scale_colour_manual(values = population_colours) +
+    ggplot2::labs(
+      title = "Observed heterozygosity by population",
+      x = "Population", y = expression(italic(H)[O])
+    ) +
+    theme_publication(figure_base_size(cfg)) +
+    ggplot2::theme(
+      legend.position = "none",
+      axis.text.x = ggplot2::element_text(angle = 35, hjust = 1)
+    )
   save_plot(p1, "05_sample_heterozygosity", dirs, fmts, 8, 5.5, dpi)
   long <- data.table::melt(div$population[, .(population, observed_heterozygosity, expected_heterozygosity)],
                            id.vars = "population", variable.name = "metric", value.name = "value")
-  p2 <- ggplot2::ggplot(long, ggplot2::aes(population, value, fill = metric)) +
-    ggplot2::geom_col(position = "dodge") +
+  if (nrow(ci)) {
+    intervals <- data.table::copy(data.table::as.data.table(ci))
+    intervals[, metric := c(
+      Ho = "observed_heterozygosity",
+      He = "expected_heterozygosity"
+    )[as.character(metric)]]
+    intervals <- intervals[
+      !is.na(metric), .(population, metric, lower, upper)
+    ]
+    long <- merge(
+      long, intervals, by = c("population", "metric"),
+      all.x = TRUE, sort = FALSE
+    )
+  } else {
+    long[, `:=`(lower = NA_real_, upper = NA_real_)]
+  }
+  metric_colours <- diversity_metric_palette(style)
+  dodge <- ggplot2::position_dodge(width = 0.55)
+  p2 <- ggplot2::ggplot(
+    long,
+    ggplot2::aes(
+      population, value, fill = metric, colour = metric, shape = metric
+    )
+  ) +
+    ggplot2::geom_errorbar(
+      ggplot2::aes(ymin = lower, ymax = upper),
+      position = dodge, width = 0.14, linewidth = 0.6,
+      na.rm = TRUE, show.legend = FALSE
+    ) +
+    ggplot2::geom_point(
+      position = dodge, size = 3.1, stroke = 0.55
+    ) +
     ggplot2::scale_fill_manual(
-      values = diversity_metric_palette(),
-      breaks = names(diversity_metric_palette()),
+      values = metric_colours,
+      breaks = names(metric_colours),
+      labels = c("Observed heterozygosity", "Expected heterozygosity")
+    ) +
+    ggplot2::scale_colour_manual(
+      values = metric_colours,
+      breaks = names(metric_colours),
+      labels = c("Observed heterozygosity", "Expected heterozygosity")
+    ) +
+    ggplot2::scale_shape_manual(
+      values = c(
+        observed_heterozygosity = 21L,
+        expected_heterozygosity = 24L
+      ),
+      breaks = names(metric_colours),
       labels = c("Observed heterozygosity", "Expected heterozygosity")
     ) +
     ggplot2::labs(
       title = "Population genetic diversity", x = "Population",
-      y = "Heterozygosity", fill = "Statistic"
+      subtitle = if (any(is.finite(long$lower) & is.finite(long$upper))) {
+        "Points are estimates; error bars are 95% chromosome-block bootstrap intervals"
+      } else {
+        "Points are population estimates; confidence intervals were not available"
+      },
+      y = "Heterozygosity", fill = "Statistic",
+      colour = "Statistic", shape = "Statistic"
     ) +
-    theme_publication() + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 35, hjust = 1))
+    theme_publication(figure_base_size(cfg)) +
+    ggplot2::theme(
+      axis.text.x = ggplot2::element_text(angle = 35, hjust = 1)
+    )
   save_plot(p2, "06_population_diversity", dirs, fmts, 8, 5.5, dpi)
 }

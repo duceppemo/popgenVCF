@@ -1,7 +1,7 @@
 test_that("population figures share a high-contrast accessible palette", {
   expected <- c(
-    A = "#4477AA", B = "#EE6677", C = "#228833", D = "#AA3377",
-    E = "#CCBB44", F = "#66CCEE"
+    A = "#0072B2", B = "#E69F00", C = "#009E73", D = "#D55E00",
+    E = "#CC79A7", F = "#56B4E9"
   )
 
   expect_identical(popgenVCF:::population_palette(names(expected)), expected)
@@ -91,8 +91,16 @@ test_that("requested population plots use accessible colors and expanded titles"
     unname(expected)
   )
   expect_identical(
+    unname(plots[["07_PCA_PC1_PC2"]]$scales$get_scales("shape")$palette(3L)),
+    unname(population_shapes(populations))
+  )
+  expect_identical(
     unname(plots[["08_IBS_MDS"]]$scales$get_scales("colour")$palette(3L)),
     unname(expected)
+  )
+  expect_identical(
+    unname(plots[["08_IBS_MDS"]]$scales$get_scales("shape")$palette(3L)),
+    unname(population_shapes(populations))
   )
   expect_identical(
     unname(plots[["06_population_diversity"]]$scales$get_scales("fill")$palette(2L)),
@@ -102,4 +110,33 @@ test_that("requested population plots use accessible colors and expanded titles"
                    "Principal component analysis")
   expect_identical(plots[["08_IBS_MDS"]]$labels$title,
                    "Multidimensional scaling of identity-by-state distance")
+})
+
+test_that("ancestry palettes are deterministic and configured explicitly", {
+  q <- data.table::data.table(
+    sample = c("s1", "s2"),
+    population = c("A", "B"),
+    cluster_1 = c(0.8, 0.2),
+    cluster_2 = c(0.2, 0.8)
+  )
+  captured <- NULL
+  local_mocked_bindings(
+    save_plot = function(p, ...) {
+      captured <<- p
+      invisible(TRUE)
+    },
+    .package = "popgenVCF"
+  )
+
+  plot_q_matrix(q, 2L, default_config(), list(figures = tempdir()))
+
+  expected <- cluster_palette(c("cluster_1", "cluster_2"))
+  expect_identical(
+    captured$scales$get_scales("fill")$palette(2L),
+    expected
+  )
+  expect_identical(
+    captured$scales$get_scales("fill")$name,
+    "Ancestry component"
+  )
 })

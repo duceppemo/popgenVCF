@@ -81,44 +81,129 @@ parse_int_range <- function(x) {
   sort(unique(z))
 }
 
-population_palette <- function(populations) {
-  lev <- sort(unique(as.character(populations)))
-  if (length(lev) <= 8L) {
-    # Paul Tol's bright qualitative scheme, ordered to keep neighbouring
-    # population levels visually distinct, plus black for an eighth group.
-    cols <- c(
-      "#4477AA", "#EE6677", "#228833", "#AA3377",
-      "#CCBB44", "#66CCEE", "#BBBBBB", "#000000"
-    )
-    cols <- cols[seq_along(lev)]
-  } else {
-    # Viridis remains perceptually ordered under common colour-vision
-    # deficiencies when more groups are required than the qualitative scheme
-    # can safely distinguish.
-    cols <- viridisLite::viridis(
-      length(lev), option = "D", begin = 0.05, end = 0.95
+figure_style_name <- function(cfg = NULL) {
+  style <- cfg$output$figure_style %||% "accessibility-first"
+  style <- tolower(as.character(style)[1L])
+  allowed <- c("accessibility-first", "grayscale-safe", "standard-color")
+  if (is.na(style) || !style %in% allowed) {
+    stopf(
+      "output.figure_style must be one of: %s",
+      paste(allowed, collapse = ", ")
     )
   }
+  style
+}
+
+figure_base_size <- function(cfg = NULL) {
+  size <- suppressWarnings(as.numeric(
+    cfg$output$base_font_size %||% 11
+  )[1L])
+  if (!is.finite(size) || size < 8) {
+    stop("output.base_font_size must be a finite number >= 8", call. = FALSE)
+  }
+  size
+}
+
+figure_style_profile <- function(style = "accessibility-first") {
+  if (inherits(style, "PopgenVCFPublicationFigureStyleProfile")) {
+    validate_publication_figure_style_profile(style)
+    return(style)
+  }
+  publication_figure_style_profile(as.character(style)[1L])
+}
+
+expand_figure_palette <- function(profile, n, aesthetic = c("colours", "fills")) {
+  profile <- figure_style_profile(profile)
+  aesthetic <- match.arg(aesthetic)
+  n <- as.integer(n)[1L]
+  if (is.na(n) || n < 0L) stop("palette size must be non-negative", call. = FALSE)
+  if (!n) return(character())
+  palette <- profile[[aesthetic]]
+  if (n <= length(palette)) return(palette[seq_len(n)])
+
+  if (isTRUE(profile$grayscale_safe)) {
+    if (n > 9L) {
+      log_msg(
+        "A grayscale palette cannot guarantee strong luminance separation for ",
+        n, " groups; retain direct labels and verify the exported figure.",
+        level = "WARNING"
+      )
+    }
+    return(grDevices::gray.colors(n, start = 0.10, end = 0.80))
+  }
+  grDevices::hcl.colors(n, palette = "Dark 3")
+}
+
+population_palette <- function(populations, style = "accessibility-first") {
+  lev <- sort(unique(as.character(populations)))
+  cols <- expand_figure_palette(
+    figure_style_profile(style), length(lev), "colours"
+  )
   stats::setNames(cols, lev)
 }
 
-diversity_metric_palette <- function() {
-  c(
-    observed_heterozygosity = "#4477AA",
-    expected_heterozygosity = "#EE6677"
+population_shapes <- function(populations, style = "accessibility-first") {
+  lev <- sort(unique(as.character(populations)))
+  profile <- figure_style_profile(style)
+  shapes <- rep(profile$shapes, length.out = length(lev))
+  stats::setNames(shapes, lev)
+}
+
+cluster_palette <- function(clusters, style = "accessibility-first") {
+  labels <- if (length(clusters) == 1L && is.numeric(clusters)) {
+    paste0("cluster_", seq_len(as.integer(clusters)))
+  } else {
+    unique(as.character(clusters))
+  }
+  stats::setNames(
+    expand_figure_palette(figure_style_profile(style), length(labels), "fills"),
+    labels
   )
 }
 
-theme_publication <- function(base_size = 11) {
-  ggplot2::theme_classic(base_size = base_size) +
+diversity_metric_palette <- function(style = "accessibility-first") {
+  stats::setNames(
+    expand_figure_palette(figure_style_profile(style), 2L, "fills"),
+    c("observed_heterozygosity", "expected_heterozygosity")
+  )
+}
+
+theme_publication <- function(base_size = 11, base_family = "sans") {
+  ggplot2::theme_classic(base_size = base_size, base_family = base_family) +
     ggplot2::theme(
-      plot.title = ggplot2::element_text(face = "bold", size = base_size + 2),
-      plot.subtitle = ggplot2::element_text(colour = "grey30"),
-      axis.title = ggplot2::element_text(face = "bold"),
-      axis.text = ggplot2::element_text(colour = "black"),
+      text = ggplot2::element_text(
+        family = base_family, colour = "#1A1A1A", lineheight = 0.95
+      ),
+      plot.title = ggplot2::element_text(
+        face = "bold", size = base_size + 2.5, hjust = 0,
+        margin = ggplot2::margin(b = 5)
+      ),
+      plot.subtitle = ggplot2::element_text(
+        colour = "#404040", size = base_size,
+        margin = ggplot2::margin(b = 8)
+      ),
+      plot.caption = ggplot2::element_text(
+        colour = "#595959", size = base_size - 1, hjust = 0,
+        margin = ggplot2::margin(t = 8)
+      ),
+      plot.margin = ggplot2::margin(10, 12, 10, 10),
+      axis.title = ggplot2::element_text(
+        face = "bold", size = base_size,
+        margin = ggplot2::margin(4, 4, 4, 4)
+      ),
+      axis.text = ggplot2::element_text(
+        colour = "#1A1A1A", size = base_size - 1
+      ),
+      axis.line = ggplot2::element_line(colour = "#333333", linewidth = 0.45),
+      axis.ticks = ggplot2::element_line(colour = "#333333", linewidth = 0.4),
       legend.title = ggplot2::element_text(face = "bold"),
-      strip.background = ggplot2::element_rect(fill = "grey95", colour = "grey40"),
-      strip.text = ggplot2::element_text(face = "bold")
+      legend.text = ggplot2::element_text(colour = "#1A1A1A"),
+      legend.key = ggplot2::element_rect(fill = "transparent", colour = NA),
+      strip.background = ggplot2::element_rect(
+        fill = "#F2F2F2", colour = "#B3B3B3", linewidth = 0.45
+      ),
+      strip.text = ggplot2::element_text(face = "bold", colour = "#1A1A1A"),
+      panel.spacing = grid::unit(9, "pt")
     )
 }
 
@@ -129,12 +214,22 @@ save_plot <- function(p, stem, dirs, formats = c("pdf", "png"), width = 8, heigh
       log_msg("Skipping SVG output because svglite is unavailable", level = "WARNING")
       next
     }
+    device <- switch(
+      fmt,
+      pdf = if (isTRUE(capabilities("cairo"))) grDevices::cairo_pdf else "pdf",
+      png = if (requireNamespace("ragg", quietly = TRUE)) ragg::agg_png else "png",
+      svg = svglite::svglite,
+      fmt
+    )
     args <- list(
       filename = path,
       plot = p,
       width = width,
       height = height,
-      device = if (fmt == "svg") svglite::svglite else fmt
+      units = "in",
+      device = device,
+      bg = "white",
+      limitsize = FALSE
     )
     if (identical(fmt, "png")) args$dpi <- dpi
     suppressMessages(do.call(ggplot2::ggsave, args))

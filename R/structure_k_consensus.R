@@ -254,12 +254,15 @@ plot_structure_k_selection <- function(selection, cfg, dirs, stem, title) {
   panel_data[, panel := factor(panel, levels = panel_order)]
   vertical <- unique(panel_data[, .(panel)])
   vertical[, consensus_k := selection$consensus_k]
+  plot_colours <- expand_figure_palette(
+    figure_style_profile(figure_style_name(cfg)), 2L, "colours"
+  )
 
   p <- ggplot2::ggplot() +
     ggplot2::geom_col(
       data = votes,
       ggplot2::aes(x = K, y = desirability),
-      fill = "#EE6677", width = 0.7
+      fill = plot_colours[[2L]], width = 0.7
     ) +
     ggplot2::geom_text(
       data = votes[votes > 0L],
@@ -271,12 +274,12 @@ plot_structure_k_selection <- function(selection, cfg, dirs, stem, title) {
       ggplot2::geom_line(
         data = scores,
         ggplot2::aes(x = K, y = desirability, group = metric),
-        colour = "#4477AA", linewidth = 0.7
+        colour = plot_colours[[1L]], linewidth = 0.8
       ) +
       ggplot2::geom_point(
         data = scores,
         ggplot2::aes(x = K, y = desirability),
-        colour = "#4477AA", size = 2.2
+        colour = plot_colours[[1L]], size = 2.4
       )
   }
   p <- p +
@@ -300,7 +303,7 @@ plot_structure_k_selection <- function(selection, cfg, dirs, stem, title) {
       ),
       x = "Number of clusters (K)", y = "Relative support"
     ) +
-    theme_publication()
+    theme_publication(figure_base_size(cfg))
   save_plot(p, stem, dirs, cfg$output$figure_formats, 10, 7, cfg$output$dpi)
   invisible(p)
 }

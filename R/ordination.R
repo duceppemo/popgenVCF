@@ -241,24 +241,43 @@ plot_pca <- function(pca, cfg, dirs) {
   label <- cfg$output$label_samples
   do_label <- identical(label, "all") || (identical(label, "auto") && nrow(pca$scores) <= 60L)
   has_population <- "population" %in% names(pca$scores) && any(!is.na(pca$scores$population))
-  pal <- if (has_population) population_palette(pca$scores$population) else NULL
+  style <- figure_style_name(cfg)
+  pal <- if (has_population) {
+    population_palette(pca$scores$population, style)
+  } else NULL
+  shapes <- if (has_population) {
+    population_shapes(pca$scores$population, style)
+  } else NULL
   for (pair in list(c(1, 2), c(1, 3), c(2, 3))) {
     if (max(pair) > nrow(pca$variance)) next
     x <- paste0("PC", pair[1]); y <- paste0("PC", pair[2])
     mapping <- if (has_population) {
-      ggplot2::aes(x = .data[[x]], y = .data[[y]], colour = population)
+      ggplot2::aes(
+        x = .data[[x]], y = .data[[y]],
+        colour = population, shape = population
+      )
     } else {
       ggplot2::aes(x = .data[[x]], y = .data[[y]])
     }
     p <- ggplot2::ggplot(pca$scores, mapping) +
-      ggplot2::geom_point(size = 2.7, alpha = .85) +
+      ggplot2::geom_hline(
+        yintercept = 0, colour = "#D9D9D9", linewidth = 0.35
+      ) +
+      ggplot2::geom_vline(
+        xintercept = 0, colour = "#D9D9D9", linewidth = 0.35
+      ) +
+      ggplot2::geom_point(size = 3, alpha = .9, stroke = 0.55) +
       ggplot2::labs(
         title = "Principal component analysis",
         x = sprintf("%s (%.2f%%)", x, pca$variance$percent[pair[1]]),
         y = sprintf("%s (%.2f%%)", y, pca$variance$percent[pair[2]]),
-        colour = "Population"
-      ) + theme_publication()
-    if (has_population) p <- p + ggplot2::scale_colour_manual(values = pal)
+        colour = "Population", shape = "Population"
+      ) + theme_publication(figure_base_size(cfg))
+    if (has_population) {
+      p <- p +
+        ggplot2::scale_colour_manual(values = pal) +
+        ggplot2::scale_shape_manual(values = shapes)
+    }
     if (do_label) {
       p <- p + ggrepel::geom_text_repel(
         ggplot2::aes(label = sample), size = 2.5,
@@ -337,7 +356,8 @@ hclust_dendrogram_segments <- function(tree) {
   out
 }
 
-ibs_heatmap_plot <- function(distance) {
+ibs_heatmap_plot <- function(
+    distance, base_size = 11, style = "accessibility-first") {
   distance <- as.matrix(distance)
   n <- nrow(distance)
   if (n < 2L || ncol(distance) != n) {
@@ -382,6 +402,16 @@ ibs_heatmap_plot <- function(distance) {
     data.table::set(dendrogram, j = "xend", value = 0)
   }
 
+  fill_scale <- if (identical(style, "grayscale-safe")) {
+    ggplot2::scale_fill_gradient(
+      low = "white", high = "#1A1A1A", na.value = "#F2F2F2"
+    )
+  } else {
+    ggplot2::scale_fill_viridis_c(
+      option = "C", begin = 0.05, end = 0.95, na.value = "#F2F2F2"
+    )
+  }
+
   ggplot2::ggplot(
     long,
     ggplot2::aes(x = .data$x, y = .data$y, fill = .data$distance)
@@ -396,7 +426,7 @@ ibs_heatmap_plot <- function(distance) {
       inherit.aes = FALSE, colour = "grey20", linewidth = 0.3,
       lineend = "square"
     ) +
-    ggplot2::scale_fill_viridis_c() +
+    fill_scale +
     ggplot2::scale_x_continuous(
       breaks = seq_len(n), labels = ordered_ids, expand = c(0, 0)
     ) +
@@ -413,7 +443,7 @@ ibs_heatmap_plot <- function(distance) {
       subtitle = "Average-linkage dendrogram aligned to heatmap rows",
       x = NULL, y = NULL, fill = "1 - IBS"
     ) +
-    theme_publication() +
+    theme_publication(base_size) +
     ggplot2::theme(
       axis.text.x = ggplot2::element_text(
         angle = 90, hjust = 1, vjust = 0.5,
@@ -428,25 +458,41 @@ ibs_heatmap_plot <- function(distance) {
 plot_ibs <- function(ibs, cfg, dirs) {
   fmts <- cfg$output$figure_formats; dpi <- cfg$output$dpi
   has_population <- "population" %in% names(ibs$mds) && any(!is.na(ibs$mds$population))
+  style <- figure_style_name(cfg)
   mapping <- if (has_population) {
-    ggplot2::aes(MDS1, MDS2, colour = population)
+    ggplot2::aes(MDS1, MDS2, colour = population, shape = population)
   } else {
     ggplot2::aes(MDS1, MDS2)
   }
   p <- ggplot2::ggplot(ibs$mds, mapping) +
-    ggplot2::geom_point(size = 2.7) +
+    ggplot2::geom_hline(
+      yintercept = 0, colour = "#D9D9D9", linewidth = 0.35
+    ) +
+    ggplot2::geom_vline(
+      xintercept = 0, colour = "#D9D9D9", linewidth = 0.35
+    ) +
+    ggplot2::geom_point(size = 3, alpha = .9, stroke = 0.55) +
     ggplot2::labs(
       title = "Multidimensional scaling of identity-by-state distance",
-      colour = "Population"
+      x = "MDS 1", y = "MDS 2",
+      colour = "Population", shape = "Population"
     ) +
-    theme_publication()
+    theme_publication(figure_base_size(cfg))
   if (has_population) {
-    p <- p + ggplot2::scale_colour_manual(values = population_palette(ibs$mds$population))
+    p <- p +
+      ggplot2::scale_colour_manual(
+        values = population_palette(ibs$mds$population, style)
+      ) +
+      ggplot2::scale_shape_manual(
+        values = population_shapes(ibs$mds$population, style)
+      )
   }
   save_plot(p, "08_IBS_MDS", dirs, fmts, 8, 6, dpi)
   n <- nrow(ibs$distance)
   if (n <= 300L) {
-    p2 <- ibs_heatmap_plot(ibs$distance)
+    p2 <- ibs_heatmap_plot(
+      ibs$distance, figure_base_size(cfg), style
+    )
     heatmap_size <- max(8, n * 0.12)
     save_plot(p2, "09_IBS_heatmap", dirs, fmts,
               heatmap_size * 1.2, heatmap_size, dpi)

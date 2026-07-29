@@ -72,11 +72,20 @@ read_admixture_q <- function(path, sample_file, metadata) {
 
 plot_admixture_cv <- function(cv, cfg, dirs) {
   if (!nrow(cv)) return(invisible(NULL))
-  p <- ggplot2::ggplot(cv, ggplot2::aes(K, cv_error)) + ggplot2::geom_line() + ggplot2::geom_point(size = 2.5) +
+  accent <- unname(expand_figure_palette(
+    figure_style_profile(figure_style_name(cfg)), 1L, "colours"
+  ))
+  p <- ggplot2::ggplot(cv, ggplot2::aes(K, cv_error)) +
+    ggplot2::geom_line(colour = accent, linewidth = 0.8) +
+    ggplot2::geom_point(
+      shape = 21, size = 3, stroke = 0.55,
+      colour = "#1A1A1A", fill = accent
+    ) +
     ggplot2::scale_x_continuous(breaks = cv$K) +
     ggplot2::labs(
-      title = "Admixture-model cross-validation", y = "Cross-validation error"
-    ) + theme_publication()
+      title = "Admixture-model cross-validation",
+      x = "Number of clusters (K)", y = "Cross-validation error"
+    ) + theme_publication(figure_base_size(cfg))
   save_plot(p, "13_ADMIXTURE_CV", dirs, cfg$output$figure_formats, 7, 5, cfg$output$dpi)
 }
 
@@ -143,16 +152,29 @@ plot_q_matrix <- function(q, k, cfg, dirs, prefix = "ADMIXTURE_Q",
   if (identical(order_mode, "data_driven")) {
     plot_title <- paste0(plot_title, " - data-driven cluster order")
   }
-  p <- ggplot2::ggplot(long, ggplot2::aes(order, ancestry, fill = cluster)) + ggplot2::geom_col(width = 1) +
+  cluster_colours <- cluster_palette(clusters, figure_style_name(cfg))
+  p <- ggplot2::ggplot(
+    long, ggplot2::aes(order, ancestry, fill = cluster)
+  ) +
+    ggplot2::geom_col(width = 1) +
+    ggplot2::scale_fill_manual(
+      values = cluster_colours,
+      breaks = clusters,
+      labels = sub("^cluster_", "Cluster ", clusters),
+      name = "Ancestry component"
+    ) +
     ggplot2::scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
     ggplot2::scale_x_continuous(breaks = x$order, labels = x$sample_label, expand = c(0,0)) +
     ggplot2::labs(
       title = plot_title,
       subtitle = subtitle, x = NULL, y = y_label
     ) +
-    theme_publication() + ggplot2::theme(
+    theme_publication(figure_base_size(cfg)) + ggplot2::theme(
       axis.text.x = ggplot2::element_text(angle = 90, hjust = 1, vjust = 0.5, size = axis_label_size),
-      axis.ticks.x = ggplot2::element_line(colour = "grey40")
+      axis.ticks.x = ggplot2::element_line(colour = "grey40"),
+      panel.border = ggplot2::element_rect(
+        colour = "#4D4D4D", fill = NA, linewidth = 0.45
+      )
     )
   if (length(cluster_boundaries)) {
     p <- p + ggplot2::geom_vline(

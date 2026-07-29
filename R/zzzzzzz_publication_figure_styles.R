@@ -127,20 +127,36 @@ publication_figure_style_profile <- function(
     return(new_publication_figure_style_profile(
       name, c("#111111", "#666666", "#BBBBBB"),
       c("solid", "dashed", "dotted"), c(16L, 17L, 15L),
-      grayscale_safe = TRUE
+      grayscale_safe = TRUE, version = "1.1.0"
     ))
   }
   if (name == "accessibility-first") {
     return(new_publication_figure_style_profile(
-      name, c("#0072B2", "#D55E00", "#009E73", "#CC79A7"),
-      c("solid", "dashed", "dotdash", "dotted"), c(16L, 17L, 15L, 18L),
-      labels_required = TRUE, colour_alone = FALSE
+      name,
+      c(
+        "#0072B2", "#E69F00", "#009E73", "#D55E00",
+        "#CC79A7", "#56B4E9", "#000000", "#7F7F7F"
+      ),
+      c(
+        "solid", "dashed", "dotdash", "dotted",
+        "longdash", "twodash", "solid", "dashed"
+      ),
+      c(16L, 17L, 15L, 18L, 8L, 3L, 7L, 4L),
+      labels_required = TRUE, colour_alone = FALSE, version = "1.1.0"
     ))
   }
   new_publication_figure_style_profile(
-    name, c("#1B9E77", "#D95F02", "#7570B3", "#E7298A", "#66A61E"),
-    c("solid", "dashed", "dotdash", "dotted", "longdash"),
-    c(16L, 17L, 15L, 18L, 8L), labels_required = TRUE, colour_alone = FALSE
+    name,
+    c(
+      "#4477AA", "#EE6677", "#228833", "#AA3377",
+      "#CCBB44", "#66CCEE", "#BBBBBB", "#000000"
+    ),
+    c(
+      "solid", "dashed", "dotdash", "dotted",
+      "longdash", "twodash", "solid", "dashed"
+    ),
+    c(16L, 17L, 15L, 18L, 8L, 3L, 7L, 4L),
+    labels_required = TRUE, colour_alone = FALSE, version = "1.1.0"
   )
 }
 

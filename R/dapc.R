@@ -235,17 +235,34 @@ dapc_reproducibility_annotation <- function(dapc, k, cfg) {
 }
 
 plot_dapc <- function(dapc, cfg, dirs) {
+  style <- figure_style_name(cfg)
+  profile <- figure_style_profile(style)
   for (k in names(dapc$models)) {
     d <- dapc$models[[k]]$coordinates
     annotation <- dapc_reproducibility_annotation(dapc, k, cfg)
     axes <- grep("^LD", names(d), value = TRUE)
     if (length(axes) >= 2L) {
+      clusters <- sort(unique(as.character(d$cluster)))
+      cluster_shapes <- stats::setNames(
+        rep(profile$shapes, length.out = length(clusters)), clusters
+      )
       p <- ggplot2::ggplot(d, ggplot2::aes(x = .data[[axes[1]]], y = .data[[axes[2]]], colour = population, shape = cluster)) +
-        ggplot2::geom_point(size = 2.8, alpha = .85) + ggplot2::scale_colour_manual(values = population_palette(d$population)) +
+        ggplot2::geom_hline(
+          yintercept = 0, colour = "#D9D9D9", linewidth = 0.35
+        ) +
+        ggplot2::geom_vline(
+          xintercept = 0, colour = "#D9D9D9", linewidth = 0.35
+        ) +
+        ggplot2::geom_point(size = 3, alpha = .9, stroke = 0.55) +
+        ggplot2::scale_colour_manual(
+          values = population_palette(d$population, style)
+        ) +
+        ggplot2::scale_shape_manual(values = cluster_shapes) +
         ggplot2::labs(
           title = sprintf("Discriminant analysis of principal components (K = %s)", k),
-          subtitle = annotation$text, x = axes[1], y = axes[2]
-        ) + theme_publication()
+          subtitle = annotation$text, x = axes[1], y = axes[2],
+          colour = "Population", shape = "DAPC cluster"
+        ) + theme_publication(figure_base_size(cfg))
       if (isTRUE(annotation$unstable)) {
         p <- p + ggplot2::theme(
           plot.subtitle = ggplot2::element_text(colour = "#B2182B", face = "bold")

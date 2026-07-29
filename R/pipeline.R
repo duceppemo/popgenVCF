@@ -69,7 +69,9 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
     ), by = population]
     analysis$samples$participation <- participation
     write_tsv(participation, file.path(dirs$tables, "03_population_participation.tsv"))
-    palette <- population_palette(metadata$population)
+    palette <- population_palette(
+      metadata$population, figure_style_name(cfg)
+    )
     write_tsv(
       data.table::data.table(population = names(palette), colour = unname(palette)),
       file.path(dirs$tables, "04_population_colors.tsv")

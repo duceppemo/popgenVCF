@@ -9,6 +9,7 @@ default_config <- function() {
     input = list(vcf = NULL, metadata = NULL, metadata_header = "auto",
                  geographic_columns = c("latitude", "longitude")),
     output = list(directory = NULL, figure_formats = c("pdf", "png"), dpi = 600L,
+                  figure_style = "accessibility-first", base_font_size = 11,
                   label_samples = "auto"),
     compute = list(threads = resources$threads, memory_mb = resources$memory_mb,
                    seed = 42L, force_gds = FALSE),
@@ -104,6 +105,7 @@ validate_config <- function(cfg) {
   cfg$compute$memory_mb <- as.numeric(cfg$compute$memory_mb)
   cfg$compute$seed <- as.integer(cfg$compute$seed)
   cfg$output$dpi <- as.integer(cfg$output$dpi)
+  cfg$output$base_font_size <- as.numeric(cfg$output$base_font_size)
   cfg$analyses$n_pcs <- as.integer(cfg$analyses$n_pcs)
   cfg$analyses$chromosome_min_snps <- as.integer(cfg$analyses$chromosome_min_snps)
   cfg$analyses$bootstrap$replicates <- as.integer(cfg$analyses$bootstrap$replicates)
@@ -115,6 +117,9 @@ validate_config <- function(cfg) {
   }
   if (!is.finite(cfg$compute$seed)) stop("compute.seed must be an integer", call. = FALSE)
   if (!is.finite(cfg$output$dpi) || cfg$output$dpi < 72L) stop("output.dpi must be >= 72", call. = FALSE)
+  if (!is.finite(cfg$output$base_font_size) || cfg$output$base_font_size < 8) {
+    stop("output.base_font_size must be >= 8", call. = FALSE)
+  }
   if (!is.finite(cfg$analyses$n_pcs) || cfg$analyses$n_pcs < 2L) stop("analyses.n_pcs must be >= 2", call. = FALSE)
   if (!is.finite(cfg$analyses$chromosome_min_snps) || cfg$analyses$chromosome_min_snps < 2L) stop("analyses.chromosome_min_snps must be >= 2", call. = FALSE)
   if (!is.finite(cfg$analyses$bootstrap$replicates) || cfg$analyses$bootstrap$replicates < 0L) stop("bootstrap.replicates must be >= 0", call. = FALSE)
@@ -123,6 +128,7 @@ validate_config <- function(cfg) {
   cfg$output$figure_formats <- unique(tolower(as.character(cfg$output$figure_formats)))
   invalid_formats <- setdiff(cfg$output$figure_formats, allowed_formats)
   if (length(invalid_formats)) stopf("Unsupported figure format(s): %s", paste(invalid_formats, collapse = ", "))
+  cfg$output$figure_style <- figure_style_name(cfg)
   cfg$input$metadata_header <- tolower(as.character(cfg$input$metadata_header))
   if (!cfg$input$metadata_header %in% c("auto", "yes", "no", "true", "false")) stop("input.metadata_header must be auto, yes, or no", call. = FALSE)
   if (!is.finite(cfg$analyses$structure$replicates) || cfg$analyses$structure$replicates < 1L) stop("analyses.structure.replicates must be >= 1", call. = FALSE)
