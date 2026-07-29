@@ -10,6 +10,9 @@ output:
   directory: /path/to/popgen_results
   figure_formats: [pdf, png]
   dpi: 600
+  # accessibility-first, grayscale-safe, or standard-color
+  figure_style: accessibility-first
+  base_font_size: 11
   label_samples: auto
 compute:
   threads: 8

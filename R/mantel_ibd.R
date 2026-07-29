@@ -35,9 +35,31 @@ run_mantel_ibd <- function(genetic_distance, metadata, geographic_columns, permu
 
 plot_ibd <- function(x, cfg, dirs) {
   if (is.null(x)) return(invisible(NULL))
+  accent <- unname(expand_figure_palette(
+    figure_style_profile(figure_style_name(cfg)), 1L, "colours"
+  ))
   p <- ggplot2::ggplot(x$pairs, ggplot2::aes(geographic_distance_km, genetic_distance)) +
-    ggplot2::geom_point(alpha = .5) + ggplot2::geom_smooth(method = "lm", formula = y ~ log1p(x), se = TRUE) +
-    ggplot2::labs(title = "Isolation by distance", subtitle = sprintf("Mantel r = %.3f, p = %.4f", x$summary$mantel_r, x$summary$mantel_p),
-                  x = "Geographic distance (km)", y = "IBS-derived genetic distance") + theme_publication()
+    ggplot2::geom_point(
+      shape = 21, size = 2.2, stroke = 0.35,
+      colour = "#1A1A1A", fill = accent, alpha = .45
+    ) +
+    ggplot2::geom_smooth(
+      method = "lm", formula = y ~ log1p(x), se = TRUE,
+      colour = "#1A1A1A", fill = accent,
+      linewidth = 0.8, alpha = 0.18
+    ) +
+    ggplot2::labs(
+      title = "Isolation by distance",
+      subtitle = sprintf(
+        "Mantel r = %.3f, p = %.4f",
+        x$summary$mantel_r, x$summary$mantel_p
+      ),
+      caption = sprintf(
+        "Curve: linear model of genetic distance on log(1 + geographic distance); %s pairwise comparisons.",
+        scales::comma(nrow(x$pairs))
+      ),
+      x = "Geographic distance (km)", y = "IBS-derived genetic distance"
+    ) +
+    theme_publication(figure_base_size(cfg))
   save_plot(p, "12_isolation_by_distance", dirs, cfg$output$figure_formats, 7.5, 5.5, cfg$output$dpi)
 }

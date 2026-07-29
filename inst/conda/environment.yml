@@ -32,6 +32,7 @@ dependencies:
   - r-knitr
   - r-patchwork
   - r-pkgdown
+  - r-ragg
   - r-remotes
   - r-svglite
   - r-testthat>=3

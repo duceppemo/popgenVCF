@@ -76,10 +76,46 @@ plot_fst <- function(fst, cfg, dirs) {
   lower <- fst$matrix; lower[upper.tri(lower, diag = TRUE)] <- NA_real_
   long <- data.table::as.data.table(as.table(lower)); data.table::setnames(long, c("p1", "p2", "fst")); long <- long[is.finite(fst)]
   lim <- max(abs(long$fst), na.rm = TRUE); if (!is.finite(lim) || lim == 0) lim <- 0.01
-  p <- ggplot2::ggplot(long, ggplot2::aes(p2, p1, fill = fst)) + ggplot2::geom_tile(colour = "white") +
-    ggplot2::geom_text(ggplot2::aes(label = sprintf("%.3f", fst)), size = 3) +
-    ggplot2::scale_fill_gradient2(low = "#3B4CC0", mid = "white", high = "#B40426", midpoint = 0, limits = c(-lim, lim)) +
-    ggplot2::coord_equal() + ggplot2::labs(title = "Pairwise population differentiation", subtitle = "Weir-Cockerham FST", x = NULL, y = NULL) +
-    theme_publication() + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+  grayscale <- identical(figure_style_name(cfg), "grayscale-safe")
+  long[, label_colour := if (grayscale) {
+    ifelse(fst >= 0.58 * lim, "white", "#1A1A1A")
+  } else {
+    ifelse(abs(fst) >= 0.58 * lim, "white", "#1A1A1A")
+  }]
+  fill_scale <- if (grayscale) {
+    ggplot2::scale_fill_gradient2(
+      low = "#BDBDBD", mid = "#F7F7F7", high = "#252525",
+      midpoint = 0, limits = c(-lim, lim),
+      name = expression(italic(F)[ST])
+    )
+  } else {
+    ggplot2::scale_fill_gradient2(
+      low = "#3B4CC0", mid = "#F7F7F7", high = "#B40426",
+      midpoint = 0, limits = c(-lim, lim),
+      name = expression(italic(F)[ST])
+    )
+  }
+  p <- ggplot2::ggplot(long, ggplot2::aes(p2, p1, fill = fst)) +
+    ggplot2::geom_tile(colour = "white", linewidth = 0.65) +
+    ggplot2::geom_text(
+      ggplot2::aes(
+        label = sprintf("%.3f", fst), colour = label_colour
+      ),
+      size = 3.2, fontface = "bold", show.legend = FALSE
+    ) +
+    ggplot2::scale_colour_identity() +
+    fill_scale +
+    ggplot2::coord_equal() +
+    ggplot2::labs(
+      title = "Pairwise population differentiation",
+      subtitle = "Weir-Cockerham FST estimates",
+      x = NULL, y = NULL
+    ) +
+    theme_publication(figure_base_size(cfg)) +
+    ggplot2::theme(
+      axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+      axis.ticks = ggplot2::element_blank(),
+      axis.line = ggplot2::element_blank()
+    )
   save_plot(p, "10_pairwise_FST", dirs, cfg$output$figure_formats, 8, 7, cfg$output$dpi)
 }

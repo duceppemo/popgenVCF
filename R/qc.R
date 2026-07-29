@@ -148,22 +148,80 @@ qc_reports <- function(vq, final_snps) {
 
 plot_qc_reports <- function(reports, sample_qc, cfg, dirs) {
   fmts <- cfg$output$figure_formats; dpi <- cfg$output$dpi
-  p1 <- ggplot2::ggplot(reports$variant, ggplot2::aes(maf)) + ggplot2::geom_histogram(bins = 50) +
-    ggplot2::geom_vline(xintercept = cfg$qc$maf, linetype = 2) +
-    ggplot2::labs(title = "Minor allele frequency", x = "MAF", y = "Variants") + theme_publication()
+  style <- figure_style_name(cfg)
+  accent <- unname(expand_figure_palette(
+    figure_style_profile(style), 1L, "fills"
+  ))
+  threshold_colour <- "#B2182B"
+  p1 <- ggplot2::ggplot(reports$variant, ggplot2::aes(maf)) +
+    ggplot2::geom_histogram(
+      bins = 50, fill = accent, colour = "white", linewidth = 0.2
+    ) +
+    ggplot2::geom_vline(
+      xintercept = cfg$qc$maf, colour = threshold_colour,
+      linetype = "dashed", linewidth = 0.65
+    ) +
+    ggplot2::scale_x_continuous(labels = scales::label_percent(accuracy = 1)) +
+    ggplot2::scale_y_continuous(
+      labels = scales::label_comma(),
+      expand = ggplot2::expansion(mult = c(0, 0.06))
+    ) +
+    ggplot2::labs(
+      title = "Minor allele frequency",
+      subtitle = sprintf("Dashed line: retention threshold (MAF \u2265 %.2f)", cfg$qc$maf),
+      x = "Minor allele frequency", y = "Number of variants"
+    ) + theme_publication(figure_base_size(cfg))
   save_plot(p1, "01_MAF", dirs, fmts, 7, 5, dpi)
-  p2 <- ggplot2::ggplot(reports$variant, ggplot2::aes(missing_rate)) + ggplot2::geom_histogram(bins = 50) +
-    ggplot2::geom_vline(xintercept = 0.2, linetype = 2) +
-    ggplot2::labs(title = "Variant missingness", x = "Missing rate", y = "Variants") + theme_publication()
+  p2 <- ggplot2::ggplot(reports$variant, ggplot2::aes(missing_rate)) +
+    ggplot2::geom_histogram(
+      bins = 50, fill = accent, colour = "white", linewidth = 0.2
+    ) +
+    ggplot2::geom_vline(
+      xintercept = 0.2, colour = threshold_colour,
+      linetype = "dashed", linewidth = 0.65
+    ) +
+    ggplot2::scale_x_continuous(labels = scales::label_percent(accuracy = 1)) +
+    ggplot2::scale_y_continuous(
+      labels = scales::label_comma(),
+      expand = ggplot2::expansion(mult = c(0, 0.06))
+    ) +
+    ggplot2::labs(
+      title = "Variant missingness",
+      subtitle = "Dashed line: maximum retained missingness (20%)",
+      x = "Missing genotype rate", y = "Number of variants"
+    ) + theme_publication(figure_base_size(cfg))
   save_plot(p2, "02_variant_missingness", dirs, fmts, 7, 5, dpi)
   p3 <- ggplot2::ggplot(sample_qc, ggplot2::aes(stats::reorder(sample, missing_rate), missing_rate, fill = population)) +
-    ggplot2::geom_col() + ggplot2::coord_flip() + ggplot2::geom_hline(yintercept = cfg$qc$max_sample_missing, linetype = 2) +
-    ggplot2::scale_fill_manual(values = population_palette(sample_qc$population)) +
-    ggplot2::labs(title = "Per-sample missingness", x = NULL, y = "Missing rate") + theme_publication()
+    ggplot2::geom_col(width = 0.78) +
+    ggplot2::coord_flip() +
+    ggplot2::geom_hline(
+      yintercept = cfg$qc$max_sample_missing, colour = threshold_colour,
+      linetype = "dashed", linewidth = 0.65
+    ) +
+    ggplot2::scale_fill_manual(
+      values = population_palette(sample_qc$population, style)
+    ) +
+    ggplot2::scale_y_continuous(labels = scales::label_percent(accuracy = 1)) +
+    ggplot2::labs(
+      title = "Per-sample missingness",
+      subtitle = sprintf(
+        "Dashed line: exclusion threshold (%.0f%%)",
+        100 * cfg$qc$max_sample_missing
+      ),
+      x = NULL, y = "Missing genotype rate", fill = "Population"
+    ) + theme_publication(figure_base_size(cfg))
   save_plot(p3, "03_sample_missingness", dirs, fmts, 8, max(5, nrow(sample_qc) * 0.12), dpi)
-  p4 <- ggplot2::ggplot(reports$sequential, ggplot2::aes(step, variants)) + ggplot2::geom_col() +
+  p4 <- ggplot2::ggplot(reports$sequential, ggplot2::aes(step, variants)) +
+    ggplot2::geom_col(fill = accent, width = 0.72) +
     ggplot2::geom_text(ggplot2::aes(label = scales::comma(variants)), vjust = -0.4) +
-    ggplot2::labs(title = "Sequential SNP retention", x = NULL, y = "Variants") + theme_publication() +
+    ggplot2::scale_y_continuous(
+      labels = scales::label_comma(),
+      expand = ggplot2::expansion(mult = c(0, 0.12))
+    ) +
+    ggplot2::labs(
+      title = "Sequential SNP retention",
+      x = NULL, y = "Number of variants"
+    ) + theme_publication(figure_base_size(cfg)) +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 25, hjust = 1))
   save_plot(p4, "04_SNP_retention", dirs, fmts, 8, 5, dpi)
 }

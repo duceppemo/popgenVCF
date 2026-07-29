@@ -14,6 +14,21 @@ library(popgenVCF)
 
 This gallery is generated from deterministic synthetic canonical-result records. It demonstrates publication structure and interpretation boundaries; it is not production biological evidence and does not replace approval of the canonical real-data baseline.
 
+## Publication-ready pipeline figures
+
+Pipeline figures use the `accessibility-first` profile by default. The profile supplies deterministic colour, fill, line-type, and point-shape palettes to the actual QC, diversity, ordination, DAPC, ancestry, differentiation, and isolation-by-distance renderers.
+
+```yaml
+output:
+  figure_formats: [pdf, png, svg]
+  dpi: 600
+  figure_style: accessibility-first
+  base_font_size: 11
+  label_samples: auto
+```
+
+PDF is the preferred editable vector output for manuscripts, SVG is useful for vector post-processing, and the 600-DPI PNG is suitable for journal submission systems that require raster files. Use `grayscale-safe` when the target journal prints figures without colour. Increase `base_font_size` before rendering a figure that will be reduced substantially during page layout.
+
 ## Maintained nine-family fixture
 
 ```{r fixture}

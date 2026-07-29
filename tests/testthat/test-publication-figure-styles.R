@@ -6,6 +6,10 @@ test_that("built-in figure styles are deterministic and valid", {
   expect_true(all(vapply(profiles, validate_publication_figure_style_profile, logical(1L))))
   expect_identical(publication_figure_style_profile("grayscale-safe")$fingerprint,
                    publication_figure_style_profile("grayscale-safe")$fingerprint)
+  expect_gte(
+    length(publication_figure_style_profile("accessibility-first")$colours),
+    8L
+  )
 })
 
 test_that("grayscale and contrast validation fail closed", {

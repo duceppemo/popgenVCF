@@ -19,6 +19,27 @@ test_that("configuration schema is explicit and validated", {
   expect_error(popgenVCF::validate_config(cfg), "Unsupported configuration schema_version")
 })
 
+test_that("publication figure settings are explicit and validated", {
+  cfg <- popgenVCF::default_config()
+  expect_identical(cfg$output$figure_style, "accessibility-first")
+  expect_identical(cfg$output$base_font_size, 11)
+
+  cfg$input$vcf <- tempfile(fileext = ".vcf")
+  cfg$output$directory <- tempfile("popgenvcf-output-")
+  file.create(cfg$input$vcf)
+  cfg$output$figure_style <- "grayscale-safe"
+  cfg$output$base_font_size <- 12
+  validated <- popgenVCF::validate_config(cfg)
+  expect_identical(validated$output$figure_style, "grayscale-safe")
+  expect_identical(validated$output$base_font_size, 12)
+
+  cfg$output$figure_style <- "rainbow"
+  expect_error(popgenVCF::validate_config(cfg), "output.figure_style")
+  cfg$output$figure_style <- "accessibility-first"
+  cfg$output$base_font_size <- 7
+  expect_error(popgenVCF::validate_config(cfg), "base_font_size")
+})
+
 test_that("ancestry backend inputs can be generated from retained VCF data", {
   cfg <- popgenVCF::default_config()
   cfg$input$vcf <- tempfile(fileext = ".vcf")
