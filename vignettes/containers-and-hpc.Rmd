@@ -42,6 +42,12 @@ docker run --rm \
   --write-config /data/analysis.yml
 ```
 
+The generated `compute.threads` and `compute.memory_mb` values reflect resources
+visible inside the container. Docker CPU affinity, CPU quota, cpuset, and memory
+limits are honored when exposed through Linux cgroups. With no container limits,
+the values describe the host resources visible to the process. Review them
+before submitting work to a shared system.
+
 Run the analysis:
 
 ```bash
@@ -121,7 +127,7 @@ apptainer run --cleanenv \
   --config /data/analysis.yml
 ```
 
-Set `compute.threads` in `analysis.yml` to no more than `SLURM_CPUS_PER_TASK`. The single-thread library variables prevent each worker from creating additional hidden BLAS or OpenMP threads.
+Set `compute.threads` and `compute.memory_mb` in `analysis.yml` to no more than the Slurm CPU and memory allocation. Generate the configuration inside the allocation if you want automatic detection to see scheduler-enforced cgroup limits. The single-thread library variables prevent each worker from creating additional hidden BLAS or OpenMP threads.
 
 ## PBS or other schedulers
 

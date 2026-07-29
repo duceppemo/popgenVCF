@@ -82,6 +82,13 @@ docker run --rm \
   --write-config /data/analysis.yml
 ```
 
+`--write-config` detects the logical CPUs and memory available to the current
+process, including Docker CPU affinity/quota and memory limits when present.
+The generated YAML lists every built-in analysis. Population- and
+geography-dependent analyses are initially set to `no`; PCA, IBS, and the
+neighbour-joining tree remain available from VCF sample IDs alone. Optional
+external ancestry backends are listed but disabled.
+
 Edit at least the input and output sections:
 
 ```yaml
@@ -95,6 +102,7 @@ output:
 
 compute:
   threads: 8
+  memory_mb: 32768
   seed: 42
 
 qc:
@@ -120,7 +128,7 @@ docker run --rm \
   --config /data/analysis.yml
 ```
 
-On an HPC system, use the equivalent Apptainer command from the [containers and HPC guide](containers-and-hpc.html). Set `compute.threads` to no more than the scheduler allocation.
+On an HPC system, use the equivalent Apptainer command from the [containers and HPC guide](containers-and-hpc.html). Generate the template inside the allocation when possible, and set `compute.threads` and `compute.memory_mb` no higher than the scheduler allocation.
 
 ## 6. Inspect the execution evidence first
 

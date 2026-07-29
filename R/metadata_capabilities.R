@@ -15,7 +15,10 @@ metadata_capabilities <- function(metadata, metadata_supplied = TRUE) {
 
 analysis_capability_table <- function(registry, capabilities) {
   modules <- names(registry$modules)
-  population_modules <- intersect(modules, c("diversity", "fst", "dapc", "amova", "bootstrap"))
+  population_modules <- intersect(
+    modules,
+    c("diversity", "fst", "dapc", "amova", "bootstrap", "chromosome")
+  )
   coordinate_modules <- intersect(modules, c("mantel", "isolation_by_distance", "ibd", "spatial_pca", "spca", "maps"))
   sample_modules <- intersect(modules, c(
     "pca", "ibs", "mds", "nj", "neighbor_joining", "neighbour_joining",

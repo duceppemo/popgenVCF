@@ -177,7 +177,7 @@ run_module_snmf <- function(analysis, context) {
   context$snmf_input <- snmf_input
   result <- run_snmf(
     snmf_input$geno_file, parse_int_range(sc$k), sc$repetitions,
-    sc$entropy, cfg$compute$seed
+    sc$entropy, cfg$compute$seed, threads = sc$threads
   )
   write_tsv(
     result$diagnostics,

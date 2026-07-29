@@ -43,9 +43,12 @@ analyses:
     enabled: true
     executable: admixture
     k: "2:10"
-    threads: 4
+    threads: auto
     cv_folds: 5
 ```
+
+`threads: auto` inherits `compute.threads`. A positive integer remains supported
+when ADMIXTURE should use only part of the global CPU budget.
 
 When using a manually installed binary, set `executable` to its absolute path. Record:
 
@@ -126,7 +129,13 @@ analyses:
     k: "2:10"
     repetitions: 5
     entropy: true
+    threads: auto
 ```
+
+LEA receives the resolved thread count through its native `CPU` argument and can
+run independent K/repetition jobs concurrently. `threads: auto` inherits
+`compute.threads`; set a smaller positive integer to reserve resources for other
+work. The explicit analysis seed is also forwarded to LEA.
 
 To prefer an existing sNMF input, configure both `geno_file` and
 `q_sample_file`. The `.geno` dimensions and sample order must match the
@@ -134,7 +143,20 @@ retained analysis data. If either file is missing or incompatible, popgenVCF
 logs a warning and generates the canonical cached `.geno` and sample-order
 files instead.
 
-Record the R version, Bioconductor version, LEA version, package-library manifest, seeds, repetitions, and entropy setting.
+Record the R version, Bioconductor version, LEA version, package-library manifest, seeds, threads, repetitions, and entropy setting.
+
+## Parallel execution boundaries
+
+sNMF is the first K/repetition backend to use native parallelism in the pipeline.
+ADMIXTURE already supports multiple threads within each K. fastStructure K jobs
+remain sequential for now because concurrent processes first require isolated
+working directories and a final barrier before `chooseK.py` runs.
+
+Do not multiply independent worker counts by backend thread counts beyond
+`compute.threads`. Concurrent genotype analyses also duplicate working memory,
+so CPU count alone is not a safe worker limit. `compute.memory_mb` records the
+available memory budget in the configuration and provenance for current and
+future worker-budget decisions.
 
 ## Backend discovery in R
 

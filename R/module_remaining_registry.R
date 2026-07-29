@@ -5,6 +5,7 @@ diversity_module_spec <- function() {
   new_analysis_module_spec(
     name = "diversity",
     run = run_module_diversity,
+    enabled = function(cfg) !identical(cfg$analyses$diversity, FALSE),
     description = "Sample, population, and locus diversity",
     validate = validate_diversity_result,
     outputs = c("diversity", "diversity_ci"),
@@ -22,6 +23,7 @@ tree_module_spec <- function() {
     name = "tree",
     run = run_module_tree,
     requires = "ibs",
+    enabled = function(cfg) !identical(cfg$analyses$tree, FALSE),
     description = "Neighbour-joining tree from IBS distance",
     validate = validate_tree_result,
     outputs = "tree",

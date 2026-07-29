@@ -10,6 +10,7 @@ ibs_module_spec <- function() {
   new_analysis_module_spec(
     name = "ibs",
     run = run_module_ibs,
+    enabled = function(cfg) !identical(cfg$analyses$ibs, FALSE),
     description = "IBS matrices and multidimensional scaling",
     validate = validate_ibs_result,
     outputs = "ibs",

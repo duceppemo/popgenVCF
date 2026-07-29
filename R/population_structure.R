@@ -185,6 +185,25 @@ run_faststructure <- function(structure_executable = "structure.py", choosek_exe
        suggested_k = parse_faststructure_k(paste(choose_text, collapse = "\n")))
 }
 
+snmf_project_arguments <- function(geno_file, k_values, repetitions, entropy,
+                                   project_mode, threads, seed) {
+  threads <- as.integer(threads)[1L]
+  repetitions <- as.integer(repetitions)[1L]
+  if (is.na(threads) || threads < 1L) stop("sNMF threads must be >= 1", call. = FALSE)
+  if (is.na(repetitions) || repetitions < 1L) stop("sNMF repetitions must be >= 1", call. = FALSE)
+  k_values <- as.integer(k_values)
+  workers <- min(threads, max(1L, length(k_values) * repetitions))
+  list(
+    input.file = geno_file,
+    K = k_values,
+    repetitions = repetitions,
+    entropy = isTRUE(entropy),
+    project = project_mode,
+    CPU = workers,
+    seed = as.integer(seed)
+  )
+}
+
 #' Run LEA sNMF across K values
 #'
 #' @param geno_file LEA .geno input file.
@@ -193,15 +212,17 @@ run_faststructure <- function(structure_executable = "structure.py", choosek_exe
 #' @param entropy Use cross-entropy criterion.
 #' @param seed Random seed.
 #' @param project_mode LEA project mode.
+#' @param threads Number of CPUs used by LEA across K and repetition runs.
 #' @return sNMF project, diagnostics, and best-run Q matrices.
 #' @export
 run_snmf <- function(geno_file, k_values, repetitions = 5L, entropy = TRUE,
-                     seed = 42L, project_mode = "new") {
+                     seed = 42L, project_mode = "new", threads = 1L) {
   if (!requireNamespace("LEA", quietly = TRUE)) stop("Package 'LEA' is required for sNMF", call. = FALSE)
   if (!file.exists(geno_file)) stopf("LEA geno file not found: %s", geno_file)
   set.seed(seed)
-  project <- LEA::snmf(geno_file, K = as.integer(k_values), repetitions = as.integer(repetitions),
-                       entropy = isTRUE(entropy), project = project_mode, CPU = 1L)
+  project <- do.call(LEA::snmf, snmf_project_arguments(
+    geno_file, k_values, repetitions, entropy, project_mode, threads, seed
+  ))
   diagnostics <- data.table::rbindlist(lapply(as.integer(k_values), function(k) {
     ce <- LEA::cross.entropy(project, K = k)
     data.table::data.table(K = k, run = seq_along(ce), cross_entropy = ce)
