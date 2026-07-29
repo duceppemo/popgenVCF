@@ -35,7 +35,7 @@ Rscript --vanilla - <<'RS'
 required <- c(
   "ade4", "adegenet", "ape", "data.table", "digest", "gdsfmt",
   "ggplot2", "ggrepel", "poppr", "rmarkdown", "scales",
-  "SNPRelate", "vegan", "viridisLite", "yaml"
+  "SNPRelate", "vegan", "yaml"
 )
 optional <- c(
   "clue", "covr", "hierfstat", "LEA", "knitr", "patchwork",

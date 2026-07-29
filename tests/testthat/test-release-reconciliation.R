@@ -32,11 +32,16 @@ release_reconciliation_test_root <- function() {
 
   matches <- candidates[vapply(candidates, is_source_root, logical(1))]
   if (length(matches) == 0L) {
-    stop(
-      "Unable to locate the package source tree for release reconciliation tests. Checked: ",
-      paste(candidates, collapse = ", "),
-      call. = FALSE
-    )
+    # These tests inspect the checked-out source tree (DESCRIPTION, NAMESPACE,
+    # roxygen blocks, docs/ROADMAP.md), which is not reachable from an
+    # installed-package test run (e.g. plain `R CMD check` on a built tarball,
+    # or `devtools::check()`) unless it happens to share a directory ancestor
+    # with the checkout. They run for real in CI (GITHUB_WORKSPACE) and via
+    # scripts/check-package.sh; skip rather than fail everywhere else.
+    testthat::skip(paste0(
+      "package source tree not reachable for release reconciliation tests; checked: ",
+      paste(candidates, collapse = ", ")
+    ))
   }
   matches[[1L]]
 }

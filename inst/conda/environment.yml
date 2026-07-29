@@ -22,7 +22,6 @@ dependencies:
   - r-rmarkdown
   - r-scales
   - r-vegan
-  - r-viridislite
   - r-yaml
 
   # Optional R analyses, testing, documentation, and development tools.

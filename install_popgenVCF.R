@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-cran <- c("data.table", "ggplot2", "ggrepel", "scales", "viridisLite", "ape",
+cran <- c("data.table", "ggplot2", "ggrepel", "scales", "ape",
           "adegenet", "poppr", "vegan", "rmarkdown", "knitr",
           "yaml", "digest", "ade4", "testthat", "remotes")
 missing <- cran[!vapply(cran, requireNamespace, logical(1), quietly = TRUE)]

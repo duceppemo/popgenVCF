@@ -51,7 +51,6 @@ Imports:
     stats,
     utils,
     vegan,
-    viridisLite,
     yaml
 Suggests:
     clue,
