@@ -45,5 +45,7 @@ test_that("publication theme defines print-safe hierarchy", {
   expect_identical(theme$plot.title$face, "bold")
   expect_equal(theme$plot.title$size, 14.5)
   expect_identical(theme$axis.text$colour, "#1A1A1A")
-  expect_s3_class(theme$plot.margin, "margin")
+  expect_true(inherits(
+    theme$plot.margin, c("margin", "ggplot2::margin")
+  ))
 })
