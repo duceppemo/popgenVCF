@@ -36,11 +36,36 @@ test_that("DAPC figures report stable replicate membership RMSE", {
   cfg <- default_config()
   plot_dapc(dapc_plot_fixture(rmse = 0.01), cfg, list(figures = tempdir()))
 
-  expect_setequal(names(plots), c("11_DAPC_K2", "14_DAPC_membership_K2"))
+  expect_setequal(
+    names(plots),
+    c("11_DAPC_K2", "14_DAPC_membership_K2", "14_DAPC_membership_data_driven_K2")
+  )
   subtitles <- vapply(plots, function(p) p$labels$subtitle, character(1))
   expect_true(all(grepl("RMSE = 0.01", subtitles, fixed = TRUE)))
   expect_true(all(grepl("threshold = 0.05", subtitles, fixed = TRUE)))
   expect_false(any(grepl("WARNING", subtitles, fixed = TRUE)))
+  membership_plot <- plots[["14_DAPC_membership_K2"]]
+  data_plot <- plots[["14_DAPC_membership_data_driven_K2"]]
+  expect_identical(data_plot$labels$y, "Posterior membership probability")
+  expect_s3_class(data_plot$facet, "FacetNull")
+  scatter_palette <- plots[["11_DAPC_K2"]]$scales$get_scales("colour")$palette(2L)
+  expected_palette <- popgenVCF:::population_palette(c("A", "B"))
+  expect_identical(scatter_palette, expected_palette)
+  expect_identical(
+    plots[["11_DAPC_K2"]]$labels$title,
+    "Discriminant analysis of principal components (K = 2)"
+  )
+  expect_identical(
+    membership_plot$labels$title,
+    paste(
+      "Discriminant analysis of principal components membership",
+      "probabilities (K = 2)"
+    )
+  )
+  expect_setequal(
+    membership_plot$scales$get_scales("x")$labels,
+    dapc_plot_fixture()$models[["2"]]$coordinates$sample
+  )
 })
 
 test_that("unstable DAPC figures warn against interpreting assignments", {

@@ -89,7 +89,7 @@ write_pca_publication_artifacts <- function(coordinates, eigenvalues, metadata =
       pops <- as.character(coords$population)
       if (is.null(palette)) {
         lev <- sort(unique(pops[!is.na(pops)]))
-        palette <- stats::setNames(grDevices::hcl.colors(length(lev), "Dark 3"), lev)
+        palette <- population_palette(lev)
       }
       point_col <- unname(palette[pops]); point_col[is.na(point_col)] <- "grey40"
     }

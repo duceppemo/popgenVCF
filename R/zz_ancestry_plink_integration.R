@@ -430,7 +430,10 @@ run_module_admixture <- function(analysis, context) {
     if (file.exists(qpath)) {
       q <- read_admixture_q(qpath, plink$sample_file, context$metadata)
       write_tsv(q, file.path(dirs$tables, sprintf("28_ADMIXTURE_Q_K%d.tsv", k)))
-      plot_q_matrix(q, k, cfg, dirs)
+      plot_q_matrix_views(
+        q, k, cfg, dirs,
+        sample_labels = public_sample_ids(context$metadata, q$sample)
+      )
     }
   }
   module_result(analysis, context)
@@ -461,7 +464,10 @@ run_module_faststructure <- function(analysis, context) {
     data.table::setcolorder(qdt, c("sample", "population", grep("^cluster_", names(qdt), value = TRUE)))
     result$q[[k]] <- qdt
     write_tsv(qdt, file.path(dirs$tables, sprintf("29_fastStructure_Q_K%s.tsv", k)))
-    plot_q_matrix(qdt, as.integer(k), cfg, dirs, prefix = "fastStructure_Q")
+    plot_q_matrix_views(
+      qdt, as.integer(k), cfg, dirs, prefix = "fastStructure_Q",
+      sample_labels = public_sample_ids(context$metadata, qdt$sample)
+    )
   }
   write_tsv(result$runs, file.path(dirs$tables, "29_fastStructure_runs.tsv"))
   analysis <- set_analysis_result(analysis, "faststructure", result)

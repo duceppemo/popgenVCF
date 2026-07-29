@@ -15,7 +15,11 @@ compare_q_matrices(target, reference)
 
 structure_reproducibility(matrices, reference = 1L)
 
-select_structure_k(diagnostics)
+select_structure_k(
+  diagnostics,
+  additional_votes = NULL,
+  tolerance_fraction = 0.02
+)
 
 run_faststructure(
   structure_executable = "structure.py",
@@ -43,6 +47,8 @@ run_population_structure_validation(integration = FALSE, seed = 42L)
   \item{reference}{Reference membership matrix, or the reference replicate index/name.}
   \item{matrices}{Named list of equal-dimensional membership matrices.}
   \item{diagnostics}{Data frame containing K and one or more supported diagnostic columns.}
+  \item{additional_votes}{Optional named integer vector or data frame containing backend-native method and K recommendations.}
+  \item{tolerance_fraction}{Fraction of the observed metric range used by the parsimonious near-optimum rule when standard errors are unavailable.}
   \item{structure_executable}{Path or command name for fastStructure \code{structure.py}.}
   \item{choosek_executable}{Path or command name for fastStructure \code{chooseK.py}.}
   \item{plink_prefix}{Prefix of PLINK BED/BIM/FAM files.}

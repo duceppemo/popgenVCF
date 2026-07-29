@@ -168,6 +168,9 @@ run_faststructure <- function(structure_executable = "structure.py",
     suggested_k = parse_faststructure_k(
       paste(choose_process$output, collapse = "\n")
     ),
+    choose_k_votes = parse_faststructure_k_votes(
+      paste(choose_process$output, collapse = "\n"), as.integer(k_values)
+    ),
     runtime = list(
       structure_executable = structure_command,
       choosek_executable = choosek_command

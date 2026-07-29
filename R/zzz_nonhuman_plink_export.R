@@ -134,14 +134,22 @@ run_module_admixture <- function(analysis, context) {
     ac$executable, plink$prefix, parse_int_range(ac$k),
     ac$threads, ac$cv_folds, dirs$admixture, cfg$compute$seed
   )
+  k_selection <- select_structure_k(cv)
   analysis <- set_analysis_result(analysis, "admixture_cv", cv)
+  analysis <- set_analysis_result(analysis, "admixture_k_selection", k_selection)
   analysis <- record_analysis_message(
     analysis, "INFO", "admixture",
     paste("PLINK input", plink$source, "with", plink$n_samples,
           "samples and", plink$n_snps, "SNPs")
   )
   write_tsv(cv, file.path(dirs$tables, "27_ADMIXTURE_CV.tsv"))
+  write_structure_k_selection(k_selection, dirs, "27b_ADMIXTURE_K_selection")
   plot_admixture_cv(cv, cfg, dirs)
+  plot_structure_k_selection(
+    k_selection, cfg, dirs,
+    stem = "13b_ADMIXTURE_cluster_number_selection",
+    title = "Admixture-model cluster-number selection"
+  )
   for (k in cv$K) {
     qpath <- file.path(
       dirs$admixture,
@@ -150,7 +158,10 @@ run_module_admixture <- function(analysis, context) {
     if (isTRUE(file.exists(qpath))) {
       q <- read_admixture_q(qpath, plink$sample_file, context$metadata)
       write_tsv(q, file.path(dirs$tables, sprintf("28_ADMIXTURE_Q_K%d.tsv", k)))
-      plot_q_matrix(q, k, cfg, dirs)
+      plot_q_matrix_views(
+        q, k, cfg, dirs,
+        sample_labels = public_sample_ids(context$metadata, q$sample)
+      )
     }
   }
   module_result(analysis, context)
@@ -172,6 +183,19 @@ run_module_faststructure <- function(analysis, context) {
     fc$structure_executable, fc$choosek_executable,
     plink$prefix, parse_int_range(fc$k), dirs$structure, cfg$compute$seed
   )
+  if (nrow(result$choose_k_votes)) {
+    k_selection <- select_structure_k(
+      result$runs[, .(K)],
+      additional_votes = result$choose_k_votes
+    )
+    result$k_selection <- k_selection
+    write_structure_k_selection(k_selection, dirs, "29b_fastStructure_K_selection")
+    plot_structure_k_selection(
+      k_selection, cfg, dirs,
+      stem = "13d_fastStructure_cluster_number_selection",
+      title = "fastStructure cluster-number selection"
+    )
+  }
   ids <- data.table::fread(plink$sample_file, header = FALSE)[[1L]] |>
     as.character()
   for (k in names(result$q)) {
@@ -193,7 +217,10 @@ run_module_faststructure <- function(analysis, context) {
     )
     result$q[[k]] <- qdt
     write_tsv(qdt, file.path(dirs$tables, sprintf("29_fastStructure_Q_K%s.tsv", k)))
-    plot_q_matrix(qdt, as.integer(k), cfg, dirs, prefix = "fastStructure_Q")
+    plot_q_matrix_views(
+      qdt, as.integer(k), cfg, dirs, prefix = "fastStructure_Q",
+      sample_labels = public_sample_ids(context$metadata, qdt$sample)
+    )
   }
   write_tsv(result$runs, file.path(dirs$tables, "29_fastStructure_runs.tsv"))
   analysis <- set_analysis_result(analysis, "faststructure", result)

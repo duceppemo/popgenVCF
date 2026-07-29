@@ -84,10 +84,29 @@ parse_int_range <- function(x) {
 population_palette <- function(populations) {
   lev <- sort(unique(as.character(populations)))
   if (length(lev) <= 8L) {
-    cols <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#000000")
+    # Paul Tol's bright qualitative scheme, ordered to keep neighbouring
+    # population levels visually distinct, plus black for an eighth group.
+    cols <- c(
+      "#4477AA", "#EE6677", "#228833", "#AA3377",
+      "#CCBB44", "#66CCEE", "#BBBBBB", "#000000"
+    )
     cols <- cols[seq_along(lev)]
-  } else cols <- viridisLite::turbo(length(lev), begin = 0.05, end = 0.95)
+  } else {
+    # Viridis remains perceptually ordered under common colour-vision
+    # deficiencies when more groups are required than the qualitative scheme
+    # can safely distinguish.
+    cols <- viridisLite::viridis(
+      length(lev), option = "D", begin = 0.05, end = 0.95
+    )
+  }
   stats::setNames(cols, lev)
+}
+
+diversity_metric_palette <- function() {
+  c(
+    observed_heterozygosity = "#4477AA",
+    expected_heterozygosity = "#EE6677"
+  )
 }
 
 theme_publication <- function(base_size = 11) {

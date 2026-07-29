@@ -300,6 +300,131 @@ run_ibs <- function(gds, sample_ids, snp_ids, metadata, threads) {
   list(similarity = sim, distance = dist, mds = points, eig = m$eig)
 }
 
+hclust_dendrogram_segments <- function(tree) {
+  n <- length(tree$order)
+  leaf_y <- integer(n)
+  leaf_y[tree$order] <- seq_len(n)
+  node_y <- numeric(n - 1L)
+  segments <- vector("list", 3L * (n - 1L))
+  segment_index <- 0L
+
+  child_coordinates <- function(code) {
+    if (code < 0L) {
+      list(height = 0, y = leaf_y[-code])
+    } else {
+      list(height = tree$height[code], y = node_y[code])
+    }
+  }
+
+  for (i in seq_len(n - 1L)) {
+    left <- child_coordinates(tree$merge[i, 1L])
+    right <- child_coordinates(tree$merge[i, 2L])
+    parent_height <- tree$height[i]
+    node_y[i] <- mean(c(left$y, right$y))
+    pieces <- list(
+      c(left$height, parent_height, left$y, left$y),
+      c(right$height, parent_height, right$y, right$y),
+      c(parent_height, parent_height, left$y, right$y)
+    )
+    for (piece in pieces) {
+      segment_index <- segment_index + 1L
+      segments[[segment_index]] <- piece
+    }
+  }
+
+  out <- data.table::as.data.table(do.call(rbind, segments))
+  data.table::setnames(out, c("height", "height_end", "y", "yend"))
+  out
+}
+
+ibs_heatmap_plot <- function(distance) {
+  distance <- as.matrix(distance)
+  n <- nrow(distance)
+  if (n < 2L || ncol(distance) != n) {
+    stop("IBS heatmap requires a square distance matrix with at least two samples", call. = FALSE)
+  }
+  sample_ids <- rownames(distance)
+  if (is.null(sample_ids)) sample_ids <- sprintf("sample_%d", seq_len(n))
+  sample_ids <- as.character(sample_ids)
+  if (anyNA(sample_ids) || any(!nzchar(sample_ids)) || anyDuplicated(sample_ids)) {
+    stop("IBS heatmap sample names must be unique and non-empty", call. = FALSE)
+  }
+  if (!is.null(colnames(distance)) && !identical(colnames(distance), sample_ids)) {
+    stop("IBS heatmap row and column sample names must be identical", call. = FALSE)
+  }
+
+  tree <- stats::hclust(stats::as.dist(distance), method = "average")
+  ordered_ids <- sample_ids[tree$order]
+  ordered <- distance[tree$order, tree$order, drop = FALSE]
+  long <- data.table::as.data.table(as.table(ordered))
+  data.table::setnames(long, c("sample_y", "sample_x", "distance"))
+  data.table::set(
+    long, j = "x", value = match(as.character(long$sample_x), ordered_ids)
+  )
+  data.table::set(
+    long, j = "y", value = match(as.character(long$sample_y), ordered_ids)
+  )
+
+  dendrogram <- hclust_dendrogram_segments(tree)
+  maximum_height <- max(tree$height)
+  dendrogram_width <- max(1.5, n * 0.20)
+  if (is.finite(maximum_height) && maximum_height > 0) {
+    data.table::set(
+      dendrogram, j = "x",
+      value = -dendrogram$height / maximum_height * dendrogram_width
+    )
+    data.table::set(
+      dendrogram, j = "xend",
+      value = -dendrogram$height_end / maximum_height * dendrogram_width
+    )
+  } else {
+    data.table::set(dendrogram, j = "x", value = 0)
+    data.table::set(dendrogram, j = "xend", value = 0)
+  }
+
+  ggplot2::ggplot(
+    long,
+    ggplot2::aes(x = .data$x, y = .data$y, fill = .data$distance)
+  ) +
+    ggplot2::geom_tile(width = 1, height = 1) +
+    ggplot2::geom_segment(
+      data = dendrogram,
+      ggplot2::aes(
+        x = .data$x, xend = .data$xend,
+        y = .data$y, yend = .data$yend
+      ),
+      inherit.aes = FALSE, colour = "grey20", linewidth = 0.3,
+      lineend = "square"
+    ) +
+    ggplot2::scale_fill_viridis_c() +
+    ggplot2::scale_x_continuous(
+      breaks = seq_len(n), labels = ordered_ids, expand = c(0, 0)
+    ) +
+    ggplot2::scale_y_continuous(
+      breaks = seq_len(n), labels = ordered_ids, expand = c(0, 0),
+      position = "right"
+    ) +
+    ggplot2::coord_fixed(
+      xlim = c(-dendrogram_width - 0.5, n + 0.5),
+      ylim = c(0.5, n + 0.5), clip = "off"
+    ) +
+    ggplot2::labs(
+      title = "Pairwise identity-by-state distance",
+      subtitle = "Average-linkage dendrogram aligned to heatmap rows",
+      x = NULL, y = NULL, fill = "1 - IBS"
+    ) +
+    theme_publication() +
+    ggplot2::theme(
+      axis.text.x = ggplot2::element_text(
+        angle = 90, hjust = 1, vjust = 0.5,
+        size = if (n <= 60L) 7 else 5
+      ),
+      axis.text.y = ggplot2::element_text(size = if (n <= 60L) 7 else 5),
+      axis.ticks = ggplot2::element_line(colour = "grey40"),
+      panel.border = ggplot2::element_rect(colour = "grey50", fill = NA)
+    )
+}
+
 plot_ibs <- function(ibs, cfg, dirs) {
   fmts <- cfg$output$figure_formats; dpi <- cfg$output$dpi
   has_population <- "population" %in% names(ibs$mds) && any(!is.na(ibs$mds$population))
@@ -310,7 +435,10 @@ plot_ibs <- function(ibs, cfg, dirs) {
   }
   p <- ggplot2::ggplot(ibs$mds, mapping) +
     ggplot2::geom_point(size = 2.7) +
-    ggplot2::labs(title = "MDS of IBS distance", colour = "Population") +
+    ggplot2::labs(
+      title = "Multidimensional scaling of identity-by-state distance",
+      colour = "Population"
+    ) +
     theme_publication()
   if (has_population) {
     p <- p + ggplot2::scale_colour_manual(values = population_palette(ibs$mds$population))
@@ -318,15 +446,10 @@ plot_ibs <- function(ibs, cfg, dirs) {
   save_plot(p, "08_IBS_MDS", dirs, fmts, 8, 6, dpi)
   n <- nrow(ibs$distance)
   if (n <= 300L) {
-    ord <- stats::hclust(stats::as.dist(ibs$distance), method = "average")$order
-    long <- data.table::as.data.table(as.table(ibs$distance[ord, ord, drop = FALSE]))
-    data.table::setnames(long, c("sample_y", "sample_x", "distance"))
-    p2 <- ggplot2::ggplot(long, ggplot2::aes(sample_x, sample_y, fill = distance)) +
-      ggplot2::geom_raster() + ggplot2::scale_fill_viridis_c() +
-      ggplot2::labs(title = "Pairwise IBS distance", x = NULL, y = NULL, fill = "1 - IBS") +
-      theme_publication() +
-      ggplot2::theme(axis.text = ggplot2::element_blank(), axis.ticks = ggplot2::element_blank())
-    save_plot(p2, "09_IBS_heatmap", dirs, fmts, 8, 8, dpi)
+    p2 <- ibs_heatmap_plot(ibs$distance)
+    heatmap_size <- max(8, n * 0.12)
+    save_plot(p2, "09_IBS_heatmap", dirs, fmts,
+              heatmap_size * 1.2, heatmap_size, dpi)
   }
 }
 

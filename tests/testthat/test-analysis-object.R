@@ -8,6 +8,15 @@ test_that("analysis object construction and result access work", {
   expect_null(popgenVCF::get_analysis_result(x, "missing"))
 })
 
+test_that("declared NULL analysis results retain their names", {
+  x <- popgenVCF::new_popgen_vcf_analysis(popgenVCF::default_config())
+  x <- popgenVCF::set_analysis_result(x, "skipped", NULL)
+
+  expect_true("skipped" %in% names(x$results))
+  expect_null(x$results[["skipped"]])
+  expect_null(popgenVCF::get_analysis_result(x, "skipped"))
+})
+
 test_that("sample order invariant is enforced", {
   x <- popgenVCF::new_popgen_vcf_analysis(popgenVCF::default_config())
   x$samples$ids <- c("a", "b")

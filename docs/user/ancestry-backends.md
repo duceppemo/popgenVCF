@@ -95,6 +95,56 @@ Official Bioconda recipe:
 
 <https://bioconda.github.io/recipes/faststructure/README.html>
 
+popgenVCF reads fastStructure's Q matrices directly and creates membership
+figures with its shared R plotting code. It does not invoke `distruct.py`.
+ADMIXTURE, fastStructure, and sNMF membership figures label every bar with the
+sample's public display name. Labels remain attached to the correct Q-matrix
+row when samples are ordered for display. A configured metadata alias is used
+when available; otherwise the immutable VCF sample ID is shown. DAPC
+posterior-membership figures use the same labeling convention. DAPC
+discriminant-coordinate figures and the other population-colored figures use
+the same high-contrast, color-blind-friendly qualitative palette so a
+population keeps a stable color across outputs.
+
+For every K, each backend now produces two views of the same fitted membership
+matrix. The standard figure organizes and facets samples by the metadata
+`population` column. The additional `_data_driven_` figure does not use
+population metadata: it groups samples by their dominant inferred cluster and
+orders them within each cluster by membership strength. The population column
+does not constrain model fitting in ADMIXTURE, fastStructure, sNMF, or DAPC
+`find.clusters`; it is used only to organize the standard figure and calculate
+descriptive agreement diagnostics. The two figures are alternate presentations
+of one fit, not independent analysis replicates. Vertical lines in the
+data-driven bar graph delimit adjacent dominant-cluster groups.
+
+## Selecting the number of clusters
+
+Cluster-number selection reuses diagnostics already produced by each backend;
+it does not launch another round of model fitting. For each available numeric
+criterion, popgenVCF records the raw optimum, an elbow estimate, and either a
+one-standard-error choice or the simplest model on a near-optimum plateau.
+DAPC combines existing cross-validation success with Calinski-Harabasz and
+Davies-Bouldin scores calculated from its shared principal-component scores;
+an available Bayesian information criterion is also retained.
+Variation in replicate membership root mean squared error contributes an
+additional DAPC stability vote; constant diagnostics are ignored.
+ADMIXTURE uses cross-validation error, sNMF uses
+replicate cross-entropy and its standard error, and fastStructure retains both
+native recommendations reported by `chooseK.py`.
+
+Each method casts one transparent vote. The final recommendation is the
+majority choice; ties are resolved first by mean normalized support across the
+available numeric diagnostics and then in favor of the simpler model. Method
+votes, normalized score curves, vote counts, the tie-breaking rule, and the
+final consensus are written to tab-separated tables. A faceted figure shows
+the diagnostic support panels beside the method-vote panel, with the consensus
+number marked in every panel.
+
+The consensus is a reproducible summary of the available diagnostics, not
+proof that the recommended number is the true number of biological
+populations. Inspect neighboring values, membership stability, and biological
+context before interpreting the selected model.
+
 ## LEA/sNMF
 
 The project Bioconductor installer installs LEA by default:
@@ -147,10 +197,16 @@ Record the R version, Bioconductor version, LEA version, package-library manifes
 
 ## Parallel execution boundaries
 
-sNMF is the first K/repetition backend to use native parallelism in the pipeline.
-ADMIXTURE already supports multiple threads within each K. fastStructure K jobs
-remain sequential for now because concurrent processes first require isolated
-working directories and a final barrier before `chooseK.py` runs.
+DAPC computes its genotype PCA once and reuses it for clustering and the final
+discriminant fit at every K. On systems that support forked workers, independent
+K values run concurrently with at most `min(compute.threads, number of K values)`
+workers. Each K retains the configured deterministic replicate-seed sequence,
+and systems without fork support fall back to sequential execution.
+
+sNMF uses native parallelism for K/repetition jobs. ADMIXTURE supports multiple
+threads within each K. fastStructure K jobs remain sequential for now because
+concurrent processes first require isolated working directories and a final
+barrier before `chooseK.py` runs.
 
 Do not multiply independent worker counts by backend thread counts beyond
 `compute.threads`. Concurrent genotype analyses also duplicate working memory,

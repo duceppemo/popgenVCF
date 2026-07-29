@@ -25,66 +25,186 @@ extract_dapc_membership <- function(model, sample_ids) {
   post
 }
 
-run_dapc_analysis <- function(geno, sample_ids, metadata, k_values, seed,
-                              cross_validate = TRUE, replicate_seeds = seed) {
-  public_ids <- public_sample_ids(metadata, sample_ids)
-  gl <- genlight_from_gds(geno, sample_ids, metadata)
-  max_pca <- max(2L, min(nrow(geno) - 1L, 100L))
-  diagnostics <- list(); models <- list(); replicate_membership <- list()
-  truth <- metadata$population[match(sample_ids, metadata$sample)]
-  for (k in k_values[k_values >= 2L & k_values < length(sample_ids)]) {
-    reps <- list(); primary <- NULL
-    for (rep_seed in unique(as.integer(replicate_seeds))) {
-      set.seed(rep_seed + k)
-      cluster_fit <- adegenet::find.clusters(gl, n.pca = max_pca, n.clust = k,
-                                            choose.n.clust = FALSE)
-      grp <- cluster_fit$grp
-      n_da <- max(1L, min(k - 1L, 10L))
-      n_pca <- min(max_pca, max(2L, floor(length(sample_ids) * .8)))
-      cv <- NULL
-      if (cross_validate) {
-        cv <- tryCatch(adegenet::xvalDapc(
-          gl, grp, n.pca.max = n_pca, training.set = .9,
-          result = "groupMean", center = TRUE, scale = FALSE,
-          n.pca = NULL, n.rep = 30, xval.plot = FALSE
-        ), error = function(e) NULL)
-        if (!is.null(cv)) {
-          selected <- suppressWarnings(as.integer(cv$`Number of PCs Achieving Highest Mean Success`))
-          if (length(selected) && is.finite(selected)) n_pca <- selected
-        }
+compute_dapc_shared_pca <- function(gl, max_pca) {
+  adegenet::glPca(
+    gl, center = TRUE, scale = FALSE, nf = max_pca,
+    loadings = TRUE, returnDotProd = TRUE
+  )
+}
+
+dapc_worker_count <- function(k_values, threads,
+                              fork_available = .Platform$OS.type != "windows") {
+  threads <- suppressWarnings(as.integer(threads)[1L])
+  if (is.na(threads) || threads < 1L || !isTRUE(fork_available)) return(1L)
+  max(1L, min(threads, length(k_values)))
+}
+
+run_dapc_k_task <- function(k, gl, shared_pca, max_pca, sample_ids,
+                            public_ids, metadata, truth, cross_validate,
+                            replicate_seeds) {
+  reps <- list()
+  primary <- NULL
+  cv_success <- numeric()
+  for (rep_seed in unique(as.integer(replicate_seeds))) {
+    set.seed(rep_seed + k)
+    cluster_fit <- adegenet::find.clusters(
+      gl, n.pca = max_pca, n.clust = k, choose.n.clust = FALSE,
+      glPca = shared_pca
+    )
+    grp <- cluster_fit$grp
+    n_da <- max(1L, min(k - 1L, 10L))
+    n_pca <- min(max_pca, max(2L, floor(length(sample_ids) * .8)))
+    cv <- NULL
+    if (cross_validate) {
+      cv <- tryCatch(adegenet::xvalDapc(
+        gl, grp, n.pca.max = n_pca, training.set = .9,
+        result = "groupMean", center = TRUE, scale = FALSE,
+        n.pca = NULL, n.rep = 30, xval.plot = FALSE
+      ), error = function(e) NULL)
+      if (!is.null(cv)) {
+        selected <- suppressWarnings(as.integer(
+          cv$`Number of PCs Achieving Highest Mean Success`
+        ))
+        if (length(selected) && is.finite(selected)) n_pca <- selected
       }
-      model <- adegenet::dapc(gl, pop = grp, n.pca = n_pca, n.da = n_da)
-      membership <- extract_dapc_membership(model, public_ids)
-      reps[[as.character(rep_seed)]] <- membership
-      if (is.null(primary)) primary <- list(model = model, groups = grp, cv = cv,
-                                            n_pca = n_pca, n_da = n_da,
-                                            membership = membership,
-                                            bic = cluster_fit$Kstat %||% NA_real_)
     }
-    model <- primary$model; grp <- primary$groups
-    coord <- data.table::as.data.table(model$ind.coord, keep.rownames = "sample")
-    coord[, vcf_sample := sample_ids[match(sample, public_ids)]]
-    data.table::set(coord, j = "population", value = metadata$population[match(coord$vcf_sample, metadata$sample)])
-    data.table::set(coord, j = "cluster", value = as.character(grp))
-    reproducibility <- if (length(reps) > 1L) structure_reproducibility(reps) else NULL
-    assignment_accuracy <- classification_accuracy_permutation(grp, truth)
-    models[[as.character(k)]] <- list(
+    cv_success <- c(cv_success, dapc_cross_validation_success(cv))
+    model <- adegenet::dapc(
+      gl, pop = grp, n.pca = n_pca, n.da = n_da,
+      glPca = shared_pca
+    )
+    membership <- extract_dapc_membership(model, public_ids)
+    reps[[as.character(rep_seed)]] <- membership
+    if (is.null(primary)) {
+      primary <- list(
+        model = model, groups = grp, cv = cv,
+        n_pca = n_pca, n_da = n_da,
+        membership = membership,
+        bic = cluster_fit$Kstat %||% NA_real_
+      )
+    }
+  }
+
+  model <- primary$model
+  grp <- primary$groups
+  coord <- data.table::as.data.table(model$ind.coord, keep.rownames = "sample")
+  coord[, vcf_sample := sample_ids[match(sample, public_ids)]]
+  data.table::set(
+    coord, j = "population",
+    value = metadata$population[match(coord$vcf_sample, metadata$sample)]
+  )
+  data.table::set(coord, j = "cluster", value = as.character(grp))
+  reproducibility <- if (length(reps) > 1L) {
+    structure_reproducibility(reps)
+  } else {
+    NULL
+  }
+  assignment_accuracy <- classification_accuracy_permutation(grp, truth)
+
+  list(
+    key = as.character(k),
+    model = list(
       model = model, coordinates = coord, groups = grp, cv = primary$cv,
       membership = primary$membership, replicate_membership = reps,
       reproducibility = reproducibility
-    )
-    diagnostics[[as.character(k)]] <- data.table::data.table(
+    ),
+    diagnostic = data.table::data.table(
       K = k, n_pca = primary$n_pca, n_da = primary$n_da,
       BIC = if (length(primary$bic)) as.numeric(primary$bic)[1] else NA_real_,
       assignment_accuracy = assignment_accuracy,
-      replicate_max_rmse = if (is.null(reproducibility)) 0 else max(reproducibility$metrics$rmse)
+      mean_success = if (any(is.finite(cv_success))) {
+        mean(cv_success[is.finite(cv_success)])
+      } else {
+        NA_real_
+      },
+      calinski_harabasz = calinski_harabasz_score(shared_pca$scores, grp),
+      davies_bouldin = davies_bouldin_index(shared_pca$scores, grp),
+      replicate_max_rmse = if (is.null(reproducibility)) {
+        0
+      } else {
+        max(reproducibility$metrics$rmse)
+      }
+    ),
+    replicate_membership = reps
+  )
+}
+
+execute_dapc_k_tasks <- function(k_values, task, workers) {
+  if (workers <= 1L) return(lapply(k_values, task))
+  results <- parallel::mclapply(
+    k_values, task, mc.cores = workers,
+    mc.preschedule = FALSE, mc.set.seed = FALSE
+  )
+  failed <- vapply(results, inherits, logical(1L), what = "try-error")
+  if (any(failed)) {
+    stop(
+      "Parallel DAPC task(s) failed for K = ",
+      paste(k_values[failed], collapse = ", "),
+      call. = FALSE
     )
-    replicate_membership[[as.character(k)]] <- reps
   }
-  diag <- data.table::rbindlist(diagnostics, fill = TRUE)
-  list(models = models, diagnostics = diag,
-       k_selection = if (nrow(diag)) select_structure_k(diag) else NULL,
-       replicate_membership = replicate_membership)
+  results
+}
+
+run_dapc_analysis <- function(geno, sample_ids, metadata, k_values, seed,
+                              cross_validate = TRUE, replicate_seeds = seed,
+                              threads = 1L) {
+  valid_k <- sort(unique(as.integer(
+    k_values[k_values >= 2L & k_values < length(sample_ids)]
+  )))
+  if (!length(valid_k)) {
+    return(list(
+      models = list(), diagnostics = data.table::data.table(),
+      k_selection = NULL, replicate_membership = list()
+    ))
+  }
+
+  public_ids <- public_sample_ids(metadata, sample_ids)
+  gl <- genlight_from_gds(geno, sample_ids, metadata)
+  max_pca <- max(2L, min(nrow(geno) - 1L, 100L))
+  shared_pca <- compute_dapc_shared_pca(gl, max_pca)
+  truth <- metadata$population[match(sample_ids, metadata$sample)]
+  workers <- dapc_worker_count(valid_k, threads)
+  log_msg(
+    "DAPC fitting ", length(valid_k), " K value(s) with ", workers,
+    " worker(s) and one shared genotype PCA"
+  )
+  task <- function(k) run_dapc_k_task(
+    k, gl = gl, shared_pca = shared_pca, max_pca = max_pca,
+    sample_ids = sample_ids, public_ids = public_ids,
+    metadata = metadata, truth = truth,
+    cross_validate = cross_validate,
+    replicate_seeds = replicate_seeds
+  )
+  results <- execute_dapc_k_tasks(valid_k, task, workers)
+  keys <- vapply(results, `[[`, character(1L), "key")
+  models <- stats::setNames(lapply(results, `[[`, "model"), keys)
+  diagnostics <- data.table::rbindlist(
+    lapply(results, `[[`, "diagnostic"), fill = TRUE
+  )
+  replicate_membership <- stats::setNames(
+    lapply(results, `[[`, "replicate_membership"), keys
+  )
+  metric_specifications <- structure_k_metric_specifications(diagnostics)
+  has_selection_metric <- nrow(metric_specifications) && any(vapply(
+    metric_specifications$metric,
+    function(metric) {
+      values <- as.numeric(diagnostics[[metric]])
+      values <- values[is.finite(values)]
+      length(unique(signif(values, 15L))) >= 2L
+    },
+    logical(1L)
+  ))
+  k_selection <- if (has_selection_metric) {
+    select_structure_k(diagnostics)
+  } else {
+    NULL
+  }
+  list(
+    models = models, diagnostics = diagnostics,
+    k_selection = k_selection,
+    replicate_membership = replicate_membership
+  )
 }
 
 dapc_reproducibility_annotation <- function(dapc, k, cfg) {
@@ -152,11 +272,21 @@ plot_dapc <- function(dapc, cfg, dirs) {
     q[, sample := rownames(membership)]
     q[, population := d$population[match(sample, d$sample)]]
     data.table::setcolorder(q, c("sample", "population", grep("^cluster_", names(q), value = TRUE)))
-    plot_q_matrix(
+    plot_q_matrix_views(
       q, as.integer(k), cfg, dirs, prefix = "DAPC_membership",
-      title = sprintf("DAPC membership probabilities (K = %s)", k),
+      title = sprintf(
+        "Discriminant analysis of principal components membership probabilities (K = %s)",
+        k
+      ),
       subtitle = annotation$text,
-      subtitle_is_warning = annotation$unstable
+      subtitle_is_warning = annotation$unstable,
+      y_label = "Posterior membership probability"
     )
   }
+  plot_structure_k_selection(
+    dapc$k_selection, cfg, dirs,
+    stem = "12_DAPC_cluster_number_selection",
+    title = paste("Discriminant analysis of principal components",
+                  "cluster-number selection")
+  )
 }

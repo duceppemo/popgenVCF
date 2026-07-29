@@ -85,7 +85,10 @@ validate_analysis <- function(x, stage = NULL) {
 set_analysis_result <- function(x, name, value) {
   validate_analysis(x)
   if (!is.character(name) || length(name) != 1L || !nzchar(name)) stop("Result name must be one non-empty string", call. = FALSE)
-  x$results[[name]] <- value
+  # Single-bracket assignment preserves a declared result whose valid value is
+  # NULL. Double-bracket NULL assignment removes the name and makes the module
+  # execution engine report that the declared output was never produced.
+  x$results[name] <- list(value)
   validate_analysis(x)
   x
 }

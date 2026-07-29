@@ -84,7 +84,16 @@ plot_diversity <- function(div, ci, cfg, dirs) {
   long <- data.table::melt(div$population[, .(population, observed_heterozygosity, expected_heterozygosity)],
                            id.vars = "population", variable.name = "metric", value.name = "value")
   p2 <- ggplot2::ggplot(long, ggplot2::aes(population, value, fill = metric)) +
-    ggplot2::geom_col(position = "dodge") + ggplot2::labs(title = "Population genetic diversity", x = "Population", y = "Heterozygosity") +
+    ggplot2::geom_col(position = "dodge") +
+    ggplot2::scale_fill_manual(
+      values = diversity_metric_palette(),
+      breaks = names(diversity_metric_palette()),
+      labels = c("Observed heterozygosity", "Expected heterozygosity")
+    ) +
+    ggplot2::labs(
+      title = "Population genetic diversity", x = "Population",
+      y = "Heterozygosity", fill = "Statistic"
+    ) +
     theme_publication() + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 35, hjust = 1))
   save_plot(p2, "06_population_diversity", dirs, fmts, 8, 5.5, dpi)
 }

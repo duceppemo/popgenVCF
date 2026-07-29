@@ -52,6 +52,7 @@ test_that("the fastStructure runner reports backend failures and missing Q files
   expect_match(body_text, "resolve_faststructure_executable", fixed = TRUE)
   expect_match(body_text, "fastStructure failed for K=", fixed = TRUE)
   expect_match(body_text, "did not create", fixed = TRUE)
+  expect_match(body_text, "choose_k_votes", fixed = TRUE)
   expect_false(grepl("popgenvcf-faststructure", body_text, fixed = TRUE))
 })
 

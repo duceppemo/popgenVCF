@@ -33,3 +33,40 @@ test_that("built-in registry reflects the IBD descriptor", {
   expect_identical(registered$validate, module$validate)
   expect_true(is.function(registered$enabled))
 })
+
+test_that("IBD geographic-data skips satisfy the declared output contract", {
+  cfg <- popgenVCF::default_config()
+  analysis <- popgenVCF::new_popgen_vcf_analysis(cfg)
+  distance <- matrix(
+    c(0, 0.2, 0.4, 0.2, 0, 0.3, 0.4, 0.3, 0),
+    nrow = 3L,
+    dimnames = list(c("s1", "s2", "s3"), c("s1", "s2", "s3"))
+  )
+  context <- list(
+    cfg = cfg,
+    dirs = list(tables = tempdir(), figures = tempdir()),
+    ibs = list(distance = distance),
+    metadata = data.table::data.table(
+      sample = c("s1", "s2", "s3"),
+      population = c("A", "A", "B")
+    )
+  )
+
+  output <- popgenVCF:::run_module_ibd(analysis, context)
+
+  expect_true("ibd" %in% names(output$analysis$results))
+  expect_null(output$analysis$results[["ibd"]])
+
+  execution <- list(name = "ibd", value = output, elapsed = 0)
+  validated <- popgenVCF:::validate_engine_module_output(
+    execution,
+    analysis,
+    context,
+    popgenVCF::default_analysis_registry()
+  )
+  expect_true(validated$validation$valid)
+  expect_match(
+    validated$validation$warnings,
+    "geographic data were unavailable"
+  )
+})

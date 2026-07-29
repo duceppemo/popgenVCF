@@ -130,20 +130,17 @@ structure_reproducibility <- function(matrices, reference = 1L) {
 #'
 #' @param diagnostics Data frame containing K and one or more of cv_error, BIC,
 #'   cross_entropy, or mean_success.
+#' @param additional_votes Optional named integer vector or data frame with
+#'   `method` and `K` columns containing backend-native recommendations.
+#' @param tolerance_fraction Fraction of the observed metric range used by the
+#'   parsimonious near-optimum rule when standard errors are unavailable.
 #' @return List containing method-specific optima and consensus K.
 #' @export
-select_structure_k <- function(diagnostics) {
-  x <- data.table::as.data.table(diagnostics)
-  if (!"K" %in% names(x) || anyDuplicated(x$K)) stop("Diagnostics require unique K values", call. = FALSE)
-  choices <- list()
-  minimize <- intersect(c("cv_error", "BIC", "cross_entropy"), names(x))
-  maximize <- intersect(c("mean_success", "silhouette"), names(x))
-  for (nm in minimize) if (any(is.finite(x[[nm]]))) choices[[nm]] <- x$K[which.min(x[[nm]])]
-  for (nm in maximize) if (any(is.finite(x[[nm]]))) choices[[nm]] <- x$K[which.max(x[[nm]])]
-  votes <- unlist(choices, use.names = FALSE)
-  consensus <- if (length(votes)) as.integer(names(sort(table(votes), decreasing = TRUE))[1]) else NA_integer_
-  list(best_by_method = data.table::data.table(method = names(choices), K = as.integer(unlist(choices))),
-       consensus_k = consensus)
+select_structure_k <- function(diagnostics, additional_votes = NULL,
+                               tolerance_fraction = 0.02) {
+  select_structure_k_consensus(
+    diagnostics, additional_votes, tolerance_fraction
+  )
 }
 
 parse_faststructure_k <- function(text) {
@@ -181,8 +178,12 @@ run_faststructure <- function(structure_executable = "structure.py", choosek_exe
   }
   choose_text <- character()
   if (nzchar(choose)) choose_text <- system2(choose, c("--input", prefix), stdout = TRUE, stderr = TRUE)
+  choose_votes <- parse_faststructure_k_votes(
+    paste(choose_text, collapse = "\n"), as.integer(k_values)
+  )
   list(runs = data.table::rbindlist(runs), q = q, choose_k_text = choose_text,
-       suggested_k = parse_faststructure_k(paste(choose_text, collapse = "\n")))
+       suggested_k = parse_faststructure_k(paste(choose_text, collapse = "\n")),
+       choose_k_votes = choose_votes)
 }
 
 snmf_project_arguments <- function(geno_file, k_values, repetitions, entropy,

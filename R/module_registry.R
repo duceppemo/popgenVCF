@@ -80,7 +80,8 @@ run_module_dapc <- function(analysis, context) {
   dapc <- run_dapc_analysis(div$genotype, context$sample_ids, context$metadata,
                             parse_int_range(cfg$analyses$dapc_k), cfg$compute$seed,
                             cfg$analyses$dapc_cross_validation,
-                            replicate_seeds = seeds)
+                            replicate_seeds = seeds,
+                            threads = cfg$compute$threads)
   analysis <- set_analysis_result(analysis, "dapc", dapc)
   write_tsv(dapc$diagnostics, file.path(dirs$tables, "21_DAPC_diagnostics.tsv"))
   for (k in names(dapc$models)) {
@@ -97,6 +98,9 @@ run_module_dapc <- function(analysis, context) {
   }
   if (!is.null(dapc$k_selection)) {
     write_tsv(dapc$k_selection$best_by_method, file.path(dirs$tables, "22d_DAPC_K_selection.tsv"))
+    write_structure_k_selection(
+      dapc$k_selection, dirs, "22e_DAPC_K_selection"
+    )
   }
   plot_dapc(dapc, cfg, dirs)
   module_result(analysis, context)
@@ -139,7 +143,10 @@ run_module_admixture <- function(analysis, context) {
     if (file.exists(qpath)) {
       q <- read_admixture_q(qpath, ac$q_sample_file, context$metadata)
       write_tsv(q, file.path(dirs$tables, sprintf("28_ADMIXTURE_Q_K%d.tsv", k)))
-      plot_q_matrix(q, k, cfg, dirs)
+      plot_q_matrix_views(
+        q, k, cfg, dirs,
+        sample_labels = public_sample_ids(context$metadata, q$sample)
+      )
     }
   }
   module_result(analysis, context)
@@ -159,7 +166,10 @@ run_module_faststructure <- function(analysis, context) {
     data.table::setcolorder(qdt, c("sample", "population", grep("^cluster_", names(qdt), value = TRUE)))
     result$q[[k]] <- qdt
     write_tsv(qdt, file.path(dirs$tables, sprintf("29_fastStructure_Q_K%s.tsv", k)))
-    plot_q_matrix(qdt, as.integer(k), cfg, dirs, prefix = "fastStructure_Q")
+    plot_q_matrix_views(
+      qdt, as.integer(k), cfg, dirs, prefix = "fastStructure_Q",
+      sample_labels = public_sample_ids(context$metadata, qdt$sample)
+    )
   }
   write_tsv(result$runs, file.path(dirs$tables, "29_fastStructure_runs.tsv"))
   analysis <- set_analysis_result(analysis, "faststructure", result)
@@ -179,9 +189,22 @@ run_module_snmf <- function(analysis, context) {
     snmf_input$geno_file, parse_int_range(sc$k), sc$repetitions,
     sc$entropy, cfg$compute$seed, threads = sc$threads
   )
+  selection_diagnostics <- result$diagnostics[, .(
+    cross_entropy = mean(cross_entropy),
+    cross_entropy_se = if (.N > 1L) stats::sd(cross_entropy) / sqrt(.N) else 0
+  ), by = K]
+  k_selection <- select_structure_k(selection_diagnostics)
+  result$k_selection <- k_selection
   write_tsv(
     result$diagnostics,
     file.path(dirs$tables, "30_sNMF_cross_entropy.tsv")
+  )
+  write_structure_k_selection(k_selection, dirs, "30b_sNMF_K_selection")
+  plot_structure_k_selection(
+    k_selection, cfg, dirs,
+    stem = "13c_sNMF_cluster_number_selection",
+    title = paste("Sparse non-negative matrix factorization",
+                  "cluster-number selection")
   )
   sample_order <- readLines(snmf_input$sample_file, warn = FALSE)
   for (k in names(result$q)) {
@@ -195,7 +218,10 @@ run_module_snmf <- function(analysis, context) {
     data.table::setcolorder(qdt, c("sample", "population", grep("^cluster_", names(qdt), value = TRUE)))
     result$q[[k]] <- qdt
     write_tsv(qdt, file.path(dirs$tables, sprintf("30_sNMF_Q_K%s.tsv", k)))
-    plot_q_matrix(qdt, as.integer(k), cfg, dirs, prefix = "sNMF_Q")
+    plot_q_matrix_views(
+      qdt, as.integer(k), cfg, dirs, prefix = "sNMF_Q",
+      sample_labels = public_sample_ids(context$metadata, qdt$sample)
+    )
   }
   analysis <- set_analysis_result(analysis, "snmf", result)
   analysis <- record_analysis_message(

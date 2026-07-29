@@ -165,12 +165,12 @@ write_ibs_publication_artifacts <- function(similarity, distance, metadata = NUL
     if ("population" %in% names(coords)) {
       pops <- as.character(coords$population)
       lev <- sort(unique(pops[!is.na(pops)]))
-      if (is.null(palette)) palette <- stats::setNames(grDevices::hcl.colors(length(lev), "Dark 3"), lev)
+      if (is.null(palette)) palette <- population_palette(lev)
       point_col <- unname(palette[pops]); point_col[is.na(point_col)] <- "grey40"
     }
     graphics::plot(coords$MDS1, coords$MDS2, pch = 21, bg = point_col, col = "black", cex = 1.1,
       xlab = sprintf("MDS1 (%.2f%%)", axis_percent[1]), ylab = sprintf("MDS2 (%.2f%%)", axis_percent[2]),
-      main = "IBS multidimensional scaling")
+      main = "Multidimensional scaling of identity-by-state distance")
     graphics::abline(h = 0, v = 0, lty = 3, col = "grey75")
     if ("population" %in% names(coords)) {
       lev <- sort(unique(as.character(coords$population[!is.na(coords$population)])))

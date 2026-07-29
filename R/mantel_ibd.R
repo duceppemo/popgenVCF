@@ -11,12 +11,18 @@ haversine_matrix <- function(lat, lon, labels) {
 
 run_mantel_ibd <- function(genetic_distance, metadata, geographic_columns, permutations = 999L, seed = 42L) {
   if (!all(geographic_columns %in% names(metadata))) return(NULL)
-  m <- metadata[match(rownames(genetic_distance), sample)]
+  distance_ids <- rownames(genetic_distance)
+  identity_column <- if ("public_sample" %in% names(metadata)) {
+    "public_sample"
+  } else {
+    "sample"
+  }
+  m <- metadata[match(distance_ids, metadata[[identity_column]])]
   lat <- as.numeric(m[[geographic_columns[1]]]); lon <- as.numeric(m[[geographic_columns[2]]])
-  keep <- is.finite(lat) & is.finite(lon)
+  keep <- is.finite(lat) & is.finite(lon) & abs(lat) <= 90 & abs(lon) <= 180
   if (sum(keep) < 4L) return(NULL)
   gd <- genetic_distance[keep, keep, drop = FALSE]
-  geo <- haversine_matrix(lat[keep], lon[keep], m$sample[keep])
+  geo <- haversine_matrix(lat[keep], lon[keep], distance_ids[keep])
   set.seed(seed)
   mantel <- vegan::mantel(stats::as.dist(gd), stats::as.dist(geo), permutations = permutations, method = "pearson")
   idx <- upper.tri(gd)

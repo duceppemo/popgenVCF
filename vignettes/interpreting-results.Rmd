@@ -52,7 +52,10 @@ Interpret the eigenvalues and source coordinates together. Do not assign discret
 
 Identity-by-state measures allele sharing in the retained marker set. MDS represents those distances in a lower-dimensional space.
 
-High similarity may indicate relatedness or shared population history, but IBS is not an identity-by-descent estimate and does not establish pedigree relationships. Check pairwise source tables, sample labels, and the amount of distortion introduced by the displayed dimensions.
+The pairwise-distance heatmap labels both axes with public sample names and uses
+an average-linkage row dendrogram aligned to the clustered heatmap order. High
+similarity may indicate relatedness or shared population history, but IBS is
+not an identity-by-descent estimate and does not establish pedigree relationships. Check pairwise source tables, sample labels, and the amount of distortion introduced by the displayed dimensions.
 
 ## Diversity
 
@@ -82,6 +85,20 @@ State the levels tested, the units permuted, the number of permutations, and whe
 
 ADMIXTURE, fastStructure, and sNMF estimate model-dependent ancestry proportions. Cluster labels are exchangeable, and the selected K is not a literal count of ancestral populations.
 
+For each K, compare the population-organized membership figure with the
+`_data_driven_` figure. Both display the same fitted coefficients. The latter
+ignores the metadata population labels, groups samples by their dominant
+inferred cluster, and orders them by membership strength. This makes structure
+that conflicts with the prior population definitions easier to see without
+mistaking a different sample order for a second model fit. Vertical separator
+lines mark boundaries between dominant inferred-cluster groups.
+
+The consensus cluster number combines the raw optimum, elbow, and parsimonious
+plateau or one-standard-error choices from diagnostics that the fitted models
+already produced. Review the method-level votes, normalized diagnostic panels,
+agreement fraction, and documented tie-break rather than reporting only the
+final number. Consensus among related diagnostics is not independent evidence
+that the selected number represents biological truth.
 Interpret replicate alignment, convergence, fit metrics, cross-validation or entropy criteria, cluster stability, sample uncertainty, and agreement across backends. Prefer stable patterns supported across replicates and neighboring K values. Do not equate a colour component with a named historical population without independent evidence.
 
 ## Isolation by distance and Mantel analyses
