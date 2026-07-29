@@ -1,6 +1,12 @@
 # Compatibility override loaded after artifact_lineage.R and projects.R.
 # The complete lineage object remains embedded in project.rds, while project.json
 # receives only plain, stable tables that jsonlite can serialize portably.
+#' Attach immutable lineage to a reproducible project
+#'
+#' @param project A `PopgenVCFProject`.
+#' @param lineage A validated artifact lineage object.
+#' @return Updated project with lineage embedded in provenance.
+#' @export
 set_project_artifact_lineage <- function(project, lineage) {
   validate_popgenvcf_project(project)
   validate_artifact_lineage(lineage)

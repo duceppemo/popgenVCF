@@ -1,5 +1,10 @@
 # Loaded after projects.R to make result-set comparisons safe when a result is
 # present in only one project.
+#' Compare two complete projects
+#'
+#' @param current,baseline Projects or bundle paths.
+#' @return A `PopgenVCFProjectComparison` with stable change records.
+#' @export
 compare_popgenvcf_projects <- function(current, baseline) {
   if (is.character(current)) current <- read_popgenvcf_project(current)
   if (is.character(baseline)) baseline <- read_popgenvcf_project(baseline)

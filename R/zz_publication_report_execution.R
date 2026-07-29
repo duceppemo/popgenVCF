@@ -1,14 +1,5 @@
 # Phase 0.9.1.2 - publication report renderer adapters and execution
 
-# Fingerprints describe record content, not the in-memory S3 class used to
-# dispatch methods. This definition intentionally supersedes the initial
-# contract helper after all package files are sourced.
-.publication_report_fingerprint <- function(x) {
-  candidate <- unclass(x)
-  candidate$fingerprint <- NULL
-  digest::digest(candidate, algo = "sha256", serialize = TRUE)
-}
-
 #' Create a publication report renderer adapter
 #'
 #' @param id Stable renderer identifier.

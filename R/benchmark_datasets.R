@@ -105,34 +105,6 @@ register_benchmark_dataset <- function(catalogue, entry) {
   catalogue
 }
 
-#' List benchmark datasets
-#' @param catalogue A benchmark dataset catalogue.
-#' @param scale,organism,analysis,source_type Optional filters.
-#' @return A data table.
-#' @noRd
-list_benchmark_datasets <- function(catalogue, scale = NULL, organism = NULL,
-                                    analysis = NULL, source_type = NULL) {
-  if (!inherits(catalogue, "PopgenVCFBenchmarkDatasetCatalogue")) stop("catalogue is invalid", call. = FALSE)
-  rows <- lapply(catalogue$entries, function(x) data.table::data.table(
-    id = x$id, version = x$version, scale = x$scale,
-    source_type = x$source_type, filename = x$filename,
-    organism = x$organism, analyses = paste(x$analyses, collapse = ","),
-    required_software = paste(x$required_software, collapse = ","),
-    estimated_runtime_seconds = x$estimated_runtime_seconds,
-    estimated_memory_mb = x$estimated_memory_mb,
-    published = x$published
-  ))
-  tab <- data.table::rbindlist(rows, fill = TRUE)
-  if (!is.null(scale)) tab <- tab[scale %in% as.character(scale)]
-  if (!is.null(organism)) tab <- tab[tolower(organism) %in% tolower(as.character(organism))]
-  if (!is.null(analysis)) {
-    requested <- tolower(as.character(analysis))
-    tab <- tab[vapply(strsplit(analyses, ",", fixed = TRUE), function(z) any(z %in% requested), logical(1L))]
-  }
-  if (!is.null(source_type)) tab <- tab[source_type %in% as.character(source_type)]
-  tab[]
-}
-
 #' Return the benchmark dataset cache root
 #' @param cache_dir Optional explicit cache directory.
 #' @return Normalized cache directory path.

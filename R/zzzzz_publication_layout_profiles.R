@@ -235,22 +235,6 @@ validate_publication_layout_binding <- function(binding, spec, profile) {
   invisible(TRUE)
 }
 
-#' Return deterministic renderer parameters for a layout binding
-#' @param binding A validated layout binding.
-#' @return A normalized named list suitable for renderer execution.
-#' @export
-publication_layout_parameters <- function(binding) {
-  if (!inherits(binding, "PopgenVCFPublicationLayoutBinding") ||
-      !identical(binding$fingerprint, .publication_layout_fingerprint(binding))) {
-    stop("Invalid publication layout binding.", call. = FALSE)
-  }
-  out <- unlist(binding$resolved, recursive = TRUE, use.names = TRUE)
-  out <- as.list(out[order(names(out))])
-  c(list(layout_profile = binding$profile_id,
-         layout_profile_version = binding$profile_version,
-         layout_fingerprint = binding$profile_fingerprint), out)
-}
-
 #' Render a deterministic publication layout summary
 #' @param profile A publication layout profile.
 #' @return Markdown report lines.

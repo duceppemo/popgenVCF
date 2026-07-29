@@ -149,12 +149,10 @@ fair_creator_jsonld <- function(x) {
   out
 }
 
-#' Build standards-facing FAIR documents
-#'
-#' @param metadata FAIR metadata.
-#' @return A plain named list containing RO-Crate, CodeMeta, DataCite, and CFF records.
-#' @export
-fair_documents <- function(metadata) {
+# Base FAIR document builder. `fair_documents()` (the exported entry point,
+# defined in zzz_software_identity_integration.R) wraps this to inject the
+# canonical popgenVCF software identity into the RO-Crate/CodeMeta records.
+.fair_documents_without_software_identity <- function(metadata) {
   validate_fair_metadata(metadata)
   creators <- lapply(metadata$creators, fair_creator_jsonld)
   creator_refs <- lapply(creators, function(x) list(`@id` = x$`@id`))

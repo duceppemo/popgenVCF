@@ -7,7 +7,13 @@
   names(severity)[max(unname(severity[classes])) + 1L]
 }
 
-.assess_canonical_baseline_drift_core <- assess_canonical_baseline_drift
+#' Assess drift between two canonical baseline snapshots
+#'
+#' @param previous Earlier canonical baseline snapshot.
+#' @param current Later canonical baseline snapshot.
+#' @param profile Drift threshold profile.
+#' @return A `PopgenVCFCanonicalDriftAssessment`.
+#' @export
 assess_canonical_baseline_drift <- function(previous, current,
                                             profile = new_canonical_drift_profile()) {
   assessment <- .assess_canonical_baseline_drift_core(previous, current, profile)
@@ -16,7 +22,10 @@ assess_canonical_baseline_drift <- function(previous, current,
   assessment
 }
 
-.canonical_drift_summary_core <- canonical_drift_summary
+#' Summarize canonical drift by dataset and analysis
+#' @param assessment Canonical drift assessment or drift history.
+#' @return Deterministic summary table.
+#' @export
 canonical_drift_summary <- function(assessment) {
   out <- .canonical_drift_summary_core(assessment)
   table <- if (inherits(assessment, "PopgenVCFCanonicalDriftAssessment"))

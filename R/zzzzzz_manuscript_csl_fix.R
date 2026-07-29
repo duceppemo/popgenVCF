@@ -1,4 +1,9 @@
-# Keep missing-file validation deterministic across R versions and platforms.
+#' Create a manuscript citation profile
+#'
+#' @param style_id Stable citation-style identity.
+#' @param csl Optional path to a Citation Style Language file.
+#' @return A validated `PopgenVCFCitationProfile`.
+#' @export
 new_citation_profile <- function(style_id = "generic", csl = NULL) {
   style_id <- trimws(as.character(style_id)[1L])
   if (!nzchar(style_id)) stop("citation style identity must be non-empty", call. = FALSE)

@@ -1,9 +1,10 @@
-# Apply the repository software-identity contract after the FAIR document
-# implementation is loaded. Analysis-project creators remain authoritative for
-# DataCite and dataset CFF records; CodeMeta and the RO-Crate software entity
-# describe popgenVCF itself.
-.fair_documents_without_software_identity <- fair_documents
-
+# Analysis-project creators remain authoritative for DataCite and dataset CFF
+# records; CodeMeta and the RO-Crate software entity describe popgenVCF itself.
+#' Build standards-facing FAIR documents
+#'
+#' @param metadata FAIR metadata.
+#' @return A plain named list containing RO-Crate, CodeMeta, DataCite, and CFF records.
+#' @export
 fair_documents <- function(metadata) {
   docs <- .fair_documents_without_software_identity(metadata)
   identity <- popgenvcf_software_identity()

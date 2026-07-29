@@ -50,9 +50,18 @@ run_faststructure_process <- function(executable, arguments, log_file) {
   list(output = output, status = status)
 }
 
-# Late-loaded replacement with strict process diagnostics and output validation.
 # The supported Bioconda package installs structure.py and chooseK.py directly
 # into the same Conda environment as popgenVCF.
+#' Run external fastStructure across K values
+#'
+#' @param structure_executable Path or command for structure.py.
+#' @param choosek_executable Path or command for chooseK.py.
+#' @param plink_prefix PLINK BED/BIM/FAM prefix.
+#' @param k_values Integer K values.
+#' @param output_dir Output directory.
+#' @param seed Random seed.
+#' @return A list containing run records, Q matrices, and chooseK output.
+#' @export
 run_faststructure <- function(structure_executable = "structure.py",
                               choosek_executable = "chooseK.py",
                               plink_prefix, k_values, output_dir = ".",

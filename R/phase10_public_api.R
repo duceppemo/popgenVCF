@@ -212,6 +212,8 @@ validate_public_analysis_request <- function(request) {
   if (!inherits(request, "PopgenVCFPublicAPIRequest")) {
     stop("request must be a public API request.", call. = FALSE)
   }
+  .phase10_scalar_string(request$operation_id, "operation_id")
+  .phase10_scalar_string(request$analysis_id, "analysis_id")
   descriptor <- phase10_api_descriptor(request$api_version)
   operations <- phase10_api_operations(descriptor)
   if (!request$operation_id %in% operations$operation_id) {
@@ -246,6 +248,17 @@ validate_public_analysis_response <- function(response, request = NULL) {
       !identical(response$schema_version, expected_schema)) {
     stop("Incompatible public response schema.", call. = FALSE)
   }
+  statuses <- c("completed", "failed", "cancelled", "rejected", "cached")
+  .phase10_scalar_string(response$status, "status")
+  if (!response$status %in% statuses) {
+    stop("Unsupported public response status.", call. = FALSE)
+  }
+  if (response$status %in% c("completed", "cached") && !is.null(response$error)) {
+    stop("Successful public responses cannot contain an error.", call. = FALSE)
+  }
+  if (response$status %in% c("failed", "rejected") && is.null(response$error)) {
+    stop("Failed or rejected public responses require an error record.", call. = FALSE)
+  }
   if (!is.null(request)) {
     validate_public_analysis_request(request)
     if (!identical(response$request_fingerprint, request$fingerprint) ||
@@ -276,41 +289,6 @@ inspect_public_analysis_response <- function(response) {
     fingerprint = response$fingerprint,
     stringsAsFactors = FALSE
   )
-}
-
-#' Write a deterministic public API record
-#'
-#' @param x A public API descriptor, request, or response.
-#' @param path Output JSON path.
-#' @return The normalized path, invisibly.
-#' @noRd
-write_public_api_record <- function(x, path) {
-  .phase10_validate_public_record(x)
-  json <- jsonlite::toJSON(
-    unclass(x), auto_unbox = TRUE, null = "null", digits = NA,
-    pretty = TRUE, dataframe = "rows"
-  )
-  writeLines(json, path, useBytes = TRUE)
-  invisible(normalizePath(path, winslash = "/", mustWork = FALSE))
-}
-
-#' Read and validate a deterministic public API record
-#'
-#' @param path Input JSON path.
-#' @return A validated public API object.
-#' @noRd
-read_public_api_record <- function(path) {
-  x <- jsonlite::fromJSON(path, simplifyVector = FALSE)
-  class_name <- switch(
-    x$record_type,
-    popgenvcf_public_api_descriptor = "PopgenVCFPublicAPIDescriptor",
-    popgenvcf_public_api_request = "PopgenVCFPublicAPIRequest",
-    popgenvcf_public_api_response = "PopgenVCFPublicAPIResponse",
-    stop("Unsupported public API record type.", call. = FALSE)
-  )
-  class(x) <- c(class_name, "list")
-  .phase10_validate_public_record(x)
-  x
 }
 
 #' Compute a deterministic SHA-256 fingerprint for a public record

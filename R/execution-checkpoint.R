@@ -22,14 +22,6 @@ checkpoint_payload_digest <- function(checkpoint) {
   digest::digest(payload, algo = "sha256", serialize = TRUE)
 }
 
-checkpoint_remaining_plan <- function(full_plan, registry, remaining) {
-  order <- full_plan$order[full_plan$order %in% remaining]
-  waves <- execution_wave_map(registry, order)
-  table <- data.table::copy(full_plan$table[match(order, full_plan$table$module)])
-  table[, wave := unname(waves[module])]
-  structure(list(order = order, waves = waves, table = table), class = "PopgenVCFExecutionPlan")
-}
-
 #' Create an execution checkpoint
 #'
 #' Capture validated execution state so unfinished modules can be resumed without
@@ -187,62 +179,4 @@ read_execution_checkpoint <- function(path, registry = NULL) {
   checkpoint <- runtime_integrity_payload(envelope)
   validate_execution_checkpoint(checkpoint, registry = registry)
   checkpoint
-}
-
-#' Resume an analysis execution from a checkpoint
-#'
-#' Only modules not already recorded as successful are executed. Prior validated
-#' outputs and artifacts are preserved, and the returned ledger identifies rows
-#' reused from the checkpoint.
-#'
-#' @param checkpoint A validated execution checkpoint.
-#' @param registry Current analysis registry.
-#' @param engine Execution engine for unfinished modules.
-#' @return A regular execution result with a combined ledger and `resumed_from_checkpoint` metadata.
-#' @noRd
-resume_analysis_execution <- function(checkpoint, registry,
-                                      engine = new_execution_engine()) {
-  validate_execution_checkpoint(checkpoint, registry = registry)
-  full_plan <- plan_analysis_execution(
-    registry, checkpoint$analysis$config, selected = checkpoint$plan_order
-  )
-  remaining <- setdiff(full_plan$order, checkpoint$completed)
-  if (!length(remaining)) {
-    execution <- data.table::copy(checkpoint$execution)
-    execution[, checkpoint_reused := status == "success"]
-    metadata <- checkpoint$analysis$results$execution_engine %||% list()
-    metadata$resumed_from_checkpoint <- TRUE
-    metadata$reused_modules <- checkpoint$completed
-    analysis <- set_analysis_result(checkpoint$analysis, "execution_engine", metadata)
-    analysis <- set_analysis_result(analysis, "execution_ledger", execution)
-    return(list(
-      analysis = analysis, context = checkpoint$context,
-      order = checkpoint$completed, plan = full_plan,
-      artifacts = checkpoint$artifacts, engine = metadata,
-      execution = execution
-    ))
-  }
-  remaining_plan <- checkpoint_remaining_plan(full_plan, registry, remaining)
-  resumed <- execute_analysis_plan(
-    checkpoint$analysis, checkpoint$context, registry, remaining_plan, engine
-  )
-  prior <- data.table::copy(checkpoint$execution)
-  prior <- prior[module %in% checkpoint$completed]
-  prior[, checkpoint_reused := TRUE]
-  current <- data.table::copy(resumed$execution)
-  current[, checkpoint_reused := FALSE]
-  combined <- data.table::rbindlist(list(prior, current), use.names = TRUE, fill = TRUE)
-  combined <- combined[match(full_plan$order, module)]
-  artifacts <- append_artifact_manifest(checkpoint$artifacts, resumed$artifacts)
-  metadata <- resumed$engine
-  metadata$resumed_from_checkpoint <- TRUE
-  metadata$reused_modules <- checkpoint$completed
-  resumed$analysis <- set_analysis_result(resumed$analysis, "execution_engine", metadata)
-  resumed$analysis <- set_analysis_result(resumed$analysis, "execution_ledger", combined)
-  resumed$order <- c(checkpoint$completed, resumed$order)
-  resumed$plan <- full_plan
-  resumed$artifacts <- artifacts
-  resumed$engine <- metadata
-  resumed$execution <- combined
-  resumed
 }

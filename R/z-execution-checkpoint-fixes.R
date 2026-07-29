@@ -13,19 +13,6 @@ print.PopgenVCFExecutionCheckpoint <- function(x, ...) {
   invisible(x)
 }
 
-checkpoint_remaining_plan <- function(full_plan, completed) {
-  remaining <- setdiff(full_plan$order, completed)
-  table <- full_plan$table[match(remaining, full_plan$table$module)]
-  structure(
-    list(
-      order = remaining,
-      waves = full_plan$waves[remaining],
-      table = table
-    ),
-    class = "PopgenVCFExecutionPlan"
-  )
-}
-
 #' Resume an analysis execution from a checkpoint
 #'
 #' Only modules not already recorded as successful are executed. Prior validated

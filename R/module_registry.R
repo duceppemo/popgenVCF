@@ -20,18 +20,6 @@ run_module_diversity <- function(analysis, context) {
   module_result(analysis, context)
 }
 
-run_module_pca <- function(analysis, context) {
-  cfg <- context$cfg; dirs <- context$dirs
-  pca <- run_pca(context$gds, context$sample_ids, context$final_snps,
-                 context$metadata, cfg$analyses$n_pcs, cfg$compute$threads)
-  context$pca <- pca
-  analysis <- set_analysis_result(analysis, "pca", pca[c("scores", "variance")])
-  write_tsv(pca$scores, file.path(dirs$tables, "12_PCA_scores.tsv"))
-  write_tsv(pca$variance, file.path(dirs$tables, "13_PCA_variance.tsv"))
-  plot_pca(pca, cfg, dirs)
-  module_result(analysis, context)
-}
-
 run_module_ibs <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
   ibs <- run_ibs(context$gds, context$sample_ids, context$final_snps,
@@ -131,51 +119,6 @@ run_module_ibd <- function(analysis, context) {
   module_result(analysis, context)
 }
 
-run_module_admixture <- function(analysis, context) {
-  cfg <- context$cfg; dirs <- context$dirs; ac <- cfg$analyses$admixture
-  cv <- run_admixture_cv(ac$executable, ac$plink_prefix, parse_int_range(ac$k),
-                         ac$threads, ac$cv_folds, dirs$admixture, cfg$compute$seed)
-  analysis <- set_analysis_result(analysis, "admixture_cv", cv)
-  write_tsv(cv, file.path(dirs$tables, "27_ADMIXTURE_CV.tsv"))
-  plot_admixture_cv(cv, cfg, dirs)
-  for (k in cv$K) {
-    qpath <- file.path(dirs$admixture, sprintf("%s.%d.Q", basename(ac$plink_prefix), k))
-    if (file.exists(qpath)) {
-      q <- read_admixture_q(qpath, ac$q_sample_file, context$metadata)
-      write_tsv(q, file.path(dirs$tables, sprintf("28_ADMIXTURE_Q_K%d.tsv", k)))
-      plot_q_matrix_views(
-        q, k, cfg, dirs,
-        sample_labels = public_sample_ids(context$metadata, q$sample)
-      )
-    }
-  }
-  module_result(analysis, context)
-}
-
-run_module_faststructure <- function(analysis, context) {
-  cfg <- context$cfg; dirs <- context$dirs; fc <- cfg$analyses$faststructure
-  result <- run_faststructure(fc$structure_executable, fc$choosek_executable,
-                              fc$plink_prefix, parse_int_range(fc$k),
-                              dirs$structure, cfg$compute$seed)
-  for (k in names(result$q)) {
-    q <- result$q[[k]]
-    ids <- data.table::fread(fc$q_sample_file, header = FALSE)[[1]] |> as.character()
-    if (nrow(q) != length(ids)) stop("fastStructure Q rows do not match sample-order file", call. = FALSE)
-    qdt <- data.table::as.data.table(q); qdt[, sample := ids]
-    qdt[, population := context$metadata$population[match(sample, context$metadata$sample)]]
-    data.table::setcolorder(qdt, c("sample", "population", grep("^cluster_", names(qdt), value = TRUE)))
-    result$q[[k]] <- qdt
-    write_tsv(qdt, file.path(dirs$tables, sprintf("29_fastStructure_Q_K%s.tsv", k)))
-    plot_q_matrix_views(
-      qdt, as.integer(k), cfg, dirs, prefix = "fastStructure_Q",
-      sample_labels = public_sample_ids(context$metadata, qdt$sample)
-    )
-  }
-  write_tsv(result$runs, file.path(dirs$tables, "29_fastStructure_runs.tsv"))
-  analysis <- set_analysis_result(analysis, "faststructure", result)
-  module_result(analysis, context)
-}
-
 run_module_snmf <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs; sc <- cfg$analyses$snmf
   snmf_input <- prepare_snmf_input(
@@ -256,71 +199,4 @@ run_module_chromosome <- function(analysis, context) {
   summary <- write_chromosome_results(chromosome, context$dirs)
   analysis <- set_analysis_result(analysis, "chromosome_summary", summary)
   module_result(analysis, context)
-}
-
-#' Construct the built-in analysis registry
-#' @return A populated `PopgenVCFRegistry`.
-#' @noRd
-default_analysis_registry <- function() {
-  r <- new_analysis_registry()
-  r <- register_analysis(r, "diversity", run_module_diversity,
-                         description = "Sample, population, and locus diversity",
-                         validate = validate_diversity_result,
-                         outputs = c("diversity", "diversity_ci"),
-                         references = "Nei 1987", resource_class = "heavy")
-  r <- register_analysis(r, "pca", run_module_pca,
-                         description = "Principal component analysis",
-                         validate = validate_pca_result,
-                         references = "Patterson et al. 2006", resource_class = "heavy")
-  r <- register_analysis(r, "ibs", run_module_ibs,
-                         description = "IBS matrices and multidimensional scaling",
-                         validate = validate_ibs_result,
-                         references = "Zheng et al. 2012", resource_class = "heavy")
-  r <- register_analysis(r, "tree", run_module_tree, requires = "ibs",
-                         description = "Neighbour-joining tree from IBS distance",
-                         validate = validate_tree_result,
-                         outputs = "tree", references = "Saitou and Nei 1987")
-  r <- register_analysis(r, "fst", run_module_fst,
-                         description = "Global and pairwise Weir-Cockerham FST",
-                         validate = validate_fst_result, outputs = c("fst", "fst_ci"),
-                         references = "Weir and Cockerham 1984", resource_class = "heavy")
-  r <- register_analysis(r, "dapc", run_module_dapc, requires = "diversity",
-                         enabled = function(cfg) isTRUE(cfg$analyses$dapc),
-                         description = "Discriminant analysis of principal components",
-                         validate = validate_dapc_result,
-                         references = "Jombart et al. 2010", resource_class = "heavy")
-  r <- register_analysis(r, "amova", run_module_amova, requires = "diversity",
-                         enabled = function(cfg) isTRUE(cfg$analyses$amova),
-                         description = "Analysis of molecular variance",
-                         validate = validate_amova_result,
-                         references = "Excoffier et al. 1992", resource_class = "heavy")
-  r <- register_analysis(r, "ibd", run_module_ibd, requires = "ibs",
-                         enabled = function(cfg) isTRUE(cfg$analyses$mantel) || isTRUE(cfg$analyses$isolation_by_distance),
-                         description = "Mantel test and isolation by distance",
-                         validate = validate_ibd_result,
-                         references = c("Mantel 1967", "Rousset 1997"))
-  r <- register_analysis(r, "admixture", run_module_admixture,
-                         enabled = function(cfg) isTRUE(cfg$analyses$admixture$enabled),
-                         description = "External ADMIXTURE cross-validation",
-                         validate = validate_admixture_result,
-                         outputs = "admixture_cv", references = "Alexander et al. 2009",
-                         resource_class = "external")
-  r <- register_analysis(r, "faststructure", run_module_faststructure,
-                         enabled = function(cfg) isTRUE(cfg$analyses$faststructure$enabled),
-                         description = "External fastStructure ancestry inference",
-                         validate = validate_population_structure_result,
-                         outputs = "faststructure", references = "Raj et al. 2014",
-                         resource_class = "external")
-  r <- register_analysis(r, "snmf", run_module_snmf,
-                         enabled = function(cfg) isTRUE(cfg$analyses$snmf$enabled),
-                         description = "LEA sNMF ancestry inference",
-                         validate = validate_population_structure_result,
-                         outputs = "snmf", references = "Frichot et al. 2014",
-                         resource_class = "external")
-  r <- register_analysis(r, "chromosome", run_module_chromosome,
-                         enabled = function(cfg) isTRUE(cfg$analyses$chromosome_specific),
-                         description = "Chromosome-specific PCA and FST",
-                         validate = validate_chromosome_result,
-                         outputs = "chromosome_summary", resource_class = "heavy")
-  r
 }

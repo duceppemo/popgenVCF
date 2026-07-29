@@ -112,9 +112,20 @@ admixture_output_tail <- function(output, n = 12L) {
   paste(utils::tail(text, as.integer(n)), collapse = " | ")
 }
 
-# Late-loaded replacement for the original runner. Besides handling the strict
-# ADMIXTURE chromosome parser, it treats every external-command failure as a
-# first-class error and never attempts to sort an empty CV result table.
+# Besides handling the strict ADMIXTURE chromosome parser, this treats every
+# external-command failure as a first-class error and never attempts to sort
+# an empty CV result table.
+#' Run ADMIXTURE cross-validation across K values
+#'
+#' @param executable ADMIXTURE executable name or path.
+#' @param plink_prefix Prefix of the PLINK BED dataset.
+#' @param k_values Integer ancestry-cluster values to evaluate.
+#' @param threads Number of ADMIXTURE worker threads.
+#' @param cv_folds Number of cross-validation folds.
+#' @param output_dir Directory for ADMIXTURE logs and outputs.
+#' @param seed Deterministic ADMIXTURE seed.
+#' @return A data table of K values and cross-validation errors.
+#' @export
 run_admixture_cv <- function(executable, plink_prefix, k_values, threads = 1L,
                              cv_folds = 5L, output_dir = ".", seed = 42L) {
   plink_prefix <- path.expand(as.character(plink_prefix)[1L])

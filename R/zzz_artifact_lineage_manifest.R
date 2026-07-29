@@ -1,4 +1,8 @@
-# Loaded after artifact_lineage.R to normalize empty edge collections.
+#' Derive the provenance DAG from immutable lineage
+#' @param lineage An artifact lineage object.
+#' @param validate Validate the lineage before conversion.
+#' @return A `PopgenVCFProvenanceDAG`.
+#' @export
 artifact_lineage_dag <- function(lineage, validate = TRUE) {
   if (isTRUE(validate)) validate_artifact_lineage(lineage)
   execution_nodes <- lapply(lineage$executions, function(x) new_provenance_node(

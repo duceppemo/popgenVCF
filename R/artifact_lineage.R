@@ -176,28 +176,6 @@ lineage_artifact_table <- function(lineage) {
     sha256 = x$sha256, size_bytes = x$size_bytes)), fill = TRUE)
 }
 
-#' Derive the provenance DAG from immutable lineage
-#' @param lineage An artifact lineage object.
-#' @param validate Validate the lineage before conversion.
-#' @return A `PopgenVCFProvenanceDAG`.
-#' @export
-artifact_lineage_dag <- function(lineage, validate = TRUE) {
-  if (isTRUE(validate)) validate_artifact_lineage(lineage)
-  execution_nodes <- lapply(lineage$executions, function(x) new_provenance_node(
-    id = x$id, label = x$module, kind = "analysis", digest = x$digest,
-    parameters = x$parameters, software = x$software, status = x$status,
-    started_at = x$started_at, completed_at = x$completed_at))
-  artifact_nodes <- lapply(lineage$artifacts, function(x) new_provenance_node(
-    id = x$id, label = paste(x$module, x$name, sep = "::"), kind = "artifact",
-    digest = x$sha256, parameters = x$metadata, status = "complete"))
-  edges <- unlist(lapply(lineage$artifacts, function(x) {
-    c(list(new_provenance_edge(x$producer, x$id, relation = "produces", artifact = x$id)),
-      lapply(x$consumers, function(consumer) new_provenance_edge(
-        x$id, consumer, relation = "consumes", artifact = x$id)))
-  }), recursive = FALSE)
-  new_provenance_dag(c(execution_nodes, artifact_nodes), edges)
-}
-
 #' Verify immutable artifact content
 #'
 #' File artifacts are rehashed from disk. Object artifacts require a named list of
@@ -291,18 +269,4 @@ write_artifact_lineage <- function(lineage, directory,
     written <- c(written, dot = path)
   }
   normalizePath(written, winslash = "/", mustWork = TRUE)
-}
-
-#' Attach immutable lineage to a reproducible project
-#'
-#' @param project A `PopgenVCFProject`.
-#' @param lineage A validated artifact lineage object.
-#' @return Updated project with lineage embedded in provenance.
-#' @export
-set_project_artifact_lineage <- function(project, lineage) {
-  validate_popgenvcf_project(project)
-  validate_artifact_lineage(lineage)
-  project$provenance$artifact_lineage <- lineage
-  project$component_digests$artifact_lineage <- lineage$digest
-  project
 }

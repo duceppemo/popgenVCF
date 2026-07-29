@@ -1,37 +1,5 @@
 manuscript_csl_key_pattern <- "^[A-Za-z0-9_:.+/-]+$"
 
-#' Create a manuscript citation profile
-#'
-#' @param style_id Stable citation-style identity.
-#' @param csl Optional path to a Citation Style Language file.
-#' @return A validated `PopgenVCFCitationProfile`.
-#' @export
-new_citation_profile <- function(style_id = "generic", csl = NULL) {
-  style_id <- trimws(as.character(style_id)[1L])
-  if (!nzchar(style_id)) stop("citation style identity must be non-empty", call. = FALSE)
-  csl_path <- NULL
-  csl_sha256 <- NA_character_
-  csl_name <- NA_character_
-  if (!is.null(csl)) {
-    csl_path <- normalizePath(as.character(csl)[1L], winslash = "/", mustWork = TRUE)
-    if (!identical(tolower(tools::file_ext(csl_path)), "csl")) {
-      stop("citation style file must use the .csl extension", call. = FALSE)
-    }
-    csl_sha256 <- digest::digest(csl_path, algo = "sha256", file = TRUE)
-    csl_name <- basename(csl_path)
-  }
-  profile <- structure(list(
-    schema_version = "1.0",
-    style_id = style_id,
-    csl_path = csl_path,
-    csl_name = csl_name,
-    csl_sha256 = csl_sha256,
-    bundle_path = if (is.null(csl_path)) NA_character_ else "citation-style.csl"
-  ), class = "PopgenVCFCitationProfile")
-  validate_citation_profile(profile)
-  profile
-}
-
 #' Validate a manuscript citation profile
 #'
 #' @param x A `PopgenVCFCitationProfile`.
@@ -125,6 +93,11 @@ manuscript_copy_csl <- function(profile, directory) {
   profile
 }
 
+#' Render deterministic Markdown manuscript source
+#'
+#' @param manuscript A validated `PopgenVCFManuscript`.
+#' @return A character vector containing Markdown source.
+#' @export
 render_manuscript_markdown <- function(manuscript) {
   validate_manuscript(manuscript)
   keywords <- if (length(manuscript$keywords)) paste(manuscript$keywords, collapse = "; ") else "[Keywords required.]"
@@ -163,6 +136,13 @@ render_manuscript_markdown <- function(manuscript) {
   )
 }
 
+#' Write a deterministic manuscript source directory
+#'
+#' @param manuscript A validated `PopgenVCFManuscript`.
+#' @param directory Output directory.
+#' @param overwrite Permit replacement of a non-empty directory.
+#' @return Normalized output directory, invisibly.
+#' @export
 write_manuscript <- function(manuscript, directory, overwrite = FALSE) {
   validate_manuscript(manuscript)
   if (dir.exists(directory) && length(list.files(directory, all.files = TRUE, no.. = TRUE)) && !isTRUE(overwrite)) {

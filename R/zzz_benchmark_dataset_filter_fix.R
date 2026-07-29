@@ -1,4 +1,9 @@
 # Keep catalogue filter arguments out of data.table's column lookup scope.
+#' List benchmark datasets
+#' @param catalogue A benchmark dataset catalogue.
+#' @param scale,organism,analysis,source_type Optional filters.
+#' @return A data table.
+#' @export
 list_benchmark_datasets <- function(catalogue, scale = NULL, organism = NULL,
                                     analysis = NULL, source_type = NULL) {
   if (!inherits(catalogue, "PopgenVCFBenchmarkDatasetCatalogue")) {

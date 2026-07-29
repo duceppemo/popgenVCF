@@ -9,12 +9,6 @@
   invisible(TRUE)
 }
 
-.publication_report_fingerprint <- function(x) {
-  candidate <- x
-  candidate$fingerprint <- NULL
-  digest::digest(candidate, algo = "sha256", serialize = TRUE)
-}
-
 #' Create a deterministic publication report specification
 #'
 #' @param formats Output formats selected from `html`, `pdf`, and `docx`.

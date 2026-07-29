@@ -102,14 +102,11 @@ new_canonical_baseline_snapshot <- function(id, registry, recorded_at, provenanc
     detail = "normalized against the larger approved tolerance")
 }
 
-#' Assess drift between two canonical baseline snapshots
-#'
-#' @param previous Earlier canonical baseline snapshot.
-#' @param current Later canonical baseline snapshot.
-#' @param profile Drift threshold profile.
-#' @return A `PopgenVCFCanonicalDriftAssessment`.
-#' @export
-assess_canonical_baseline_drift <- function(previous, current,
+# Core per-metric drift assessment. `assess_canonical_baseline_drift()` (the
+# exported entry point, defined in zzz_canonical_drift_consistency.R) wraps
+# this to select the aggregate classification by severity value rather than
+# by row position.
+.assess_canonical_baseline_drift_core <- function(previous, current,
                                             profile = new_canonical_drift_profile()) {
   .validate_drift_snapshot(previous)
   .validate_drift_snapshot(current)
@@ -194,11 +191,11 @@ canonical_drift_history <- function(snapshots, profile = new_canonical_drift_pro
     class = "PopgenVCFCanonicalDriftHistory")
 }
 
-#' Summarize canonical drift by dataset and analysis
-#' @param assessment Canonical drift assessment or drift history.
-#' @return Deterministic summary table.
-#' @export
-canonical_drift_summary <- function(assessment) {
+# Core per-dataset/analysis drift summary. `canonical_drift_summary()` (the
+# exported entry point, defined in zzz_canonical_drift_consistency.R) wraps
+# this to select `maximum_classification` by severity value rather than by
+# row position.
+.canonical_drift_summary_core <- function(assessment) {
   table <- if (inherits(assessment, "PopgenVCFCanonicalDriftAssessment"))
     canonical_drift_table(assessment) else if (inherits(assessment, "PopgenVCFCanonicalDriftHistory"))
     assessment$table else stop("assessment must be a drift assessment or history", call. = FALSE)

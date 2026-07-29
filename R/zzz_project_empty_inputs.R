@@ -1,7 +1,15 @@
-# Compatibility wrapper loaded after projects.R. It preserves the public
-# constructor signature while supplying a typed zero-row input manifest.
-.project_new_popgenvcf_project <- new_popgenvcf_project
-
+#' Create a reproducible popgenVCF analysis project
+#'
+#' @param name Human-readable project name.
+#' @param results Named list of canonical analysis results.
+#' @param inputs Data frame of input records or named character paths.
+#' @param parameters,modules,artifacts,reports,provenance Named project components.
+#' @param rng RNG metadata from `new_project_rng()`.
+#' @param project_id Stable UUID; generated when omitted.
+#' @param created_at UTC timestamp.
+#' @param package_version,git_sha Software identity.
+#' @return A validated `PopgenVCFProject`.
+#' @export
 new_popgenvcf_project <- function(
     name, results = list(), inputs = data.table::data.table(), parameters = list(),
     modules = list(), artifacts = list(), reports = list(), provenance = list(),

@@ -6,36 +6,6 @@ parse_admixture_cv <- function(text) {
   data.table::data.table(K = k, cv_error = value)
 }
 
-#' Run ADMIXTURE cross-validation across K values
-#'
-#' @param executable ADMIXTURE executable name or path.
-#' @param plink_prefix Prefix of the PLINK BED dataset.
-#' @param k_values Integer ancestry-cluster values to evaluate.
-#' @param threads Number of ADMIXTURE worker threads.
-#' @param cv_folds Number of cross-validation folds.
-#' @param output_dir Directory for ADMIXTURE logs and outputs.
-#' @param seed Deterministic ADMIXTURE seed.
-#' @return A data table of K values and cross-validation errors.
-#' @export
-run_admixture_cv <- function(executable, plink_prefix, k_values, threads = 1L, cv_folds = 5L,
-                             output_dir = ".", seed = 42L) {
-  bed <- paste0(plink_prefix, ".bed")
-  if (!file.exists(bed)) stopf("ADMIXTURE requires PLINK BED files; missing %s", bed)
-  exe <- Sys.which(executable)
-  if (!nzchar(exe)) stopf("ADMIXTURE executable not found: %s", executable)
-  old <- getwd(); on.exit(setwd(old), add = TRUE); setwd(output_dir)
-  results <- list()
-  for (k in k_values) {
-    log_file <- file.path(output_dir, sprintf("admixture_K%d.log", k))
-    args <- c(sprintf("--cv=%d", cv_folds), sprintf("-j%d", max(1L, as.integer(threads))), normalizePath(bed), as.character(k))
-    out <- system2(exe, args, stdout = TRUE, stderr = TRUE, env = sprintf("ADMIXTURE_SEED=%d", seed))
-    writeLines(out, log_file)
-    parsed <- parse_admixture_cv(paste(out, collapse = "\n"))
-    if (!is.null(parsed)) results[[as.character(k)]] <- parsed
-  }
-  data.table::rbindlist(results, fill = TRUE)[order(K)]
-}
-
 read_admixture_q <- function(path, sample_file, metadata) {
   if (!file.exists(path)) stopf("Q matrix not found: %s", path)
   if (is.null(sample_file) || !file.exists(sample_file)) {

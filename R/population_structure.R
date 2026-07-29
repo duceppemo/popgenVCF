@@ -148,44 +148,6 @@ parse_faststructure_k <- function(text) {
   unique(as.integer(hit[nzchar(hit)]))
 }
 
-#' Run external fastStructure across K values
-#'
-#' @param structure_executable Path or command for structure.py.
-#' @param choosek_executable Path or command for chooseK.py.
-#' @param plink_prefix PLINK BED/BIM/FAM prefix.
-#' @param k_values Integer K values.
-#' @param output_dir Output directory.
-#' @param seed Random seed.
-#' @return A list containing run records, Q matrices, and chooseK output.
-#' @export
-run_faststructure <- function(structure_executable = "structure.py", choosek_executable = "chooseK.py",
-                              plink_prefix, k_values, output_dir = ".", seed = 42L) {
-  exe <- Sys.which(structure_executable); choose <- Sys.which(choosek_executable)
-  if (!nzchar(exe)) stopf("fastStructure executable not found: %s", structure_executable)
-  if (!file.exists(paste0(plink_prefix, ".bed"))) stop("fastStructure requires PLINK BED/BIM/FAM input", call. = FALSE)
-  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-  prefix <- file.path(output_dir, "faststructure")
-  runs <- list(); q <- list()
-  for (k in as.integer(k_values)) {
-    args <- c("-K", k, "--input", normalizePath(plink_prefix), "--output", prefix,
-              "--seed", as.integer(seed + k), "--format", "bed")
-    out <- system2(exe, args, stdout = TRUE, stderr = TRUE)
-    log <- file.path(output_dir, sprintf("fastStructure_K%d.log", k)); writeLines(out, log)
-    qfile <- sprintf("%s.%d.meanQ", prefix, k)
-    if (file.exists(qfile)) q[[as.character(k)]] <- normalize_q_matrix(data.table::fread(qfile, header = FALSE))
-    runs[[as.character(k)]] <- data.table::data.table(K = k, exit_status = attr(out, "status") %||% 0L,
-                                                       log_file = log, q_file = qfile)
-  }
-  choose_text <- character()
-  if (nzchar(choose)) choose_text <- system2(choose, c("--input", prefix), stdout = TRUE, stderr = TRUE)
-  choose_votes <- parse_faststructure_k_votes(
-    paste(choose_text, collapse = "\n"), as.integer(k_values)
-  )
-  list(runs = data.table::rbindlist(runs), q = q, choose_k_text = choose_text,
-       suggested_k = parse_faststructure_k(paste(choose_text, collapse = "\n")),
-       choose_k_votes = choose_votes)
-}
-
 snmf_project_arguments <- function(geno_file, k_values, repetitions, entropy,
                                    project_mode, threads, seed) {
   threads <- as.integer(threads)[1L]
