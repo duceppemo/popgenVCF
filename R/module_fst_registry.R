@@ -10,6 +10,7 @@ fst_module_spec <- function() {
   new_analysis_module_spec(
     name = "fst",
     run = run_module_fst,
+    enabled = function(cfg) !identical(cfg$analyses$fst, FALSE),
     description = "Global and pairwise Weir-Cockerham FST",
     validate = validate_fst_result,
     outputs = c("fst", "fst_ci"),

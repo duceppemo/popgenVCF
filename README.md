@@ -34,6 +34,12 @@ docker run --rm --user "$(id -u):$(id -g)" \
   --write-config /data/analysis.yml
 ```
 
+The generated file records the logical CPUs and memory visible to the
+container. It lists every built-in analysis; analyses needing population or
+geographic metadata are present but disabled, while optional ancestry backends
+are also disabled until explicitly requested. Backend `threads: auto` values
+inherit `compute.threads`.
+
 Edit `analysis.yml` to use container paths such as `/data/cohort.vcf.gz`, then
 run:
 

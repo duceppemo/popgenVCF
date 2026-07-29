@@ -1,13 +1,20 @@
 metadata_capabilities <- function(metadata, metadata_supplied = TRUE) {
   columns <- names(metadata)
-  has_population <- "population" %in% columns &&
-    all(!is.na(metadata$population) & nzchar(metadata$population))
+  population <- if ("population" %in% columns) {
+    trimws(as.character(metadata$population))
+  } else character()
+  has_population <- "population" %in% columns && length(population) == nrow(metadata) &&
+    all(!is.na(population) & nzchar(population))
+  population_levels <- if (has_population) {
+    data.table::uniqueN(population)
+  } else 0L
   has_coordinates <- all(c("latitude", "longitude") %in% columns) &&
     any(stats::complete.cases(metadata[, c("latitude", "longitude"), with = FALSE]))
   list(
     metadata_supplied = isTRUE(metadata_supplied),
     sample = "sample" %in% columns,
     population = has_population,
+    population_levels = as.integer(population_levels),
     coordinates = has_coordinates,
     columns = columns
   )
@@ -15,7 +22,18 @@ metadata_capabilities <- function(metadata, metadata_supplied = TRUE) {
 
 analysis_capability_table <- function(registry, capabilities) {
   modules <- names(registry$modules)
-  population_modules <- intersect(modules, c("diversity", "fst", "dapc", "amova", "bootstrap"))
+  population_modules <- intersect(
+    modules,
+    c("diversity", "fst", "dapc", "amova", "bootstrap", "chromosome")
+  )
+  multi_population_modules <- intersect(
+    modules,
+    c("fst", "amova", "chromosome")
+  )
+  n_populations <- as.integer(
+    capabilities$population_levels %||%
+      if (isTRUE(capabilities$population)) 1L else 0L
+  )
   coordinate_modules <- intersect(modules, c("mantel", "isolation_by_distance", "ibd", "spatial_pca", "spca", "maps"))
   sample_modules <- intersect(modules, c(
     "pca", "ibs", "mds", "nj", "neighbor_joining", "neighbour_joining",
@@ -42,6 +60,10 @@ analysis_capability_table <- function(registry, capabilities) {
     enabled <- setdiff(enabled, coordinate_modules)
     reason[coordinate_modules] <- "no complete latitude/longitude pairs available"
   }
+  if (isTRUE(capabilities$population) && n_populations < 2L) {
+    enabled <- setdiff(enabled, multi_population_modules)
+    reason[multi_population_modules] <- "at least two populations are required"
+  }
 
   if (!isTRUE(capabilities$metadata_supplied)) {
     reason[sample_modules] <- "available from VCF sample IDs"
@@ -53,6 +75,7 @@ analysis_capability_table <- function(registry, capabilities) {
     reason = unname(reason[modules]),
     metadata_supplied = isTRUE(capabilities$metadata_supplied),
     has_population = isTRUE(capabilities$population),
+    n_populations = n_populations,
     has_coordinates = isTRUE(capabilities$coordinates)
   )
 }

@@ -16,6 +16,7 @@ pca_module_spec <- function() {
   new_analysis_module_spec(
     name = "pca",
     run = run_module_pca,
+    enabled = function(cfg) !identical(cfg$analyses$pca, FALSE),
     description = "Principal component analysis",
     validate = validate_pca_result,
     outputs = "pca",

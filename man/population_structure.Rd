@@ -32,7 +32,8 @@ run_snmf(
   repetitions = 5L,
   entropy = TRUE,
   seed = 42L,
-  project_mode = "new"
+  project_mode = "new",
+  threads = 1L
 )
 
 run_population_structure_validation(integration = FALSE, seed = 42L)
@@ -52,6 +53,7 @@ run_population_structure_validation(integration = FALSE, seed = 42L)
   \item{repetitions}{Number of sNMF repetitions per K.}
   \item{entropy}{Whether sNMF computes cross entropy.}
   \item{project_mode}{LEA project mode passed to \code{LEA::snmf}.}
+  \item{threads}{Number of CPUs used by LEA across K and repetition runs.}
   \item{integration}{Run the optional adegenet DAPC integration fixture.}
 }
 \value{Function-specific lists or data tables containing aligned membership matrices, diagnostics, reproducibility metrics, or validation checks.}

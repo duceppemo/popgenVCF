@@ -164,6 +164,11 @@ Population annotations are deliberately all-or-nothing for population-level
 analysis: one missing value makes the population capability unavailable. If
 population is not known for every sample, either complete the annotation or
 run in sample-metadata/VCF-only mode rather than inventing a population label.
+Population-comparison modules such as FST, AMOVA, and chromosome-specific FST
+also require at least two distinct populations among the samples retained after
+genotype QC. If only one population remains, those modules are skipped during
+preflight and `analysis_capabilities.tsv` records the population count and the
+reason.
 
 Metadata missingness is separate from missing genotypes in the VCF. Genotype
 calls such as `./.` contribute to sample and variant missingness and are

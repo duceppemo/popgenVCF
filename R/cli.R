@@ -59,7 +59,7 @@ parse_cli <- function(args) {
 write_default_config <- function(path) {
   if (file.exists(path)) stopf("Refusing to overwrite existing file: %s", path)
   ensure_dir(dirname(normalizePath(path, mustWork = FALSE)))
-  yaml::write_yaml(default_config(), path)
+  yaml::write_yaml(template_config(), path)
   cat(sprintf("Wrote default configuration: %s\n", normalizePath(path)))
   invisible(path)
 }

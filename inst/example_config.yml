@@ -13,6 +13,7 @@ output:
   label_samples: auto
 compute:
   threads: 8
+  memory_mb: 32768
   seed: 42
   force_gds: false
 qc:
@@ -24,17 +25,22 @@ qc:
   ld_slide_max_n: 50
   ld_start_pos: first
 analyses:
+  diversity: false
+  pca: true
   n_pcs: 10
-  dapc: true
+  ibs: true
+  tree: true
+  fst: false
+  dapc: false
   dapc_k: 2:10
   dapc_cross_validation: true
-  amova: true
-  mantel: true
-  isolation_by_distance: true
-  chromosome_specific: true
+  amova: false
+  mantel: false
+  isolation_by_distance: false
+  chromosome_specific: false
   chromosome_min_snps: 100
   bootstrap:
-    enabled: true
+    enabled: false
     replicates: 500
     unit: chromosome
   structure:
@@ -48,7 +54,7 @@ analyses:
     # Optional: otherwise generated from retained samples and LD-pruned SNPs.
     plink_prefix: null
     k: 2:10
-    threads: 8
+    threads: auto
     cv_folds: 5
   faststructure:
     enabled: false
@@ -65,6 +71,7 @@ analyses:
     k: 2:10
     repetitions: 5
     entropy: true
+    threads: auto
 report:
   enabled: true
   title: Population genomics analysis
