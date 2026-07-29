@@ -11,6 +11,10 @@ LABEL org.opencontainers.image.title="popgenVCF" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.version="${VERSION}"
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    texlive-xetex lmodern \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY inst/conda/environment.yml /tmp/popgenvcf-environment.yml
 
 RUN mamba env create --file /tmp/popgenvcf-environment.yml && \
@@ -28,6 +32,7 @@ WORKDIR /opt/popgenVCF
 COPY . /opt/popgenVCF
 
 RUN Rscript inst/scripts/install-bioconductor.R && \
+    xelatex --version && \
     R CMD INSTALL . && \
     Rscript -e 'stopifnot(as.character(packageVersion("popgenVCF")) == read.dcf("DESCRIPTION")[1, "Version"])' && \
     Rscript -e 'x <- popgenVCF::run_scientific_validation(integration = TRUE, threads = 4); print(x$checks); stopifnot(x$passed)' && \

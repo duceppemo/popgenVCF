@@ -102,3 +102,16 @@ test_that("DAPC figures distinguish unavailable replicate RMSE", {
   expect_match(annotation$text, "RMSE not estimated")
   expect_false(annotation$unstable)
 })
+
+test_that("DAPC validation handles entirely missing replicate RMSE", {
+  result <- dapc_plot_fixture(rmse = NA_real_, with_replicates = FALSE)
+  validation <- expect_silent(popgenVCF:::validate_dapc_result(
+    result,
+    analysis = NULL,
+    context = list(cfg = default_config())
+  ))
+
+  expect_true(validation$valid)
+  expect_length(validation$warnings, 0L)
+  expect_true(is.na(validation$metrics$maximum_replicate_rmse))
+})

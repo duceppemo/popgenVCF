@@ -21,6 +21,10 @@ From: condaforge/miniforge3:25.3.0-3
 
 %post
     set -eu
+    apt-get update
+    apt-get install -y --no-install-recommends texlive-xetex lmodern
+    rm -rf /var/lib/apt/lists/*
+
     mamba env create --file /opt/popgenVCF/inst/conda/environment.yml
     mamba clean --all --yes
     export PATH=/opt/conda/envs/popgenvcf/bin:$PATH
@@ -43,6 +47,7 @@ From: condaforge/miniforge3:25.3.0-3
     exec /usr/local/bin/popgenvcf "$@"
 
 %test
+    xelatex --version >/dev/null
     Rscript -e 'stopifnot(requireNamespace("popgenVCF", quietly = TRUE))'
     /usr/local/bin/popgenvcf --help >/dev/null
 

@@ -101,26 +101,21 @@ Configuration paths must refer to paths visible inside the container. Bind addit
 
 ## PDF reports
 
-The report renderer requests HTML and PDF output by default. PDF generation
-requires XeLaTeX, LuaLaTeX, or pdfLaTeX inside the environment where R runs. The
-published and repository container definitions intentionally omit a full TeX
-distribution to keep the images smaller. In those images, popgenVCF records a
-warning, skips the PDF, and continues producing the self-contained HTML report.
+The standard published container includes TeX Live and XeLaTeX, so the regular
+image produces both the self-contained HTML report and the compact PDF by
+default. There is no separate TeX-enabled image variant. Native installations
+outside the container still require XeLaTeX, LuaLaTeX, or pdfLaTeX in their
+execution environment.
 
-To produce the compact PDF, run popgenVCF in a native or derived container
-environment that includes a supported LaTeX engine. An existing completed
-analysis can be rendered without rerunning its scientific modules:
+An existing completed analysis can be rendered inside the standard image without
+rerunning its scientific modules:
 
 ```bash
 apptainer exec --cleanenv \
   --bind "$PWD:/data" \
-  popgenvcf-tex.sif \
+  popgenvcf.sif \
   Rscript -e 'popgenVCF::render_report("/data/results/analysis_results.rds", "/data/results/report", formats = "pdf")'
 ```
-
-Confirm that the engine and any required fonts are visible inside the container;
-a TeX installation available only on the host is not automatically available in
-an isolated container.
 
 ## Slurm example
 

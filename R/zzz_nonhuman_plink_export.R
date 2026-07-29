@@ -134,7 +134,7 @@ run_module_admixture <- function(analysis, context) {
     ac$executable, plink$prefix, parse_int_range(ac$k),
     ac$threads, ac$cv_folds, dirs$admixture, cfg$compute$seed
   )
-  k_selection <- select_structure_k(cv)
+  k_selection <- select_structure_k_if_informative(cv)
   analysis <- set_analysis_result(analysis, "admixture_cv", cv)
   analysis <- set_analysis_result(analysis, "admixture_k_selection", k_selection)
   analysis <- record_analysis_message(
@@ -142,6 +142,15 @@ run_module_admixture <- function(analysis, context) {
     paste("PLINK input", plink$source, "with", plink$n_samples,
           "samples and", plink$n_snps, "SNPs")
   )
+  if (is.null(k_selection)) {
+    analysis <- record_analysis_message(
+      analysis, "INFO", "admixture",
+      paste(
+        "Cluster-number consensus was not estimated because fewer than two",
+        "informative K values were available"
+      )
+    )
+  }
   write_tsv(cv, file.path(dirs$tables, "27_ADMIXTURE_CV.tsv"))
   write_structure_k_selection(k_selection, dirs, "27b_ADMIXTURE_K_selection")
   plot_admixture_cv(cv, cfg, dirs)

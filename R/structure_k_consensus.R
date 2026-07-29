@@ -20,6 +20,40 @@ structure_k_metric_specifications <- function(diagnostics) {
   candidates[metric %in% names(diagnostics)]
 }
 
+structure_k_has_informative_metrics <- function(diagnostics) {
+  x <- data.table::as.data.table(diagnostics)
+  specifications <- structure_k_metric_specifications(x)
+  if (!nrow(x) || !nrow(specifications)) return(FALSE)
+  any(vapply(
+    specifications$metric,
+    function(metric) {
+      values <- suppressWarnings(as.numeric(x[[metric]]))
+      values <- values[is.finite(values)]
+      length(unique(signif(values, 15L))) >= 2L
+    },
+    logical(1L)
+  ))
+}
+
+select_structure_k_if_informative <- function(
+    diagnostics, additional_votes = NULL, tolerance_fraction = 0.02) {
+  has_votes <- if (is.null(additional_votes)) {
+    FALSE
+  } else if (is.atomic(additional_votes)) {
+    length(additional_votes) > 0L
+  } else {
+    NROW(additional_votes) > 0L
+  }
+  if (!structure_k_has_informative_metrics(diagnostics) && !has_votes) {
+    return(NULL)
+  }
+  select_structure_k(
+    diagnostics,
+    additional_votes = additional_votes,
+    tolerance_fraction = tolerance_fraction
+  )
+}
+
 structure_k_elbow_index <- function(k, objective) {
   best <- which.max(objective)
   if (length(k) < 3L || best <= 2L) return(best)

@@ -45,9 +45,9 @@ dependencies:
   - htslib
   - vcftools
 
-  # Report and package-check utilities that solve cleanly in Conda.
-  # A complete TeX installation should be supplied by the operating system
-  # or a future container image rather than mixed into this environment.
+  # Report and package-check utilities. The container definitions install a
+  # complete TeX engine through the operating system; native Conda users must
+  # provide XeLaTeX, LuaLaTeX, or pdfLaTeX separately for PDF output.
   - pandoc
   - qpdf
   - tidy-html5

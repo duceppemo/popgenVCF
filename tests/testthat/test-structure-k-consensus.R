@@ -100,3 +100,23 @@ test_that("Calinski-Harabasz separation rewards compact distinct clusters", {
   expect_true(is.finite(separated_db))
   expect_lt(separated_db, mixed_db)
 })
+
+test_that("optional cluster-number consensus handles uninformative diagnostics", {
+  cases <- list(
+    single = data.frame(K = 2L, cv_error = 0.2),
+    flat = data.frame(K = 2:4, cv_error = rep(0.2, 3L)),
+    empty = data.frame(K = integer(), cv_error = numeric())
+  )
+
+  for (diagnostics in cases) {
+    expect_null(
+      popgenVCF:::select_structure_k_if_informative(diagnostics)
+    )
+  }
+
+  informative <- popgenVCF:::select_structure_k_if_informative(data.frame(
+    K = 2:4,
+    cv_error = c(0.3, 0.2, 0.25)
+  ))
+  expect_s3_class(informative, "PopgenVCFStructureKSelection")
+})

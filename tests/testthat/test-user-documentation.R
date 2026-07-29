@@ -149,3 +149,27 @@ test_that("README is a minimal landing page for the Wiki and pkgdown", {
   expect_false(any(grepl("## Metadata identity contract", readme, fixed = TRUE)))
   expect_false(any(grepl("before Phase 0.9.30", readme, fixed = TRUE)))
 })
+
+test_that("the standard container owns compact PDF report support", {
+  root <- require_user_documentation_root()
+  dockerfile <- readLines(file.path(root, "Dockerfile"), warn = FALSE)
+  apptainer <- readLines(file.path(root, "Apptainer.def"), warn = FALSE)
+  guides <- read_documentation_files(root, c(
+    "vignettes/containers-and-hpc.Rmd", "docs/user/apptainer.md"
+  ))
+
+  expect_true(any(grepl("texlive-xetex", dockerfile, fixed = TRUE)))
+  expect_true(any(grepl("texlive-xetex", apptainer, fixed = TRUE)))
+  expect_true(any(grepl("xelatex --version", dockerfile, fixed = TRUE)))
+  expect_true(any(grepl("xelatex --version", apptainer, fixed = TRUE)))
+  expect_true(all(vapply(
+    guides,
+    function(lines) grepl(
+      "no separate TeX-enabled", paste(lines, collapse = " "), fixed = TRUE
+    ),
+    logical(1L)
+  )))
+  expect_false(any(grepl(
+    "popgenvcf-tex", unlist(guides, use.names = FALSE), fixed = TRUE
+  )))
+})

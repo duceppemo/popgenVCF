@@ -39,6 +39,13 @@ html_escape <- function(x) {
   x <- gsub('"', "&quot;", x, fixed = TRUE)
   x
 }
+report_table_section <- function(title, table, digits = NULL, level = 1L) {
+  if (is.null(table)) return(invisible(FALSE))
+  cat(strrep("#", level), " ", title, "\n\n", sep = "")
+  cat(knitr::kable(table, digits = digits), sep = "\n")
+  cat("\n\n")
+  invisible(TRUE)
+}
 ```
 
 # Executive summary
@@ -52,63 +59,47 @@ R users; it is not required to read this report.
 
 The analysis retained **`r nrow(r$metadata)` samples** from **`r data.table::uniqueN(r$metadata$population)` populations**, with **`r length(r$qc_snps)` QC-passing SNPs** and **`r length(r$final_snps)` LD-pruned SNPs**.
 
-The global Weir-Cockerham $F_{ST}$ estimate was **`r sprintf('%.4f', r$fst$global)`**.
-
-# Quality control
-
-```{r}
-knitr::kable(r$qc$sequential, digits=2)
-```
-
-# Genetic diversity
-
-```{r}
-knitr::kable(r$diversity$population, digits=4)
-```
-
-# Principal component analysis
-
-```{r}
-knitr::kable(head(r$pca$scores, 20), digits=4)
-```
-
-# Population differentiation
-
-```{r}
-knitr::kable(r$fst$long, digits=4)
-```
-
-# Discriminant analysis of principal components
-
-```{r}
-if (!is.null(r$dapc)) knitr::kable(r$dapc$diagnostics, digits=4)
-```
-
-# AMOVA
-
-```{r}
-if (!is.null(r$amova)) {
-  knitr::kable(r$amova$components, digits=4)
-  knitr::kable(r$amova$phi, digits=4)
+```{r analysis-sections, results='asis'}
+if (!is.null(r$fst$global) && length(r$fst$global) &&
+    is.finite(r$fst$global[[1L]])) {
+  cat(sprintf(
+    "The global Weir-Cockerham $F_{ST}$ estimate was **%.4f**.\n\n",
+    r$fst$global[[1L]]
+  ))
 }
-```
-
-# Mantel test and isolation by distance
-
-```{r}
-if (!is.null(r$ibd)) knitr::kable(r$ibd$summary, digits=4)
-```
-
-# ADMIXTURE cross-validation
-
-```{r}
-if (!is.null(r$admixture_cv)) knitr::kable(r$admixture_cv, digits=6)
-```
-
-# Chromosome-specific results
-
-```{r}
-if (!is.null(r$chromosome_summary)) knitr::kable(r$chromosome_summary, digits=4)
+report_table_section("Quality control", r$qc$sequential, digits = 2)
+report_table_section("Genetic diversity", r$diversity$population, digits = 4)
+report_table_section(
+  "Principal component analysis",
+  if (!is.null(r$pca$scores)) head(r$pca$scores, 20) else NULL,
+  digits = 4
+)
+report_table_section("Population differentiation", r$fst$long, digits = 4)
+report_table_section(
+  "Discriminant analysis of principal components",
+  r$dapc$diagnostics,
+  digits = 4
+)
+if (!is.null(r$amova)) {
+  cat("# Analysis of molecular variance\n\n")
+  if (!is.null(r$amova$components)) {
+    cat(knitr::kable(r$amova$components, digits = 4), sep = "\n")
+    cat("\n\n")
+  }
+  if (!is.null(r$amova$phi)) {
+    cat(knitr::kable(r$amova$phi, digits = 4), sep = "\n")
+    cat("\n\n")
+  }
+}
+report_table_section(
+  "Mantel test and isolation by distance", r$ibd$summary, digits = 4
+)
+report_table_section(
+  "Admixture-model cross-validation", r$admixture_cv, digits = 6
+)
+report_table_section(
+  "Chromosome-specific results", r$chromosome_summary, digits = 4
+)
 ```
 
 # Figure gallery
@@ -168,22 +159,22 @@ if (is.null(report_figures) || !nrow(report_figures)) {
 
 This report was generated from the serialized pipeline result object. Exact input hashes, settings, package versions, and stage runtimes are stored alongside the report.
 
-## Population-structure reproducibility
-
-```{r}
+```{r reproducibility-sections, results='asis'}
 if (!is.null(r$dapc) && "replicate_max_rmse" %in% names(r$dapc$diagnostics)) {
-  knitr::kable(r$dapc$diagnostics[, c("K", "assignment_accuracy", "replicate_max_rmse")], digits=4)
+  report_table_section(
+    "Population-structure reproducibility",
+    r$dapc$diagnostics[, c("K", "assignment_accuracy", "replicate_max_rmse")],
+    digits = 4, level = 2L
+  )
 }
-```
-
-## fastStructure
-
-```{r}
-if (!is.null(r$faststructure) && !is.null(r$faststructure$runs)) knitr::kable(r$faststructure$runs)
-```
-
-## sNMF
-
-```{r}
-if (!is.null(r$snmf) && !is.null(r$snmf$diagnostics)) knitr::kable(r$snmf$diagnostics, digits=6)
+if (!is.null(r$faststructure$runs)) {
+  report_table_section("fastStructure", r$faststructure$runs, level = 2L)
+}
+if (!is.null(r$snmf$diagnostics)) {
+  report_table_section(
+    "Sparse non-negative matrix factorization",
+    r$snmf$diagnostics,
+    digits = 6, level = 2L
+  )
+}
 ```

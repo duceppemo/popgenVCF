@@ -107,7 +107,11 @@ validate_dapc_result <- function(result, analysis, context) {
       errors <- c(errors, "DAPC assignment accuracy is outside [0,1]")
     }
     if ("replicate_max_rmse" %in% names(result$diagnostics)) {
-      max_rmse <- max(result$diagnostics$replicate_max_rmse, na.rm = TRUE)
+      rmse <- suppressWarnings(as.numeric(
+        result$diagnostics$replicate_max_rmse
+      ))
+      finite_rmse <- rmse[is.finite(rmse)]
+      max_rmse <- if (length(finite_rmse)) max(finite_rmse) else NA_real_
       metrics$maximum_replicate_rmse <- max_rmse
       threshold <- context$cfg$analyses$structure$reproducibility_rmse %||% 0.05
       if (is.finite(max_rmse) && max_rmse > threshold) warnings <- c(warnings, "DAPC replicate membership exceeds configured RMSE threshold")

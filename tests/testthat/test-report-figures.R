@@ -78,6 +78,39 @@ test_that("standard HTML report embeds figures without requiring an RDS viewer",
   expect_match(html, "reproducibility archive", fixed = TRUE)
 })
 
+test_that("reduced HTML reports omit unavailable analysis sections", {
+  skip_if_not(rmarkdown::pandoc_available())
+  root <- tempfile("reduced-standard-report-")
+  dir.create(root)
+  results <- file.path(root, "analysis_results.rds")
+  reduced <- minimal_standard_report_result()
+  reduced[c(
+    "diversity", "fst", "dapc", "amova", "ibd", "admixture_cv",
+    "chromosome_summary", "faststructure", "snmf"
+  )] <- NULL
+  saveRDS(reduced, results)
+
+  rendered <- render_report(
+    results, file.path(root, "report"), title = "Reduced report",
+    formats = "html"
+  )
+  html <- paste(readLines(rendered[["html"]], warn = FALSE), collapse = "\n")
+
+  expect_match(html, 'id="quality-control"', fixed = TRUE)
+  expect_match(html, 'id="principal-component-analysis"', fixed = TRUE)
+  expect_no_match(html, "The global Weir-Cockerham", fixed = TRUE)
+  expect_no_match(html, 'id="genetic-diversity"', fixed = TRUE)
+  expect_no_match(html, 'id="population-differentiation"', fixed = TRUE)
+  expect_no_match(
+    html, 'id="discriminant-analysis-of-principal-components"', fixed = TRUE
+  )
+  expect_no_match(html, 'id="analysis-of-molecular-variance"', fixed = TRUE)
+  expect_no_match(html, 'id="admixture-model-cross-validation"', fixed = TRUE)
+  expect_no_match(
+    html, 'id="population-structure-reproducibility"', fixed = TRUE
+  )
+})
+
 test_that("standard PDF report uses compact vector figure sources", {
   skip_if_not(rmarkdown::pandoc_available())
   skip_if(is.null(popgenVCF:::report_latex_engine()), "No LaTeX engine")

@@ -107,3 +107,15 @@ test_that("DAPC avoids PCA work when no requested K is valid", {
   expect_length(result$models, 0L)
   expect_equal(nrow(result$diagnostics), 0L)
 })
+
+test_that("single-replicate DAPC records unestimated RMSE as missing", {
+  fixture <- dapc_parallel_fixture()
+  result <- popgenVCF:::run_dapc_analysis(
+    fixture$genotype, fixture$sample_ids, fixture$metadata,
+    k_values = 2L, seed = 42L, cross_validate = FALSE,
+    replicate_seeds = 42L, threads = 1L
+  )
+
+  expect_null(result$models[["2"]]$reproducibility)
+  expect_true(is.na(result$diagnostics$replicate_max_rmse[[1L]]))
+})

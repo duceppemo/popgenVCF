@@ -136,5 +136,8 @@ test_that("ancestry modules inject the portable converter", {
   )
 
   expect_match(admixture_body, "converter = portable_gds_to_bed", fixed = TRUE)
+  expect_match(
+    admixture_body, "select_structure_k_if_informative", fixed = TRUE
+  )
   expect_match(faststructure_body, "converter = portable_gds_to_bed", fixed = TRUE)
 })

@@ -120,7 +120,7 @@ run_dapc_k_task <- function(k, gl, shared_pca, max_pca, sample_ids,
       calinski_harabasz = calinski_harabasz_score(shared_pca$scores, grp),
       davies_bouldin = davies_bouldin_index(shared_pca$scores, grp),
       replicate_max_rmse = if (is.null(reproducibility)) {
-        0
+        NA_real_
       } else {
         max(reproducibility$metrics$rmse)
       }
@@ -185,21 +185,7 @@ run_dapc_analysis <- function(geno, sample_ids, metadata, k_values, seed,
   replicate_membership <- stats::setNames(
     lapply(results, `[[`, "replicate_membership"), keys
   )
-  metric_specifications <- structure_k_metric_specifications(diagnostics)
-  has_selection_metric <- nrow(metric_specifications) && any(vapply(
-    metric_specifications$metric,
-    function(metric) {
-      values <- as.numeric(diagnostics[[metric]])
-      values <- values[is.finite(values)]
-      length(unique(signif(values, 15L))) >= 2L
-    },
-    logical(1L)
-  ))
-  k_selection <- if (has_selection_metric) {
-    select_structure_k(diagnostics)
-  } else {
-    NULL
-  }
+  k_selection <- select_structure_k_if_informative(diagnostics)
   list(
     models = models, diagnostics = diagnostics,
     k_selection = k_selection,
