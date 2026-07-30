@@ -123,3 +123,11 @@ Marc-Olivier Duceppe
 ([ORCID 0000-0003-2130-0427](https://orcid.org/0000-0003-2130-0427))
 is assigned to perform this review. The assignment records responsibility only;
 it does not change the proposal or gate approval state.
+
+### Reviewer notes (in progress)
+
+Partial review progress toward the `analysis_contract`/`qc_evidence` checklist items, recorded ahead of a formal signed review packet:
+
+- **2026-07-30 — Marc-Olivier Duceppe:** independently re-derived the QC funnel from proposal 4's retained evidence (`06_QC_independent_counts.tsv`, `07_QC_sequential_counts.tsv`). Missingness (max 0.20) removed 0 of the 21,418 input biallelic variants; MAF ≥ 0.05 alone accounts for the drop to 2,028 QC-passing variants. **Approved**: the MAF 0.05 threshold is accepted as the intended acceptance criterion for `qc_variant_count`, not an artifact requiring revision. The `qc_variant_count = 2028` exact-match comparator stands as proposed.
+
+This note covers one of the six registered metrics only. `retained_sample_count`, `ld_pruned_variant_count`, `pca_pc1_variance_proportion`, and `pca_pc2_variance_proportion` still require independent review before the proposal can be promoted with `approve_canonical_real_data_baseline_snapshot()` and a formal, signed review packet (see `inst/scripts/scientific_review_packet.R`). This note does not itself change `approval` or `production_baseline_gate` on any snapshot.
