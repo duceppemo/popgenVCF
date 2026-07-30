@@ -139,6 +139,7 @@ write_manifest <- function(cfg, dirs, analysis, timings = NULL) {
   qc_snps <- analysis$variants$qc_ids
   final_snps <- analysis$variants$ld_ids
   timings <- timings %||% analysis$timings
+  metadata_supplied <- !is.null(cfg$input$metadata)
   manifest <- data.table::data.table(
     field = c(
       "pipeline_version", "analysis_schema", "analysis_date", "vcf",
@@ -150,7 +151,8 @@ write_manifest <- function(cfg, dirs, analysis, timings = NULL) {
       popgenvcf_version(), analysis$schema_version,
       format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
       normalizePath(cfg$input$vcf), hash_file(cfg$input$vcf),
-      normalizePath(cfg$input$metadata), hash_file(cfg$input$metadata),
+      if (metadata_supplied) normalizePath(cfg$input$metadata) else NA_character_,
+      if (metadata_supplied) hash_file(cfg$input$metadata) else NA_character_,
       nrow(metadata), data.table::uniqueN(metadata$population),
       length(qc_snps), length(final_snps), cfg$qc$maf, 0.2, 0.2,
       max(1L, min(as.integer(cfg$compute$threads), 4L))

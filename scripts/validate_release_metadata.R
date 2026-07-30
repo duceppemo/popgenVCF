@@ -98,10 +98,10 @@ record_check("description.title", identical(package_title, scalar(identity$title
 record_check("description.version", identical(package_version, scalar(identity$version)), "Version must match software identity")
 record_check(
   "description.author",
-  identical(unname(description[["Author"]]), "Marc-Olivier Duceppe [aut, cre]") &&
+  !("Author" %in% names(description)) &&
     grepl("Marc-Olivier Duceppe", unname(description[["Maintainer"]]), fixed = TRUE) &&
     grepl(scalar(identity$author$email), unname(description[["Maintainer"]]), fixed = TRUE),
-  "Author and Maintainer must match canonical identity"
+  "Maintainer must match canonical identity; Author must be omitted so R derives it from Authors@R"
 )
 record_check(
   "description.authors_at_r",
