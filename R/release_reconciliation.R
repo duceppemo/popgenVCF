@@ -30,10 +30,6 @@ release_reconciliation_export_declarations <- function(namespace_lines) {
   exports[nzchar(exports)]
 }
 
-release_reconciliation_exports <- function(namespace_lines) {
-  sort(unique(release_reconciliation_export_declarations(namespace_lines)))
-}
-
 release_reconciliation_s3_methods <- function(namespace_lines) {
   method_lines <- grep("^S3method\\(", namespace_lines, value = TRUE)
   if (length(method_lines) == 0L) {

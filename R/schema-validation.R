@@ -137,7 +137,3 @@ validate_schema_object <- function(registry,
     class = c("popgen_schema_validation_report", "list")
   )
 }
-
-`%||%` <- function(x, y) {
-  if (is.null(x)) y else x
-}

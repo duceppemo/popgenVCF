@@ -7,10 +7,6 @@ publication_result_parameters <- function(x) {
   x$parameters %||% x$provenance$parameters %||% list()
 }
 
-publication_result_metadata <- function(x) {
-  x$metadata %||% x$provenance$metadata %||% list()
-}
-
 publication_count <- function(x, candidates) {
   for (name in candidates) {
     value <- x[[name]]

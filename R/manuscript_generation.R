@@ -134,18 +134,3 @@ manuscript_author_lines <- function(authors) {
   }, character(1L))
 }
 
-manuscript_artifact_index <- function(manuscript, category) {
-  tab <- manuscript$artifacts
-  if (!nrow(tab) || !"category" %in% names(tab)) return("None recorded.")
-  tab <- tab[category == ..category]
-  if (!nrow(tab)) return("None recorded.")
-  captions <- manuscript$captions
-  labels <- setNames(captions$caption, captions$id)
-  vapply(seq_len(nrow(tab)), function(i) {
-    id <- manuscript_text(tab$id[[i]], paste0(category, "_", i))
-    destination <- manuscript_text(tab$destination[[i]] %||% tab$path[[i]], "not copied")
-    caption <- labels[[id]] %||% manuscript_text(tab$name[[i]], id)
-    paste0("- **", id, "** -- ", caption, " (`", destination, "`)")
-  }, character(1L))
-}
-
