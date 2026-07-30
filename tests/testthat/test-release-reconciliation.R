@@ -1,8 +1,13 @@
 release_reconciliation_test_root <- function() {
-  required <- c("DESCRIPTION", "NAMESPACE", "NEWS.md", "README.md", "docs/ROADMAP.md")
+  required <- c("DESCRIPTION", "NAMESPACE", "NEWS.md", "README.md")
 
   is_source_root <- function(path) {
-    nzchar(path) && dir.exists(path) && all(file.exists(file.path(path, required)))
+    # docs/ is excluded from built packages by .Rbuildignore (see
+    # release_reconciliation_root()), so a tree produced by R CMD check (e.g.
+    # 00_pkg_src/<pkg>) only ever carries the packaged inst/doc/ROADMAP.md
+    # mirror. Accept either roadmap copy.
+    nzchar(path) && dir.exists(path) && all(file.exists(file.path(path, required))) &&
+      any(file.exists(file.path(path, c("docs/ROADMAP.md", "inst/doc/ROADMAP.md"))))
   }
 
   workspace <- Sys.getenv("GITHUB_WORKSPACE", unset = "")

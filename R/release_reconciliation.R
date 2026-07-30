@@ -6,8 +6,14 @@
 
 release_reconciliation_root <- function(root = ".") {
   root <- normalizePath(root, winslash = "/", mustWork = TRUE)
-  required <- c("DESCRIPTION", "NAMESPACE", "NEWS.md", "README.md", "docs/ROADMAP.md")
+  # docs/ is excluded from built packages by .Rbuildignore, so a root built by
+  # R CMD check (e.g. 00_pkg_src/<pkg>) only ever has the packaged mirror.
+  # Accept either roadmap copy; version_signals() already tolerates the same.
+  required <- c("DESCRIPTION", "NAMESPACE", "NEWS.md", "README.md")
   missing <- required[!file.exists(file.path(root, required))]
+  if (!any(file.exists(file.path(root, c("docs/ROADMAP.md", "inst/doc/ROADMAP.md"))))) {
+    missing <- c(missing, "docs/ROADMAP.md or inst/doc/ROADMAP.md")
+  }
   if (length(missing) > 0L) {
     stop("Release reconciliation requires repository files: ", paste(missing, collapse = ", "), call. = FALSE)
   }

@@ -1,5 +1,10 @@
 package_check_source_root <- function() {
-  required <- c("DESCRIPTION", "NAMESPACE", ".Rbuildignore", "R", "man")
+  # .Rbuildignore is intentionally excluded from every built package (it is a
+  # build-time control file, never installed), so it is not required here even
+  # though one test below needs its literal content and checks for it itself.
+  # 00_pkg_src/<pkg>, produced by R CMD check, otherwise carries everything
+  # this helper needs (R/, man/, NAMESPACE, DESCRIPTION).
+  required <- c("DESCRIPTION", "NAMESPACE", "R", "man")
   current <- normalizePath(testthat::test_path(), winslash = "/", mustWork = TRUE)
   candidates <- character()
   repeat {
@@ -9,7 +14,11 @@ package_check_source_root <- function() {
     current <- parent
   }
   workspace <- Sys.getenv("GITHUB_WORKSPACE", unset = "")
-  candidates <- unique(c(workspace, candidates, file.path(candidates, "popgenVCF")))
+  candidates <- unique(c(
+    workspace, candidates,
+    file.path(candidates, "popgenVCF"),
+    file.path(candidates, "00_pkg_src", "popgenVCF")
+  ))
   matches <- candidates[vapply(candidates, function(path) {
     nzchar(path) && dir.exists(path) && all(file.exists(file.path(path, required)))
   }, logical(1))]
@@ -19,7 +28,11 @@ package_check_source_root <- function() {
 
 test_that("repository-only release files are excluded from source packages", {
   root <- package_check_source_root()
-  patterns <- readLines(file.path(root, ".Rbuildignore"), warn = FALSE)
+  ignore_file <- file.path(root, ".Rbuildignore")
+  if (!file.exists(ignore_file)) {
+    testthat::skip(".Rbuildignore is not shipped in built packages and is unavailable outside a source checkout")
+  }
+  patterns <- readLines(ignore_file, warn = FALSE)
   excluded <- c(".dockerignore", "Dockerfile", "Apptainer.def", "codemeta.json", "docker")
   expect_true(all(vapply(excluded, function(path) {
     any(vapply(patterns[nzchar(patterns)], grepl, logical(1), x = path, perl = TRUE))
