@@ -1,4 +1,5 @@
 test_that("run_pipeline executes end to end and writes the documented artifacts", {
+  skip_if(Sys.which("bcftools") == "", "bcftools is not available")
   pg_env <- popgenVCF:::.pg_env
   on.exit(pg_env$log_file <- NULL, add = TRUE)
   paths <- popgenVCF:::validation_fixture_paths()
@@ -44,6 +45,7 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
 })
 
 test_that("run_pipeline completes without a metadata file and records no metadata hash", {
+  skip_if(Sys.which("bcftools") == "", "bcftools is not available")
   pg_env <- popgenVCF:::.pg_env
   on.exit(pg_env$log_file <- NULL, add = TRUE)
   paths <- popgenVCF:::validation_fixture_paths()
