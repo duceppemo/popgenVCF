@@ -61,6 +61,7 @@ Suggests:
     knitr,
     patchwork,
     pkgdown,
+    pkgload,
     plotly,
     ragg,
     svglite,

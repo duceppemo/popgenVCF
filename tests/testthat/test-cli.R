@@ -54,7 +54,9 @@ test_that("parse_cli rejects a value option with a missing trailing value", {
 # popgenVCF is a normally installed package, so just point the subprocess's
 # library search at every path this session is already using.
 popgenvcf_subprocess_bootstrap <- function() {
-  is_dev <- isTRUE(tryCatch(pkgload::is_dev_package("popgenVCF"), error = function(e) FALSE))
+  has_pkgload <- requireNamespace("pkgload", quietly = TRUE)
+  is_dev <- has_pkgload &&
+    isTRUE(tryCatch(pkgload::is_dev_package("popgenVCF"), error = function(e) FALSE))
   if (is_dev) {
     path <- getNamespaceInfo(asNamespace("popgenVCF"), "path")
     list(expr = sprintf("pkgload::load_all(%s, quiet = TRUE)", shQuote(path)), libs = NULL)
