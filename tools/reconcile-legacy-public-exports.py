@@ -38,19 +38,9 @@ BLOCKS: dict[tuple[str, str], tuple[str, ...]] = {
         "#' @return The rendered report path, invisibly.",
         "#' @export",
     ),
-    ("R/admixture.R", "run_admixture_cv"): (
-        "#' Run ADMIXTURE cross-validation across K values",
-        "#'",
-        "#' @param executable ADMIXTURE executable name or path.",
-        "#' @param plink_prefix Prefix of the PLINK BED dataset.",
-        "#' @param k_values Integer ancestry-cluster values to evaluate.",
-        "#' @param threads Number of ADMIXTURE worker threads.",
-        "#' @param cv_folds Number of cross-validation folds.",
-        "#' @param output_dir Directory for ADMIXTURE logs and outputs.",
-        "#' @param seed Deterministic ADMIXTURE seed.",
-        "#' @return A data table of K values and cross-validation errors.",
-        "#' @export",
-    ),
+    # run_admixture_cv's canonical definition (with its own correct roxygen
+    # block) moved to R/zzzz_admixture_runtime.R during the duplicate-
+    # definition cleanup; R/admixture.R no longer defines it at all.
     ("R/pipeline.R", "run_pipeline"): (
         "#' Run the complete popgenVCF analysis pipeline",
         "#'",

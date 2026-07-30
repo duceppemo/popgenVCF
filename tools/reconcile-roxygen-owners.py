@@ -12,23 +12,14 @@ import argparse
 import re
 from pathlib import Path
 
-TARGETS: dict[str, tuple[str, ...]] = {
-    "R/benchmark_datasets.R": ("list_benchmark_datasets",),
-    "R/execution-checkpoint.R": ("resume_analysis_execution",),
-    "R/execution-engine.R": (
-        "new_execution_engine",
-        "print.PopgenVCFExecutionEngine",
-        "execute_analysis_plan",
-    ),
-    "R/manuscript_revision.R": ("compare_manuscript_revisions",),
-    "R/module_registry.R": ("default_analysis_registry",),
-    "R/phase10_public_api.R": ("write_public_api_record", "read_public_api_record"),
-    "R/publication_companion.R": ("new_publication_bundle", "generate_publication_bundle"),
-    "R/zzzzzzzz_manuscript_regeneration_plans.R": (
-        "new_manuscript_regeneration_plan",
-        "validate_manuscript_regeneration_plan",
-    ),
-}
+# Formerly tracked superseded fallback definitions (e.g. R/module_registry.R's
+# default_analysis_registry vs R/pca_registry_integration.R's). Those earlier
+# copies were confirmed to be strict behavioral subsets of the definitions
+# that actually run (the later file, by load order) and have been deleted
+# outright rather than kept as documented @noRd fallbacks, so there is
+# nothing left for this script to reconcile. Left empty, not removed, in
+# case a similar load-order-dependent pattern needs the same treatment again.
+TARGETS: dict[str, tuple[str, ...]] = {}
 
 
 def reconcile_file(path: Path, symbols: tuple[str, ...]) -> tuple[list[str], list[str]]:
