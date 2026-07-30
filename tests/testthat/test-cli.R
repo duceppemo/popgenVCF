@@ -45,20 +45,41 @@ test_that("parse_cli rejects a value option with a missing trailing value", {
   )
 })
 
+# Bootstraps a fresh Rscript subprocess so it can access popgenVCF regardless
+# of how *this* test process reached it: getwd() is not the source root under
+# every test runner (a plain `R CMD check` on a built tarball, and covr's own
+# temp-library install, both run tests from directories unrelated to the
+# checkout). In dev mode (pkgload::load_all()/devtools::test()), reuse the
+# exact source path already recorded on the loaded namespace; otherwise
+# popgenVCF is a normally installed package, so just point the subprocess's
+# library search at every path this session is already using.
+popgenvcf_subprocess_bootstrap <- function() {
+  is_dev <- isTRUE(tryCatch(pkgload::is_dev_package("popgenVCF"), error = function(e) FALSE))
+  if (is_dev) {
+    path <- getNamespaceInfo(asNamespace("popgenVCF"), "path")
+    list(expr = sprintf("pkgload::load_all(%s, quiet = TRUE)", shQuote(path)), libs = NULL)
+  } else {
+    list(expr = "suppressPackageStartupMessages(library(popgenVCF))", libs = .libPaths())
+  }
+}
+
+popgenvcf_run_rscript <- function(expr) {
+  boot <- popgenvcf_subprocess_bootstrap()
+  env <- Sys.getenv()
+  if (!is.null(boot$libs)) {
+    env["R_LIBS"] <- paste(boot$libs, collapse = .Platform$path.sep)
+  }
+  processx::run(
+    command = file.path(R.home("bin"), "Rscript"),
+    args = c("-e", paste0(boot$expr, "; ", expr)),
+    env = env,
+    error_on_status = FALSE
+  )
+}
+
 test_that("cli_usage prints documented usage and exits with the requested status", {
-  rscript <- file.path(R.home("bin"), "Rscript")
   for (status in c(0L, 1L)) {
-    res <- processx::run(
-      command = rscript,
-      args = c(
-        "-e",
-        sprintf(
-          "pkgload::load_all(%s, quiet = TRUE); popgenVCF:::cli_usage(%dL)",
-          shQuote(getwd()), status
-        )
-      ),
-      error_on_status = FALSE
-    )
+    res <- popgenvcf_run_rscript(sprintf("popgenVCF:::cli_usage(%dL)", status))
     expect_equal(res$status, status)
     expect_match(res$stdout, "popgenVCF population genomics toolkit", fixed = TRUE)
     expect_match(res$stdout, "--write-config analysis.yml", fixed = TRUE)
@@ -66,35 +87,13 @@ test_that("cli_usage prints documented usage and exits with the requested status
 })
 
 test_that("parse_cli's --help routes through cli_usage and exits 0", {
-  rscript <- file.path(R.home("bin"), "Rscript")
-  res <- processx::run(
-    command = rscript,
-    args = c(
-      "-e",
-      sprintf(
-        "pkgload::load_all(%s, quiet = TRUE); popgenVCF:::parse_cli('--help')",
-        shQuote(getwd())
-      )
-    ),
-    error_on_status = FALSE
-  )
+  res <- popgenvcf_run_rscript("popgenVCF:::parse_cli('--help')")
   expect_equal(res$status, 0L)
   expect_match(res$stdout, "Usage:", fixed = TRUE)
 })
 
 test_that("cli_main with no config or write-config routes through cli_usage and exits 1", {
-  rscript <- file.path(R.home("bin"), "Rscript")
-  res <- processx::run(
-    command = rscript,
-    args = c(
-      "-e",
-      sprintf(
-        "pkgload::load_all(%s, quiet = TRUE); popgenVCF::cli_main(character())",
-        shQuote(getwd())
-      )
-    ),
-    error_on_status = FALSE
-  )
+  res <- popgenvcf_run_rscript("popgenVCF::cli_main(character())")
   expect_equal(res$status, 1L)
   expect_match(res$stdout, "Usage:", fixed = TRUE)
 })
