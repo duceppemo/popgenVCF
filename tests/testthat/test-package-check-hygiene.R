@@ -22,7 +22,16 @@ package_check_source_root <- function() {
   matches <- candidates[vapply(candidates, function(path) {
     nzchar(path) && dir.exists(path) && all(file.exists(file.path(path, required)))
   }, logical(1))]
-  if (!length(matches)) stop("Unable to locate package source root", call. = FALSE)
+  if (!length(matches)) {
+    # Not reachable from every installed-package test run (e.g. covr's own
+    # temp-library install layout has no relationship to the checkout at
+    # all), unlike R CMD check's 00_pkg_src/<pkg> sibling. Skip rather than
+    # fail when the source tree genuinely cannot be found.
+    testthat::skip(paste0(
+      "package source tree not reachable for hygiene tests; checked: ",
+      paste(candidates, collapse = ", ")
+    ))
+  }
   normalizePath(matches[[1L]], winslash = "/", mustWork = TRUE)
 }
 
