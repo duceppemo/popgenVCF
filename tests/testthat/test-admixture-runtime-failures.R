@@ -59,13 +59,29 @@ test_that("ADMIXTURE arguments follow the documented command order", {
     bed = bed,
     k = 3L,
     cv_folds = 5L,
-    threads = 4L
+    threads = 4L,
+    seed = 42L
   )
 
   expect_identical(args[[1L]], "--cv=5")
-  expect_identical(args[[2L]], normalizePath(bed))
-  expect_identical(args[[3L]], "3")
-  expect_identical(args[[4L]], "-j4")
+  expect_identical(args[[2L]], "--seed=42")
+  expect_identical(args[[3L]], normalizePath(bed))
+  expect_identical(args[[4L]], "3")
+  expect_identical(args[[5L]], "-j4")
+})
+
+test_that("ADMIXTURE arguments encode distinct seeds so replicates are independent", {
+  root <- tempfile("admixture-seed-")
+  dir.create(root)
+  bed <- file.path(root, "cohort.bed")
+  file.create(bed)
+
+  args_a <- popgenVCF:::admixture_command_arguments(bed, 3L, 5L, 4L, seed = 111L)
+  args_b <- popgenVCF:::admixture_command_arguments(bed, 3L, 5L, 4L, seed = 999999L)
+
+  expect_identical(args_a[[2L]], "--seed=111")
+  expect_identical(args_b[[2L]], "--seed=999999")
+  expect_false(identical(args_a, args_b))
 })
 
 test_that("ADMIXTURE backend failures retain the real diagnostic", {

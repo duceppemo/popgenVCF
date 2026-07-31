@@ -85,20 +85,27 @@ normalize_admixture_bim_chromosomes <- function(plink_prefix) {
   ))
 }
 
-admixture_command_arguments <- function(bed, k, cv_folds, threads) {
+admixture_command_arguments <- function(bed, k, cv_folds, threads, seed) {
   k <- as.integer(k)[1L]
   cv_folds <- as.integer(cv_folds)[1L]
   threads <- as.integer(threads)[1L]
+  seed <- as.integer(seed)[1L]
   if (is.na(k) || k < 1L) stop("ADMIXTURE K must be a positive integer", call. = FALSE)
   if (is.na(cv_folds) || cv_folds < 2L) {
     stop("ADMIXTURE cross-validation folds must be at least two", call. = FALSE)
   }
   if (is.na(threads) || threads < 1L) threads <- 1L
+  if (is.na(seed)) stop("ADMIXTURE seed must be a finite integer", call. = FALSE)
 
   # Follow the ordering documented by the ADMIXTURE manual: cross-validation
-  # option, dataset, K, then the multithreading option.
+  # option, seed option, dataset, K, then the multithreading option. The
+  # ADMIXTURE binary reads --seed=X directly; it does not honor an
+  # ADMIXTURE_SEED environment variable (confirmed empirically: with only the
+  # env var set, repeated runs and runs with different seed values produced
+  # byte-identical Q matrices and log-likelihoods).
   c(
     sprintf("--cv=%d", cv_folds),
+    sprintf("--seed=%d", seed),
     normalizePath(bed, mustWork = TRUE),
     as.character(k),
     sprintf("-j%d", threads)
@@ -169,14 +176,13 @@ run_admixture_cv <- function(executable, plink_prefix, k_values, threads = 1L,
     )
     unlink(paste0(output_stub, c(".Q", ".P")), force = TRUE)
 
-    args <- admixture_command_arguments(bed, k, cv_folds, threads)
+    args <- admixture_command_arguments(bed, k, cv_folds, threads, seed)
     out <- tryCatch(
       suppressWarnings(system2(
         exe,
         args,
         stdout = TRUE,
-        stderr = TRUE,
-        env = sprintf("ADMIXTURE_SEED=%d", as.integer(seed))
+        stderr = TRUE
       )),
       error = function(e) structure(
         conditionMessage(e),
