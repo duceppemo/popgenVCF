@@ -153,6 +153,23 @@ reviewed <- list(
       artifact_entry("release-SHA256SUMS.txt")
     ),
     approval = NULL
+  ),
+  scientific_validation = list(
+    status = "passed",
+    summary = paste(
+      "run_scientific_validation() and run_population_structure_validation() both passed with no",
+      "failing checks: hand-calculated allele frequency/MAF/heterozygosity/missingness cross-checks,",
+      "PCA eigen-equation residual, MDS eigenspace equivalence, SNPRelate LD/FST/IBS/MAF/missingness",
+      "consistency (core suite), and DAPC synthetic classification, label-switching alignment, and",
+      "replicate reproducibility (population-structure suite) -- all within their declared",
+      "tolerances, produced by the same scientific-release-integration self-test",
+      "tagged-source-release.yml runs for the exact evaluated commit."
+    ),
+    artifacts = list(
+      artifact_entry("scientific-validation.tsv"),
+      artifact_entry("population-structure-validation.tsv")
+    ),
+    approval = NULL
   )
 )
 
