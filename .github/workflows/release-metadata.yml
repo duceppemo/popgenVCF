@@ -104,7 +104,7 @@ jobs:
               gate_id = "metadata_consistency",
               status = if (passed) "passed" else "failed",
               summary = paste(
-                "release-metadata.yml's three validators",
+                "the three validators run by release-metadata.yml",
                 "(validate_release_metadata.R: DESCRIPTION/CITATION.cff/codemeta.json/",
                 "software-identity consistency; validate_license_metadata.R: LICENSE/SPDX",
                 "consistency; validate_zenodo_metadata.R: .zenodo.json consistency)",
