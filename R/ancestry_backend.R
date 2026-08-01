@@ -202,10 +202,14 @@ faststructure_backend <- function(structure_executable = "structure.py",
     },
     execute = function(task) run_faststructure(structure_executable, choosek_executable,
       task$plink_prefix, task$k, task$output_dir %||% tempdir(), task$seed),
-    parse = function(native, task) new_ancestry_replicate(
-      task$sample_ids, native$q[[as.character(task$k)]], "faststructure",
-      k = task$k, replicate = task$replicate, seed = task$seed,
-      provenance = list(input = task$plink_prefix, suggested_k = native$suggested_k)),
+    parse = function(native, task) {
+      marginal_likelihood <- native$runs$marginal_likelihood[[1L]]
+      new_ancestry_replicate(
+        task$sample_ids, native$q[[as.character(task$k)]], "faststructure",
+        k = task$k, replicate = task$replicate, seed = task$seed,
+        metrics = if (is.finite(marginal_likelihood)) c(marginal_likelihood = marginal_likelihood) else numeric(0),
+        provenance = list(input = task$plink_prefix, suggested_k = native$suggested_k))
+    },
     description = "fastStructure variational Bayesian ancestry estimation")
 }
 

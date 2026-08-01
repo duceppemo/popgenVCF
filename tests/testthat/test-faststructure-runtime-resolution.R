@@ -53,7 +53,26 @@ test_that("the fastStructure runner reports backend failures and missing Q files
   expect_match(body_text, "fastStructure failed for K=", fixed = TRUE)
   expect_match(body_text, "did not create", fixed = TRUE)
   expect_match(body_text, "choose_k_votes", fixed = TRUE)
+  expect_match(body_text, "marginal_likelihood", fixed = TRUE)
   expect_false(grepl("popgenvcf-faststructure", body_text, fixed = TRUE))
+})
+
+test_that("marginal likelihood is parsed from fastStructure's native per-K log", {
+  lines <- c(
+    "Marginal likelihood with initialization (1) = -0.7844580010",
+    "Iteration Marginal_Likelihood delta_Marginal_Likelihood Iteration_Time (secs)",
+    "0 -0.7844525403 -- 122.254",
+    "300 -0.7828180622 0.0000007100 6.208",
+    "Marginal Likelihood = -0.7828180622",
+    "Total time = 324.6668 seconds",
+    "Total iterations = 300"
+  )
+  expect_equal(
+    popgenVCF:::parse_faststructure_marginal_likelihood(lines),
+    -0.7828180622
+  )
+  expect_true(is.na(popgenVCF:::parse_faststructure_marginal_likelihood(character())))
+  expect_true(is.na(popgenVCF:::parse_faststructure_marginal_likelihood("no such line here")))
 })
 
 test_that("the primary Conda environment declares fastStructure", {

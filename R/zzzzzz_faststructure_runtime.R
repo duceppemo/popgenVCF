@@ -33,6 +33,18 @@ faststructure_output_tail <- function(output, n = 12L) {
   paste(utils::tail(text, as.integer(n)), collapse = " | ")
 }
 
+# fastStructure writes its per-run diagnostics (including the converged
+# marginal likelihood) to its own <output-prefix>.<K>.log file, not to the
+# structure.py process's stdout/stderr -- run_faststructure_process() only
+# captures the latter, which is typically empty. Parse the log file directly.
+parse_faststructure_marginal_likelihood <- function(log_lines) {
+  text <- trimws(as.character(log_lines))
+  matches <- regmatches(text, regexpr("(?<=^Marginal Likelihood = )[-0-9.eE]+", text, perl = TRUE))
+  matches <- matches[nzchar(matches)]
+  if (!length(matches)) return(NA_real_)
+  suppressWarnings(as.numeric(matches[[length(matches)]]))
+}
+
 run_faststructure_process <- function(executable, arguments, log_file) {
   output <- tryCatch(
     suppressWarnings(system2(
@@ -143,12 +155,17 @@ run_faststructure <- function(structure_executable = "structure.py",
       )
     }
     q[[i]] <- normalize_q_matrix(data.table::fread(qfile, header = FALSE))
+    fastructure_native_log <- sprintf("%s.%d.log", prefix, k)
+    marginal_likelihood <- if (file.exists(fastructure_native_log)) {
+      parse_faststructure_marginal_likelihood(readLines(fastructure_native_log, warn = FALSE))
+    } else NA_real_
     runs[[i]] <- data.table::data.table(
       K = k,
       exit_status = process$status,
       executable = structure_command,
       log_file = log_file,
-      q_file = qfile
+      q_file = qfile,
+      marginal_likelihood = marginal_likelihood
     )
   }
 
