@@ -1,0 +1,193 @@
+name: Release candidate evidence collector
+
+# Dispatches every CI-producible release-candidate gate's workflow for a
+# candidate commit, waits for each to finish, downloads their
+# "<gate_id>-gate-record.json" fragments, and assembles a
+# release-candidate-evidence-index.json covering the 8 gates real CI can
+# determine on its own (metadata_consistency, public_api_contract,
+# source_package_check, scientific_validation, canonical_validation,
+# source_distribution, apptainer_distribution, and -- only when
+# publish_container is set -- oci_distribution).
+#
+# The remaining 7 gates (production_baseline, external_concordance,
+# ancestry_three_backend, benchmark_history, scientific_approval,
+# release_authorization, archival_assets) require real scientific review, a
+# named approval, or a real Zenodo deposition and are deliberately left
+# not_run here -- this workflow never fabricates that evidence. Add their
+# own "<gate_id>-gate-record.json" fragments to the downloaded
+# collected-sources/ artifact and re-run
+# scripts/build_release_candidate_evidence_index.R locally to produce the
+# complete, final index once that review has actually happened. See
+# docs/developer/release-candidate-closure.md.
+#
+# candidate_ref must be a branch or tag (the workflow_dispatch API cannot
+# target an arbitrary commit SHA); this workflow verifies the dispatched
+# sub-workflow runs actually landed on the exact commit it resolved at
+# checkout, failing rather than silently accepting a stale run if the ref
+# moved in between.
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_ref:
+        description: Branch or tag to build evidence for
+        required: false
+        default: main
+        type: string
+      candidate_id:
+        description: Stable identifier for this evidence-collection run
+        required: true
+        type: string
+      dataset:
+        description: Approved canonical dataset to validate
+        required: false
+        default: chr22
+        type: choice
+        options:
+          - chr22
+          - chrY
+      publish_container:
+        description: Actually push the OCI image to GHCR (real registry push; leave off for a dry run)
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: release-candidate-collector-${{ inputs.candidate_ref }}
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Check out candidate revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.candidate_ref }}
+          fetch-depth: 0
+
+      - name: Resolve candidate commit
+        id: candidate
+        run: |
+          set -euo pipefail
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "since=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - name: Install collector dependencies
+        run: Rscript -e 'install.packages(c("jsonlite", "digest"))'
+
+      - name: Dispatch, wait for, and collect each gate workflow
+        id: dispatch
+        shell: bash
+        run: |
+          set -uo pipefail
+          sha="${{ steps.candidate.outputs.sha }}"
+          ref="${{ inputs.candidate_ref }}"
+          since="${{ steps.candidate.outputs.since }}"
+          mkdir -p collected-sources
+          overall_status=0
+
+          dispatch_and_collect() {
+            local workflow="$1"; shift
+            local extra_args=("$@")
+            echo "::group::${workflow}"
+            if ! gh workflow run "$workflow" --ref "$ref" "${extra_args[@]}"; then
+              echo "Failed to dispatch ${workflow}" >&2
+              overall_status=1
+              echo "::endgroup::"
+              return
+            fi
+
+            local run_id=""
+            for _ in $(seq 1 60); do
+              run_id="$(gh run list --workflow="$workflow" --json databaseId,headSha,createdAt \
+                --jq "[.[] | select(.headSha == \"$sha\" and .createdAt >= \"$since\")] | sort_by(.databaseId) | last | .databaseId // empty")"
+              [[ -n "$run_id" ]] && break
+              sleep 10
+            done
+            if [[ -z "$run_id" ]]; then
+              echo "No dispatched run of ${workflow} appeared at ${sha}" >&2
+              overall_status=1
+              echo "::endgroup::"
+              return
+            fi
+            echo "Watching run ${run_id} for ${workflow}"
+            gh run watch "$run_id" || true
+
+            local dest="collected-sources/${workflow%.yml}"
+            mkdir -p "$dest"
+            if ! gh run download "$run_id" -D "$dest"; then
+              echo "No downloadable artifacts for ${workflow} run ${run_id} (it may have failed before producing any)" >&2
+            fi
+            echo "::endgroup::"
+          }
+
+          dispatch_and_collect release-metadata.yml
+          dispatch_and_collect public-api-contract.yml
+          dispatch_and_collect tagged-source-release.yml -f publish=false
+          dispatch_and_collect canonical-real-data.yml \
+            -f candidate_id="${{ inputs.candidate_id }}-canonical-validation" \
+            -f confirm_production=true -f "dataset=${{ inputs.dataset }}"
+          dispatch_and_collect apptainer.yml
+          if [[ "${{ inputs.publish_container }}" == "true" ]]; then
+            dispatch_and_collect container.yml -f publish=true
+          fi
+
+          echo "any_dispatch_failed=${overall_status}" >> "$GITHUB_OUTPUT"
+
+      - name: Assemble evidence index
+        run: |
+          Rscript scripts/build_release_candidate_evidence_index.R \
+            inst/metadata/release-candidate-policy.json \
+            collected-sources \
+            collected-evidence-index.json \
+            collected-evidence \
+            "${{ inputs.candidate_id }}" \
+            "${{ steps.candidate.outputs.sha }}" \
+            "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+      - name: Write collection summary
+        if: always()
+        run: |
+          {
+            echo "## Release candidate evidence collection"
+            echo
+            echo "- Candidate ref: \`${{ inputs.candidate_ref }}\`"
+            echo "- Candidate commit: \`${{ steps.candidate.outputs.sha }}\`"
+            if [[ -f collected-evidence-index.json ]]; then
+              echo
+              echo "Gates with a real fragment (the rest are honestly \`not_run\` -- see the job summary above for why):"
+              echo
+              jq -r '.records[] | select(.status != "not_run") | "- \(.gate_id): \(.status)"' collected-evidence-index.json
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload collected evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-candidate-collected-evidence-${{ inputs.candidate_id }}
+          path: |
+            collected-evidence-index.json
+            collected-evidence/
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Fail if any sub-workflow could not be dispatched or located
+        if: steps.dispatch.outputs.any_dispatch_failed == '1'
+        run: |
+          echo "One or more gate workflows failed to dispatch or never produced a run at the candidate commit; see the dispatch step log above." >&2
+          exit 1

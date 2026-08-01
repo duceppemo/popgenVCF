@@ -71,6 +71,28 @@ jobs:
           }
           RSCRIPT
 
+      - name: Write public_api_contract gate record
+        run: |
+          Rscript -e '
+            source("inst/scripts/release_candidate_gate_record.R")
+            summary_table <- read.delim("artifacts/public-api-contract/public-api-summary.tsv", stringsAsFactors = FALSE)
+            passed <- isTRUE(as.logical(summary_table$passed[[1L]]))
+            write_release_candidate_gate_record(
+              gate_id = "public_api_contract",
+              status = if (passed) "passed" else "failed",
+              summary = sprintf(
+                "public-api-contract.yml canonical baseline verification: %d entries, %d blocking finding(s), %d advisory finding(s).",
+                summary_table$entries[[1L]], summary_table$blocking_findings[[1L]], summary_table$advisory_findings[[1L]]
+              ),
+              artifact_paths = c(
+                "artifacts/public-api-contract/public-api-summary.tsv",
+                "artifacts/public-api-contract/public-api-findings.tsv"
+              ),
+              root = ".",
+              output_path = "artifacts/public-api-contract/public_api_contract-gate-record.json"
+            )
+          '
+
       - name: Upload API contract evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

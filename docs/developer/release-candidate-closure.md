@@ -163,6 +163,43 @@ Run against the real, formally approved `production_baseline`, `external_concord
 
 The resulting index was fed through the real `build_release_candidate_dossier.R` end to end: all checksums verified, `release_ready: false`, `3 / 15` required gates passed, `12` blocking gates -- exactly the state the underlying evidence actually supports, not a rehearsal placeholder. This closes the durable-retention gap for the three approved scientific gates (their evidence is now checksum-bound into a real index artifact, not only prose in `docs/`), but a production dossier still cannot become release-ready until the remaining gates are wired up and, separately, this index and its artifacts are published as assets on a real GitHub Release for `evidence_release_tag` to reference -- both still open.
 
+## Gate-record fragments and the evidence collector (2026-08-01, continued)
+
+The hand-authored, per-release-specific version of `scripts/build_release_candidate_evidence_index.R` described above (with each gate's prose and artifact list written directly in R source) was used to close out the 0.10.0 release, then replaced with a generic version once 0.10.0 shipped. It no longer hardcodes anything about a specific release.
+
+Every gate's evidence is now a small, self-describing JSON fragment named `<gate_id>-gate-record.json`:
+
+```json
+{
+  "gate_id": "<one of the release-candidate-policy.json gate ids>",
+  "status": "passed" | "failed" | "blocked" | "not_run",
+  "summary": "<one paragraph: what was checked and why the status holds>",
+  "artifacts": [
+    {"path": "<relative to this fragment's own directory>", "size_bytes": 123, "sha256": "<hex>"}
+  ],
+  "approval": null
+}
+```
+
+`approval` is `null` for gates that do not require named sign-off, or `{"state": "approved"|"rejected"|"pending", "reviewer": "<name>", "reviewed_at": "YYYY-MM-DD", "notes": "<optional>"}` for approval-required gates. `inst/scripts/release_candidate_gate_record.R` provides `write_release_candidate_gate_record()`, a small R helper any CI step or reviewer script can call to produce one correctly.
+
+Eight gates can be determined by CI alone, because they are objective technical checks rather than scientific judgment calls: `metadata_consistency`, `public_api_contract`, `source_package_check`, `scientific_validation`, `canonical_validation`, `source_distribution`, `apptainer_distribution`, and `oci_distribution` (the last one only when a real registry push happens). Each gate's own producing workflow now writes its fragment as a normal part of its run:
+
+| Gate | Workflow | Fragment location |
+| --- | --- | --- |
+| `metadata_consistency` | `release-metadata.yml` | `artifacts/metadata_consistency-gate-record.json` |
+| `public_api_contract` | `public-api-contract.yml` | `artifacts/public-api-contract/public_api_contract-gate-record.json` |
+| `source_package_check`, `scientific_validation`, `source_distribution` | `tagged-source-release.yml` | `release-assets/<gate_id>-gate-record.json` |
+| `canonical_validation` | `canonical-real-data.yml` | `canonical-production-evidence/canonical-validation-gate-record.json` |
+| `apptainer_distribution` | `apptainer.yml` | `apptainer-metadata/apptainer_distribution-gate-record.json` |
+| `oci_distribution` | `container.yml` | `release-container/oci_distribution-gate-record.json` (only when `publish=true`, i.e. a real registry push happened) |
+
+`scripts/build_release_candidate_evidence_index.R` now takes `<policy.json> <evidence-sources-dir> <output-index.json> <output-evidence-dir> <candidate-id> <git-commit> <evaluated-at>`. It recursively finds every `*-gate-record.json` under `<evidence-sources-dir>`, re-verifies each artifact's recorded checksum against the real file, flattens nested artifact paths into `<gate_id>--<flattened-path>` filenames in `<output-evidence-dir>` (GitHub Release assets cannot contain directory structure), and errors closed on a duplicate `gate_id`, an unknown `gate_id`, or a checksum mismatch. Gates with no fragment are honestly `not_run`; it never fabricates evidence.
+
+`.github/workflows/release-candidate-collector.yml` automates the CI-producible half of this: given a `candidate_ref` (a branch or tag -- the `workflow_dispatch` API cannot target an arbitrary commit SHA), a `candidate_id`, a `dataset`, and whether to actually publish the container image, it dispatches all six producing workflows against that ref, verifies each landed on the exact resolved commit (not a stale prior run), downloads their fragments, and runs the collector script -- uploading a `release-candidate-collected-evidence-<candidate_id>` artifact with whatever it could determine. A single gate's CI failure does not abort collecting the others.
+
+The remaining 7 gates -- `production_baseline`, `external_concordance`, `ancestry_three_backend`, `benchmark_history`, `scientific_approval`, `release_authorization`, and `archival_assets` -- require real scientific review, a named reviewer's sign-off, or (for `archival_assets`) an actual Zenodo deposition that can only happen after the release is published. No workflow produces these automatically, by design. To close a release candidate: download the collector's artifact, add each of those 7 gates' own `<gate_id>-gate-record.json` fragments (and their referenced evidence files) into the same source tree, and re-run `build_release_candidate_evidence_index.R` locally against the combined directory to get the final, complete index.
+
 ## Current scientific boundary
 
 The closure mechanism does not complete the production work tracked by #22, #24, #43, and #1. Until those real-data, external-tool, ancestry, benchmark, distribution, and approval records exist and are reviewed, the 0.10.0 release candidate must remain blocked.

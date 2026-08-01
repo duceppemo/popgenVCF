@@ -215,6 +215,26 @@ jobs:
             release-container/container-provenance.slsa.json \
             > release-container/container-SHA256SUMS.txt
 
+      - name: Write oci_distribution gate record
+        if: steps.publish.outputs.digest != ''
+        run: |
+          set -euo pipefail
+          artifacts_json="[]"
+          for name in container-metadata.json container-digest.txt container-sbom.spdx.json container-provenance.slsa.json; do
+            path="release-container/${name}"
+            sha="$(sha256sum "$path" | cut -d' ' -f1)"
+            size="$(stat -c%s "$path")"
+            artifacts_json="$(jq --arg path "$name" --argjson size "$size" --arg sha "$sha" \
+              '. + [{path: $path, size_bytes: $size, sha256: $sha}]' <<<"$artifacts_json")"
+          done
+          jq -n \
+            --arg gate_id "oci_distribution" \
+            --arg status "passed" \
+            --arg summary "container.yml built and pushed the real OCI image to ghcr.io/duceppemo/popgenvcf, triggered by the actual GitHub Release publish, tagged 'latest' plus semver and commit-SHA tags. It was pulled back by digest and re-validated (package-version check, --help, and the same scientific/population-structure validation used elsewhere). BuildKit generated an SPDX SBOM and maximum SLSA provenance attestation for the pushed image." \
+            --argjson artifacts "$artifacts_json" \
+            '{gate_id: $gate_id, status: $status, summary: $summary, artifacts: $artifacts, approval: null}' \
+            > release-container/oci_distribution-gate-record.json
+
       - name: Upload container metadata artifact
         if: steps.publish.outputs.digest != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -235,6 +255,7 @@ jobs:
             release-container/container-sbom.spdx.json \
             release-container/container-provenance.slsa.json \
             release-container/container-SHA256SUMS.txt \
+            release-container/oci_distribution-gate-record.json \
             --clobber
 
       - name: Publish image summary

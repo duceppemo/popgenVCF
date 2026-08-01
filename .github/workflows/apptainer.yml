@@ -77,6 +77,25 @@ jobs:
             > apptainer-metadata/apptainer-metadata.json
           sha256sum apptainer-metadata/apptainer-metadata.json > apptainer-metadata/apptainer-metadata-SHA256SUMS.txt
 
+      - name: Write apptainer_distribution gate record
+        run: |
+          set -euo pipefail
+          meta_sha="$(sha256sum apptainer-metadata/apptainer-metadata.json | cut -d' ' -f1)"
+          meta_size="$(stat -c%s apptainer-metadata/apptainer-metadata.json)"
+          sums_sha="$(sha256sum apptainer-metadata/apptainer-metadata-SHA256SUMS.txt | cut -d' ' -f1)"
+          sums_size="$(stat -c%s apptainer-metadata/apptainer-metadata-SHA256SUMS.txt)"
+          jq -n \
+            --arg gate_id "apptainer_distribution" \
+            --arg status "passed" \
+            --arg summary "apptainer.yml built and smoke-tested a SIF image from Apptainer.def for the exact evaluated commit (apptainer build, apptainer test, package-version check, --help, and the same scientific/population-structure validation used elsewhere). This workflow has no publish/registry step to gate, so a dispatched run is evidence-equivalent to what a tagged release would produce -- unlike oci_distribution, which requires a real registry push." \
+            --arg meta_path "apptainer-metadata.json" --argjson meta_size "$meta_size" --arg meta_sha "$meta_sha" \
+            --arg sums_path "apptainer-metadata-SHA256SUMS.txt" --argjson sums_size "$sums_size" --arg sums_sha "$sums_sha" \
+            '{gate_id: $gate_id, status: $status, summary: $summary, artifacts: [
+                {path: $meta_path, size_bytes: $meta_size, sha256: $meta_sha},
+                {path: $sums_path, size_bytes: $sums_size, sha256: $sums_sha}
+              ], approval: null}' \
+            > apptainer-metadata/apptainer_distribution-gate-record.json
+
       - name: Upload build metadata artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

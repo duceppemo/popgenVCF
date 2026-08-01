@@ -168,6 +168,7 @@ jobs:
           PY
 
       - name: Check built source package
+        id: check
         shell: bash
         env:
           _R_CHECK_CRAN_INCOMING_REMOTE_: 'false'
@@ -183,6 +184,33 @@ jobs:
           [[ -n "${check_dir}" ]]
           tar -czf release-assets/popgenVCF-check-results.tar.gz \
             -C release-work/check "$(basename "${check_dir}")"
+          cp "${check_dir}/00check.log" release-assets/R-CMD-check.log
+          cp "${check_dir}/00install.out" release-assets/R-CMD-install.out
+          echo "check_dir=${check_dir}" >> "$GITHUB_OUTPUT"
+
+      - name: Write source_package_check gate record
+        run: |
+          Rscript -e '
+            source("inst/scripts/release_candidate_gate_record.R")
+            log_lines <- readLines("release-assets/R-CMD-check.log", warn = FALSE)
+            status_line <- grep("^Status:", log_lines, value = TRUE)
+            ok <- length(status_line) == 1L &&
+              !grepl("ERROR", status_line, fixed = TRUE) &&
+              !grepl("WARNING", status_line, fixed = TRUE)
+            write_release_candidate_gate_record(
+              gate_id = "source_package_check",
+              status = if (ok) "passed" else "failed",
+              summary = paste0(
+                "R CMD check --as-cran on the exact built source tarball: ",
+                if (length(status_line)) status_line else "no Status line found",
+                ". 00install.out records the clean-library install R CMD check performed",
+                " internally as part of the same run."
+              ),
+              artifact_paths = c("release-assets/R-CMD-check.log", "release-assets/R-CMD-install.out"),
+              root = ".",
+              output_path = "release-assets/source_package_check-gate-record.json"
+            )
+          '
 
       - name: Install checked package
         run: R CMD INSTALL "${{ steps.package.outputs.tarball }}"
@@ -204,6 +232,29 @@ jobs:
             release-assets/scientific-validation.tsv
           cp release-work/scientific-release/run-a/records/population-structure-validation.tsv \
             release-assets/population-structure-validation.tsv
+
+      - name: Write scientific_validation gate record
+        run: |
+          Rscript -e '
+            source("inst/scripts/release_candidate_gate_record.R")
+            core <- read.delim("release-assets/scientific-validation.tsv", stringsAsFactors = FALSE)
+            structure <- read.delim("release-assets/population-structure-validation.tsv", stringsAsFactors = FALSE)
+            ok <- all(as.logical(core$passed)) && all(as.logical(structure$passed))
+            write_release_candidate_gate_record(
+              gate_id = "scientific_validation",
+              status = if (ok) "passed" else "failed",
+              summary = sprintf(
+                "run_scientific_validation() (%d checks) and run_population_structure_validation() (%d checks): %s.",
+                nrow(core), nrow(structure), if (ok) "all passed with no failing checks" else "at least one check failed"
+              ),
+              artifact_paths = c(
+                "release-assets/scientific-validation.tsv",
+                "release-assets/population-structure-validation.tsv"
+              ),
+              root = ".",
+              output_path = "release-assets/scientific_validation-gate-record.json"
+            )
+          '
 
       - name: Record runtime and dependencies
         shell: Rscript {0}
@@ -252,6 +303,33 @@ jobs:
             "${GITHUB_WORKFLOW}" \
             "${GITHUB_RUN_ID}" \
             "${GITHUB_RUN_ATTEMPT}"
+
+      - name: Write source_distribution gate record
+        run: |
+          Rscript -e '
+            source("inst/scripts/release_candidate_gate_record.R")
+            write_release_candidate_gate_record(
+              gate_id = "source_distribution",
+              status = "passed",
+              summary = paste(
+                "tagged-source-release.yml built the exact source tarball, generated its SPDX",
+                "SBOM, wrote source-release-provenance.json binding the release/commit/workflow",
+                "identity to the tarball and SBOM, and produced release-manifest.json and the",
+                "terminal release-SHA256SUMS.txt for the exact evaluated commit, all in a clean",
+                "GitHub-hosted runner. Reaching this step means every prior build, check, and",
+                "manifest-verification step already succeeded."
+              ),
+              artifact_paths = c(
+                "release-assets/${{ steps.package.outputs.asset }}",
+                "release-assets/popgenVCF-source-sbom.spdx.json",
+                "release-assets/source-release-provenance.json",
+                "release-assets/release-manifest.json",
+                "release-assets/release-SHA256SUMS.txt"
+              ),
+              root = ".",
+              output_path = "release-assets/source_distribution-gate-record.json"
+            )
+          '
 
       - name: Upload rehearsal or release assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

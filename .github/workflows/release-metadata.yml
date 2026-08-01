@@ -63,7 +63,7 @@ jobs:
 
       - name: Install metadata validators
         run: |
-          Rscript -e 'install.packages(c("jsonlite", "yaml"))'
+          Rscript -e 'install.packages(c("jsonlite", "yaml", "digest"))'
           python -m pip install --disable-pip-version-check cffconvert
 
       - name: Validate CFF schema
@@ -90,6 +90,36 @@ jobs:
           POPGENVCF_ZENODO_METADATA_EVIDENCE: artifacts/zenodo-metadata-validation.json
         run: Rscript scripts/validate_zenodo_metadata.R
 
+      - name: Write metadata_consistency gate record
+        run: |
+          Rscript -e '
+            source("inst/scripts/release_candidate_gate_record.R")
+            results <- lapply(c(
+              "artifacts/release-metadata-validation.json",
+              "artifacts/license-metadata-validation.json",
+              "artifacts/zenodo-metadata-validation.json"
+            ), jsonlite::read_json, simplifyVector = FALSE)
+            passed <- all(vapply(results, function(x) isTRUE(x$passed), logical(1L)))
+            write_release_candidate_gate_record(
+              gate_id = "metadata_consistency",
+              status = if (passed) "passed" else "failed",
+              summary = paste(
+                "release-metadata.yml's three validators",
+                "(validate_release_metadata.R: DESCRIPTION/CITATION.cff/codemeta.json/",
+                "software-identity consistency; validate_license_metadata.R: LICENSE/SPDX",
+                "consistency; validate_zenodo_metadata.R: .zenodo.json consistency)",
+                if (passed) "all passed with no failing checks." else "reported at least one failing check."
+              ),
+              artifact_paths = c(
+                "artifacts/release-metadata-validation.json",
+                "artifacts/license-metadata-validation.json",
+                "artifacts/zenodo-metadata-validation.json"
+              ),
+              root = ".",
+              output_path = "artifacts/metadata_consistency-gate-record.json"
+            )
+          '
+
       - name: Upload metadata validation evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -99,5 +129,6 @@ jobs:
             artifacts/release-metadata-validation.json
             artifacts/license-metadata-validation.json
             artifacts/zenodo-metadata-validation.json
+            artifacts/metadata_consistency-gate-record.json
           if-no-files-found: warn
           retention-days: 14
