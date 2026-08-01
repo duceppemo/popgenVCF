@@ -263,6 +263,35 @@ reviewed <- list(
       artifact_entry("container-provenance.slsa.json")
     ),
     approval = NULL
+  ),
+  scientific_approval = list(
+    status = "passed",
+    summary = paste(
+      "Marc-Olivier Duceppe, the named scientific reviewer, approved the complete scientific",
+      "evidence set for v0.10.0: production_baseline, external_concordance,",
+      "ancestry_three_backend, and benchmark_history. This approval covers the scientific",
+      "evidence only; it does not by itself authorize tagging, publication, or DOI assignment",
+      "(see release_authorization)."
+    ),
+    artifacts = list(artifact_entry("scientific-approval-record.json")),
+    approval = list(
+      state = "approved", reviewer = "Marc-Olivier Duceppe", reviewed_at = "2026-08-01",
+      notes = "See scientific-approval-record.json."
+    )
+  ),
+  release_authorization = list(
+    status = "passed",
+    summary = paste(
+      "Marc-Olivier Duceppe, as release owner, authorized tagging, publication, container-image",
+      "publication, and Zenodo deposition/DOI assignment for this exact commit, contingent on",
+      "archival_assets completing as part of that same deposition (Zenodo evidence can only",
+      "exist after the real GitHub Release it deposits from is published)."
+    ),
+    artifacts = list(artifact_entry("release-authorization-record.json")),
+    approval = list(
+      state = "approved", reviewer = "Marc-Olivier Duceppe", reviewed_at = "2026-08-01",
+      notes = "See release-authorization-record.json."
+    )
   )
 )
 
