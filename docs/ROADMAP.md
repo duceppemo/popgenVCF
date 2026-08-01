@@ -102,10 +102,12 @@ The authoritative development package version is **0.10.0**.
 - [x] execute and retain candidate-bound structural validation for the complete chromosome 22 source;
 - [x] define a bounded chromosome 22 QC, LD-pruning, and PCA proposal workflow;
 - [x] execute the quantitative proposal workflow from the reviewed implementation and retain an importable, filename-bound proposal snapshot;
-- [ ] scientifically review and approve or revise the proposed metric values and tolerances;
+- [x] scientifically review and approve or revise the proposed metric values and tolerances;
 - [ ] complete external-tool concordance and remaining full-validation evidence.
 
 These milestones complete the software, documentation, metadata, archival-readiness, and release-candidate decision contracts. They do not substitute for executing, reviewing, approving, depositing, and publishing the first production real-data baseline, external-tool concordance suite, cross-backend ancestry evidence, release benchmark history, exact distribution evidence, or final 0.10.0 release authorization.
+
+**2026-08-01 progress note:** Marc-Olivier Duceppe scientifically reviewed and approved all six registered chr22 autosomal baseline metrics (see `docs/developer/canonical-autosomal-baseline-proposal.md`); that evidence was already durably retained as a checksum-verified GitHub Actions artifact. In the same session, `external_concordance` and `ancestry_three_backend` were each executed for the first time against real chr22 data and reviewed (see `docs/SCIENTIFIC_CONCORDANCE.md` and `docs/user/ancestry-backends.md`), and `benchmark_history`'s evidence-generation pipeline was reconciled, executed through real CI, and reviewed (see `docs/CONTINUOUS_RELEASE_BENCHMARKING.md`). None of the last three are checked off above: their evidence has not yet been produced through a durable, retained production path (the concordance and ancestry runs were interactive and are not preserved anywhere beyond that session), their underlying evidence objects have not been formally transitioned from `approval: proposed` to `approved`, and no formal signed review packet has been generated for any of the four gates. `benchmark_history` is further blocked on this project's first published GitHub Release, without which no baseline comparison or trend evidence can exist.
 
 ### Completed stabilization gate
 
@@ -163,7 +165,7 @@ Repository health and release-candidate infrastructure are reconciled:
 - [x] adopt a licensed, checksum-pinned canonical dataset under an approved registry entry;
 - [x] define production baseline, scientific concordance, performance-budget, and release-evidence contracts;
 - [x] execute and retain the first reviewable production quantitative baseline proposal from the canonical real dataset;
-- [ ] scientifically approve or revise the production quantitative baseline proposal;
+- [x] scientifically approve or revise the production quantitative baseline proposal;
 - [ ] execute and publish complete external-tool scientific concordance evidence;
 - [ ] execute and approve a real-data three-backend ancestry validation case;
 - [ ] publish runtime, memory, scaling, and historical regression artifacts per release;
