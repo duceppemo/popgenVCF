@@ -244,6 +244,25 @@ reviewed <- list(
       artifact_entry("canonical-validation-methods.md")
     ),
     approval = NULL
+  ),
+  oci_distribution = list(
+    status = "passed",
+    summary = paste(
+      "container.yml built and pushed a real OCI image to ghcr.io/duceppemo/popgenvcf",
+      "(workflow_dispatch, publish=true, tagged only sha-<commit> -- no 'latest' or semver tag,",
+      "since those apply only to actual Release-triggered publishes), then pulled it back by",
+      "digest and re-ran the package-version check, --help, and the same scientific/",
+      "population-structure validation used elsewhere. BuildKit generated an SPDX SBOM and",
+      "maximum SLSA provenance attestation for the pushed image, both independently checksum-",
+      "verified before inclusion here."
+    ),
+    artifacts = list(
+      artifact_entry("container-metadata.json"),
+      artifact_entry("container-digest.txt"),
+      artifact_entry("container-sbom.spdx.json"),
+      artifact_entry("container-provenance.slsa.json")
+    ),
+    approval = NULL
   )
 )
 
