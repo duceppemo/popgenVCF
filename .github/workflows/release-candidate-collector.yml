@@ -1,7 +1,8 @@
 name: Release candidate evidence collector
 
 # Dispatches every CI-producible release-candidate gate's workflow for a
-# candidate commit, waits for each to finish, downloads their
+# candidate commit in parallel (one matrix job per gate workflow, on
+# separate runners), waits for each to finish, downloads their
 # "<gate_id>-gate-record.json" fragments, and assembles a
 # release-candidate-evidence-index.json covering the 8 gates real CI can
 # determine on its own (metadata_consistency, public_api_contract,
@@ -21,10 +22,10 @@ name: Release candidate evidence collector
 # docs/developer/release-candidate-closure.md.
 #
 # candidate_ref must be a branch or tag (the workflow_dispatch API cannot
-# target an arbitrary commit SHA); this workflow verifies the dispatched
-# sub-workflow runs actually landed on the exact commit it resolved at
-# checkout, failing rather than silently accepting a stale run if the ref
-# moved in between.
+# target an arbitrary commit SHA); each matrix job verifies its dispatched
+# sub-workflow run actually landed on the exact commit resolved in the
+# "plan" job, failing rather than silently accepting a stale prior run if
+# the ref moved in between.
 
 on:
   workflow_dispatch:
@@ -61,17 +62,17 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  collect:
+  plan:
     runs-on: ubuntu-24.04
-    timeout-minutes: 150
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    outputs:
+      sha: ${{ steps.candidate.outputs.sha }}
+      since: ${{ steps.candidate.outputs.since }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - name: Check out candidate revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.candidate_ref }}
-          fetch-depth: 0
 
       - name: Resolve candidate commit
         id: candidate
@@ -80,6 +81,89 @@ jobs:
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "since=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
 
+      - name: Build gate-workflow dispatch matrix
+        id: matrix
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg candidate_id "${{ inputs.candidate_id }}" \
+            --arg dataset "${{ inputs.dataset }}" \
+            --argjson publish_container ${{ inputs.publish_container }} \
+            '[
+              {workflow: "release-metadata.yml", key: "release-metadata", args: []},
+              {workflow: "public-api-contract.yml", key: "public-api-contract", args: []},
+              {workflow: "tagged-source-release.yml", key: "tagged-source-release", args: ["-f", "publish=false"]},
+              {workflow: "canonical-real-data.yml", key: "canonical-real-data", args: [
+                "-f", ("candidate_id=" + $candidate_id + "-canonical-validation"),
+                "-f", "confirm_production=true",
+                "-f", ("dataset=" + $dataset)
+              ]},
+              {workflow: "apptainer.yml", key: "apptainer", args: []}
+            ] + (if $publish_container then [
+              {workflow: "container.yml", key: "container", args: ["-f", "publish=true"]}
+            ] else [] end)' > matrix.json
+          echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
+          cat matrix.json
+
+  dispatch:
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.plan.outputs.matrix) }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Dispatch, wait for, and download ${{ matrix.workflow }}
+        run: |
+          set -euo pipefail
+          sha="${{ needs.plan.outputs.sha }}"
+          ref="${{ inputs.candidate_ref }}"
+          since="${{ needs.plan.outputs.since }}"
+          workflow="${{ matrix.workflow }}"
+
+          gh workflow run "$workflow" --ref "$ref" ${{ join(matrix.args, ' ') }}
+
+          run_id=""
+          for _ in $(seq 1 60); do
+            run_id="$(gh run list --workflow="$workflow" --json databaseId,headSha,createdAt \
+              --jq "[.[] | select(.headSha == \"$sha\" and .createdAt >= \"$since\")] | sort_by(.databaseId) | last | .databaseId // empty")"
+            [[ -n "$run_id" ]] && break
+            sleep 10
+          done
+          if [[ -z "$run_id" ]]; then
+            echo "No dispatched run of ${workflow} appeared at ${sha}" >&2
+            exit 1
+          fi
+          echo "Watching run ${run_id} for ${workflow}"
+          gh run watch "$run_id" || true
+
+          mkdir -p collected-sources
+          if ! gh run download "$run_id" -D collected-sources; then
+            echo "No downloadable artifacts for ${workflow} run ${run_id} (it may have failed before producing any)" >&2
+          fi
+
+      - name: Upload collected fragment(s)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-candidate-collector-fragment-${{ matrix.key }}
+          path: collected-sources/
+          if-no-files-found: warn
+          retention-days: 14
+
+  assemble:
+    needs: [plan, dispatch]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out candidate revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.candidate_ref }}
+
       - name: Set up R
         uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
         with:
@@ -87,66 +171,13 @@ jobs:
           use-public-rspm: true
 
       - name: Install collector dependencies
-        run: Rscript -e 'install.packages(c("jsonlite", "digest"))'
+        run: Rscript -e 'install.packages(c("jsonlite", "digest", "data.table"))'
 
-      - name: Dispatch, wait for, and collect each gate workflow
-        id: dispatch
-        shell: bash
-        run: |
-          set -uo pipefail
-          sha="${{ steps.candidate.outputs.sha }}"
-          ref="${{ inputs.candidate_ref }}"
-          since="${{ steps.candidate.outputs.since }}"
-          mkdir -p collected-sources
-          overall_status=0
-
-          dispatch_and_collect() {
-            local workflow="$1"; shift
-            local extra_args=("$@")
-            echo "::group::${workflow}"
-            if ! gh workflow run "$workflow" --ref "$ref" "${extra_args[@]}"; then
-              echo "Failed to dispatch ${workflow}" >&2
-              overall_status=1
-              echo "::endgroup::"
-              return
-            fi
-
-            local run_id=""
-            for _ in $(seq 1 60); do
-              run_id="$(gh run list --workflow="$workflow" --json databaseId,headSha,createdAt \
-                --jq "[.[] | select(.headSha == \"$sha\" and .createdAt >= \"$since\")] | sort_by(.databaseId) | last | .databaseId // empty")"
-              [[ -n "$run_id" ]] && break
-              sleep 10
-            done
-            if [[ -z "$run_id" ]]; then
-              echo "No dispatched run of ${workflow} appeared at ${sha}" >&2
-              overall_status=1
-              echo "::endgroup::"
-              return
-            fi
-            echo "Watching run ${run_id} for ${workflow}"
-            gh run watch "$run_id" || true
-
-            local dest="collected-sources/${workflow%.yml}"
-            mkdir -p "$dest"
-            if ! gh run download "$run_id" -D "$dest"; then
-              echo "No downloadable artifacts for ${workflow} run ${run_id} (it may have failed before producing any)" >&2
-            fi
-            echo "::endgroup::"
-          }
-
-          dispatch_and_collect release-metadata.yml
-          dispatch_and_collect public-api-contract.yml
-          dispatch_and_collect tagged-source-release.yml -f publish=false
-          dispatch_and_collect canonical-real-data.yml \
-            -f candidate_id="${{ inputs.candidate_id }}-canonical-validation" \
-            -f confirm_production=true -f "dataset=${{ inputs.dataset }}"
-          dispatch_and_collect apptainer.yml
-          if [[ "${{ inputs.publish_container }}" == "true" ]]; then
-            dispatch_and_collect container.yml -f publish=true
-          fi
-
-          echo "any_dispatch_failed=${overall_status}" >> "$GITHUB_OUTPUT"
+      - name: Download all collected fragments
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          path: collected-sources
+          pattern: release-candidate-collector-fragment-*
 
       - name: Assemble evidence index
         run: |
@@ -156,7 +187,7 @@ jobs:
             collected-evidence-index.json \
             collected-evidence \
             "${{ inputs.candidate_id }}" \
-            "${{ steps.candidate.outputs.sha }}" \
+            "${{ needs.plan.outputs.sha }}" \
             "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
       - name: Write collection summary
@@ -166,7 +197,7 @@ jobs:
             echo "## Release candidate evidence collection"
             echo
             echo "- Candidate ref: \`${{ inputs.candidate_ref }}\`"
-            echo "- Candidate commit: \`${{ steps.candidate.outputs.sha }}\`"
+            echo "- Candidate commit: \`${{ needs.plan.outputs.sha }}\`"
             if [[ -f collected-evidence-index.json ]]; then
               echo
               echo "Gates with a real fragment (the rest are honestly \`not_run\` -- see the job summary above for why):"
@@ -186,8 +217,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 90
 
-      - name: Fail if any sub-workflow could not be dispatched or located
-        if: steps.dispatch.outputs.any_dispatch_failed == '1'
+      - name: Fail if any gate workflow could not be dispatched or located
+        if: needs.dispatch.result != 'success'
         run: |
-          echo "One or more gate workflows failed to dispatch or never produced a run at the candidate commit; see the dispatch step log above." >&2
+          echo "One or more gate workflows failed to dispatch, never produced a run at the candidate commit, or errored; see the dispatch job(s) above." >&2
           exit 1
