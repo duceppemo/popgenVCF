@@ -17,10 +17,10 @@ quality control, PCA, IBS/MDS, diversity, FST, DAPC, AMOVA, population
 structure, spatial genetics, publication outputs, and machine-readable
 validation evidence.
 
-> Development series: **0.10.0** — under release-conformance review.
-> Interfaces and output schemas may change before 1.0. No development build
-> should be treated as release-approved unless its production dossier reports
-> `READY`.
+> Current release: **0.10.0** — scientifically approved and released,
+> 2026-08-01. Interfaces and output schemas may still change before 1.0. No
+> development build should be treated as release-approved unless its
+> production dossier reports `READY`.
 
 ## Quick start with Docker
 

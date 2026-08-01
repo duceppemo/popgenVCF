@@ -155,13 +155,27 @@ release_reconciliation_version <- function(root) {
   as.character(description[1L, "Version"])
 }
 
+release_reconciliation_release_status <- function(root) {
+  identity_path <- file.path(root, "inst", "metadata", "software-identity.json")
+  if (!file.exists(identity_path)) return("development")
+  identity <- jsonlite::read_json(identity_path, simplifyVector = TRUE)
+  status <- identity$release_status
+  if (is.null(status) || !status %in% c("development", "released")) return("development")
+  status
+}
+
 release_reconciliation_version_signals <- function(root, version) {
   files <- c("DESCRIPTION", "NEWS.md", "README.md", "docs/ROADMAP.md", "inst/doc/ROADMAP.md")
   files <- files[file.exists(file.path(root, files))]
+  released <- identical(release_reconciliation_release_status(root), "released")
   patterns <- c(
     DESCRIPTION = paste0("Version: ", version),
-    NEWS.md = paste0("# popgenVCF ", version, " development"),
-    README.md = paste0("Development series: **", version, "**"),
+    NEWS.md = paste0("# popgenVCF ", version, if (released) "" else " development"),
+    README.md = if (released) {
+      paste0("Current release: **", version, "**")
+    } else {
+      paste0("Development series: **", version, "**")
+    },
     `docs/ROADMAP.md` = paste0("**", version, "**"),
     `inst/doc/ROADMAP.md` = paste0("**", version, "**")
   )
@@ -242,7 +256,7 @@ release_api_reconciliation <- function(root = ".") {
     ),
     release_reconciliation_finding(
       "blocking", "release-version", version_signals$file[!version_signals$present],
-      paste0("Release-facing file does not identify development version ", version, ".")
+      paste0("Release-facing file does not identify version ", version, ".")
     ),
     release_reconciliation_finding(
       "blocking", "roxygen-namespace", missing_roxygen_exports,
