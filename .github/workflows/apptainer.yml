@@ -58,6 +58,32 @@ jobs:
             stopifnot(core$passed, structure$passed)
           '
 
+      - name: Write build metadata
+        run: |
+          set -euo pipefail
+          mkdir -p apptainer-metadata
+          package_version="$(sed -n 's/^Version:[[:space:]]*//p' DESCRIPTION)"
+          jq -n \
+            --arg schema_version "1.0" \
+            --arg record_type "popgenvcf_apptainer_build" \
+            --arg package_version "$package_version" \
+            --arg git_commit "$(git rev-parse HEAD)" \
+            --arg apptainer_version "$(apptainer version)" \
+            --arg sif_sha256 "$(sha256sum popgenvcf.sif | cut -d' ' -f1)" \
+            --argjson sif_size_bytes "$(stat -c%s popgenvcf.sif)" \
+            --arg definition_sha256 "$(sha256sum Apptainer.def | cut -d' ' -f1)" \
+            --arg built_at "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            '{schema_version: $schema_version, record_type: $record_type, package_version: $package_version, git_commit: $git_commit, apptainer_version: $apptainer_version, sif_sha256: $sif_sha256, sif_size_bytes: $sif_size_bytes, definition_sha256: $definition_sha256, built_at: $built_at}' \
+            > apptainer-metadata/apptainer-metadata.json
+          sha256sum apptainer-metadata/apptainer-metadata.json > apptainer-metadata/apptainer-metadata-SHA256SUMS.txt
+
+      - name: Upload build metadata artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: popgenVCF-apptainer-metadata
+          path: apptainer-metadata/
+          if-no-files-found: error
+
       - name: Upload SIF smoke-test artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
