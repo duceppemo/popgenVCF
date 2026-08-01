@@ -241,3 +241,13 @@ The approved three-backend case must use:
 - named review and approval.
 
 Agreement is evidence about numerical and structural consistency. It is not proof that the inferred K or ancestry components are biologically correct.
+
+### First execution and review (2026-08-01)
+
+`scripts/run-ancestry-three-backend-proposal.R` produced the first real evidence for this gate: ADMIXTURE, fastStructure, and sNMF run across K=2:10 with 5 replicates each (135 runs, all succeeded) against a 10Mb interval (`22:15000000-25000000`, ~3,586 LD-pruned SNPs) of the same approved chromosome 22 canonical source `production_baseline` uses. A narrower 1Mb interval (~350 SNPs, matching `production_baseline`'s own window) was tested earlier and found insufficient -- cross-backend Q-matrix agreement was only moderate (~0.83-0.89); the wider interval gives near-complete convergence (~0.98-0.99).
+
+**2026-08-01 -- Marc-Olivier Duceppe:** reviewed and approved the `same_biological_input`, `sample_order`, `replicate_design`, and `label_alignment` checklist items. `sample_order` was independently re-verified: the sample-order SHA-256 was recomputed from the retained PLINK `.fam` file (not taken from the evidence JSON's own self-report) and matched exactly; the PLINK `.fam` sample column and the independently generated sNMF sample-order file were diffed and found byte-identical.
+
+For `k_selection`/`biological_limits`: the three backends' individual fit-criterion recommendations diverge (ADMIXTURE CV error -> K=10, fastStructure marginal likelihood -> K=5, sNMF cross-entropy -> K=6); cross-backend consensus voting selected K=5 with only 1-of-3 backend agreement (33%). **Accepted** as the recorded finding: K=5 stands with the explicit framing "low cross-backend agreement on the K-selection criterion, but strong cross-backend Q-matrix concordance at that K" (alignment scores 0.983-0.995 across all three backend pairs at K=5) -- these are two distinct signals and must not be conflated into a single "three methods agree" claim.
+
+This review covers the manual checklist items for this proposal's evidence only; the `PopgenVCFCanonicalAncestryThreeBackendEvidence` record itself remains `approval: proposed` pending a formal signed review packet (see `inst/scripts/scientific_review_packet.R`), and the `role`/`minimum_alignment_score` values used for the cross-backend comparisons remain the documented placeholder pending a separate, explicit release-policy decision.
