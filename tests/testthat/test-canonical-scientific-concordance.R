@@ -97,3 +97,52 @@ test_that("evidence is deterministic and release gated", {
   expect_error(write_scientific_concordance_evidence(blocked, tempfile(), TRUE),
                "not release ready")
 })
+
+test_that("approve_scientific_concordance_record transitions state and validates", {
+  record <- concordance_record(approval = "proposed")
+  approved <- approve_scientific_concordance_record(record, "Reviewer Name", "2026-07-31")
+  expect_identical(approved$approval, "approved")
+  expect_identical(approved$approved_by, "Reviewer Name")
+  expect_identical(approved$approved_at, "2026-07-31")
+  expect_error(
+    approve_scientific_concordance_record(approved, "Reviewer Name", "2026-07-31"),
+    "only proposed records"
+  )
+})
+
+test_that("read_scientific_concordance_suite reconstructs a validated, equivalent suite", {
+  equivalence <- concordance_record(approval = "proposed")
+  diagnostic <- concordance_record(
+    tool = "hierfstat", analysis = "fst", role = "diagnostic", approval = "proposed"
+  )
+  suite <- new_scientific_concordance_suite(
+    list(equivalence, diagnostic), require_complete = FALSE,
+    required_tools = c("PLINK 2", "hierfstat"), required_analyses = c("pca", "fst")
+  )
+  path <- tempfile(fileext = ".json")
+  write_scientific_concordance_evidence(suite, dirname(path))
+  json_path <- file.path(dirname(path), "scientific_concordance.json")
+
+  reread <- read_scientific_concordance_suite(json_path)
+  expect_s3_class(reread, "PopgenVCFScientificConcordanceSuite")
+  expect_length(reread$records, 2L)
+  expect_false(reread$release_ready)
+
+  approved_records <- lapply(reread$records, function(r) {
+    if (identical(r$role, "equivalence")) {
+      approve_scientific_concordance_record(r, "Reviewer Name", "2026-07-31")
+    } else r
+  })
+  approved_suite <- new_scientific_concordance_suite(
+    approved_records, require_complete = FALSE,
+    required_tools = reread$required_tools, required_analyses = reread$required_analyses
+  )
+  expect_true(approved_suite$release_ready)
+
+  approved_dir <- tempfile()
+  write_scientific_concordance_evidence(approved_suite, approved_dir, require_release_ready = TRUE)
+  reapproved <- read_scientific_concordance_suite(
+    file.path(approved_dir, "scientific_concordance.json"), require_release_ready = TRUE
+  )
+  expect_true(reapproved$release_ready)
+})

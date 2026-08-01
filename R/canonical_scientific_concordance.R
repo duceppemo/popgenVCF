@@ -231,6 +231,86 @@ validate_scientific_concordance_suite <- function(suite) {
   invisible(suite)
 }
 
+#' Approve a proposed scientific concordance record
+#' @param record A validated proposed `PopgenVCFScientificConcordanceRecord`.
+#' @param approved_by Non-empty scientific reviewer identity.
+#' @param approved_at ISO-8601 review date.
+#' @return A validated approved record.
+#' @export
+approve_scientific_concordance_record <- function(record, approved_by, approved_at) {
+  validate_scientific_concordance_record(record)
+  if (!identical(record$approval, "proposed")) {
+    stop("only proposed records can be approved", call. = FALSE)
+  }
+  record$approval <- "approved"
+  record$approved_by <- approved_by
+  record$approved_at <- approved_at
+  validate_scientific_concordance_record(record, require_approved = TRUE)
+  record
+}
+
+#' Read a scientific concordance suite
+#'
+#' Reconstructs a validated suite from a JSON file written by
+#' `write_scientific_concordance_evidence()`.
+#'
+#' @param path Path to a retained `scientific_concordance.json` file.
+#' @param require_release_ready Fail unless the reconstructed suite is release ready.
+#' @return A validated `PopgenVCFScientificConcordanceSuite`.
+#' @export
+read_scientific_concordance_suite <- function(path, require_release_ready = FALSE) {
+  if (!is.character(path) || length(path) != 1L || is.na(path) || !file.exists(path) ||
+      dir.exists(path)) {
+    stop("path must identify one existing scientific concordance JSON file", call. = FALSE)
+  }
+  payload <- jsonlite::read_json(path, simplifyVector = FALSE)
+  required <- c("schema_version", "release_ready", "inventory_complete", "required_tools",
+    "required_analyses", "missing_tools", "missing_analyses", "records")
+  if (!is.list(payload) || !identical(sort(names(payload)), sort(required))) {
+    stop("invalid scientific concordance evidence JSON", call. = FALSE)
+  }
+  rows_to_data_frame <- function(rows) {
+    do.call(rbind, lapply(rows, function(row) {
+      row <- lapply(row, function(v) if (is.null(v)) NA else v)
+      as.data.frame(row, stringsAsFactors = FALSE, optional = TRUE)
+    }))
+  }
+  null_if_empty <- function(v) if (is.null(v) || (is.list(v) && !length(v))) NULL else v
+
+  records <- lapply(payload$records, function(entry) {
+    structure(list(
+      schema_version = entry$schema_version,
+      dataset_id = entry$dataset_id,
+      analysis = entry$analysis,
+      reference_tool = entry$reference_tool,
+      reference_version = entry$reference_version,
+      command = entry$command,
+      status = entry$status,
+      role = entry$role,
+      mode = entry$mode,
+      passed = isTRUE(entry$passed),
+      comparisons = rows_to_data_frame(entry$comparisons),
+      tolerance_profile = if (is.null(entry$tolerance_profile)) list() else entry$tolerance_profile,
+      environment = if (is.null(entry$environment)) list() else entry$environment,
+      interpretation = entry$interpretation,
+      citations = if (is.null(entry$citations)) character(0) else unlist(entry$citations, use.names = FALSE),
+      approval = entry$approval,
+      approved_by = null_if_empty(entry$approved_by),
+      approved_at = null_if_empty(entry$approved_at)
+    ), class = "PopgenVCFScientificConcordanceRecord")
+  })
+  lapply(records, validate_scientific_concordance_record)
+  suite <- new_scientific_concordance_suite(
+    records, require_complete = TRUE,
+    required_tools = if (is.null(payload$required_tools)) character() else unlist(payload$required_tools, use.names = FALSE),
+    required_analyses = if (is.null(payload$required_analyses)) character() else unlist(payload$required_analyses, use.names = FALSE)
+  )
+  if (isTRUE(require_release_ready) && !isTRUE(suite$release_ready)) {
+    stop("scientific concordance suite is not release ready", call. = FALSE)
+  }
+  suite
+}
+
 #' Return the scientific concordance summary table
 #' @param suite Concordance suite.
 #' @return Deterministically ordered data frame.

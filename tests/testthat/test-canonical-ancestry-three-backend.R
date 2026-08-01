@@ -242,6 +242,44 @@ test_that("write and re-read canonical ancestry three-backend evidence round-tri
   expect_identical(as.integer(payload$selected_k), evidence$selected_k)
 })
 
+test_that("read_canonical_ancestry_three_backend_evidence reconstructs a validated, equivalent object", {
+  evidence <- ancestry_three_backend_fixture_evidence()
+  path <- tempfile(fileext = ".json")
+  write_canonical_ancestry_three_backend_evidence(evidence, path)
+  reread <- read_canonical_ancestry_three_backend_evidence(path)
+  expect_s3_class(reread, "PopgenVCFCanonicalAncestryThreeBackendEvidence")
+  expect_identical(reread$dataset_id, evidence$dataset_id)
+  expect_identical(reread$sample_order_sha256, evidence$sample_order_sha256)
+  expect_identical(reread$selected_k, evidence$selected_k)
+  expect_identical(reread$approval, "proposed")
+  expect_identical(
+    vapply(reread$backend_evidence, `[[`, character(1L), "backend"),
+    vapply(evidence$backend_evidence, `[[`, character(1L), "backend")
+  )
+  expect_equal(
+    reread$backend_evidence[[1L]]$stability_by_k,
+    evidence$backend_evidence[[1L]]$stability_by_k
+  )
+  expect_equal(reread$k_selection$overall_k, evidence$k_selection$overall_k)
+})
+
+test_that("read_canonical_ancestry_three_backend_evidence enforces require_approved and round-trips approval", {
+  evidence <- ancestry_three_backend_fixture_evidence()
+  path <- tempfile(fileext = ".json")
+  write_canonical_ancestry_three_backend_evidence(evidence, path)
+  expect_error(
+    read_canonical_ancestry_three_backend_evidence(path, require_approved = TRUE),
+    "not approved"
+  )
+  reread <- read_canonical_ancestry_three_backend_evidence(path)
+  approved <- approve_canonical_ancestry_three_backend_evidence(reread, "Reviewer Name", "2026-07-31")
+  approved_path <- tempfile(fileext = ".json")
+  write_canonical_ancestry_three_backend_evidence(approved, approved_path, require_approved = TRUE)
+  reapproved <- read_canonical_ancestry_three_backend_evidence(approved_path, require_approved = TRUE)
+  expect_identical(reapproved$approval, "approved")
+  expect_identical(reapproved$approved_by, "Reviewer Name")
+})
+
 test_that("write_canonical_ancestry_three_backend_evidence enforces approval when required", {
   evidence <- ancestry_three_backend_fixture_evidence()
   expect_error(

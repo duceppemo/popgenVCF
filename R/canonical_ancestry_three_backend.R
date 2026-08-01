@@ -411,6 +411,100 @@ validate_canonical_ancestry_three_backend_evidence <- function(x, require_approv
   invisible(x)
 }
 
+#' Read canonical ancestry three-backend release evidence
+#'
+#' Reconstructs a validated evidence object from a JSON file written by
+#' `write_canonical_ancestry_three_backend_evidence()`. Raw sample identities
+#' are not persisted (only `sample_order_sha256`), so the result is rebuilt
+#' directly from the retained fields rather than via `new_canonical_ancestry_three_backend_evidence()`.
+#'
+#' @param path Path to a retained evidence JSON file.
+#' @param require_approved Fail unless the evidence is approved.
+#' @return A validated `PopgenVCFCanonicalAncestryThreeBackendEvidence`.
+#' @export
+read_canonical_ancestry_three_backend_evidence <- function(path, require_approved = FALSE) {
+  if (!is.character(path) || length(path) != 1L || is.na(path) || !file.exists(path) ||
+      dir.exists(path)) {
+    stop("path must identify one existing evidence JSON file", call. = FALSE)
+  }
+  payload <- jsonlite::read_json(path, simplifyVector = FALSE)
+  required <- c("schema_version", "dataset_id", "dataset_version", "region", "sample_count",
+                "sample_order_sha256", "backend_evidence", "cross_backend_comparisons",
+                "k_selection", "selected_k", "generated_by", "generated_at", "source_commit",
+                "approval", "approved_by", "approved_at", "notes")
+  if (!is.list(payload) || !identical(sort(names(payload)), sort(required))) {
+    stop("invalid canonical ancestry three-backend evidence JSON", call. = FALSE)
+  }
+
+  rows_to_data_frame <- function(rows) {
+    do.call(rbind, lapply(rows, function(row) {
+      row <- lapply(row, function(v) if (is.null(v)) NA else v)
+      as.data.frame(row, stringsAsFactors = FALSE, optional = TRUE)
+    }))
+  }
+  as_named_list <- function(x) if (is.null(x)) list() else x
+
+  backend_evidence <- lapply(payload$backend_evidence, function(entry) {
+    new_ancestry_backend_evidence(
+      backend = entry$backend, tool_version = entry$tool_version, command = entry$command,
+      k_values = unlist(entry$k_values, use.names = FALSE), replicates = entry$replicates,
+      seed = entry$seed,
+      metric_name = if (is.null(entry$metric_name)) NA_character_ else entry$metric_name,
+      stability_by_k = rows_to_data_frame(entry$stability_by_k),
+      provenance = as_named_list(entry$provenance)
+    )
+  })
+
+  cross_backend_comparisons <- lapply(payload$cross_backend_comparisons, function(entry) {
+    new_ancestry_cross_backend_comparison(
+      backend_a = entry$backend_a, backend_b = entry$backend_b, k = entry$k,
+      alignment = list(
+        alignment_score = entry$alignment_score, correlation_score = entry$correlation_score,
+        cosine_score = entry$cosine_score, rmsd = entry$rmsd
+      ),
+      minimum_alignment_score = entry$minimum_alignment_score,
+      role = entry$role, interpretation = entry$interpretation
+    )
+  })
+
+  ks <- payload$k_selection
+  k_selection <- structure(list(
+    summary = rows_to_data_frame(ks$summary),
+    recommendations = rows_to_data_frame(ks$recommendations),
+    overall_k = as.integer(ks$overall_k),
+    agreement = as.numeric(ks$agreement),
+    confidence_score = as.numeric(ks$confidence_score),
+    confidence = ks$confidence,
+    reason = ks$reason,
+    confidence_level = as.numeric(ks$confidence_level),
+    plateau_fraction = as.numeric(ks$plateau_fraction),
+    stability_threshold = as.numeric(ks$stability_threshold)
+  ), class = "PopgenVCFKSelection")
+  validate_ancestry_k_selection(k_selection)
+
+  x <- structure(list(
+    schema_version = payload$schema_version,
+    dataset_id = payload$dataset_id,
+    dataset_version = payload$dataset_version,
+    region = payload$region,
+    sample_count = as.integer(payload$sample_count),
+    sample_order_sha256 = payload$sample_order_sha256,
+    backend_evidence = backend_evidence,
+    cross_backend_comparisons = cross_backend_comparisons,
+    k_selection = k_selection,
+    selected_k = as.integer(payload$selected_k),
+    generated_by = payload$generated_by,
+    generated_at = payload$generated_at,
+    source_commit = payload$source_commit,
+    approval = payload$approval,
+    approved_by = payload$approved_by,
+    approved_at = payload$approved_at,
+    notes = payload$notes
+  ), class = "PopgenVCFCanonicalAncestryThreeBackendEvidence")
+  validate_canonical_ancestry_three_backend_evidence(x, require_approved = require_approved)
+  x
+}
+
 #' Approve proposed canonical ancestry three-backend evidence
 #' @param x A validated proposed `PopgenVCFCanonicalAncestryThreeBackendEvidence`.
 #' @param approved_by Non-empty scientific reviewer identity.
