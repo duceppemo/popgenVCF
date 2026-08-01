@@ -186,6 +186,22 @@ reviewed <- list(
       artifact_entry("R-CMD-install.out")
     ),
     approval = NULL
+  ),
+  metadata_consistency = list(
+    status = "passed",
+    summary = paste(
+      "release-metadata.yml's three validators all passed with no failing checks:",
+      "validate_release_metadata.R (DESCRIPTION/CITATION.cff/codemeta.json/software-identity",
+      "consistency, including the development-release boundary -- no release date or DOI claimed",
+      "while unreleased), validate_license_metadata.R (LICENSE/SPDX consistency), and",
+      "validate_zenodo_metadata.R (.zenodo.json consistency)."
+    ),
+    artifacts = list(
+      artifact_entry("release-metadata-validation.json"),
+      artifact_entry("license-metadata-validation.json"),
+      artifact_entry("zenodo-metadata-validation.json")
+    ),
+    approval = NULL
   )
 )
 
