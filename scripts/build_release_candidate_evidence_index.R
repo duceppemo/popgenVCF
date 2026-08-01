@@ -221,23 +221,25 @@ reviewed <- list(
   canonical_validation = list(
     status = "passed",
     summary = paste(
-      "canonical-real-data.yml's production execution (candidate_id 0.10.0-canonical-validation-1)",
+      "canonical-real-data.yml's production execution (candidate_id 0.10.0-canonical-validation-2)",
       "acquired the approved canonical dataset 1000g_phase3_chr22_v5a 20130502-v5a in a clean",
       "environment, verified it against the approved upstream MD5 inventory, promoted it to SHA-256,",
       "and structurally inspected it with bcftools against the complete sample metadata -- all for",
-      "the exact evaluated commit. No raw genotype data is retained in this evidence."
+      "the exact evaluated commit. No raw genotype data is retained in this evidence. Artifact",
+      "filenames are flattened (no subdirectories) because GitHub Release assets cannot contain",
+      "directory structure."
     ),
     artifacts = list(
       artifact_entry("canonical_dataset_structure.tsv"),
       artifact_entry("canonical_sample_metadata.tsv"),
       artifact_entry("canonical-production-environment.tsv"),
       artifact_entry("canonical-production-execution.json"),
-      artifact_entry("source/canonical_dataset_registry.tsv"),
-      artifact_entry("source/canonical_source_acquisition.tsv"),
-      artifact_entry("source/canonical_source_verification.tsv"),
-      artifact_entry("source/dataset/canonical_dataset_verification.tsv"),
-      artifact_entry("source/dataset/canonical_dataset.tsv"),
-      artifact_entry("source/dataset/canonical_validation_methods.md")
+      artifact_entry("canonical-source-dataset-registry.tsv"),
+      artifact_entry("canonical-source-acquisition.tsv"),
+      artifact_entry("canonical-source-verification.tsv"),
+      artifact_entry("canonical-dataset-verification.tsv"),
+      artifact_entry("canonical-dataset-record.tsv"),
+      artifact_entry("canonical-validation-methods.md")
     ),
     approval = NULL
   )
