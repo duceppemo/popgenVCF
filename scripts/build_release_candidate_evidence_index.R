@@ -202,6 +202,21 @@ reviewed <- list(
       artifact_entry("zenodo-metadata-validation.json")
     ),
     approval = NULL
+  ),
+  public_api_contract = list(
+    status = "passed",
+    summary = paste(
+      "public-api-contract.yml's canonical baseline verification passed: 627 entries, 0 blocking",
+      "findings. 17 advisory findings are present -- all new public exports and optional arguments",
+      "added this release cycle (the read_/approve_ evidence functions and a few unrelated optional",
+      "arguments) -- expected and non-blocking; the canonical baseline is refreshed and reviewed",
+      "separately from this gate, not automatically."
+    ),
+    artifacts = list(
+      artifact_entry("public-api-summary.tsv"),
+      artifact_entry("public-api-findings.tsv")
+    ),
+    approval = NULL
   )
 )
 
