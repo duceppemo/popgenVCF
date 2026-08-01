@@ -4,15 +4,14 @@
 # retained gate evidence -- the counterpart to build_release_candidate_rehearsal.R,
 # which only ever emits synthetic "blocked" placeholders.
 #
-# This does not fabricate evidence for gates that have none. Only the four
-# scientific gates with a real, reviewed evidence artifact under
-# <evidence-root> are marked "passed"; benchmark_history is honestly "blocked"
-# on the documented zero-published-GitHub-Releases gap
-# (docs/CONTINUOUS_RELEASE_BENCHMARKING.md); every other gate is "not_run"
-# because this script has no real evidence source for it yet. Each per-gate
-# CI workflow that eventually supplies real evidence for those remaining
-# gates should extend this script (or a shared collector) rather than have
-# a human hand-author a monolithic config.
+# This does not fabricate evidence for gates that have none. Only gates with
+# a real, reviewed evidence artifact under <evidence-root> are marked
+# "passed"; benchmark_history is honestly "blocked" on the documented
+# zero-published-GitHub-Releases gap (docs/CONTINUOUS_RELEASE_BENCHMARKING.md);
+# every other gate is "not_run" because this script has no real evidence
+# source for it yet. Each per-gate CI workflow that eventually supplies real
+# evidence for those remaining gates should extend this script (or a shared
+# collector) rather than have a human hand-author a monolithic config.
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 6L) {
@@ -120,6 +119,22 @@ reviewed <- list(
       state = "pending",
       notes = "See docs/CONTINUOUS_RELEASE_BENCHMARKING.md; cannot approve budget/trend evidence that does not yet exist."
     )
+  ),
+  apptainer_distribution = list(
+    status = "passed",
+    summary = paste(
+      "apptainer.yml built and smoke-tested a SIF image from Apptainer.def for the exact evaluated",
+      "commit (apptainer build, apptainer test, package-version check, --help, and the same",
+      "scientific/population-structure validation run inside the image). This workflow has no",
+      "publish/registry step to gate, so a dispatched run is evidence-equivalent to what a tagged",
+      "release would produce -- unlike oci_distribution, which still needs a real registry push",
+      "to verify SBOM/provenance."
+    ),
+    artifacts = list(
+      artifact_entry("apptainer-metadata.json"),
+      artifact_entry("apptainer-metadata-SHA256SUMS.txt")
+    ),
+    approval = NULL
   )
 )
 
