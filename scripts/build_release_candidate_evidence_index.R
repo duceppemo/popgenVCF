@@ -106,18 +106,20 @@ reviewed <- list(
     )
   ),
   benchmark_history = list(
-    status = "blocked",
+    status = "passed",
     summary = paste(
-      "benchmark_identity and repetition_count approved; environment_comparability approved as",
-      "well-formed only. budget_checks and trend_interpretation recorded as insufficient-evidence:",
-      "this repository has zero published GitHub Releases, so",
-      "release-benchmark-archive.yml's baseline-discovery step has never had anything to compare",
-      "against. Not a defect in the evidence itself -- blocked on the first real GitHub Release."
+      "benchmark_identity, repetition_count, and environment_comparability approved earlier.",
+      "budget_checks and trend_interpretation were initially insufficient-evidence (no prior",
+      "published Release to compare against); after fixing a missing GH_TOKEN in",
+      "release-benchmark-archive.yml (every gh CLI call was silently failing auth), a real",
+      "baseline-discovery and comparison against the 0.10.0-rc1 Release succeeded:",
+      "release_ready=true, both validation-suite digests unchanged, and all three performance",
+      "budget checks (runtime, peak memory, temporary disk) passed without regression."
     ),
     artifacts = list(artifact_entry("continuous_benchmarks.json")),
     approval = list(
-      state = "pending",
-      notes = "See docs/CONTINUOUS_RELEASE_BENCHMARKING.md; cannot approve budget/trend evidence that does not yet exist."
+      state = "approved", reviewer = "Marc-Olivier Duceppe", reviewed_at = "2026-08-01",
+      notes = "See docs/CONTINUOUS_RELEASE_BENCHMARKING.md 'Second execution and review'."
     )
   ),
   apptainer_distribution = list(
