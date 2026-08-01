@@ -135,6 +135,24 @@ reviewed <- list(
       artifact_entry("apptainer-metadata-SHA256SUMS.txt")
     ),
     approval = NULL
+  ),
+  source_distribution = list(
+    status = "passed",
+    summary = paste(
+      "tagged-source-release.yml built the exact source tarball, generated its SPDX SBOM, wrote",
+      "source-release-provenance.json binding the release/commit/workflow identity to the tarball",
+      "and SBOM, and produced a release-manifest.json and terminal release-SHA256SUMS.txt for the",
+      "exact evaluated commit, all in a clean GitHub-hosted runner. Checksums re-verified locally",
+      "before inclusion here."
+    ),
+    artifacts = list(
+      artifact_entry("popgenVCF_0.10.0.tar.gz"),
+      artifact_entry("popgenVCF-source-sbom.spdx.json"),
+      artifact_entry("source-release-provenance.json"),
+      artifact_entry("release-manifest.json"),
+      artifact_entry("release-SHA256SUMS.txt")
+    ),
+    approval = NULL
   )
 )
 
