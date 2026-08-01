@@ -10,7 +10,7 @@ A source-release rehearsal generates an SPDX JSON software bill of materials fro
 
 Versioned OCI images are built from the exact source revision and can be identified by semantic-version, commit-SHA, and immutable digest references. BuildKit generates separate SPDX SBOM and maximum SLSA provenance attestations attached to the published OCI image. Native Apptainer builds and OCI-to-SIF conversion support HPC environments; a SIF remains a separate artifact and requires its own checksum.
 
-The repository retains human-editable environment specifications, DOI-ready but unpublished Zenodo metadata, and validation workflows. These software contracts make required evidence representable and testable; they do not assert that the production 0.10.0 release evidence has already been executed, approved, published, or deposited.
+The repository retains human-editable environment specifications, Zenodo deposition metadata, and validation workflows. popgenVCF 0.10.0 was scientifically approved, released, and deposited to Zenodo on 2026-08-01 (DOI [10.5281/zenodo.21747548](https://doi.org/10.5281/zenodo.21747548); concept DOI [10.5281/zenodo.21747067](https://doi.org/10.5281/zenodo.21747067)); these software contracts continue to govern every subsequent release the same way.
 
 ## Minimum reproducibility record
 

@@ -8,6 +8,7 @@
   <a href="https://github.com/duceppemo/popgenVCF/actions/workflows/test-coverage.yaml"><img alt="Test coverage" src="https://codecov.io/gh/duceppemo/popgenVCF/branch/main/graph/badge.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-0B6B62.svg"></a>
   <a href="https://github.com/duceppemo/popgenVCF/wiki"><img alt="Documentation: Wiki" src="https://img.shields.io/badge/docs-wiki-123B4A.svg"></a>
+  <a href="https://doi.org/10.5281/zenodo.21747548"><img alt="DOI" src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.21747548-blue.svg"></a>
 </p>
 
 **popgenVCF** is an R toolkit and command-line application for reproducible
@@ -98,5 +99,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change. Scientific
 changes require estimator definitions, independent validation, and retained
 evidence appropriate to their risk.
 
-Citation metadata are available in [CITATION.cff](CITATION.cff). popgenVCF is
-licensed under the [MIT License](LICENSE).
+Citation metadata are available in [CITATION.cff](CITATION.cff). popgenVCF
+0.10.0 is archived on Zenodo at
+[10.5281/zenodo.21747548](https://doi.org/10.5281/zenodo.21747548)
+(concept DOI [10.5281/zenodo.21747067](https://doi.org/10.5281/zenodo.21747067),
+which always resolves to the latest version). popgenVCF is licensed under the
+[MIT License](LICENSE).

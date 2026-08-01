@@ -248,13 +248,13 @@ reviewed <- list(
   oci_distribution = list(
     status = "passed",
     summary = paste(
-      "container.yml built and pushed a real OCI image to ghcr.io/duceppemo/popgenvcf",
-      "(workflow_dispatch, publish=true, tagged only sha-<commit> -- no 'latest' or semver tag,",
-      "since those apply only to actual Release-triggered publishes), then pulled it back by",
-      "digest and re-ran the package-version check, --help, and the same scientific/",
-      "population-structure validation used elsewhere. BuildKit generated an SPDX SBOM and",
-      "maximum SLSA provenance attestation for the pushed image, both independently checksum-",
-      "verified before inclusion here."
+      "container.yml built and pushed the real v0.10.0 OCI image to",
+      "ghcr.io/duceppemo/popgenvcf, triggered by the actual GitHub Release publish, tagged",
+      "'latest', '0.10.0', '0.10', '0', and by commit SHA. It was pulled back by digest and",
+      "re-validated (package-version check, --help, and the same scientific/population-",
+      "structure validation used elsewhere). BuildKit generated an SPDX SBOM and maximum SLSA",
+      "provenance attestation for the pushed image, both independently checksum-verified",
+      "before inclusion here."
     ),
     artifacts = list(
       artifact_entry("container-metadata.json"),
@@ -292,6 +292,20 @@ reviewed <- list(
       state = "approved", reviewer = "Marc-Olivier Duceppe", reviewed_at = "2026-08-01",
       notes = "See release-authorization-record.json."
     )
+  ),
+  archival_assets = list(
+    status = "passed",
+    summary = paste(
+      "popgenVCF 0.10.0 was deposited to Zenodo via its GitHub integration and independently",
+      "verified through four separate checks: the public search API, the record page, a real",
+      "doi.org resolution (302 redirect to Zenodo, confirming DataCite registration rather than",
+      "only a Zenodo-internal record), and the raw record API JSON (for the concept DOI). DOI",
+      "10.5281/zenodo.21747548 (concept DOI 10.5281/zenodo.21747067) is now reconciled across",
+      "inst/metadata/software-identity.json, CITATION.cff, codemeta.json, .zenodo.json,",
+      "README.md, and docs/reproducibility.md."
+    ),
+    artifacts = list(artifact_entry("archival-assets-record.json")),
+    approval = NULL
   )
 )
 

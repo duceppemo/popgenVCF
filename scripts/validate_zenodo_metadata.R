@@ -144,7 +144,9 @@ if (!passed) {
 }
 
 cat(
-  "Zenodo metadata is valid and DOI-free for ",
-  scalar(identity$name), " ", scalar(identity$version), ".\n",
+  "Zenodo metadata is valid for ",
+  scalar(identity$name), " ", scalar(identity$version),
+  if (identical(scalar(identity$release_status), "development")) " (development, DOI-free)." else " (released).",
+  "\n",
   sep = ""
 )

@@ -65,7 +65,7 @@ run_zenodo_metadata_validator <- function(root, evidence_path = tempfile(fileext
   list(status = status, output = output, evidence_path = evidence_path)
 }
 
-test_that("Zenodo metadata is complete, synchronized, and DOI-free", {
+test_that("Zenodo metadata is complete, synchronized, and carries the real DOI", {
   root <- require_zenodo_metadata_root()
   identity <- jsonlite::read_json(
     file.path(root, "inst", "metadata", "software-identity.json"),
@@ -85,10 +85,10 @@ test_that("Zenodo metadata is complete, synchronized, and DOI-free", {
     paste0(identity$author$family_name, ", ", identity$author$given_name)
   )
   expect_identical(zenodo$creators[[1L]]$orcid, identity$author$orcid)
-  expect_false(any(c(
-    "doi", "conceptdoi", "conceptrecid", "recid", "record_id",
-    "publication_date", "date_released"
-  ) %in% names(zenodo)))
+  expect_identical(identity$release_status, "released")
+  expect_identical(zenodo[["doi"]], "10.5281/zenodo.21747548")
+  expect_identical(zenodo[["conceptdoi"]], "10.5281/zenodo.21747067")
+  expect_identical(zenodo[["publication_date"]], "2026-08-01")
 
   validation <- run_zenodo_metadata_validator(root)
   expect_identical(validation$status, 0L)
@@ -107,10 +107,19 @@ test_that("Zenodo metadata validation fails on premature DOI claims", {
     file.path(root, "scripts", "validate_zenodo_metadata.R"),
     file.path(fixture, "scripts", "validate_zenodo_metadata.R")
   ))
-  expect_true(file.copy(
+  identity <- jsonlite::read_json(
     file.path(root, "inst", "metadata", "software-identity.json"),
-    file.path(fixture, "inst", "metadata", "software-identity.json")
-  ))
+    simplifyVector = FALSE
+  )
+  identity$release_status <- "development"
+  identity$date_released <- NULL
+  identity$doi <- NULL
+  jsonlite::write_json(
+    identity,
+    file.path(fixture, "inst", "metadata", "software-identity.json"),
+    auto_unbox = TRUE,
+    pretty = TRUE
+  )
   zenodo <- jsonlite::read_json(file.path(root, ".zenodo.json"), simplifyVector = FALSE)
   zenodo$doi <- "10.0000/unpublished"
   jsonlite::write_json(

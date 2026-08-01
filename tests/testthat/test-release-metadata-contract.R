@@ -1,4 +1,4 @@
-test_that("packaged software identity is complete and development-safe", {
+test_that("packaged software identity is complete and release-consistent", {
   identity <- popgenvcf_software_identity()
 
   expect_identical(identity$name, "popgenVCF")
@@ -6,9 +6,9 @@ test_that("packaged software identity is complete and development-safe", {
   expect_identical(identity$citation_title,
                    "popgenVCF: Population Genomics Toolkit for VCF Data")
   expect_identical(identity$version, as.character(utils::packageVersion("popgenVCF")))
-  expect_identical(identity$release_status, "development")
-  expect_null(identity$date_released)
-  expect_null(identity$doi)
+  expect_identical(identity$release_status, "released")
+  expect_identical(identity$date_released, "2026-08-01")
+  expect_identical(identity$doi, "10.5281/zenodo.21747548")
   expect_identical(identity$license$spdx, "MIT")
   expect_identical(identity$author$email, "marc-olivier.duceppe@inspection.gc.ca")
   expect_identical(identity$author$orcid, "0000-0003-2130-0427")
@@ -18,12 +18,17 @@ test_that("packaged software identity is complete and development-safe", {
 
 test_that("development identity rejects premature release claims", {
   identity <- popgenvcf_software_identity()
-  identity$date_released <- "2026-07-22"
-  expect_error(validate_popgenvcf_software_identity(identity), "must not claim")
+  identity$release_status <- "development"
+  identity$date_released <- NULL
+  identity$doi <- NULL
 
-  identity <- popgenvcf_software_identity()
-  identity$doi <- "10.0000/example"
-  expect_error(validate_popgenvcf_software_identity(identity), "must not claim")
+  premature_date <- identity
+  premature_date$date_released <- "2026-07-22"
+  expect_error(validate_popgenvcf_software_identity(premature_date), "must not claim")
+
+  premature_doi <- identity
+  premature_doi$doi <- "10.0000/example"
+  expect_error(validate_popgenvcf_software_identity(premature_doi), "must not claim")
 })
 
 test_that("installed package citation follows package metadata", {
