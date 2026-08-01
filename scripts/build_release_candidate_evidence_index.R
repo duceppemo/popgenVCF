@@ -170,6 +170,22 @@ reviewed <- list(
       artifact_entry("population-structure-validation.tsv")
     ),
     approval = NULL
+  ),
+  source_package_check = list(
+    status = "passed",
+    summary = paste(
+      "R CMD check --as-cran on the exact built source tarball: 0 errors, 0 warnings, 2 NOTEs",
+      "(a CRAN-incoming-feasibility note about reading CITATION before install -- a known R CMD",
+      "check artifact, not a real defect -- and a data.table NSE column-reference note in",
+      "population_structure.R, a common false positive for data.table-heavy code). R CMD INSTALL",
+      "into a clean library succeeded and the installed package loaded from both its temporary and",
+      "final install locations."
+    ),
+    artifacts = list(
+      artifact_entry("R-CMD-check.log"),
+      artifact_entry("R-CMD-install.out")
+    ),
+    approval = NULL
   )
 )
 
