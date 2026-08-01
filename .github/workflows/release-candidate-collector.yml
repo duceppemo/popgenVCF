@@ -115,6 +115,7 @@ jobs:
         include: ${{ fromJson(needs.plan.outputs.matrix) }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - name: Dispatch, wait for, and download ${{ matrix.workflow }}
         run: |
