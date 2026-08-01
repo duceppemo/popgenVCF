@@ -151,6 +151,18 @@ Before authorizing 0.10.0:
 8. require a ready production dossier for the exact commit;
 9. only then tag, publish, deposit, assign the DOI, and archive the release.
 
+## First real evidence-index assembly (2026-08-01)
+
+`scripts/build_release_candidate_evidence_index.R` is the production counterpart to the rehearsal script above: instead of deriving every gate from the policy alone (always `blocked`), it takes real, retained gate evidence from an evidence directory and assembles a checksum-verified, schema-valid index in `mode: production`. It does not fabricate evidence for gates it has no real source for -- those are honestly recorded as `not_run`, and a gate with only partial approval is recorded as `blocked` rather than `passed`.
+
+Run against the real, formally approved `production_baseline`, `external_concordance`, and `ancestry_three_backend` evidence from this release cycle (see each gate's own "First execution and review" notes), plus the retained `benchmark_history` evidence:
+
+- `production_baseline`, `external_concordance`, and `ancestry_three_backend` (gates 6-8) are `passed`, each with real checksum-verified artifacts and a named `approved` review record (Marc-Olivier Duceppe).
+- `benchmark_history` (gate 9) is honestly `blocked`, not `passed`: `benchmark_identity` and `repetition_count` are approved, but `budget_checks`/`trend_interpretation` remain `insufficient-evidence` because this repository has zero published GitHub Releases for `release-benchmark-archive.yml`'s baseline-discovery step to compare against.
+- The remaining 11 gates (1-5, 10-15) are `not_run`: this script has no real evidence source wired in for them yet. Each per-gate CI workflow that eventually supplies real evidence for one of them should extend this script (or a shared collector), rather than have a human hand-author a monolithic config for all 15 gates at once.
+
+The resulting index was fed through the real `build_release_candidate_dossier.R` end to end: all checksums verified, `release_ready: false`, `3 / 15` required gates passed, `12` blocking gates -- exactly the state the underlying evidence actually supports, not a rehearsal placeholder. This closes the durable-retention gap for the three approved scientific gates (their evidence is now checksum-bound into a real index artifact, not only prose in `docs/`), but a production dossier still cannot become release-ready until the remaining gates are wired up and, separately, this index and its artifacts are published as assets on a real GitHub Release for `evidence_release_tag` to reference -- both still open.
+
 ## Current scientific boundary
 
 The closure mechanism does not complete the production work tracked by #22, #24, #43, and #1. Until those real-data, external-tool, ancestry, benchmark, distribution, and approval records exist and are reviewed, the 0.10.0 release candidate must remain blocked.
