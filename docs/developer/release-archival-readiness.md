@@ -26,7 +26,7 @@ source, SBOM, metadata archive, validation evidence, provenance
                   release-SHA256SUMS.txt
 ```
 
-OCI image evidence remains a separate distribution identity. The container workflow publishes the exact image digest, BuildKit SPDX SBOM attestation, and maximum SLSA provenance attestation for the same release tag and Git commit.
+OCI image evidence remains a separate distribution identity. The container workflow publishes the exact image digest, BuildKit SPDX SBOM attestation, and maximum SLSA provenance attestation for the same release tag and Git commit. It fires on every published GitHub Release, not only tagged final releases; a release marked as a GitHub pre-release only builds and smoke-tests the image and does not push it to GHCR, so publishing evidence-carrying pre-releases (for example, to unblock benchmark-trend comparisons before a scientifically complete release exists) does not also publish a container image.
 
 ## Rehearse without publishing
 
