@@ -207,7 +207,7 @@ jobs:
                 " internally as part of the same run."
               ),
               artifact_paths = c("release-assets/R-CMD-check.log", "release-assets/R-CMD-install.out"),
-              root = ".",
+              root = "release-assets",
               output_path = "release-assets/source_package_check-gate-record.json"
             )
           '
@@ -251,7 +251,7 @@ jobs:
                 "release-assets/scientific-validation.tsv",
                 "release-assets/population-structure-validation.tsv"
               ),
-              root = ".",
+              root = "release-assets",
               output_path = "release-assets/scientific_validation-gate-record.json"
             )
           '
@@ -326,7 +326,7 @@ jobs:
                 "release-assets/release-manifest.json",
                 "release-assets/release-SHA256SUMS.txt"
               ),
-              root = ".",
+              root = "release-assets",
               output_path = "release-assets/source_distribution-gate-record.json"
             )
           '

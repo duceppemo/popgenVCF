@@ -115,7 +115,7 @@ jobs:
                 "artifacts/license-metadata-validation.json",
                 "artifacts/zenodo-metadata-validation.json"
               ),
-              root = ".",
+              root = "artifacts",
               output_path = "artifacts/metadata_consistency-gate-record.json"
             )
           '

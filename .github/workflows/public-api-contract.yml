@@ -88,7 +88,7 @@ jobs:
                 "artifacts/public-api-contract/public-api-summary.tsv",
                 "artifacts/public-api-contract/public-api-findings.tsv"
               ),
-              root = ".",
+              root = "artifacts/public-api-contract",
               output_path = "artifacts/public-api-contract/public_api_contract-gate-record.json"
             )
           '
