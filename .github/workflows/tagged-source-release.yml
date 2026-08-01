@@ -46,6 +46,7 @@ jobs:
     timeout-minutes: 90
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
       POPGENVCF_RELEASE_CREATED_AT: '1970-01-01T00:00:00Z'
 
