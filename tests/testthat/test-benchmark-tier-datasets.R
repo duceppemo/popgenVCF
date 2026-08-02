@@ -1,14 +1,12 @@
+benchmark_tier_module_path <- function() {
+  installed <- system.file("scripts", "continuous_benchmark_tiers.R", package = "popgenVCF")
+  if (nzchar(installed) && file.exists(installed)) return(installed)
+  testthat::test_path("..", "..", "inst", "scripts", "continuous_benchmark_tiers.R")
+}
+
 benchmark_archive_script_env <- local({
-  script_path <- normalizePath(
-    testthat::test_path("..", "..", "scripts", "build_release_benchmark_archive.R"),
-    mustWork = TRUE
-  )
-  lines <- readLines(script_path, warn = FALSE)
-  fn_start <- grep("^canonical_benchmark_dataset <- function", lines)
-  fn_end <- grep("^performance_by_tier <- ", lines)[[1L]] - 1L
-  fn_source <- paste(lines[fn_start:fn_end], collapse = "\n")
   env <- new.env(parent = globalenv())
-  eval(parse(text = fn_source), envir = env)
+  sys.source(benchmark_tier_module_path(), envir = env)
   env
 })
 
