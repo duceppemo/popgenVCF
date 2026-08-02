@@ -48,6 +48,8 @@ Principal components summarize directions of variance in the analyzed genotype m
 
 Interpret the eigenvalues and source coordinates together. Do not assign discrete populations solely from visual clusters. Examine whether patterns persist after removing close relatives, high-LD regions, or problematic samples. Axis signs are arbitrary; only relative geometry is meaningful.
 
+`31_PCA_loadings.tsv`, plus a genomic Manhattan-style figure and a rank-ordered figure, report each SNP's signed correlation with every retained component. Ranking is by magnitude, not raw value, since a large negative loading is just as informative as a large positive one. A high-magnitude loading marks a marker associated with an axis; it is not evidence that the marker is causal without independent, functional follow-up.
+
 ## IBS and MDS
 
 Identity-by-state measures allele sharing in the retained marker set. MDS represents those distances in a lower-dimensional space.
@@ -71,9 +73,11 @@ Report the estimator, marker set, population definitions, sample sizes, confiden
 
 ## DAPC
 
-DAPC is supervised by group labels and seeks axes that discriminate those groups. Apparent separation is therefore not independent confirmation that the supplied groups are biologically real.
+This package's DAPC module discriminates unsupervised `find.clusters()` partitions computed at each configured K, not user-supplied population labels; the metadata `population` column is used only for plot colour and as ground truth for the reported assignment-accuracy diagnostic. Apparent separation is therefore not independent confirmation that either the clusters or any real population labels are biologically meaningful.
 
-Document how many principal components and discriminant axes were retained, how those choices were validated, and whether sample sizes support the model. Avoid using the same labels to define groups and then presenting discrimination as an unbiased discovery result.
+Document how many principal components and discriminant axes were retained, how those choices were validated, and whether sample sizes support the model. Avoid presenting discrimination between data-driven clusters as an unbiased discovery result about the sampled populations.
+
+`22f_DAPC_loadings_K<k>.tsv`, plus a genomic Manhattan-style figure and a rank-ordered figure, report each SNP's contribution to every discriminant function at each K. A large contribution identifies a marker that helped separate that K's clusters; it does not by itself establish biological cause.
 
 ## AMOVA
 

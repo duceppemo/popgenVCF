@@ -26,6 +26,13 @@ Separation can reflect population history, relatedness, batch effects,
 geography, uneven sampling, or technical artifacts. A principal component is
 not itself a population.
 
+`31_PCA_loadings.tsv` and the Manhattan/ranked loading figures report which
+SNPs correlate most strongly with each retained component. Loadings are
+signed (direction is preserved); "top contributing" ranks by magnitude, not
+raw value. A large loading identifies a marker associated with an axis, not
+a causal or functionally validated variant -- treat it as a lead for further
+investigation, not a conclusion.
+
 ## IBS and MDS
 
 Confirm sample order and matrix symmetry. Interpret low-dimensional MDS only
@@ -52,6 +59,14 @@ DAPC is conditional on groups and retained PCs. Inspect cross-validation and
 avoid retaining enough PCs to memorize individuals. Strong separation is not
 independent evidence for groups when those groups defined the discriminant
 analysis.
+
+`22f_DAPC_loadings_K<k>.tsv` and the per-K Manhattan/ranked loading figures
+report each SNP's contribution to every discriminant function (this
+repository's DAPC groups are the unsupervised `find.clusters()` partition at
+that K, not the raw metadata `population` column). A SNP with a large
+contribution helped separate that K's clusters; it is not, by itself,
+evidence that the SNP is biologically causal for whatever the clusters
+represent.
 
 ## Ancestry backends
 

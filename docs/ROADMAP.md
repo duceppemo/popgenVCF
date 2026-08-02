@@ -201,6 +201,12 @@ Release 1.0 requires stable CLI, YAML, R API, module and output contracts; valid
 
 As of the released v0.10.0 state (2026-08-01), every one of those technical criteria is met: the Phase 10 public API/CLI/YAML contracts are stable and CI-enforced; canonical real-data validation, external-tool concordance, and cross-backend ancestry evidence are approved; the Phase 9 publication report engine is complete; container and Apptainer distributions are validated; documentation and citation metadata are complete; and release artifacts (checksums, SBOMs, provenance, DOI) are real and published. What remains before 1.0 is not a technical gate but an explicit decision: 1.0 is a semver commitment (the public API is now stable; future breaking changes require a major version bump), not something CI can prove on its own. Tracked in #4.
 
+## Post-0.10.0 feature development (in progress toward 1.0)
+
+The maintainer chose to add features before making the 1.0 decision above. This section tracks that work as it lands, kept current rather than left to drift the way the pre-reconciliation roadmap did.
+
+- **2026-08-02 -- DAPC and PCA SNP-loading Manhattan plots, rank-ordered loading plots, and top-contributing-SNP tables.** For DAPC: per configured K, `adegenet::dapc()`'s `var.contr` (contribution to each discriminant function) is exposed as `15_DAPC_loadings_manhattan_K<k>`/`16_DAPC_loadings_ranked_K<k>` figures and a `22f_DAPC_loadings_K<k>.tsv` top-N table (`analyses.dapc_loading_top_n`, default 20). For PCA: `SNPRelate::snpgdsPCASNPLoading()`'s signed per-SNP correlations are exposed as `17_PCA_loadings_manhattan`/`18_PCA_loadings_ranked` figures and a `31_PCA_loadings.tsv` top-N table (`analyses.pca_loading_top_n`, default 20; ranked by magnitude, not raw signed value). Neither adds new model fitting -- both reuse results the existing analyses already compute. No public API changes. See `NEWS.md` for full detail on the real data-shape issues found and fixed during implementation (adegenet's `var.contr` rownames being positional indices rather than locus names; `snpgdsPCASNPLoading()` returning a strict subset of requested SNPs).
+
 ## Beyond 1.0
 
 Potential post-1.0 work includes selection scans, genomic landscapes, spatial resistance models, GWAS interoperability, community plugins, interactive exploration, optional Docker Hub publication, and cloud/workflow-platform execution.
