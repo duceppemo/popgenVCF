@@ -153,3 +153,43 @@ test_that("duplicate observations are rejected", {
     list(observation, observation), output_dir = tempfile()
   ), "must be unique")
 })
+
+test_that("multiple dataset_tier observations for the same benchmark_id round-trip together", {
+  sha <- paste(rep("1", 40), collapse = "")
+  tiers <- c("synthetic", "canonical", "medium", "large")
+  baseline_observations <- lapply(tiers, function(tier) {
+    new_continuous_benchmark_observation(
+      "pipeline-core-analyses", "pca_ibs_diversity_fst", tier, "baseline", sha,
+      runtime_seconds = 10, peak_memory_mb = 100, throughput = 0.1,
+      scaling_efficiency = 1, repetitions = 5
+    )
+  })
+  current_observations <- lapply(tiers, function(tier) {
+    new_continuous_benchmark_observation(
+      "pipeline-core-analyses", "pca_ibs_diversity_fst", tier, "current", sha,
+      runtime_seconds = 10.5, peak_memory_mb = 101, throughput = 0.095,
+      scaling_efficiency = 0.98, repetitions = 5
+    )
+  })
+  budget <- new_release_performance_budget("multi-tier-budget")
+  comparisons <- Map(
+    compare_continuous_release_benchmark, current_observations, baseline_observations,
+    MoreArgs = list(budget = budget)
+  )
+
+  output <- tempfile("multi-tier-continuous-benchmark-")
+  paths <- write_continuous_benchmark_evidence(
+    current_observations, comparisons, output, require_release_ready = TRUE
+  )
+  payload <- jsonlite::read_json(paths[["json"]], simplifyVector = FALSE)
+  expect_length(payload$observations, length(tiers))
+  expect_setequal(
+    vapply(payload$observations, `[[`, character(1L), "dataset_tier"), tiers
+  )
+  expect_length(payload$comparisons, length(tiers))
+  expect_true(all(vapply(payload$comparisons, `[[`, character(1L), "status") == "passed"))
+  expect_true(isTRUE(payload$release_ready))
+
+  table <- data.table::fread(paths[["tsv"]])
+  expect_setequal(table$dataset_tier, tiers)
+})

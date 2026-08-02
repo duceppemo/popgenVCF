@@ -11,6 +11,15 @@ on:
         description: Archive release identifier
         required: false
         type: string
+      benchmark_tiers:
+        description: >-
+          Comma-separated continuous-benchmark dataset tiers to run
+          (synthetic, canonical, medium, large). canonical downloads the
+          real, already-approved chr22 1000 Genomes source and requires
+          bcftools; leave at the default for a fast, network-free run.
+        required: false
+        default: synthetic
+        type: string
 
 permissions:
   contents: write
@@ -43,6 +52,13 @@ jobs:
           needs: check
 
       - uses: quarto-dev/quarto-actions/setup@8a96df13519ee81fd526f2dfca5962811136661b # v2
+
+      - name: Install bcftools and tabix
+        if: contains(inputs.benchmark_tiers, 'canonical')
+        run: |
+          sudo apt-get update --yes
+          sudo apt-get install --yes --no-install-recommends bcftools tabix
+          bcftools --version
 
       - name: Install popgenVCF
         run: R CMD INSTALL .
@@ -89,6 +105,7 @@ jobs:
       - name: Build archive and regression report
         env:
           POPGENVCF_RELEASE_ID: ${{ steps.identity.outputs.value }}
+          POPGENVCF_BENCHMARK_TIERS: ${{ inputs.benchmark_tiers }}
         run: |
           Rscript scripts/build_release_benchmark_archive.R \
             benchmark-release "${{ steps.baseline.outputs.path }}"
