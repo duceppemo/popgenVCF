@@ -94,7 +94,7 @@ The authoritative development package version is **0.10.0**.
 - [x] **0.9.30.3 — Citation, software, and reproducibility metadata reconciliation** (#291)
 - [x] **0.9.30.4 — DOI-ready archival metadata, SBOMs, checksums, and provenance** (#297)
 - [x] **0.9.31 — Release-candidate closure policy, reviewer dossier, and workflow** (#299)
-- [ ] **0.9.32 — Autosomal production validation execution and evidence** (#22)
+- [x] **0.9.32 — Autosomal production validation execution and evidence** (#22)
 
 ### Phase 0.9.32 execution status
 
@@ -103,13 +103,17 @@ The authoritative development package version is **0.10.0**.
 - [x] define a bounded chromosome 22 QC, LD-pruning, and PCA proposal workflow;
 - [x] execute the quantitative proposal workflow from the reviewed implementation and retain an importable, filename-bound proposal snapshot;
 - [x] scientifically review and approve or revise the proposed metric values and tolerances;
-- [ ] complete external-tool concordance and remaining full-validation evidence.
+- [x] complete external-tool concordance and remaining full-validation evidence.
 
-These milestones complete the software, documentation, metadata, archival-readiness, and release-candidate decision contracts. They do not substitute for executing, reviewing, approving, depositing, and publishing the first production real-data baseline, external-tool concordance suite, cross-backend ancestry evidence, release benchmark history, exact distribution evidence, or final 0.10.0 release authorization.
+These milestones complete the software, documentation, metadata, archival-readiness, and release-candidate decision contracts, and -- as of the 2026-08-01/2026-08-02 closure below -- the production real-data baseline, external-tool concordance suite, cross-backend ancestry evidence, release benchmark history, exact distribution evidence, and final 0.10.0 release authorization have all been executed, reviewed, approved, deposited, and published.
 
 **2026-08-01 progress note:** Marc-Olivier Duceppe scientifically reviewed and approved all six registered chr22 autosomal baseline metrics (see `docs/developer/canonical-autosomal-baseline-proposal.md`); that evidence was already durably retained as a checksum-verified GitHub Actions artifact. In the same session, `external_concordance` and `ancestry_three_backend` were each executed for the first time against real chr22 data and reviewed (see `docs/SCIENTIFIC_CONCORDANCE.md` and `docs/user/ancestry-backends.md`), and `benchmark_history`'s evidence-generation pipeline was reconciled, executed through real CI, and reviewed (see `docs/CONTINUOUS_RELEASE_BENCHMARKING.md`). At that point none of the last three were checked off above: their evidence had not yet been produced through a durable, retained production path, their underlying evidence objects had not been formally transitioned from `approval: proposed` to `approved`, and `benchmark_history` was further blocked on this project's first published GitHub Release.
 
 **2026-08-01 continued:** the missing `read_`/`approve_` functions for the ancestry and concordance evidence contracts were added (`read_canonical_ancestry_three_backend_evidence()`, `approve_scientific_concordance_record()`, `read_scientific_concordance_suite()`), and used to formally transition `production_baseline`, `external_concordance` (its three equivalence records), and `ancestry_three_backend` from `proposed` to `approved` against their already-recorded reviewer determinations. A new production evidence-index assembly script (`scripts/build_release_candidate_evidence_index.R`, the real-evidence counterpart to the synthetic-only `build_release_candidate_rehearsal.R`) checksum-bound that approved evidence into a real `release-candidate-evidence-index.json`, evaluated end to end through `build_release_candidate_dossier.R`: `release_ready: false`, `3 / 15` required gates passed. That index, its four gate-evidence artifacts, the dossier, and a freshly rehearsed source-release bundle were published as assets on this project's first GitHub Release, `0.10.0-rc1` (explicitly a pre-release, not v0.10.0) -- durably retaining the three approved gates publicly for the first time, and giving `release-benchmark-archive.yml` a real prior release to compare future benchmark runs against. `container.yml` was hardened to skip its GHCR publish step for GitHub pre-releases (it previously fired on every published release regardless of tag), so no container image was pushed for this checkpoint. `benchmark_history` remains `blocked`, not `passed` -- a real trend-comparison run against `0.10.0-rc1` has not yet been executed -- and the remaining 11 gates (software, distribution, archival, and the two final approval gates) remain `not_run`: most already have real CI evidence produced elsewhere in this repository, but none of it is wired into the checksum-bound evidence-index format yet.
+
+**2026-08-01, release closure:** the remaining gates were wired in one at a time against real CI evidence -- `metadata_consistency`, `public_api_contract`, `source_package_check`, `scientific_validation`, `source_distribution`, `apptainer_distribution`, `canonical_validation`, `benchmark_history` (after fixing a missing `GH_TOKEN` bug that had silently broken every baseline-discovery attempt), and `oci_distribution` (a real registry push to GHCR) -- each verified end to end through `build_release_candidate_dossier.R`. Marc-Olivier Duceppe, as named scientific reviewer, then approved the complete scientific evidence set and, as release owner, authorized tagging, publication, container-image publication, and Zenodo deposition. The real GitHub Release `v0.10.0` was tagged and published (superseding the `0.10.0-rc1` pre-release, which was deleted once the real release existed), Zenodo deposition completed, and `archival_assets` closed out the dossier: **`READY`, 15 / 15 required gates passed**, DOI [10.5281/zenodo.21747548](https://doi.org/10.5281/zenodo.21747548) (concept DOI [10.5281/zenodo.21747067](https://doi.org/10.5281/zenodo.21747067)), 2026-08-01.
+
+**2026-08-01/2026-08-02, generic tooling and issue closure:** the hand-authored, 0.10.0-specific evidence-index script was replaced with a generic, self-describing `<gate_id>-gate-record.json` fragment contract (`inst/scripts/release_candidate_gate_record.R`) that any CI workflow or reviewer script can write. Six CI workflows now write their own fragments as a normal part of their run; `.github/workflows/release-candidate-collector.yml` dispatches and collects all six in parallel for a future candidate ref; `scripts/write_scientific_review_gate_record.R` lets the named reviewer materialize a determination for the 4 gates on their standing assignment (`production_baseline`, `external_concordance`, `ancestry_three_backend`, `benchmark_history`) without hand-computing checksums. Re-run against the real `v0.10.0` evidence, the new tooling independently reproduced the same `12 / 15` result the hand-authored path had proven, with the 3 one-off, release-specific gates (`scientific_approval`, `release_authorization`, `archival_assets`) correctly left `not_run` for a not-yet-cut future candidate. With the release itself closed out, issues #1, #22, #24, and #43 were closed against this real evidence; #43 was closed with an explicit note that the `canonical`/`medium`/`large` benchmark-dataset tiers and a trend dashboard remain unimplemented, deferred rather than dropped (see "Validation datasets and benchmarking" below). #4 remains open as the umbrella tracker for the still-open 1.0 decision (see "1.0: stable scientific release").
 
 ### Completed stabilization gate
 
@@ -150,16 +154,18 @@ Repository health and release-candidate infrastructure are reconciled:
 - [x] document backend-specific ADMIXTURE, fastStructure, and LEA/sNMF installation and provenance;
 - [x] preserve the 613-entry public API and all publication boundaries.
 
-### Remaining 0.10.0 production evidence and publication
+### Completed 0.10.0 production evidence and publication
 
-- [ ] execute full canonical validation and external-tool concordance (#22);
+- [x] execute full canonical validation and external-tool concordance (#22);
 - [x] approve the production quantitative baseline and real-data cross-backend ancestry evidence (#22, #24);
-- [ ] publish approved release benchmark history and supporting trend evidence (#43);
-- [ ] validate the exact source, OCI, and Apptainer distribution artifacts from clean environments;
-- [ ] assemble and review the complete archival evidence release;
-- [ ] evaluate a production dossier for the exact candidate commit and obtain `READY` status;
-- [ ] obtain named scientific approval and final release authorization;
-- [ ] tag, publish, deposit, and assign the real DOI only after every required gate passes (#1).
+- [x] publish approved release benchmark history and supporting trend evidence (#43);
+- [x] validate the exact source, OCI, and Apptainer distribution artifacts from clean environments;
+- [x] assemble and review the complete archival evidence release;
+- [x] evaluate a production dossier for the exact candidate commit and obtain `READY` status;
+- [x] obtain named scientific approval and final release authorization;
+- [x] tag, publish, deposit, and assign the real DOI (#1).
+
+v0.10.0 is published: DOI [10.5281/zenodo.21747548](https://doi.org/10.5281/zenodo.21747548), 2026-08-01. The production dossier for the released commit reports `READY`, 15 / 15 required gates passed.
 
 ### Validation datasets and benchmarking
 
@@ -170,8 +176,8 @@ Repository health and release-candidate infrastructure are reconciled:
 - [x] scientifically approve or revise the production quantitative baseline proposal;
 - [x] execute and publish complete external-tool scientific concordance evidence;
 - [x] execute and approve a real-data three-backend ancestry validation case;
-- [ ] publish runtime, memory, scaling, and historical regression artifacts per release;
-- [ ] publish or externally host a checksum-pinned medium or large benchmark tier when licensing and storage policy permit.
+- [x] publish runtime, memory, scaling, and historical regression artifacts per release;
+- [ ] publish or externally host a checksum-pinned medium or large benchmark tier when licensing and storage policy permit (deferred; `canonical`/`medium`/`large` tiers remain unimplemented placeholders in `R/benchmark_datasets.R`, and no trend dashboard has been published -- see the 0.10.0 release note above, "0.9.29", and the #43 closure comment).
 
 ### Documentation and metadata
 
@@ -182,19 +188,18 @@ Repository health and release-candidate infrastructure are reconciled:
 - [x] DOI-ready, development-safe Zenodo deposition metadata;
 - [x] source and OCI SBOMs, checksums, provenance, and archival verification instructions;
 - [x] release-candidate evidence-bundle and reviewer-dossier operating guidance;
-- [ ] record the real release date, DOI, concept DOI, and archive identifiers only after successful publication.
+- [x] record the real release date, DOI, concept DOI, and archive identifiers after successful publication.
 
 ## Open tracking issues and deferred enhancements
 
-- **#4 — Publication-quality platform:** umbrella tracker for remaining 0.10 and 1.0 release work.
-- **#22 — Canonical real-data validation:** retains the uncompleted production baseline, external-tool execution, approval, and full-validation work.
-- **#24 — Unified ancestry platform:** retains approved real-data three-backend execution, comparison, and release evidence; installation guidance is complete.
-- **#43 — Continuous scientific benchmarks:** retains approved historical baselines, dashboards, and published release benchmark artifacts.
-- **#1 — Reproducibility and release infrastructure:** remains open until a production dossier is ready and tagging, deposition, DOI assignment, and publication are complete.
+- **#4 — Publication-quality platform:** the only remaining open tracker; umbrella issue for the explicit 1.0 decision (see below). Its 0.10.0 checklist is fully satisfied by the released state.
+- **#22, #24, #43, #1:** closed 2026-08-02 against the real, checksum-verified v0.10.0 evidence and the `READY` 15 / 15 production dossier. #43 was closed with a note that the `canonical`/`medium`/`large` benchmark tiers and a trend dashboard remain deferred, unimplemented follow-up work, not a release blocker.
 
 ## 1.0: stable scientific release
 
 Release 1.0 requires stable CLI, YAML, R API, module and output contracts; validated core modules and canonical real-data results; a complete report engine; validated container and Apptainer artifacts; complete documentation and citation metadata; and reproducible release artifacts with checksums, SBOM, provenance, and persistent archive identifiers.
+
+As of the released v0.10.0 state (2026-08-01), every one of those technical criteria is met: the Phase 10 public API/CLI/YAML contracts are stable and CI-enforced; canonical real-data validation, external-tool concordance, and cross-backend ancestry evidence are approved; the Phase 9 publication report engine is complete; container and Apptainer distributions are validated; documentation and citation metadata are complete; and release artifacts (checksums, SBOMs, provenance, DOI) are real and published. What remains before 1.0 is not a technical gate but an explicit decision: 1.0 is a semver commitment (the public API is now stable; future breaking changes require a major version bump), not something CI can prove on its own. Tracked in #4.
 
 ## Beyond 1.0
 
