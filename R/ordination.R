@@ -86,7 +86,26 @@ recover_pca_eigensystem <- function(pca, requested_components) {
   pca
 }
 
-run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads) {
+pca_loading_table <- function(loading, ids) {
+  # SNPRelate::snpgdsPCASNPLoading() can drop loci (e.g. remove.monosnp), so
+  # loading$snp.id is the authoritative retained set -- join by real ID
+  # against the full chromosome/position lookup, not by position.
+  idx <- match(loading$snp.id, ids$snp)
+  contr <- t(as.matrix(loading$snploading))
+  colnames(contr) <- paste0("PC", seq_len(ncol(contr)))
+  out <- data.table::rbindlist(lapply(colnames(contr), function(axis) {
+    data.table::data.table(
+      axis = axis, snp_id = as.character(loading$snp.id),
+      chromosome = ids$chromosome[idx], position = ids$position[idx],
+      contribution = as.numeric(contr[, axis])
+    )
+  }))
+  out[, magnitude := abs(contribution)]
+  data.table::setorder(out, axis, -magnitude)
+  out
+}
+
+run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads, ids = NULL) {
   requested_components <- pca_component_count(n_pcs, sample_ids, snp_ids)
   run_snprelate <- function(need_genmat = FALSE) {
     SNPRelate::snpgdsPCA(
@@ -129,6 +148,17 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads) {
     eigensystem_source <- "covariance_eigendecomposition"
   }
 
+  # SNP loadings require a genuine snpgdsPCAClass object; the covariance
+  # fallback above patches eigenval/eigenvect from a manual eigendecomposition
+  # of the genetic relationship matrix, which snpgdsPCASNPLoading() cannot
+  # meaningfully interpret -- loadings are honestly NULL in that rare path.
+  loadings <- if (!is.null(ids) && identical(eigensystem_source, "SNPRelate")) {
+    loading <- SNPRelate::snpgdsPCASNPLoading(z, gds, num.thread = threads, verbose = FALSE)
+    pca_loading_table(loading, ids)
+  } else {
+    NULL
+  }
+
   eig <- normalize_pca_eigenvalues(z$eigenval)
   if (eig$adjusted_negative > 0L) {
     log_msg(
@@ -156,6 +186,12 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads) {
     )
   }
   component_index <- available_components[seq_len(npc)]
+  if (!is.null(loadings)) {
+    keep <- paste0("PC", component_index)
+    loadings <- loadings[loadings$axis %in% keep, ]
+    loadings[, axis := paste0("PC", match(axis, keep))]
+    data.table::setorder(loadings, axis, -magnitude)
+  }
   variance_proportion <- eig$values / sum(eig$values)
 
   public_ids <- public_sample_ids(metadata, z$sample.id)
@@ -180,7 +216,53 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads) {
     eigenvalue_tolerance = eig$tolerance,
     eigensystem_source = eigensystem_source,
     raw_nonfinite_eigenvalues = raw_nonfinite_eigenvalues,
-    requested_components = requested_components
+    requested_components = requested_components,
+    loadings = loadings
+  )
+}
+
+plot_pca_loading_manhattan <- function(loadings, cfg, dirs, profile) {
+  layout <- manhattan_layout(loadings$chromosome, loadings$position)
+  loadings <- data.table::copy(loadings)
+  loadings[, x := layout$x]
+  loadings[, chrom_group := factor(match(chromosome, layout$ticks$chromosome) %% 2L)]
+  colours <- expand_figure_palette(profile, 2L, "colours")
+  p <- ggplot2::ggplot(loadings, ggplot2::aes(x = x, y = contribution, colour = chrom_group)) +
+    ggplot2::geom_hline(yintercept = 0, colour = "#D9D9D9", linewidth = 0.35) +
+    ggplot2::geom_point(size = 1, alpha = .75, show.legend = FALSE) +
+    ggplot2::scale_colour_manual(values = colours) +
+    ggplot2::scale_x_continuous(breaks = layout$ticks$center, labels = layout$ticks$chromosome) +
+    ggplot2::facet_wrap(~axis, ncol = 1, scales = "free_y") +
+    ggplot2::labs(
+      title = "Principal component analysis SNP loadings",
+      x = "Chromosome", y = "SNP loading (correlation with component)"
+    ) + theme_publication(figure_base_size(cfg)) +
+    ggplot2::theme(panel.spacing = ggplot2::unit(1, "lines"))
+  n_axes <- data.table::uniqueN(loadings$axis)
+  save_plot(
+    p, "17_PCA_loadings_manhattan", dirs,
+    cfg$output$figure_formats, 10, max(4, 2.2 * n_axes), cfg$output$dpi
+  )
+}
+
+plot_pca_loading_ranked <- function(loadings, cfg, dirs, profile) {
+  ranked <- data.table::copy(loadings)
+  data.table::setorder(ranked, axis, -magnitude)
+  ranked[, rank := seq_len(.N), by = axis]
+  colour <- expand_figure_palette(profile, 1L, "colours")
+  p <- ggplot2::ggplot(ranked, ggplot2::aes(x = rank, y = contribution)) +
+    ggplot2::geom_hline(yintercept = 0, colour = "#D9D9D9", linewidth = 0.35) +
+    ggplot2::geom_point(size = 1, alpha = .75, colour = colour) +
+    ggplot2::facet_wrap(~axis, ncol = 1, scales = "free_y") +
+    ggplot2::labs(
+      title = "Principal component analysis SNP loadings, ranked",
+      x = "SNP rank (descending |loading|)", y = "SNP loading (correlation with component)"
+    ) + theme_publication(figure_base_size(cfg)) +
+    ggplot2::theme(panel.spacing = ggplot2::unit(1, "lines"))
+  n_axes <- data.table::uniqueN(ranked$axis)
+  save_plot(
+    p, "18_PCA_loadings_ranked", dirs,
+    cfg$output$figure_formats, 8, max(4, 2.2 * n_axes), cfg$output$dpi
   )
 }
 
@@ -190,6 +272,7 @@ plot_pca <- function(pca, cfg, dirs) {
   do_label <- identical(label, "all") || (identical(label, "auto") && nrow(pca$scores) <= 60L)
   has_population <- "population" %in% names(pca$scores) && any(!is.na(pca$scores$population))
   style <- figure_style_name(cfg)
+  profile <- figure_style_profile(style)
   pal <- if (has_population) {
     population_palette(pca$scores$population, style)
   } else NULL
@@ -233,6 +316,10 @@ plot_pca <- function(pca, cfg, dirs) {
       )
     }
     save_plot(p, sprintf("07_PCA_PC%d_PC%d", pair[1], pair[2]), dirs, fmts, 8, 6, dpi)
+  }
+  if (!is.null(pca$loadings) && nrow(pca$loadings)) {
+    plot_pca_loading_manhattan(pca$loadings, cfg, dirs, profile)
+    plot_pca_loading_ranked(pca$loadings, cfg, dirs, profile)
   }
 }
 

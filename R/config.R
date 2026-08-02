@@ -16,7 +16,7 @@ default_config <- function() {
     qc = list(maf = 0.05, max_variant_missing = 0.20, max_sample_missing = 0.20,
               ld_r2 = 0.20, ld_slide_max_bp = Inf, ld_slide_max_n = 50L,
               ld_start_pos = "first"),
-    analyses = list(diversity = TRUE, pca = TRUE, n_pcs = 10L,
+    analyses = list(diversity = TRUE, pca = TRUE, n_pcs = 10L, pca_loading_top_n = 20L,
                     ibs = TRUE, tree = TRUE, fst = TRUE,
                     dapc = TRUE, dapc_k = "2:10", dapc_cross_validation = TRUE,
                     dapc_loading_top_n = 20L,
@@ -108,6 +108,7 @@ validate_config <- function(cfg) {
   cfg$output$dpi <- as.integer(cfg$output$dpi)
   cfg$output$base_font_size <- as.numeric(cfg$output$base_font_size)
   cfg$analyses$n_pcs <- as.integer(cfg$analyses$n_pcs)
+  cfg$analyses$pca_loading_top_n <- as.integer(cfg$analyses$pca_loading_top_n)
   cfg$analyses$chromosome_min_snps <- as.integer(cfg$analyses$chromosome_min_snps)
   cfg$analyses$dapc_loading_top_n <- as.integer(cfg$analyses$dapc_loading_top_n)
   cfg$analyses$bootstrap$replicates <- as.integer(cfg$analyses$bootstrap$replicates)
@@ -123,6 +124,7 @@ validate_config <- function(cfg) {
     stop("output.base_font_size must be >= 8", call. = FALSE)
   }
   if (!is.finite(cfg$analyses$n_pcs) || cfg$analyses$n_pcs < 2L) stop("analyses.n_pcs must be >= 2", call. = FALSE)
+  if (!is.finite(cfg$analyses$pca_loading_top_n) || cfg$analyses$pca_loading_top_n < 1L) stop("analyses.pca_loading_top_n must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$chromosome_min_snps) || cfg$analyses$chromosome_min_snps < 2L) stop("analyses.chromosome_min_snps must be >= 2", call. = FALSE)
   if (!is.finite(cfg$analyses$dapc_loading_top_n) || cfg$analyses$dapc_loading_top_n < 1L) stop("analyses.dapc_loading_top_n must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$bootstrap$replicates) || cfg$analyses$bootstrap$replicates < 0L) stop("bootstrap.replicates must be >= 0", call. = FALSE)

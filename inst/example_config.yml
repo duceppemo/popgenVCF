@@ -31,6 +31,7 @@ analyses:
   diversity: false
   pca: true
   n_pcs: 10
+  pca_loading_top_n: 20
   ibs: true
   tree: true
   fst: false

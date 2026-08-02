@@ -2,12 +2,22 @@ run_module_pca <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
   pca <- run_pca(
     context$gds, context$sample_ids, context$final_snps,
-    context$metadata, cfg$analyses$n_pcs, cfg$compute$threads
+    context$metadata, cfg$analyses$n_pcs, cfg$compute$threads,
+    ids = context$ids
   )
   context$pca <- pca
   analysis <- set_analysis_result(analysis, "pca", pca[c("scores", "variance")])
   write_tsv(pca$scores, file.path(dirs$tables, "12_PCA_scores.tsv"))
   write_tsv(pca$variance, file.path(dirs$tables, "13_PCA_variance.tsv"))
+  if (!is.null(pca$loadings) && nrow(pca$loadings)) {
+    top_n <- cfg$analyses$pca_loading_top_n
+    top <- pca$loadings[, .SD[seq_len(min(.N, top_n))], by = axis]
+    top[, rank := seq_len(.N), by = axis]
+    data.table::setcolorder(
+      top, c("axis", "rank", "snp_id", "chromosome", "position", "contribution", "magnitude")
+    )
+    write_tsv(top, file.path(dirs$tables, "31_PCA_loadings.tsv"))
+  }
   plot_pca(pca, cfg, dirs)
 
   coordinates <- data.table::copy(pca$scores)

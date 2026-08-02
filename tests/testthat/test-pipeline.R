@@ -35,6 +35,9 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
     "tables/22f_DAPC_loadings_K3.tsv",
     "figures/15_DAPC_loadings_manhattan_K2.pdf",
     "figures/16_DAPC_loadings_ranked_K2.pdf",
+    "tables/31_PCA_loadings.tsv",
+    "figures/17_PCA_loadings_manhattan.pdf",
+    "figures/18_PCA_loadings_ranked.pdf",
     "tables/23_AMOVA_components.tsv",
     "tables/25_Mantel_IBD_summary.tsv", "trees/IBS_neighbor_joining.nwk"
   )) {
@@ -53,6 +56,15 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
   )
   expect_true(all(loadings[, .N, by = axis]$N <= cfg$analyses$dapc_loading_top_n))
   expect_true(all(loadings[, min(rank) == 1L && all(diff(rank) == 1L), by = axis]$V1))
+
+  pca_loadings <- data.table::fread(file.path(root, "tables/31_PCA_loadings.tsv"))
+  expect_setequal(
+    names(pca_loadings),
+    c("axis", "rank", "snp_id", "chromosome", "position", "contribution", "magnitude")
+  )
+  expect_true(all(pca_loadings[, .N, by = axis]$N <= cfg$analyses$pca_loading_top_n))
+  expect_true(all(pca_loadings[, min(rank) == 1L && all(diff(rank) == 1L), by = axis]$V1))
+  expect_equal(pca_loadings$magnitude, abs(pca_loadings$contribution))
 })
 
 test_that("run_pipeline completes without a metadata file and records no metadata hash", {
