@@ -37,6 +37,7 @@ analyses:
   dapc: false
   dapc_k: 2:10
   dapc_cross_validation: true
+  dapc_loading_top_n: 20
   amova: false
   mantel: false
   isolation_by_distance: false

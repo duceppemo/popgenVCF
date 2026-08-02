@@ -1,4 +1,4 @@
-dapc_plot_fixture <- function(rmse = 0.01, with_replicates = TRUE) {
+dapc_plot_fixture <- function(rmse = 0.01, with_replicates = TRUE, with_loadings = FALSE) {
   coordinates <- data.table::data.table(
     sample = c("sample_1", "sample_2", "sample_3", "sample_4"),
     population = c("A", "A", "B", "B"),
@@ -12,12 +12,24 @@ dapc_plot_fixture <- function(rmse = 0.01, with_replicates = TRUE) {
     byrow = TRUE,
     dimnames = list(coordinates$sample, c("cluster_1", "cluster_2"))
   )
+  loadings <- if (with_loadings) {
+    data.table::data.table(
+      axis = rep(c("LD1", "LD2"), each = 4L),
+      snp_id = rep(c("snp_1", "snp_2", "snp_3", "snp_4"), 2L),
+      chromosome = rep(c("1", "1", "2", "2"), 2L),
+      position = rep(c(100, 200, 50, 900), 2L),
+      contribution = c(0.4, 0.1, 0.3, 0.2, 0.05, 0.6, 0.15, 0.2)
+    )
+  } else {
+    NULL
+  }
   list(
     models = list(
       `2` = list(
         coordinates = coordinates,
         membership = membership,
-        reproducibility = if (with_replicates) list(metrics = data.frame(rmse = rmse)) else NULL
+        reproducibility = if (with_replicates) list(metrics = data.frame(rmse = rmse)) else NULL,
+        loadings = loadings
       )
     ),
     diagnostics = data.table::data.table(K = 2L, replicate_max_rmse = rmse)
@@ -66,6 +78,55 @@ test_that("DAPC figures report stable replicate membership RMSE", {
     membership_plot$scales$get_scales("x")$labels,
     dapc_plot_fixture()$models[["2"]]$coordinates$sample
   )
+})
+
+test_that("DAPC loading plots are drawn only when a loadings table is present", {
+  plots <- list()
+  local_mocked_bindings(
+    save_plot = function(p, stem, ...) {
+      plots[[stem]] <<- p
+      invisible(TRUE)
+    },
+    .package = "popgenVCF"
+  )
+  cfg <- default_config()
+  plot_dapc(dapc_plot_fixture(with_loadings = TRUE), cfg, list(figures = tempdir()))
+
+  expect_setequal(
+    names(plots),
+    c(
+      "11_DAPC_K2", "14_DAPC_membership_K2", "14_DAPC_membership_data_driven_K2",
+      "15_DAPC_loadings_manhattan_K2", "16_DAPC_loadings_ranked_K2"
+    )
+  )
+  manhattan <- plots[["15_DAPC_loadings_manhattan_K2"]]
+  ranked <- plots[["16_DAPC_loadings_ranked_K2"]]
+  expect_s3_class(manhattan$facet, "FacetWrap")
+  expect_s3_class(ranked$facet, "FacetWrap")
+  expect_identical(manhattan$labels$x, "Chromosome")
+  expect_identical(ranked$labels$x, "SNP rank (descending contribution)")
+  expect_identical(
+    manhattan$labels$title,
+    "Discriminant analysis SNP loadings (K = 2)"
+  )
+  expect_identical(
+    ranked$labels$title,
+    "Discriminant analysis SNP loadings, ranked (K = 2)"
+  )
+})
+
+test_that("DAPC loading plots are absent when no loadings table is supplied", {
+  plots <- list()
+  local_mocked_bindings(
+    save_plot = function(p, stem, ...) {
+      plots[[stem]] <<- p
+      invisible(TRUE)
+    },
+    .package = "popgenVCF"
+  )
+  plot_dapc(dapc_plot_fixture(with_loadings = FALSE), default_config(), list(figures = tempdir()))
+
+  expect_false(any(grepl("DAPC_loadings", names(plots))))
 })
 
 test_that("unstable DAPC figures warn against interpreting assignments", {

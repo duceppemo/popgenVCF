@@ -1,8 +1,30 @@
-genlight_from_gds <- function(geno, sample_ids, metadata) {
+genlight_from_gds <- function(geno, sample_ids, metadata, snp_ids = NULL) {
   gl <- adegenet::as.genlight(geno)
   adegenet::indNames(gl) <- public_sample_ids(metadata, sample_ids)
   adegenet::pop(gl) <- factor(metadata[match(sample_ids, sample), population])
+  if (!is.null(snp_ids)) adegenet::locNames(gl) <- as.character(snp_ids)
   gl
+}
+
+dapc_loading_table <- function(model, snp_ids, chromosome, position) {
+  # adegenet::dapc()'s var.contr rownames are positional indices ("1", "2", ...),
+  # not the genlight object's locNames -- rows are guaranteed to be in the same
+  # per-locus order as snp_ids/chromosome/position (nothing reorders loci between
+  # genlight_from_gds() and dapc()), so alignment must be positional, not by name.
+  contr <- as.matrix(model$var.contr)
+  snp_ids <- as.character(snp_ids)
+  if (nrow(contr) != length(snp_ids)) {
+    stop("var.contr row count does not match the supplied snp_ids.", call. = FALSE)
+  }
+  out <- data.table::rbindlist(lapply(colnames(contr), function(axis) {
+    data.table::data.table(
+      axis = axis, snp_id = snp_ids,
+      chromosome = chromosome, position = position,
+      contribution = as.numeric(contr[, axis])
+    )
+  }))
+  data.table::setorder(out, axis, -contribution)
+  out
 }
 
 classification_accuracy_permutation <- function(predicted, truth) {
@@ -41,7 +63,7 @@ dapc_worker_count <- function(k_values, threads,
 
 run_dapc_k_task <- function(k, gl, shared_pca, max_pca, sample_ids,
                             public_ids, metadata, truth, cross_validate,
-                            replicate_seeds) {
+                            replicate_seeds, chromosome = NULL, position = NULL) {
   reps <- list()
   primary <- NULL
   cv_success <- numeric()
@@ -100,13 +122,18 @@ run_dapc_k_task <- function(k, gl, shared_pca, max_pca, sample_ids,
     NULL
   }
   assignment_accuracy <- classification_accuracy_permutation(grp, truth)
+  loadings <- if (!is.null(chromosome)) {
+    dapc_loading_table(model, adegenet::locNames(gl), chromosome, position)
+  } else {
+    NULL
+  }
 
   list(
     key = as.character(k),
     model = list(
       model = model, coordinates = coord, groups = grp, cv = primary$cv,
       membership = primary$membership, replicate_membership = reps,
-      reproducibility = reproducibility
+      reproducibility = reproducibility, loadings = loadings
     ),
     diagnostic = data.table::data.table(
       K = k, n_pca = primary$n_pca, n_da = primary$n_da,
@@ -148,7 +175,8 @@ execute_dapc_k_tasks <- function(k_values, task, workers) {
 
 run_dapc_analysis <- function(geno, sample_ids, metadata, k_values, seed,
                               cross_validate = TRUE, replicate_seeds = seed,
-                              threads = 1L) {
+                              threads = 1L, snp_ids = NULL, chromosome = NULL,
+                              position = NULL) {
   valid_k <- sort(unique(as.integer(
     k_values[k_values >= 2L & k_values < length(sample_ids)]
   )))
@@ -160,7 +188,7 @@ run_dapc_analysis <- function(geno, sample_ids, metadata, k_values, seed,
   }
 
   public_ids <- public_sample_ids(metadata, sample_ids)
-  gl <- genlight_from_gds(geno, sample_ids, metadata)
+  gl <- genlight_from_gds(geno, sample_ids, metadata, snp_ids = snp_ids)
   max_pca <- max(2L, min(nrow(geno) - 1L, 100L))
   shared_pca <- compute_dapc_shared_pca(gl, max_pca)
   truth <- metadata$population[match(sample_ids, metadata$sample)]
@@ -174,7 +202,8 @@ run_dapc_analysis <- function(geno, sample_ids, metadata, k_values, seed,
     sample_ids = sample_ids, public_ids = public_ids,
     metadata = metadata, truth = truth,
     cross_validate = cross_validate,
-    replicate_seeds = replicate_seeds
+    replicate_seeds = replicate_seeds,
+    chromosome = chromosome, position = position
   )
   results <- execute_dapc_k_tasks(valid_k, task, workers)
   keys <- vapply(results, `[[`, character(1L), "key")
@@ -234,6 +263,49 @@ dapc_reproducibility_annotation <- function(dapc, k, cfg) {
   )
 }
 
+plot_dapc_loading_manhattan <- function(loadings, k, cfg, dirs, profile) {
+  layout <- manhattan_layout(loadings$chromosome, loadings$position)
+  loadings <- data.table::copy(loadings)
+  loadings[, x := layout$x]
+  loadings[, chrom_group := factor(match(chromosome, layout$ticks$chromosome) %% 2L)]
+  colours <- expand_figure_palette(profile, 2L, "colours")
+  p <- ggplot2::ggplot(loadings, ggplot2::aes(x = x, y = contribution, colour = chrom_group)) +
+    ggplot2::geom_point(size = 1, alpha = .75, show.legend = FALSE) +
+    ggplot2::scale_colour_manual(values = colours) +
+    ggplot2::scale_x_continuous(breaks = layout$ticks$center, labels = layout$ticks$chromosome) +
+    ggplot2::facet_wrap(~axis, ncol = 1, scales = "free_y") +
+    ggplot2::labs(
+      title = sprintf("Discriminant analysis SNP loadings (K = %s)", k),
+      x = "Chromosome", y = "Contribution to discriminant function"
+    ) + theme_publication(figure_base_size(cfg)) +
+    ggplot2::theme(panel.spacing = ggplot2::unit(1, "lines"))
+  n_axes <- data.table::uniqueN(loadings$axis)
+  save_plot(
+    p, sprintf("15_DAPC_loadings_manhattan_K%s", k), dirs,
+    cfg$output$figure_formats, 10, max(4, 2.2 * n_axes), cfg$output$dpi
+  )
+}
+
+plot_dapc_loading_ranked <- function(loadings, k, cfg, dirs, profile) {
+  ranked <- data.table::copy(loadings)
+  data.table::setorder(ranked, axis, -contribution)
+  ranked[, rank := seq_len(.N), by = axis]
+  colour <- expand_figure_palette(profile, 1L, "colours")
+  p <- ggplot2::ggplot(ranked, ggplot2::aes(x = rank, y = contribution)) +
+    ggplot2::geom_point(size = 1, alpha = .75, colour = colour) +
+    ggplot2::facet_wrap(~axis, ncol = 1, scales = "free_y") +
+    ggplot2::labs(
+      title = sprintf("Discriminant analysis SNP loadings, ranked (K = %s)", k),
+      x = "SNP rank (descending contribution)", y = "Contribution to discriminant function"
+    ) + theme_publication(figure_base_size(cfg)) +
+    ggplot2::theme(panel.spacing = ggplot2::unit(1, "lines"))
+  n_axes <- data.table::uniqueN(ranked$axis)
+  save_plot(
+    p, sprintf("16_DAPC_loadings_ranked_K%s", k), dirs,
+    cfg$output$figure_formats, 8, max(4, 2.2 * n_axes), cfg$output$dpi
+  )
+}
+
 plot_dapc <- function(dapc, cfg, dirs) {
   style <- figure_style_name(cfg)
   profile <- figure_style_profile(style)
@@ -285,6 +357,11 @@ plot_dapc <- function(dapc, cfg, dirs) {
       subtitle_is_warning = annotation$unstable,
       y_label = "Posterior membership probability"
     )
+    loadings <- dapc$models[[k]]$loadings
+    if (!is.null(loadings) && nrow(loadings)) {
+      plot_dapc_loading_manhattan(loadings, k, cfg, dirs, profile)
+      plot_dapc_loading_ranked(loadings, k, cfg, dirs, profile)
+    }
   }
   plot_structure_k_selection(
     dapc$k_selection, cfg, dirs,

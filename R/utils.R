@@ -104,6 +104,27 @@ figure_base_size <- function(cfg = NULL) {
   size
 }
 
+manhattan_layout <- function(chromosome, position) {
+  chromosome <- as.character(chromosome)
+  position <- as.numeric(position)
+  order_chr <- sort(unique(chromosome))
+  offset <- stats::setNames(numeric(length(order_chr)), order_chr)
+  cum <- 0
+  for (chr in order_chr) {
+    offset[[chr]] <- cum
+    cum <- cum + max(position[chromosome == chr]) + 1
+  }
+  x <- unname(position + offset[chromosome])
+  ticks <- data.frame(
+    chromosome = order_chr,
+    center = vapply(order_chr, function(chr) {
+      mean(range(position[chromosome == chr])) + offset[[chr]]
+    }, numeric(1L)),
+    stringsAsFactors = FALSE
+  )
+  list(x = x, ticks = ticks)
+}
+
 figure_style_profile <- function(style = "accessibility-first") {
   if (inherits(style, "PopgenVCFPublicationFigureStyleProfile")) {
     validate_publication_figure_style_profile(style)

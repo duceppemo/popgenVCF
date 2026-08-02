@@ -19,6 +19,7 @@ default_config <- function() {
     analyses = list(diversity = TRUE, pca = TRUE, n_pcs = 10L,
                     ibs = TRUE, tree = TRUE, fst = TRUE,
                     dapc = TRUE, dapc_k = "2:10", dapc_cross_validation = TRUE,
+                    dapc_loading_top_n = 20L,
                     amova = TRUE, mantel = TRUE, isolation_by_distance = TRUE,
                     chromosome_specific = TRUE, chromosome_min_snps = 100L,
                     bootstrap = list(enabled = TRUE, replicates = 500L, unit = "chromosome"),
@@ -108,6 +109,7 @@ validate_config <- function(cfg) {
   cfg$output$base_font_size <- as.numeric(cfg$output$base_font_size)
   cfg$analyses$n_pcs <- as.integer(cfg$analyses$n_pcs)
   cfg$analyses$chromosome_min_snps <- as.integer(cfg$analyses$chromosome_min_snps)
+  cfg$analyses$dapc_loading_top_n <- as.integer(cfg$analyses$dapc_loading_top_n)
   cfg$analyses$bootstrap$replicates <- as.integer(cfg$analyses$bootstrap$replicates)
   cfg$analyses$structure$replicates <- as.integer(cfg$analyses$structure$replicates)
   cfg$analyses$snmf$repetitions <- as.integer(cfg$analyses$snmf$repetitions)
@@ -122,6 +124,7 @@ validate_config <- function(cfg) {
   }
   if (!is.finite(cfg$analyses$n_pcs) || cfg$analyses$n_pcs < 2L) stop("analyses.n_pcs must be >= 2", call. = FALSE)
   if (!is.finite(cfg$analyses$chromosome_min_snps) || cfg$analyses$chromosome_min_snps < 2L) stop("analyses.chromosome_min_snps must be >= 2", call. = FALSE)
+  if (!is.finite(cfg$analyses$dapc_loading_top_n) || cfg$analyses$dapc_loading_top_n < 1L) stop("analyses.dapc_loading_top_n must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$bootstrap$replicates) || cfg$analyses$bootstrap$replicates < 0L) stop("bootstrap.replicates must be >= 0", call. = FALSE)
 
   allowed_formats <- c("pdf", "png", "svg")

@@ -31,7 +31,11 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
     "run_manifest.tsv", "analysis_summary.tsv",
     "tables/05_variant_QC.tsv", "tables/08_LD_pruned_SNPs.tsv",
     "tables/12_PCA_scores.tsv", "tables/17_global_FST.tsv",
-    "tables/21_DAPC_diagnostics.tsv", "tables/23_AMOVA_components.tsv",
+    "tables/21_DAPC_diagnostics.tsv", "tables/22f_DAPC_loadings_K2.tsv",
+    "tables/22f_DAPC_loadings_K3.tsv",
+    "figures/15_DAPC_loadings_manhattan_K2.pdf",
+    "figures/16_DAPC_loadings_ranked_K2.pdf",
+    "tables/23_AMOVA_components.tsv",
     "tables/25_Mantel_IBD_summary.tsv", "trees/IBS_neighbor_joining.nwk"
   )) {
     expect_true(file.exists(file.path(root, rel)), info = rel)
@@ -42,6 +46,13 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
 
   pca_scores <- data.table::fread(file.path(root, "tables/12_PCA_scores.tsv"))
   expect_identical(nrow(pca_scores), 8L)
+
+  loadings <- data.table::fread(file.path(root, "tables/22f_DAPC_loadings_K2.tsv"))
+  expect_setequal(
+    names(loadings), c("axis", "rank", "snp_id", "chromosome", "position", "contribution")
+  )
+  expect_true(all(loadings[, .N, by = axis]$N <= cfg$analyses$dapc_loading_top_n))
+  expect_true(all(loadings[, min(rank) == 1L && all(diff(rank) == 1L), by = axis]$V1))
 })
 
 test_that("run_pipeline completes without a metadata file and records no metadata hash", {

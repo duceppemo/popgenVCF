@@ -65,13 +65,18 @@ run_module_dapc <- function(analysis, context) {
   structure_cfg <- cfg$analyses$structure
   seeds <- structure_cfg$seeds
   if (is.null(seeds)) seeds <- cfg$compute$seed + seq_len(structure_cfg$replicates) - 1L
+  chromosome <- context$ids$chromosome[match(context$qc_snps, context$ids$snp)]
+  position <- context$ids$position[match(context$qc_snps, context$ids$snp)]
   dapc <- run_dapc_analysis(div$genotype, context$sample_ids, context$metadata,
                             parse_int_range(cfg$analyses$dapc_k), cfg$compute$seed,
                             cfg$analyses$dapc_cross_validation,
                             replicate_seeds = seeds,
-                            threads = cfg$compute$threads)
+                            threads = cfg$compute$threads,
+                            snp_ids = context$qc_snps,
+                            chromosome = chromosome, position = position)
   analysis <- set_analysis_result(analysis, "dapc", dapc)
   write_tsv(dapc$diagnostics, file.path(dirs$tables, "21_DAPC_diagnostics.tsv"))
+  top_n <- cfg$analyses$dapc_loading_top_n
   for (k in names(dapc$models)) {
     write_tsv(dapc$models[[k]]$coordinates,
               file.path(dirs$tables, sprintf("22_DAPC_coordinates_K%s.tsv", k)))
@@ -82,6 +87,14 @@ run_module_dapc <- function(analysis, context) {
     if (!is.null(dapc$models[[k]]$reproducibility)) {
       write_tsv(dapc$models[[k]]$reproducibility$metrics,
                 file.path(dirs$tables, sprintf("22c_DAPC_reproducibility_K%s.tsv", k)))
+    }
+    loadings <- dapc$models[[k]]$loadings
+    if (!is.null(loadings) && nrow(loadings)) {
+      # loadings is already sorted axis, -contribution by dapc_loading_table().
+      top <- loadings[, .SD[seq_len(min(.N, top_n))], by = axis]
+      top[, rank := seq_len(.N), by = axis]
+      data.table::setcolorder(top, c("axis", "rank", "snp_id", "chromosome", "position", "contribution"))
+      write_tsv(top, file.path(dirs$tables, sprintf("22f_DAPC_loadings_K%s.tsv", k)))
     }
   }
   if (!is.null(dapc$k_selection)) {
