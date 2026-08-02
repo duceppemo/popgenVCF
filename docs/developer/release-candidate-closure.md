@@ -200,6 +200,32 @@ Eight gates can be determined by CI alone, because they are objective technical 
 
 The remaining 7 gates -- `production_baseline`, `external_concordance`, `ancestry_three_backend`, `benchmark_history`, `scientific_approval`, `release_authorization`, and `archival_assets` -- require real scientific review, a named reviewer's sign-off, or (for `archival_assets`) an actual Zenodo deposition that can only happen after the release is published. No workflow produces these automatically, by design. To close a release candidate: download the collector's artifact, add each of those 7 gates' own `<gate_id>-gate-record.json` fragments (and their referenced evidence files) into the same source tree, and re-run `build_release_candidate_evidence_index.R` locally against the combined directory to get the final, complete index.
 
+## Human-gated fragments for the scientific-judgment gates (2026-08-01)
+
+`production_baseline`, `external_concordance`, `ancestry_three_backend`, and `benchmark_history` are the 4 gates on the named reviewer's standing assignment (`inst/metadata/scientific-review-assignment.json`) that recur every release -- unlike `scientific_approval`, `release_authorization`, and `archival_assets`, which are one-off, release-specific sign-offs rather than reusable scientific-review records. `scripts/write_scientific_review_gate_record.R` turns a reviewer's determination into a correctly-shaped, checksum-verified `<gate_id>-gate-record.json` fragment without anyone hand-computing checksums or hand-writing JSON:
+
+```text
+Rscript scripts/write_scientific_review_gate_record.R <review-spec.json> <evidence-dir> <output-path>
+```
+
+The review-spec is a small declarative JSON the reviewer (or whoever is recording their determination) writes:
+
+```json
+{
+  "gate_id": "production_baseline",
+  "status": "passed",
+  "summary": "One paragraph: what was reviewed and why the status holds.",
+  "artifacts": ["autosomal-baseline-proposal.json", "autosomal-baseline-observations.tsv"],
+  "approval": {
+    "state": "approved", "reviewer": "Full Name", "reviewed_at": "YYYY-MM-DD", "notes": "Optional."
+  }
+}
+```
+
+`artifacts` are paths relative to `<evidence-dir>`; the script never invents evidence -- every artifact must already exist there, and it fails closed (before writing anything) if the spec references a missing artifact, a missing required field (`gate_id`, `status`, `summary`, `artifacts`), or an empty artifact list. `approval` may be omitted or `null` for gates that do not need a named sign-off. Checksums and sizes are always computed from the real files via the shared `write_release_candidate_gate_record()` helper, never copied from the spec.
+
+This was run against the real, retained `v0.10.0` Release evidence for all 4 gates (downloaded via `gh release download v0.10.0`), using the exact review determinations already recorded in `docs/developer/canonical-autosomal-baseline-proposal.md`, `docs/SCIENTIFIC_CONCORDANCE.md`, `docs/user/ancestry-backends.md`, and `docs/CONTINUOUS_RELEASE_BENCHMARKING.md`. Merging the 4 resulting fragments with the 8 CI-auto-collected fragments from a real `release-candidate-collector.yml` run through `build_release_candidate_evidence_index.R` reproduced `12 / 15` gates `passed`, with the 3 blocking gates correctly limited to `scientific_approval`, `release_authorization`, and `archival_assets` -- matching what was independently proven true for the real `v0.10.0` release, now demonstrated end to end with the generic fragment tooling instead of a hand-authored, release-specific script.
+
 ## Current scientific boundary
 
 The closure mechanism does not complete the production work tracked by #22, #24, #43, and #1. Until those real-data, external-tool, ancestry, benchmark, distribution, and approval records exist and are reviewed, the 0.10.0 release candidate must remain blocked.
