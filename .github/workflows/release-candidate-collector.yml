@@ -142,9 +142,23 @@ jobs:
           gh run watch "$run_id" || true
 
           mkdir -p collected-sources
-          if ! gh run download "$run_id" -D collected-sources; then
-            echo "No downloadable artifacts for ${workflow} run ${run_id} (it may have failed before producing any)" >&2
+          # Some workflows (e.g. container.yml, via docker/build-push-action's
+          # cache-to: type=gha) also produce a "*.dockerbuild" cache artifact
+          # that gh run download cannot extract as a normal zip. Downloading
+          # every artifact in one call aborts entirely on that one broken
+          # artifact, silently losing the real ones too -- so download each
+          # real artifact by name individually instead.
+          mapfile -t artifact_names < <(
+            gh api "repos/${GH_REPO}/actions/runs/${run_id}/artifacts" \
+              --jq '.artifacts[].name' | grep -v '\.dockerbuild$' || true
+          )
+          if [[ "${#artifact_names[@]}" -eq 0 ]]; then
+            echo "No downloadable (non-cache) artifacts for ${workflow} run ${run_id} (it may have failed before producing any)" >&2
           fi
+          for name in "${artifact_names[@]}"; do
+            gh run download "$run_id" -n "$name" -D collected-sources || \
+              echo "Failed to download artifact '${name}' from ${workflow} run ${run_id}" >&2
+          done
 
       - name: Upload collected fragment(s)
         if: always()
