@@ -178,6 +178,67 @@ test_that("standard PDF report uses compact vector figure sources", {
   expect_lt(file.info(rendered[["pdf"]])$size, 1e6)
 })
 
+test_that("reduced HTML reports omit the loading/private-allele sections when the data is absent", {
+  skip_if_not(rmarkdown::pandoc_available())
+  root <- tempfile("reduced-loadings-report-")
+  dir.create(root)
+  results <- file.path(root, "analysis_results.rds")
+  saveRDS(minimal_standard_report_result(), results)
+
+  rendered <- render_report(
+    results, file.path(root, "report"), title = "No loadings report",
+    formats = "html"
+  )
+  html <- paste(readLines(rendered[["html"]], warn = FALSE), collapse = "\n")
+
+  expect_no_match(html, "Private alleles", fixed = TRUE)
+  expect_no_match(html, "PCA SNP loadings", fixed = TRUE)
+  expect_no_match(html, "DAPC SNP loadings", fixed = TRUE)
+})
+
+test_that("HTML reports include the loading and private-allele sections when the data is present", {
+  skip_if_not(rmarkdown::pandoc_available())
+  root <- tempfile("populated-loadings-report-")
+  dir.create(root)
+  results <- file.path(root, "analysis_results.rds")
+  populated <- minimal_standard_report_result()
+  populated$diversity$locus <- data.table::data.table(
+    population = c("north", "south", "north"),
+    snp_id = c("1", "1", "2"),
+    chromosome = c("1", "1", "1"),
+    position = c(100L, 100L, 200L),
+    private_allele = c("alt", "none", "none"),
+    alternate_allele_count = c(4L, 0L, 2L),
+    reference_allele_count = c(0L, 8L, 6L)
+  )
+  populated$pca$loadings <- data.table::data.table(
+    axis = c("PC1", "PC1"), snp_id = c("1", "2"),
+    chromosome = c("1", "1"), position = c(100L, 200L),
+    contribution = c(-0.8, 0.2), magnitude = c(0.8, 0.2)
+  )
+  populated$dapc <- list(
+    diagnostics = data.table::data.table(K = 2L, assignment_accuracy = 0.9),
+    models = list(`2` = list(loadings = data.table::data.table(
+      axis = c("LD1", "LD1"), snp_id = c("1", "2"),
+      chromosome = c("1", "1"), position = c(100L, 200L),
+      contribution = c(0.7, 0.1)
+    )))
+  )
+  saveRDS(populated, results)
+
+  rendered <- render_report(
+    results, file.path(root, "report"), title = "With loadings report",
+    formats = "html"
+  )
+  html <- paste(readLines(rendered[["html"]], warn = FALSE), collapse = "\n")
+
+  expect_match(html, "Private alleles", fixed = TRUE)
+  expect_match(html, "PCA SNP loadings", fixed = TRUE)
+  expect_match(html, "DAPC SNP loadings", fixed = TRUE)
+  expect_match(html, "32_private_alleles.tsv", fixed = TRUE)
+  expect_match(html, "31_PCA_loadings.tsv", fixed = TRUE)
+})
+
 test_that("standard report rejects unsupported formats", {
   expect_error(
     render_report(tempfile(), tempfile(), formats = "docx"),

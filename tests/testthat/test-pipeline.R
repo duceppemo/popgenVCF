@@ -69,6 +69,9 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
   expect_true(all(pca_loadings[, min(rank) == 1L && all(diff(rank) == 1L), by = axis]$V1))
   expect_equal(pca_loadings$magnitude, abs(pca_loadings$contribution))
 
+  expect_false(is.null(reloaded$results$pca$loadings))
+  expect_true(nrow(reloaded$results$pca$loadings) > 0L)
+
   population_diversity <- data.table::fread(file.path(root, "tables/09_population_diversity.tsv"))
   expect_true(all(c(
     "hwe_tested_loci", "hwe_significant_loci", "hwe_significant_loci_fdr", "private_allele_loci"

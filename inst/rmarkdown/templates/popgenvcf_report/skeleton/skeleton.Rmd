@@ -74,16 +74,51 @@ if (!is.null(r$fst$global) && length(r$fst$global) &&
 }
 report_table_section("Quality control", r$qc$sequential, digits = 2)
 report_table_section("Genetic diversity", r$diversity$population, digits = 4)
+private_alleles <- NULL
+if (!is.null(r$diversity$locus)) {
+  pa <- r$diversity$locus[
+    !is.na(r$diversity$locus$private_allele) & r$diversity$locus$private_allele != "none",
+    c("population", "snp_id", "chromosome", "position", "private_allele",
+      "alternate_allele_count", "reference_allele_count")
+  ]
+  if (nrow(pa)) private_alleles <- head(pa, 20)
+}
+report_table_section("Private alleles (up to 20 shown; see 32_private_alleles.tsv for the complete list)", private_alleles)
 report_table_section(
   "Principal component analysis",
   if (!is.null(r$pca$scores)) head(r$pca$scores, 20) else NULL,
   digits = 4
+)
+pca_loadings_top <- NULL
+if (!is.null(r$pca$loadings) && nrow(r$pca$loadings)) {
+  pca_loadings_top <- head(r$pca$loadings[order(-r$pca$loadings$magnitude), ], 20)
+}
+report_table_section(
+  "PCA SNP loadings (top 20 by |loading|; see 31_PCA_loadings.tsv for the complete top-N list)",
+  pca_loadings_top, digits = 4
 )
 report_table_section("Population differentiation", r$fst$long, digits = 4)
 report_table_section(
   "Discriminant analysis of principal components",
   r$dapc$diagnostics,
   digits = 4
+)
+dapc_loadings_top <- NULL
+if (!is.null(r$dapc$models) && length(r$dapc$models)) {
+  loading_tables <- lapply(names(r$dapc$models), function(k) {
+    loadings <- r$dapc$models[[k]]$loadings
+    if (is.null(loadings) || !nrow(loadings)) return(NULL)
+    cbind(K = k, loadings[, c("axis", "snp_id", "chromosome", "position", "contribution")])
+  })
+  loading_tables <- loading_tables[!vapply(loading_tables, is.null, logical(1L))]
+  if (length(loading_tables)) {
+    combined <- do.call(rbind, loading_tables)
+    dapc_loadings_top <- head(combined[order(-combined$contribution), ], 20)
+  }
+}
+report_table_section(
+  "DAPC SNP loadings (top 20 by contribution across all K; see 22f_DAPC_loadings_K<k>.tsv for the complete per-K top-N lists)",
+  dapc_loadings_top, digits = 4
 )
 if (!is.null(r$amova)) {
   cat("# Analysis of molecular variance\n\n")
