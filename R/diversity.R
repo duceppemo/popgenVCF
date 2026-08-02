@@ -206,7 +206,11 @@ plot_diversity <- function(div, ci, cfg, dirs) {
   save_plot(p2, "06_population_diversity", dirs, fmts, 8, 5.5, dpi)
 
   hwe_alpha <- cfg$analyses$hwe_alpha %||% 0.05
-  tested <- div$locus[is.finite(hwe_pvalue)]
+  tested <- if (!is.null(div$locus) && "hwe_pvalue" %in% names(div$locus)) {
+    div$locus[is.finite(hwe_pvalue)]
+  } else {
+    data.table::data.table()
+  }
   if (nrow(tested)) {
     accent <- unname(expand_figure_palette(figure_style_profile(style), 1L, "fills"))
     p3 <- ggplot2::ggplot(tested, ggplot2::aes(hwe_pvalue)) +
