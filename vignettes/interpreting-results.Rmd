@@ -65,6 +65,8 @@ Allelic richness, heterozygosity, nucleotide diversity, and related summaries ar
 
 Compare populations only when estimators and sampling effort are appropriate. A lower estimate is not automatically evidence of a bottleneck, inbreeding, or reduced fitness. Those explanations require additional analyses and study-design support.
 
+`hwe_pvalue` (per-population Wigginton et al. 2005 exact test) and `private_allele` are reporting-only and never filter a SNP. A significant HWE deviation has many non-error causes -- null alleles, genotyping artifacts, selection, non-random mating, or substructure within the labeled group -- and small samples have limited power to detect real deviations, so treat both the raw and FDR-adjusted significant-loci counts as descriptive. A private allele is evidence only that it was observed in one retained population and nowhere else in the sampled set; it is not, by itself, evidence of adaptive significance.
+
 ## FST
 
 FST summarizes relative allele-frequency differentiation under a specified estimator. It is not a direct measure of migration rate, divergence time, or reproductive isolation.

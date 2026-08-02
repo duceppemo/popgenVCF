@@ -46,6 +46,16 @@ uncertainty. Negative or positive FIS does not identify a cause by itself;
 technical artifacts, substructure, inbreeding, selection, and sample design can
 produce similar summaries.
 
+`hwe_pvalue` is a per-population exact test (Wigginton et al. 2005); it is
+reporting-only and does not filter any SNP. A significant deviation has many
+non-error causes (null alleles, genotyping artifacts, selection, non-random
+mating, population substructure within the labeled group) and small sample
+sizes have limited power to detect real deviations -- treat the p-value
+distribution and the FDR-adjusted count as descriptive, not as an automatic
+exclusion criterion. `private_allele` identifies alleles found in only one
+retained population; it is not itself evidence of adaptive significance or
+of any particular demographic history.
+
 ## FST
 
 State the estimator explicitly. Global and pairwise values depend on population

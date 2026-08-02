@@ -91,6 +91,24 @@ test_that("pca_loading_top_n is coerced and validated", {
   expect_error(popgenVCF::validate_config(cfg), "pca_loading_top_n")
 })
 
+test_that("hwe_alpha is coerced and validated", {
+  cfg <- popgenVCF::default_config()
+  cfg$input$vcf <- tempfile(fileext = ".vcf")
+  cfg$output$directory <- tempfile("popgenvcf-output-")
+  file.create(cfg$input$vcf)
+
+  expect_identical(cfg$analyses$hwe_alpha, 0.05)
+
+  cfg$analyses$hwe_alpha <- "0.01"
+  validated <- popgenVCF::validate_config(cfg)
+  expect_identical(validated$analyses$hwe_alpha, 0.01)
+
+  cfg$analyses$hwe_alpha <- 0
+  expect_error(popgenVCF::validate_config(cfg), "hwe_alpha")
+  cfg$analyses$hwe_alpha <- 1
+  expect_error(popgenVCF::validate_config(cfg), "hwe_alpha")
+})
+
 test_that("system resource helpers understand container limits", {
   expect_equal(popgenVCF:::cpu_set_size("0-3,8,10-11"), 7L)
   expect_equal(popgenVCF:::cpu_quota_size("150000 100000"), 2L)

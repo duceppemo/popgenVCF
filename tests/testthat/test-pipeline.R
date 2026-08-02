@@ -38,6 +38,9 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
     "tables/31_PCA_loadings.tsv",
     "figures/17_PCA_loadings_manhattan.pdf",
     "figures/18_PCA_loadings_ranked.pdf",
+    "figures/19_HWE_pvalues.pdf",
+    "tables/32_private_alleles.tsv",
+    "figures/20_private_alleles.pdf",
     "tables/23_AMOVA_components.tsv",
     "tables/25_Mantel_IBD_summary.tsv", "trees/IBS_neighbor_joining.nwk"
   )) {
@@ -65,6 +68,25 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
   expect_true(all(pca_loadings[, .N, by = axis]$N <= cfg$analyses$pca_loading_top_n))
   expect_true(all(pca_loadings[, min(rank) == 1L && all(diff(rank) == 1L), by = axis]$V1))
   expect_equal(pca_loadings$magnitude, abs(pca_loadings$contribution))
+
+  population_diversity <- data.table::fread(file.path(root, "tables/09_population_diversity.tsv"))
+  expect_true(all(c(
+    "hwe_tested_loci", "hwe_significant_loci", "hwe_significant_loci_fdr", "private_allele_loci"
+  ) %in% names(population_diversity)))
+  expect_true(sum(population_diversity$hwe_tested_loci) > 0L)
+  expect_true(sum(population_diversity$private_allele_loci) > 0L)
+
+  locus_diversity <- data.table::fread(file.path(root, "tables/10_population_locus_diversity.tsv"))
+  expect_true(all(c("hwe_pvalue", "private_allele", "reference_allele_count") %in% names(locus_diversity)))
+
+  private_alleles <- data.table::fread(file.path(root, "tables/32_private_alleles.tsv"))
+  expect_setequal(
+    names(private_alleles),
+    c("population", "snp_id", "chromosome", "position", "private_allele",
+      "alternate_allele_count", "reference_allele_count")
+  )
+  expect_true(all(private_alleles$private_allele %in% c("ref", "alt", "both")))
+  expect_identical(nrow(private_alleles), sum(population_diversity$private_allele_loci))
 })
 
 test_that("run_pipeline completes without a metadata file and records no metadata hash", {

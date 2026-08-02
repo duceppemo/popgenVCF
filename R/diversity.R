@@ -1,4 +1,4 @@
-compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids) {
+compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha = 0.05) {
   geno <- SNPRelate::snpgdsGetGeno(gds, sample.id = sample_ids, snp.id = snp_ids,
                                    snpfirstdim = FALSE, verbose = FALSE)
   called <- rowSums(!is.na(geno)); het <- rowSums(geno == 1, na.rm = TRUE)
@@ -23,6 +23,13 @@ compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids) {
     ho <- ifelse(n_called > 0, colSums(x == 1, na.rm = TRUE) / n_called, NA_real_)
     he <- 2 * p * (1 - p)
     he_unbiased <- ifelse(gene_copies > 1, he * gene_copies / (gene_copies - 1), NA_real_)
+    polymorphic <- is.finite(p) & p > 0 & p < 1
+    # SNPRelate's exact HWE test (Wigginton et al. 2005) reports a trivial p = 1
+    # for monomorphic input; report NA instead of p = 1 for loci monomorphic
+    # within this specific population, since "not tested" is more honest than a
+    # spurious pile-up of p = 1 in the summary counts and histogram.
+    hwe_pvalue <- SNPRelate::snpgdsHWE(gds, sample.id = sample_ids[idx], snp.id = snp_ids)
+    hwe_pvalue[!polymorphic] <- NA_real_
     data.table::data.table(
       population = pop, snp_id = snp_ids,
       chromosome = ids$chromosome[match(snp_ids, ids$snp)],
@@ -31,13 +38,37 @@ compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids) {
       alternate_allele_frequency = p, maf = pmin(p, 1 - p),
       observed_heterozygosity = ho, expected_heterozygosity = he,
       unbiased_expected_heterozygosity = he_unbiased,
-      polymorphic = is.finite(p) & p > 0 & p < 1
+      polymorphic = polymorphic, hwe_pvalue = hwe_pvalue
     )
   })
   locus <- data.table::rbindlist(loci)
+
+  # Private alleles: an allele is private to a population when every copy of it,
+  # genome-wide across all retained populations, is found in that one population.
+  # Requires at least two populations to compare against; standard presence/
+  # absence definition matching hierfstat's/poppr's private.alleles().
+  if (data.table::uniqueN(locus$population) >= 2L) {
+    locus[, reference_allele_count := 2L * n_called - alternate_allele_count]
+    locus[, total_alt := sum(alternate_allele_count), by = snp_id]
+    locus[, total_ref := sum(reference_allele_count), by = snp_id]
+    locus[, private_allele := data.table::fcase(
+      alternate_allele_count > 0 & alternate_allele_count == total_alt &
+        reference_allele_count > 0 & reference_allele_count == total_ref, "both",
+      alternate_allele_count > 0 & alternate_allele_count == total_alt, "alt",
+      reference_allele_count > 0 & reference_allele_count == total_ref, "ref",
+      default = "none"
+    )]
+    locus[, c("total_alt", "total_ref") := NULL]
+  } else {
+    locus[, reference_allele_count := 2L * n_called - alternate_allele_count]
+    locus[, private_allele := NA_character_]
+  }
+
   population <- locus[, {
     mho <- mean(observed_heterozygosity, na.rm = TRUE)
     mhe <- mean(unbiased_expected_heterozygosity, na.rm = TRUE)
+    tested <- is.finite(hwe_pvalue)
+    fdr <- if (any(tested)) stats::p.adjust(hwe_pvalue[tested], method = "BH") else numeric()
     .(n_samples = metadata[population == .BY$population, .N],
       n_loci = .N,
       polymorphic_loci = sum(polymorphic, na.rm = TRUE),
@@ -46,7 +77,11 @@ compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids) {
       expected_heterozygosity = mhe,
       inbreeding_coefficient = if (is.finite(mhe) && mhe > 0) 1 - mho / mhe else NA_real_,
       mean_minor_allele_frequency = mean(maf, na.rm = TRUE),
-      mean_locus_call_rate = mean(n_called / metadata[population == .BY$population, .N], na.rm = TRUE))
+      mean_locus_call_rate = mean(n_called / metadata[population == .BY$population, .N], na.rm = TRUE),
+      hwe_tested_loci = sum(tested),
+      hwe_significant_loci = sum(hwe_pvalue[tested] < hwe_alpha),
+      hwe_significant_loci_fdr = sum(fdr < hwe_alpha),
+      private_allele_loci = sum(private_allele != "none", na.rm = TRUE))
   }, by = population]
   list(genotype = geno, sample = sample, locus = locus, population = population)
 }
@@ -169,4 +204,46 @@ plot_diversity <- function(div, ci, cfg, dirs) {
       axis.text.x = ggplot2::element_text(angle = 35, hjust = 1)
     )
   save_plot(p2, "06_population_diversity", dirs, fmts, 8, 5.5, dpi)
+
+  hwe_alpha <- cfg$analyses$hwe_alpha %||% 0.05
+  tested <- div$locus[is.finite(hwe_pvalue)]
+  if (nrow(tested)) {
+    accent <- unname(expand_figure_palette(figure_style_profile(style), 1L, "fills"))
+    p3 <- ggplot2::ggplot(tested, ggplot2::aes(hwe_pvalue)) +
+      ggplot2::geom_histogram(
+        bins = 30, fill = accent, colour = "white", linewidth = 0.2
+      ) +
+      ggplot2::geom_vline(
+        xintercept = hwe_alpha, colour = "#B2182B",
+        linetype = "dashed", linewidth = 0.65
+      ) +
+      ggplot2::scale_y_continuous(
+        labels = scales::label_comma(),
+        expand = ggplot2::expansion(mult = c(0, 0.06))
+      ) +
+      ggplot2::facet_wrap(~population) +
+      ggplot2::labs(
+        title = "Hardy-Weinberg equilibrium exact-test p-values",
+        subtitle = sprintf("Dashed line: significance threshold (alpha = %.3g); monomorphic-within-population loci excluded", hwe_alpha),
+        x = "Exact-test p-value", y = "Number of loci"
+      ) + theme_publication(figure_base_size(cfg))
+    save_plot(p3, "19_HWE_pvalues", dirs, fmts, 8, 5, dpi)
+  }
+
+  if (sum(div$population$private_allele_loci) > 0L) {
+    p4 <- ggplot2::ggplot(div$population, ggplot2::aes(population, private_allele_loci, fill = population)) +
+      ggplot2::geom_col(width = 0.62) +
+      ggplot2::scale_fill_manual(values = population_colours) +
+      ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.08))) +
+      ggplot2::labs(
+        title = "Private alleles by population",
+        x = "Population", y = "Loci with a private allele"
+      ) +
+      theme_publication(figure_base_size(cfg)) +
+      ggplot2::theme(
+        legend.position = "none",
+        axis.text.x = ggplot2::element_text(angle = 35, hjust = 1)
+      )
+    save_plot(p4, "20_private_alleles", dirs, fmts, 7, 5, dpi)
+  }
 }

@@ -29,6 +29,7 @@ qc:
   ld_start_pos: first
 analyses:
   diversity: false
+  hwe_alpha: 0.05
   pca: true
   n_pcs: 10
   pca_loading_top_n: 20

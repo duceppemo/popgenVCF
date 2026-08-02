@@ -3,7 +3,7 @@ module_result <- function(analysis, context) list(analysis = analysis, context =
 run_module_diversity <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
   div <- compute_diversity(context$gds, context$sample_ids, context$qc_snps,
-                           context$metadata, context$ids)
+                           context$metadata, context$ids, cfg$analyses$hwe_alpha)
   ci <- if (isTRUE(cfg$analyses$bootstrap$enabled)) {
     bootstrap_diversity(div$locus, cfg$analyses$bootstrap$replicates,
                         cfg$compute$seed, cfg$analyses$bootstrap$unit)
@@ -16,6 +16,14 @@ run_module_diversity <- function(analysis, context) {
   write_tsv(div$population, file.path(dirs$tables, "09_population_diversity.tsv"))
   write_tsv(div$locus, file.path(dirs$tables, "10_population_locus_diversity.tsv"))
   if (nrow(ci)) write_tsv(ci, file.path(dirs$tables, "11_diversity_bootstrap_CI.tsv"))
+  if (sum(div$locus$private_allele != "none", na.rm = TRUE) > 0L) {
+    private_loci <- div$locus[
+      private_allele != "none",
+      .(population, snp_id, chromosome, position, private_allele,
+        alternate_allele_count, reference_allele_count)
+    ]
+    write_tsv(private_loci, file.path(dirs$tables, "32_private_alleles.tsv"))
+  }
   plot_diversity(div, ci, cfg, dirs)
   module_result(analysis, context)
 }
