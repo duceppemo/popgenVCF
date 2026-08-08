@@ -22,6 +22,16 @@ validation evidence.
 > development build should be treated as release-approved unless its
 > production dossier reports `READY`.
 
+## See it before you install it
+
+Real figures and the complete PDF report from a real 160-sample, 8-population
+1000 Genomes chromosome 22 run are in the
+[Results and Interpretation wiki page](https://github.com/duceppemo/popgenVCF/wiki/Results-and-Interpretation)
+and [`docs/examples/chr22-quickstart-report.pdf`](docs/examples/chr22-quickstart-report.pdf).
+Already have the package installed? That same dataset ships with it --
+`vignette("quickstart", package = "popgenVCF")` runs the full pipeline
+locally in a few minutes with no download.
+
 ## Quick start with Docker
 
 Docker is the simplest evaluation path:

@@ -39,16 +39,41 @@ html_escape <- function(x) {
   x <- gsub('"', "&quot;", x, fixed = TRUE)
   x
 }
+report_kable <- function(table, digits = NULL) {
+  # kable()'s default ("pipe") output is pandoc markdown, meant to be
+  # converted by pandoc's own markdown-to-LaTeX pass -- fine standalone, but
+  # NOT valid content inside a raw \sbox{}{...} LaTeX command (which pandoc
+  # never re-processes for embedded markdown table syntax). LaTeX output
+  # explicitly requests format="latex" so kable() itself emits real
+  # \begin{tabular}...\end{tabular} source, safe to measure/wrap directly.
+  latex <- knitr::is_latex_output()
+  args <- list(x = table, format = if (latex) "latex" else "pipe")
+  if (!is.null(digits)) args$digits <- digits
+  if (latex) args$booktabs <- TRUE
+  rendered <- do.call(knitr::kable, args)
+  if (latex) {
+    # Shrink only if the table is actually wider than the page (real result
+    # tables can have 10+ columns); a naturally narrow table is left at its
+    # own size, never stretched to fill the line.
+    cat("\\sbox{\\pgvcftablebox}{\n")
+    cat(rendered, sep = "\n")
+    cat("\n}\n")
+    cat("\\ifdim\\wd\\pgvcftablebox>\\textwidth\n")
+    cat("\\resizebox{\\textwidth}{!}{\\usebox{\\pgvcftablebox}}\n")
+    cat("\\else\n")
+    cat("\\usebox{\\pgvcftablebox}\n")
+    cat("\\fi\n\n")
+  } else {
+    cat(rendered, sep = "\n")
+    cat("\n\n")
+  }
+  invisible(TRUE)
+}
+
 report_table_section <- function(title, table, digits = NULL, level = 1L) {
   if (is.null(table)) return(invisible(FALSE))
   cat(strrep("#", level), " ", title, "\n\n", sep = "")
-  rendered <- if (is.null(digits)) {
-    knitr::kable(table)
-  } else {
-    knitr::kable(table, digits = digits)
-  }
-  cat(rendered, sep = "\n")
-  cat("\n\n")
+  report_kable(table, digits)
   invisible(TRUE)
 }
 ```
@@ -139,12 +164,10 @@ report_table_section(
 if (!is.null(r$amova)) {
   cat("# Analysis of molecular variance\n\n")
   if (!is.null(r$amova$components)) {
-    cat(knitr::kable(r$amova$components, digits = 4), sep = "\n")
-    cat("\n\n")
+    report_kable(r$amova$components, digits = 4)
   }
   if (!is.null(r$amova$phi)) {
-    cat(knitr::kable(r$amova$phi, digits = 4), sep = "\n")
-    cat("\n\n")
+    report_kable(r$amova$phi, digits = 4)
   }
 }
 report_table_section(

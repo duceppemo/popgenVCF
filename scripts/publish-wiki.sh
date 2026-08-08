@@ -61,6 +61,13 @@ install -m 0644 \
   "$source_root/man/figures/popgenVCF-logo.svg" \
   "$publish_work/wiki/popgenVCF-logo.svg"
 
+if [[ -d "$wiki_source/figures" ]]; then
+  mkdir -p "$publish_work/wiki/figures"
+  for image in "$wiki_source"/figures/*; do
+    install -m 0644 "$image" "$publish_work/wiki/figures/$(basename "$image")"
+  done
+fi
+
 git -C "$publish_work/wiki" add --intent-to-add .
 git -C "$publish_work/wiki" diff --check
 

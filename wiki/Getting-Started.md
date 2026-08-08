@@ -3,6 +3,16 @@
 This page takes you from installation to a first analysis. Begin with a small
 VCF and a new output directory. Do not start by enabling every optional module.
 
+Already have popgenVCF installed in R? A real, bundled example dataset (160
+real 1000 Genomes chromosome 22 samples) lets you see complete output in a
+few minutes with no download and no Docker: see the
+[quickstart vignette](https://duceppemo.github.io/popgenVCF/articles/quickstart.html)
+(`vignette("quickstart", package = "popgenVCF")`). See
+[Results and Interpretation](Results-and-Interpretation) for real figures
+from that same run, and
+[the example PDF report](https://github.com/duceppemo/popgenVCF/blob/main/docs/examples/chr22-quickstart-report.pdf)
+for a complete preview.
+
 ## 1. Choose an installation path
 
 ### Docker

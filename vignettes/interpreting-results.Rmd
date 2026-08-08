@@ -42,6 +42,12 @@ Review missingness, heterozygosity, minor-allele frequency, retained sample coun
 
 Filtering can change ordinations, distances, diversity, and differentiation. Report thresholds and sensitivity analyses when conclusions depend on a narrow filtering choice.
 
+```{r maf-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/01_MAF.png")
+```
+
+The quickstart example (see `vignette("quickstart")`) reduces 21,418 biallelic SNPs to 1,969 after MAF filtering and 357 after LD pruning -- real numbers from a real 160-sample, 8-population run, not a toy fixture.
+
 ## PCA
 
 Principal components summarize directions of variance in the analyzed genotype matrix. Separation can reflect population structure, family relationships, batch effects, uneven missingness, marker ascertainment, inversions, or geographic clines.
@@ -49,6 +55,12 @@ Principal components summarize directions of variance in the analyzed genotype m
 Interpret the eigenvalues and source coordinates together. Do not assign discrete populations solely from visual clusters. Examine whether patterns persist after removing close relatives, high-LD regions, or problematic samples. Axis signs are arbitrary; only relative geometry is meaningful.
 
 `31_PCA_loadings.tsv`, plus a genomic Manhattan-style figure and a rank-ordered figure, report each SNP's signed correlation with every retained component. Ranking is by magnitude, not raw value, since a large negative loading is just as informative as a large positive one. A high-magnitude loading marks a marker associated with an axis; it is not evidence that the marker is causal without independent, functional follow-up.
+
+```{r pca-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/07_PCA_PC1_PC2.png")
+```
+
+The 8 populations in the quickstart example separate largely by continental origin along PC1/PC2, as expected for real, geographically diverse human samples.
 
 ## IBS and MDS
 
@@ -59,17 +71,32 @@ an average-linkage row dendrogram aligned to the clustered heatmap order. High
 similarity may indicate relatedness or shared population history, but IBS is
 not an identity-by-descent estimate and does not establish pedigree relationships. Check pairwise source tables, sample labels, and the amount of distortion introduced by the displayed dimensions.
 
+```{r ibs-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/09_IBS_heatmap.png")
+```
+
 ## Kinship
 
 Kinship (`SNPRelate::snpgdsIBDKING()`, KING-robust, Manichaikul et al. 2010) answers a different question than IBS/MDS above: not "how similar are these samples overall" but "are these two individuals related, and how closely." KING-robust is specifically chosen for robustness to population stratification, unlike naive relatedness estimators that assume a single homogeneous population -- a real requirement here, since this package explicitly supports analyzing structured populations.
 
 The estimator needs realistic marker density to behave sensibly; a handful of SNPs produces values with no biological meaning, confirmed concretely during this feature's implementation against both an undersized fixture and real chromosome-scale data. `relationship_degree` uses the standard KING thresholds and is a screening classification, not a pedigree diagnosis -- a flagged pair warrants follow-up (sample duplication, family structure in the study design, or a labeling error), not an automatic conclusion. Kinship is bounded above at 0.5 (a self/duplicate pair) but is *not* bounded below at -0.5 for arbitrarily divergent pairs; very negative values are expected, not an error, when comparing highly differentiated populations. Detected close relatives can bias the FST, diversity, and structure analyses computed from the same sample set -- consider whether to exclude or account for them before interpreting those results.
 
+```{r kinship-figures, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/21_kinship_heatmap.png")
+knitr::include_graphics("figures/22_kinship_IBS0_vs_kinship.png")
+```
+
+The quickstart example deliberately includes two known real duplicate/MZ-twin pairs: `HG03873`/`HG03998` (kinship 0.4525, labelled as two *different* populations, ITU and STU -- exactly the kind of labeling issue this analysis is meant to surface) and `NA19331`/`NA19334` (kinship 0.4459, both LWK). Both are correctly classified `duplicate/MZ twin`.
+
 ## Runs of homozygosity
 
 Runs of homozygosity (`bcftools roh`, an HMM-based method, Narasimhan et al. 2016) identify long stretches where a sample's genotype calls are consistently homozygous -- a standard per-sample autozygosity/inbreeding signal, distinct from both diversity's population-level FIS below and kinship's pairwise relatedness above.
 
 Allele frequencies are self-estimated from the analyzed samples (there is no mechanism to attach an external reference-panel frequency), so informative site count -- and therefore sensitivity -- drops with smaller cohorts, confirmed concretely during this feature's implementation. `FROH` (total run length divided by the analyzed genomic footprint) is scaled to the footprint actually covered by the analyzed variants, **not the whole genome** -- a single-region VCF and a whole-genome VCF give very different `FROH` for the same underlying biology, so never compare `FROH` values across analyses that covered different genomic spans. No short/medium/long run-length classification is imposed; that convention is species- and study-specific and is left for the analyst to apply if relevant, unlike kinship's KING thresholds, which are a defined property of the estimator itself.
+
+```{r roh-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/24_ROH_FROH_by_sample.png")
+```
 
 ## Diversity
 
@@ -79,11 +106,21 @@ Compare populations only when estimators and sampling effort are appropriate. A 
 
 `hwe_pvalue` (per-population Wigginton et al. 2005 exact test) and `private_allele` are reporting-only and never filter a SNP. A significant HWE deviation has many non-error causes -- null alleles, genotyping artifacts, selection, non-random mating, or substructure within the labeled group -- and small samples have limited power to detect real deviations, so treat both the raw and FDR-adjusted significant-loci counts as descriptive. A private allele is evidence only that it was observed in one retained population and nowhere else in the sampled set; it is not, by itself, evidence of adaptive significance.
 
+```{r diversity-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/05_sample_heterozygosity.png")
+```
+
 ## FST
 
 FST summarizes relative allele-frequency differentiation under a specified estimator. It is not a direct measure of migration rate, divergence time, or reproductive isolation.
 
 Report the estimator, marker set, population definitions, sample sizes, confidence intervals or resampling procedure, and whether pairwise estimates are stable. Negative estimates can arise from sampling variation and should be handled according to the documented estimator policy rather than silently transformed.
+
+```{r fst-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/10_pairwise_FST.png")
+```
+
+The global FST estimate for the quickstart example is 0.0915, consistent with real, moderate differentiation across 8 geographically diverse populations at this marker density.
 
 ## DAPC
 
@@ -92,6 +129,10 @@ This package's DAPC module discriminates unsupervised `find.clusters()` partitio
 Document how many principal components and discriminant axes were retained, how those choices were validated, and whether sample sizes support the model. Avoid presenting discrimination between data-driven clusters as an unbiased discovery result about the sampled populations.
 
 `22f_DAPC_loadings_K<k>.tsv`, plus a genomic Manhattan-style figure and a rank-ordered figure, report each SNP's contribution to every discriminant function at each K. A large contribution identifies a marker that helped separate that K's clusters; it does not by itself establish biological cause.
+
+```{r dapc-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/11_DAPC_K8.png")
+```
 
 ## AMOVA
 

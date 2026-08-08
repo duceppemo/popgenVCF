@@ -13,6 +13,7 @@ Each documentation surface has a distinct role.
 
 ## Users
 
+- [Try it in 5 minutes](https://duceppemo.github.io/popgenVCF/articles/quickstart.html) (bundled real example dataset, no installation beyond R)
 - [Getting Started](Getting-Started)
 - [User Guide](User-Guide)
 - [Configuration Reference](Configuration-Reference)

@@ -72,20 +72,32 @@ test_that("internal Wiki page links resolve to maintained source pages", {
   if (is.na(root)) testthat::skip("Repository Wiki source is unavailable")
   pages <- list.files(file.path(root, "wiki"), pattern = "\\.md$", full.names = TRUE)
   pages <- pages[basename(pages) != "README.md"]
-  targets <- unlist(lapply(pages, function(path) {
+  hits <- unlist(lapply(pages, function(path) {
     lines <- readLines(path, warn = FALSE)
-    matches <- gregexpr("\\[[^]]+\\]\\(([^)]+)\\)", lines, perl = TRUE)
+    # Optional leading "!" distinguishes an image embed (![alt](file.png),
+    # validated against a real file) from a page link ([text](PageName),
+    # validated against wiki/<PageName>.md) -- both share the same
+    # [..](..) shape, so the two must not be checked the same way.
+    matches <- gregexpr("!?\\[[^]]+\\]\\(([^)]+)\\)", lines, perl = TRUE)
     links <- regmatches(lines, matches)
-    links <- unlist(links, use.names = FALSE)
-    sub("^.*\\(([^)]+)\\)$", "\\1", links)
+    unlist(links, use.names = FALSE)
   }), use.names = FALSE)
-  targets <- targets[
-    nzchar(targets) & !grepl("^(https?://|#|mailto:)", targets)
-  ]
+  is_image <- startsWith(hits, "!")
+  targets <- sub("^!?\\[[^]]+\\]\\(([^)]+)\\)$", "\\1", hits)
   targets <- sub("#.*$", "", targets)
-  expected <- file.path(root, "wiki", paste0(targets, ".md"))
-  missing <- targets[!file.exists(expected)]
-  expect_length(unique(missing), 0L)
+  keep <- nzchar(targets) & !grepl("^(https?://|#|mailto:)", targets)
+  targets <- targets[keep]
+  is_image <- is_image[keep]
+
+  link_targets <- targets[!is_image]
+  expected_pages <- file.path(root, "wiki", paste0(link_targets, ".md"))
+  missing_pages <- link_targets[!file.exists(expected_pages)]
+  expect_length(unique(missing_pages), 0L)
+
+  image_targets <- targets[is_image]
+  expected_images <- file.path(root, "wiki", image_targets)
+  missing_images <- image_targets[!file.exists(expected_images)]
+  expect_length(unique(missing_images), 0L)
 })
 
 test_that("scientific review handoff is explicit and non-automatic", {

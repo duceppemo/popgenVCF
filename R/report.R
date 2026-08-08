@@ -60,6 +60,54 @@ report_latex_engine <- function() {
   if (length(available)) available[[1L]] else NULL
 }
 
+# Two real LaTeX layout defects, both found only by rendering a report from a
+# realistic real-data analysis (many figures, many-column tables) rather than
+# the small fixtures used elsewhere:
+#
+# 1. Every PDF-branch figure is already placed one-per-page via an explicit
+#    \newpage in skeleton.Rmd's figure gallery loop, but pandoc still wraps
+#    each markdown image in a *floating* LaTeX figure environment by default
+#    -- floats left unplaced (e.g. because a caption pushes an image past a
+#    page break) stay queued rather than being discarded at \newpage, and
+#    LaTeX's default float queue (18) is smaller than this report's real
+#    figure count once every per-K DAPC/PCA loading figure is included,
+#    producing a hard "Too many unprocessed floats" compile failure. Forcing
+#    figure placement with the float package's [H] specifier makes every
+#    figure place immediately in document order -- matching the
+#    one-figure-per-page behavior the template already intends -- so nothing
+#    is ever queued, regardless of figure count.
+# 2. Wide result tables (e.g. the population diversity summary or PCA scores,
+#    each 10+ columns on real data) overflow \textwidth in the PDF, rendering
+#    as illegible overlapping text -- knitr::kable() alone does not know the
+#    page width. report_table_section() (skeleton.Rmd) wraps LaTeX-output
+#    tables in a \sbox measured against \textwidth, shrinking with
+#    \resizebox only when the table is actually too wide (never stretching a
+#    naturally narrow table to fill the page). \pgvcftablebox is declared
+#    once here so it can be reused (via \sbox, not \newsavebox) across every
+#    report_table_section() call in the document. This requires
+#    knitr::kable(..., format = "latex") to actually emit LaTeX tabular
+#    source instead of its default pandoc-markdown table syntax (report_kable()
+#    in skeleton.Rmd) -- raw \sbox{}{...} content is never re-processed by
+#    pandoc's own markdown-to-LaTeX pass, unlike a normal chunk's output --
+#    and booktabs, which pandoc would otherwise auto-load only when it detects
+#    its own native table syntax in the source, which this raw LaTeX bypasses.
+report_pdf_preamble <- function() {
+  path <- tempfile(fileext = ".tex")
+  writeLines(c(
+    "\\usepackage{float}",
+    "\\usepackage{booktabs}",
+    "\\let\\oldfigure\\figure",
+    "\\let\\endoldfigure\\endfigure",
+    "\\renewenvironment{figure}[1][2]{",
+    "  \\expandafter\\oldfigure\\expandafter[H]",
+    "}{",
+    "  \\endoldfigure",
+    "}",
+    "\\newsavebox{\\pgvcftablebox}"
+  ), path)
+  path
+}
+
 render_standard_report_format <- function(template, results_rds, output_dir,
                                           title, author, format,
                                           latex_engine = NULL) {
@@ -73,7 +121,8 @@ render_standard_report_format <- function(template, results_rds, output_dir,
   } else {
     rmarkdown::pdf_document(
       toc = TRUE, number_sections = TRUE,
-      latex_engine = latex_engine
+      latex_engine = latex_engine,
+      includes = rmarkdown::includes(in_header = report_pdf_preamble())
     )
   }
   rmarkdown::render(
