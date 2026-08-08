@@ -71,7 +71,12 @@ report_kable <- function(table, digits = NULL) {
 }
 
 report_table_section <- function(title, table, digits = NULL, level = 1L) {
-  if (is.null(table)) return(invisible(FALSE))
+  # A genuinely zero-column table (write_chromosome_results() returns a bare
+  # data.table() when no chromosome met chromosome_min_snps) is not NULL,
+  # but knitr::kable(format="latex") on it emits \begin{tabular}{} -- an
+  # empty column spec that is invalid LaTeX and hard-crashes the PDF
+  # compile. length() on a data.frame/data.table is its column count.
+  if (is.null(table) || !length(table)) return(invisible(FALSE))
   cat(strrep("#", level), " ", title, "\n\n", sep = "")
   report_kable(table, digits)
   invisible(TRUE)
@@ -123,6 +128,10 @@ report_table_section(
   pca_loadings_top, digits = 4
 )
 report_table_section("Population differentiation", r$fst$long, digits = 4)
+report_table_section(
+  "Genome scan FST outliers (top 20 windows by FST; see 39_genome_scan_fst.tsv for the complete list)",
+  r$genome_scan$outliers, digits = 4
+)
 close_relatives <- NULL
 if (!is.null(r$kinship$close_relatives) && nrow(r$kinship$close_relatives)) {
   close_relatives <- head(r$kinship$close_relatives, 20)

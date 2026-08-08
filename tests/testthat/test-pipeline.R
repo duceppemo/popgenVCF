@@ -11,6 +11,10 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
   cfg$output$directory <- root
   cfg$compute$threads <- 1L
   cfg$analyses$n_pcs <- 3L
+  # Default genome_scan_min_snps (5) is too strict for this tiny fixture's
+  # ~500bp position span; lowering it exercises the real figure-drawing
+  # path too, not just the table-writing path.
+  cfg$analyses$genome_scan_min_snps <- 2L
   cfg$analyses$dapc_k <- "2:3"
   cfg$analyses$dapc_cross_validation <- FALSE
   cfg$analyses$bootstrap$enabled <- FALSE
@@ -50,6 +54,10 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
     "tables/38_ROH_sample_summary.tsv",
     "figures/23_ROH_length_distribution.pdf",
     "figures/24_ROH_FROH_by_sample.pdf",
+    "tables/39_genome_scan_fst.tsv",
+    "tables/40_genome_scan_diversity.tsv",
+    "figures/25_genome_scan_FST_manhattan.pdf",
+    "figures/26_genome_scan_diversity_manhattan.pdf",
     "tables/23_AMOVA_components.tsv",
     "tables/25_Mantel_IBD_summary.tsv", "trees/IBS_neighbor_joining.nwk"
   )) {
@@ -135,6 +143,17 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
   # this session for HWE/kinship); only structural bounds are checked.
   expect_true(all(roh_summary$froh >= -1e-6 & roh_summary$froh <= 1 + 1e-6))
   expect_false(is.null(reloaded$results$roh$sample_summary))
+
+  fst_windows <- data.table::fread(file.path(root, "tables/39_genome_scan_fst.tsv"))
+  expect_setequal(names(fst_windows), c("chromosome", "window_start", "window_end", "n_snps", "global_fst"))
+  expect_identical(data.table::uniqueN(fst_windows$chromosome), 2L)
+  diversity_windows <- data.table::fread(file.path(root, "tables/40_genome_scan_diversity.tsv"))
+  expect_setequal(
+    names(diversity_windows),
+    c("chromosome", "window_start", "window_end", "population", "n_snps",
+      "mean_observed_heterozygosity", "mean_expected_heterozygosity")
+  )
+  expect_false(is.null(reloaded$results$genome_scan$outliers))
 })
 
 test_that("run_pipeline completes without a metadata file and records no metadata hash", {

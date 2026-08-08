@@ -149,6 +149,31 @@ run_module_dapc <- function(analysis, context) {
   module_result(analysis, context)
 }
 
+run_module_genome_scan <- function(analysis, context) {
+  cfg <- context$cfg; dirs <- context$dirs
+  window_bp <- cfg$analyses$genome_scan_window_bp
+  step_bp <- cfg$analyses$genome_scan_step_bp
+  min_snps <- cfg$analyses$genome_scan_min_snps
+  fst_windows <- run_genome_scan_fst(
+    context$gds, context$qc_snps, context$ids, context$metadata,
+    window_bp, step_bp, min_snps
+  )
+  diversity_windows <- run_genome_scan_diversity(
+    context$diversity_full$locus, window_bp, step_bp, min_snps
+  )
+  outliers <- fst_windows[is.finite(global_fst)]
+  data.table::setorder(outliers, -global_fst)
+  outliers <- head(outliers, 20L)
+  analysis <- set_analysis_result(analysis, "genome_scan", list(
+    fst_windows = fst_windows, diversity_windows = diversity_windows, outliers = outliers
+  ))
+  write_tsv(fst_windows, file.path(dirs$tables, "39_genome_scan_fst.tsv"))
+  write_tsv(diversity_windows, file.path(dirs$tables, "40_genome_scan_diversity.tsv"))
+  if (nrow(outliers)) write_tsv(outliers, file.path(dirs$tables, "41_genome_scan_FST_outliers.tsv"))
+  plot_genome_scan(fst_windows, diversity_windows, cfg, dirs)
+  module_result(analysis, context)
+}
+
 run_module_amova <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs; div <- context$diversity_full
   amova <- run_amova_analysis(div$genotype, context$sample_ids, context$metadata,

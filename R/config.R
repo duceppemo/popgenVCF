@@ -20,6 +20,8 @@ default_config <- function() {
                     ibs = TRUE, kinship = TRUE, kinship_close_relative_threshold = 0.0442,
                     roh = TRUE, roh_gt_error_phred = 30,
                     tree = TRUE, fst = TRUE,
+                    genome_scan = TRUE, genome_scan_window_bp = 50000L,
+                    genome_scan_step_bp = 50000L, genome_scan_min_snps = 5L,
                     dapc = TRUE, dapc_k = "2:10", dapc_cross_validation = TRUE,
                     dapc_loading_top_n = 20L,
                     amova = TRUE, mantel = TRUE, isolation_by_distance = TRUE,
@@ -47,6 +49,7 @@ template_config <- function() {
   # defaults supplied by default_config().
   cfg$analyses$diversity <- FALSE
   cfg$analyses$fst <- FALSE
+  cfg$analyses$genome_scan <- FALSE
   cfg$analyses$dapc <- FALSE
   cfg$analyses$amova <- FALSE
   cfg$analyses$mantel <- FALSE
@@ -114,6 +117,9 @@ validate_config <- function(cfg) {
   cfg$analyses$pca_loading_top_n <- as.integer(cfg$analyses$pca_loading_top_n)
   cfg$analyses$kinship_close_relative_threshold <- as.numeric(cfg$analyses$kinship_close_relative_threshold)
   cfg$analyses$roh_gt_error_phred <- as.numeric(cfg$analyses$roh_gt_error_phred)
+  cfg$analyses$genome_scan_window_bp <- as.integer(cfg$analyses$genome_scan_window_bp)
+  cfg$analyses$genome_scan_step_bp <- as.integer(cfg$analyses$genome_scan_step_bp)
+  cfg$analyses$genome_scan_min_snps <- as.integer(cfg$analyses$genome_scan_min_snps)
   cfg$analyses$chromosome_min_snps <- as.integer(cfg$analyses$chromosome_min_snps)
   cfg$analyses$dapc_loading_top_n <- as.integer(cfg$analyses$dapc_loading_top_n)
   cfg$analyses$bootstrap$replicates <- as.integer(cfg$analyses$bootstrap$replicates)
@@ -133,6 +139,9 @@ validate_config <- function(cfg) {
   if (!is.finite(cfg$analyses$pca_loading_top_n) || cfg$analyses$pca_loading_top_n < 1L) stop("analyses.pca_loading_top_n must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$kinship_close_relative_threshold) || cfg$analyses$kinship_close_relative_threshold <= 0 || cfg$analyses$kinship_close_relative_threshold > 0.5) stop("analyses.kinship_close_relative_threshold must be between zero (exclusive) and 0.5 (inclusive)", call. = FALSE)
   if (!is.finite(cfg$analyses$roh_gt_error_phred) || cfg$analyses$roh_gt_error_phred <= 0) stop("analyses.roh_gt_error_phred must be positive", call. = FALSE)
+  if (!is.finite(cfg$analyses$genome_scan_window_bp) || cfg$analyses$genome_scan_window_bp < 1L) stop("analyses.genome_scan_window_bp must be >= 1", call. = FALSE)
+  if (!is.finite(cfg$analyses$genome_scan_step_bp) || cfg$analyses$genome_scan_step_bp < 1L) stop("analyses.genome_scan_step_bp must be >= 1", call. = FALSE)
+  if (!is.finite(cfg$analyses$genome_scan_min_snps) || cfg$analyses$genome_scan_min_snps < 2L) stop("analyses.genome_scan_min_snps must be >= 2", call. = FALSE)
   if (!is.finite(cfg$analyses$chromosome_min_snps) || cfg$analyses$chromosome_min_snps < 2L) stop("analyses.chromosome_min_snps must be >= 2", call. = FALSE)
   if (!is.finite(cfg$analyses$dapc_loading_top_n) || cfg$analyses$dapc_loading_top_n < 1L) stop("analyses.dapc_loading_top_n must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$bootstrap$replicates) || cfg$analyses$bootstrap$replicates < 0L) stop("bootstrap.replicates must be >= 0", call. = FALSE)

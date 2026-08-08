@@ -57,6 +57,7 @@ default_analysis_registry <- function() {
     roh_module_spec(),
     tree_module_spec(),
     fst_module_spec(),
+    genome_scan_module_spec(),
     dapc_module_spec(),
     amova_module_spec(),
     ibd_module_spec(),

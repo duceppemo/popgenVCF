@@ -144,6 +144,24 @@ The global FST estimate for the quickstart example is 0.0915, consistent
 with real, moderate differentiation across 8 geographically diverse
 populations at this marker density.
 
+## Genome scans
+
+Windowed FST and diversity (`39_genome_scan_fst.tsv`,
+`40_genome_scan_diversity.tsv`) track the same statistics above along
+physical position, rather than only as a single genome-wide number --
+useful for spotting localized differentiation or diversity outliers.
+Windows are non-overlapping by default (`analyses.genome_scan_step_bp`
+equals `analyses.genome_scan_window_bp`); a smaller step gives a real
+overlapping/sliding scan. `41_genome_scan_FST_outliers.tsv` is a
+descriptive ranking (highest-FST windows), **not** a significance test --
+no permutation or null distribution is computed, so a high-FST window is a
+candidate worth further investigation, not a statistically confirmed
+selection signal. Always check a window's `n_snps` before treating its
+estimate as meaningful: windows below `analyses.genome_scan_min_snps`
+(default 5) are reported as `NA` rather than a misleadingly precise value
+from too few markers, and even windows just above that threshold can be
+noisy.
+
 ## DAPC
 
 DAPC is conditional on groups and retained PCs. Inspect cross-validation and

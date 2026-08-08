@@ -145,6 +145,36 @@ test_that("roh_gt_error_phred is coerced and validated", {
   expect_error(popgenVCF::validate_config(cfg), "roh_gt_error_phred")
 })
 
+test_that("genome_scan window/step/min_snps keys are coerced and validated", {
+  cfg <- popgenVCF::default_config()
+  cfg$input$vcf <- tempfile(fileext = ".vcf")
+  cfg$output$directory <- tempfile("popgenvcf-output-")
+  file.create(cfg$input$vcf)
+
+  expect_identical(cfg$analyses$genome_scan_window_bp, 50000L)
+  expect_identical(cfg$analyses$genome_scan_step_bp, 50000L)
+  expect_identical(cfg$analyses$genome_scan_min_snps, 5L)
+
+  cfg$analyses$genome_scan_window_bp <- "10000"
+  cfg$analyses$genome_scan_step_bp <- "5000"
+  cfg$analyses$genome_scan_min_snps <- "3"
+  validated <- popgenVCF::validate_config(cfg)
+  expect_identical(validated$analyses$genome_scan_window_bp, 10000L)
+  expect_identical(validated$analyses$genome_scan_step_bp, 5000L)
+  expect_identical(validated$analyses$genome_scan_min_snps, 3L)
+
+  cfg$analyses$genome_scan_window_bp <- 0L
+  expect_error(popgenVCF::validate_config(cfg), "genome_scan_window_bp")
+  cfg$analyses$genome_scan_window_bp <- 50000L
+
+  cfg$analyses$genome_scan_step_bp <- 0L
+  expect_error(popgenVCF::validate_config(cfg), "genome_scan_step_bp")
+  cfg$analyses$genome_scan_step_bp <- 50000L
+
+  cfg$analyses$genome_scan_min_snps <- 1L
+  expect_error(popgenVCF::validate_config(cfg), "genome_scan_min_snps")
+})
+
 test_that("system resource helpers understand container limits", {
   expect_equal(popgenVCF:::cpu_set_size("0-3,8,10-11"), 7L)
   expect_equal(popgenVCF:::cpu_quota_size("150000 100000"), 2L)

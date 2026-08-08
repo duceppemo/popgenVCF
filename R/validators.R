@@ -143,6 +143,28 @@ validate_fst_result <- function(result, analysis, context) {
                     list(comparisons = if (is.list(result)) nrow(result$long) else NA_integer_))
 }
 
+validate_genome_scan_result <- function(result, analysis, context) {
+  errors <- character(); warnings <- character()
+  required <- c("fst_windows", "diversity_windows", "outliers")
+  if (!is.list(result) || !all(required %in% names(result))) {
+    errors <- c(errors, "genome scan result requires fst_windows, diversity_windows, and outliers")
+  } else {
+    if (!is.data.frame(result$fst_windows) || !is.data.frame(result$diversity_windows)) {
+      errors <- c(errors, "genome scan windows must be tabular")
+    } else {
+      # Matches validate_fst_result()'s exact existing FST tolerance: W&C84
+      # can occasionally exceed 1 under small-sample noise, a deliberate,
+      # already-established policy elsewhere in this codebase, not
+      # something to tighten here.
+      if ("global_fst" %in% names(result$fst_windows) && any(result$fst_windows$global_fst > 1, na.rm = TRUE)) {
+        warnings <- c(warnings, "some windowed FST values exceed one")
+      }
+    }
+  }
+  validation_result(!length(errors), errors, warnings,
+                    metrics = list(windows = if (is.list(result) && !is.null(result$fst_windows)) nrow(result$fst_windows) else NA_integer_))
+}
+
 validate_dapc_result <- function(result, analysis, context) {
   errors <- character(); warnings <- character(); metrics <- list()
   if (!is.list(result) || !all(c("models", "diagnostics") %in% names(result))) {

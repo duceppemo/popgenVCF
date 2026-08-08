@@ -44,6 +44,12 @@ analyses:
   roh_gt_error_phred: 30
   tree: true
   fst: false
+  genome_scan: false
+  # Non-overlapping by default (step = window); set step below window for a
+  # real overlapping/sliding scan.
+  genome_scan_window_bp: 50000
+  genome_scan_step_bp: 50000
+  genome_scan_min_snps: 5
   dapc: false
   dapc_k: 2:10
   dapc_cross_validation: true

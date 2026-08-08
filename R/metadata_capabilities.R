@@ -24,11 +24,11 @@ analysis_capability_table <- function(registry, capabilities) {
   modules <- names(registry$modules)
   population_modules <- intersect(
     modules,
-    c("diversity", "fst", "dapc", "amova", "bootstrap", "chromosome")
+    c("diversity", "fst", "genome_scan", "dapc", "amova", "bootstrap", "chromosome")
   )
   multi_population_modules <- intersect(
     modules,
-    c("fst", "amova", "chromosome")
+    c("fst", "genome_scan", "amova", "chromosome")
   )
   n_populations <- as.integer(
     capabilities$population_levels %||%
