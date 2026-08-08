@@ -106,6 +106,14 @@ report_table_section(
   "Close relatives (up to 20 shown; see 36_close_relatives.tsv for the complete list)",
   close_relatives, digits = 4
 )
+roh_top <- NULL
+if (!is.null(r$roh$sample_summary) && nrow(r$roh$sample_summary)) {
+  roh_top <- head(r$roh$sample_summary[order(-r$roh$sample_summary$froh), ], 20)
+}
+report_table_section(
+  "Runs of homozygosity (highest FROH samples, up to 20 shown; see 38_ROH_sample_summary.tsv for the complete list)",
+  roh_top, digits = 4
+)
 report_table_section(
   "Discriminant analysis of principal components",
   r$dapc$diagnostics,

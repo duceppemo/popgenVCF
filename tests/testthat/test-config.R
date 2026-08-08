@@ -127,6 +127,24 @@ test_that("kinship_close_relative_threshold is coerced and validated", {
   expect_error(popgenVCF::validate_config(cfg), "kinship_close_relative_threshold")
 })
 
+test_that("roh_gt_error_phred is coerced and validated", {
+  cfg <- popgenVCF::default_config()
+  cfg$input$vcf <- tempfile(fileext = ".vcf")
+  cfg$output$directory <- tempfile("popgenvcf-output-")
+  file.create(cfg$input$vcf)
+
+  expect_identical(cfg$analyses$roh_gt_error_phred, 30)
+
+  cfg$analyses$roh_gt_error_phred <- "20"
+  validated <- popgenVCF::validate_config(cfg)
+  expect_identical(validated$analyses$roh_gt_error_phred, 20)
+
+  cfg$analyses$roh_gt_error_phred <- 0
+  expect_error(popgenVCF::validate_config(cfg), "roh_gt_error_phred")
+  cfg$analyses$roh_gt_error_phred <- -5
+  expect_error(popgenVCF::validate_config(cfg), "roh_gt_error_phred")
+})
+
 test_that("system resource helpers understand container limits", {
   expect_equal(popgenVCF:::cpu_set_size("0-3,8,10-11"), 7L)
   expect_equal(popgenVCF:::cpu_quota_size("150000 100000"), 2L)
@@ -239,5 +257,5 @@ test_that("template analysis toggles drive registry enablement", {
   enabled <- names(registry$modules)[vapply(
     registry$modules, popgenVCF:::module_is_enabled, logical(1L), config = cfg
   )]
-  expect_identical(enabled, c("pca", "ibs", "kinship", "tree"))
+  expect_identical(enabled, c("pca", "ibs", "kinship", "roh", "tree"))
 })

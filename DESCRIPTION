@@ -69,6 +69,7 @@ Suggests:
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 SystemRequirements: BCFtools and HTSlib utilities (required for VCF sorting,
-    BGZF compression, and indexing), Pandoc (optional, for manuscript reports),
-    ADMIXTURE (optional), fastStructure (optional)
+    BGZF compression, indexing, and runs-of-homozygosity detection), Pandoc
+    (optional, for manuscript reports), ADMIXTURE (optional), fastStructure
+    (optional)
 RoxygenNote: 7.3.2

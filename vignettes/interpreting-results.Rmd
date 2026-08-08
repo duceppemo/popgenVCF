@@ -65,6 +65,12 @@ Kinship (`SNPRelate::snpgdsIBDKING()`, KING-robust, Manichaikul et al. 2010) ans
 
 The estimator needs realistic marker density to behave sensibly; a handful of SNPs produces values with no biological meaning, confirmed concretely during this feature's implementation against both an undersized fixture and real chromosome-scale data. `relationship_degree` uses the standard KING thresholds and is a screening classification, not a pedigree diagnosis -- a flagged pair warrants follow-up (sample duplication, family structure in the study design, or a labeling error), not an automatic conclusion. Kinship is bounded above at 0.5 (a self/duplicate pair) but is *not* bounded below at -0.5 for arbitrarily divergent pairs; very negative values are expected, not an error, when comparing highly differentiated populations. Detected close relatives can bias the FST, diversity, and structure analyses computed from the same sample set -- consider whether to exclude or account for them before interpreting those results.
 
+## Runs of homozygosity
+
+Runs of homozygosity (`bcftools roh`, an HMM-based method, Narasimhan et al. 2016) identify long stretches where a sample's genotype calls are consistently homozygous -- a standard per-sample autozygosity/inbreeding signal, distinct from both diversity's population-level FIS below and kinship's pairwise relatedness above.
+
+Allele frequencies are self-estimated from the analyzed samples (there is no mechanism to attach an external reference-panel frequency), so informative site count -- and therefore sensitivity -- drops with smaller cohorts, confirmed concretely during this feature's implementation. `FROH` (total run length divided by the analyzed genomic footprint) is scaled to the footprint actually covered by the analyzed variants, **not the whole genome** -- a single-region VCF and a whole-genome VCF give very different `FROH` for the same underlying biology, so never compare `FROH` values across analyses that covered different genomic spans. No short/medium/long run-length classification is imposed; that convention is species- and study-specific and is left for the analyst to apply if relevant, unlike kinship's KING thresholds, which are a defined property of the estimator itself.
+
 ## Diversity
 
 Allelic richness, heterozygosity, nucleotide diversity, and related summaries are sensitive to sample size, missing data, marker ascertainment, and the genomic regions retained after filtering.

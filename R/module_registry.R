@@ -67,6 +67,18 @@ run_module_kinship <- function(analysis, context) {
   module_result(analysis, context)
 }
 
+run_module_roh <- function(analysis, context) {
+  cfg <- context$cfg; dirs <- context$dirs
+  result <- run_roh(context$vcf_path, context$sample_ids, context$metadata,
+                    cfg$qc$max_variant_missing, cfg$analyses$roh_gt_error_phred,
+                    cfg$compute$threads)
+  analysis <- set_analysis_result(analysis, "roh", result)
+  write_tsv(result$runs, file.path(dirs$tables, "37_ROH_runs.tsv"))
+  write_tsv(result$sample_summary, file.path(dirs$tables, "38_ROH_sample_summary.tsv"))
+  plot_roh(result, cfg, dirs)
+  module_result(analysis, context)
+}
+
 run_module_tree <- function(analysis, context) {
   tree <- build_nj_tree(context$ibs, context$metadata, context$cfg, context$dirs)
   analysis <- set_analysis_result(analysis, "tree", tree)

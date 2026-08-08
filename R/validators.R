@@ -99,6 +99,34 @@ validate_kinship_result <- function(result, analysis, context) {
                     metrics = list(close_relatives = if (is.list(result) && !is.null(result$close_relatives)) nrow(result$close_relatives) else NA_integer_))
 }
 
+validate_roh_result <- function(result, analysis, context) {
+  errors <- character()
+  if (!is.list(result) || !all(c("runs", "sample_summary") %in% names(result))) {
+    errors <- c(errors, "ROH result requires runs and sample_summary")
+  } else {
+    if (!is.data.frame(result$runs) || !is.data.frame(result$sample_summary)) {
+      errors <- c(errors, "ROH runs and sample_summary must be tabular")
+    } else {
+      if ("length_bp" %in% names(result$runs) && any(result$runs$length_bp < 0, na.rm = TRUE)) {
+        errors <- c(errors, "ROH run lengths are negative")
+      }
+      if ("n_runs" %in% names(result$sample_summary) && any(result$sample_summary$n_runs < 0, na.rm = TRUE)) {
+        errors <- c(errors, "ROH sample summary has negative n_runs")
+      }
+      # froh cannot exceed one by construction: bcftools roh's Viterbi path
+      # produces non-overlapping runs per sample per chromosome (unlike
+      # kinship's KING estimator, which is not bounded below at -0.5 for
+      # divergent pairs -- confirmed empirically this session for both).
+      if ("froh" %in% names(result$sample_summary) &&
+          any(result$sample_summary$froh < -1e-6 | result$sample_summary$froh > 1 + 1e-6, na.rm = TRUE)) {
+        errors <- c(errors, "ROH froh is outside [0, 1]")
+      }
+    }
+  }
+  validation_result(!length(errors), errors,
+                    metrics = list(runs = if (is.list(result) && !is.null(result$runs)) nrow(result$runs) else NA_integer_))
+}
+
 validate_fst_result <- function(result, analysis, context) {
   errors <- character(); warnings <- character()
   if (!is.list(result) || !all(c("global", "long", "matrix") %in% names(result))) {

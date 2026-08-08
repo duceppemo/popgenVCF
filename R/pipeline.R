@@ -103,7 +103,8 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
   context <- list(
     cfg = cfg, dirs = dirs, gds = gds, ids = ids, sample_ids = sample_ids,
     metadata = metadata, hs = hs, vq = vq, qc_snps = qc_snps,
-    final_snps = final_snps, capabilities = capabilities
+    final_snps = final_snps, capabilities = capabilities,
+    vcf_path = prepared_vcf$path
   )
 
   if (length(selected_available)) {

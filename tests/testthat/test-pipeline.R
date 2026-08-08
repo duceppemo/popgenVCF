@@ -46,6 +46,10 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
     "tables/35_kinship_pairs.tsv",
     "figures/21_kinship_heatmap.pdf",
     "figures/22_kinship_IBS0_vs_kinship.pdf",
+    "tables/37_ROH_runs.tsv",
+    "tables/38_ROH_sample_summary.tsv",
+    "figures/23_ROH_length_distribution.pdf",
+    "figures/24_ROH_FROH_by_sample.pdf",
     "tables/23_AMOVA_components.tsv",
     "tables/25_Mantel_IBD_summary.tsv", "trees/IBS_neighbor_joining.nwk"
   )) {
@@ -115,6 +119,22 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
     ) | is.na(kinship_pairs$relationship_degree)
   ))
   expect_false(is.null(reloaded$results$kinship$close_relatives))
+
+  roh_runs <- data.table::fread(file.path(root, "tables/37_ROH_runs.tsv"))
+  expect_setequal(
+    names(roh_runs),
+    c("sample", "population", "chromosome", "start", "end", "length_bp", "n_markers", "quality")
+  )
+  roh_summary <- data.table::fread(file.path(root, "tables/38_ROH_sample_summary.tsv"))
+  expect_identical(nrow(roh_summary), 8L)
+  expect_setequal(
+    names(roh_summary),
+    c("sample", "population", "n_runs", "total_length_bp", "mean_length_bp", "longest_run_bp", "froh")
+  )
+  # Values are not scientifically meaningful at 9 SNPs (established elsewhere
+  # this session for HWE/kinship); only structural bounds are checked.
+  expect_true(all(roh_summary$froh >= -1e-6 & roh_summary$froh <= 1 + 1e-6))
+  expect_false(is.null(reloaded$results$roh$sample_summary))
 })
 
 test_that("run_pipeline completes without a metadata file and records no metadata hash", {

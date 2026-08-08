@@ -60,6 +60,25 @@ Detected close relatives can bias FST, diversity, and structure analyses
 computed from the same sample set -- consider whether to exclude or account
 for them before interpreting those results.
 
+## Runs of homozygosity
+
+Runs of homozygosity (`bcftools roh`, an HMM-based method, Narasimhan et al.
+2016) identify long stretches where a sample's genotype calls are
+consistently homozygous -- a standard per-sample autozygosity/inbreeding
+signal, distinct from both diversity's population-level FIS and kinship's
+pairwise relatedness above. Allele frequencies are self-estimated from the
+analyzed samples (there is no mechanism to attach an external reference-panel
+frequency), which means informative site count -- and therefore sensitivity
+-- drops with smaller cohorts; treat results from small sample sets
+cautiously, the same caution as HWE and kinship above. `FROH` (total run
+length divided by the analyzed genomic footprint) is scaled to the footprint
+actually covered by the analyzed variants, **not the whole genome** -- a
+single-region VCF and a whole-genome VCF give very different `FROH` for the
+same underlying biology, so never compare `FROH` values across analyses that
+covered different genomic spans. No short/medium/long run-length
+classification is imposed; that convention is species- and study-specific
+and is left for the analyst to apply if relevant.
+
 ## Diversity and FIS
 
 Report the estimator, locus filters, missing-data handling, sample sizes, and

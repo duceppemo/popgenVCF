@@ -54,6 +54,7 @@ default_analysis_registry <- function() {
     pca_module_spec(),
     ibs_module_spec(),
     kinship_module_spec(),
+    roh_module_spec(),
     tree_module_spec(),
     fst_module_spec(),
     dapc_module_spec(),
