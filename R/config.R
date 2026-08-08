@@ -17,7 +17,8 @@ default_config <- function() {
               ld_r2 = 0.20, ld_slide_max_bp = Inf, ld_slide_max_n = 50L,
               ld_start_pos = "first"),
     analyses = list(diversity = TRUE, hwe_alpha = 0.05, pca = TRUE, n_pcs = 10L, pca_loading_top_n = 20L,
-                    ibs = TRUE, tree = TRUE, fst = TRUE,
+                    ibs = TRUE, kinship = TRUE, kinship_close_relative_threshold = 0.0442,
+                    tree = TRUE, fst = TRUE,
                     dapc = TRUE, dapc_k = "2:10", dapc_cross_validation = TRUE,
                     dapc_loading_top_n = 20L,
                     amova = TRUE, mantel = TRUE, isolation_by_distance = TRUE,
@@ -110,6 +111,7 @@ validate_config <- function(cfg) {
   cfg$analyses$hwe_alpha <- as.numeric(cfg$analyses$hwe_alpha)
   cfg$analyses$n_pcs <- as.integer(cfg$analyses$n_pcs)
   cfg$analyses$pca_loading_top_n <- as.integer(cfg$analyses$pca_loading_top_n)
+  cfg$analyses$kinship_close_relative_threshold <- as.numeric(cfg$analyses$kinship_close_relative_threshold)
   cfg$analyses$chromosome_min_snps <- as.integer(cfg$analyses$chromosome_min_snps)
   cfg$analyses$dapc_loading_top_n <- as.integer(cfg$analyses$dapc_loading_top_n)
   cfg$analyses$bootstrap$replicates <- as.integer(cfg$analyses$bootstrap$replicates)
@@ -127,6 +129,7 @@ validate_config <- function(cfg) {
   if (!is.finite(cfg$analyses$hwe_alpha) || cfg$analyses$hwe_alpha <= 0 || cfg$analyses$hwe_alpha >= 1) stop("analyses.hwe_alpha must be between zero and one", call. = FALSE)
   if (!is.finite(cfg$analyses$n_pcs) || cfg$analyses$n_pcs < 2L) stop("analyses.n_pcs must be >= 2", call. = FALSE)
   if (!is.finite(cfg$analyses$pca_loading_top_n) || cfg$analyses$pca_loading_top_n < 1L) stop("analyses.pca_loading_top_n must be >= 1", call. = FALSE)
+  if (!is.finite(cfg$analyses$kinship_close_relative_threshold) || cfg$analyses$kinship_close_relative_threshold <= 0 || cfg$analyses$kinship_close_relative_threshold > 0.5) stop("analyses.kinship_close_relative_threshold must be between zero (exclusive) and 0.5 (inclusive)", call. = FALSE)
   if (!is.finite(cfg$analyses$chromosome_min_snps) || cfg$analyses$chromosome_min_snps < 2L) stop("analyses.chromosome_min_snps must be >= 2", call. = FALSE)
   if (!is.finite(cfg$analyses$dapc_loading_top_n) || cfg$analyses$dapc_loading_top_n < 1L) stop("analyses.dapc_loading_top_n must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$bootstrap$replicates) || cfg$analyses$bootstrap$replicates < 0L) stop("bootstrap.replicates must be >= 0", call. = FALSE)

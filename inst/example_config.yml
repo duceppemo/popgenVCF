@@ -34,6 +34,10 @@ analyses:
   n_pcs: 10
   pca_loading_top_n: 20
   ibs: true
+  kinship: true
+  # Pairs with kinship above this cutoff are written to 36_close_relatives.tsv.
+  # Default is the KING-robust (Manichaikul et al. 2010) 3rd-degree cutoff.
+  kinship_close_relative_threshold: 0.0442
   tree: true
   fst: false
   dapc: false

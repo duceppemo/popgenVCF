@@ -39,6 +39,27 @@ Confirm sample order and matrix symmetry. Interpret low-dimensional MDS only
 after inspecting the distance definition and retained eigenvalues. Close pairs
 may reflect relatives or duplicates rather than population-level structure.
 
+## Kinship
+
+Kinship (`SNPRelate::snpgdsIBDKING()`, KING-robust, Manichaikul et al. 2010)
+answers a different question than IBS/MDS above: not "how similar are these
+samples overall" but "are these two individuals related, and how closely."
+KING-robust is specifically chosen for robustness to population
+stratification, unlike naive relatedness estimators that assume a single
+homogeneous population -- a real requirement here, since this package
+explicitly supports analyzing structured populations. The estimator needs
+realistic marker density to behave sensibly: a handful of SNPs produces
+values with no biological meaning. `relationship_degree` uses the standard
+KING thresholds and is a screening classification, not a pedigree diagnosis --
+a flagged pair warrants follow-up (checking for sample duplication, family
+structure in the design, or a labeling error), not an automatic conclusion.
+Kinship is bounded above at 0.5 (a self/duplicate pair) but is *not* bounded
+below at -0.5 for arbitrarily divergent pairs; very negative values are
+expected, not an error, when comparing highly differentiated populations.
+Detected close relatives can bias FST, diversity, and structure analyses
+computed from the same sample set -- consider whether to exclude or account
+for them before interpreting those results.
+
 ## Diversity and FIS
 
 Report the estimator, locus filters, missing-data handling, sample sizes, and

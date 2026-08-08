@@ -41,6 +41,11 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
     "figures/19_HWE_pvalues.pdf",
     "tables/32_private_alleles.tsv",
     "figures/20_private_alleles.pdf",
+    "tables/33_kinship_matrix.tsv",
+    "tables/34_kinship_IBS0_matrix.tsv",
+    "tables/35_kinship_pairs.tsv",
+    "figures/21_kinship_heatmap.pdf",
+    "figures/22_kinship_IBS0_vs_kinship.pdf",
     "tables/23_AMOVA_components.tsv",
     "tables/25_Mantel_IBD_summary.tsv", "trees/IBS_neighbor_joining.nwk"
   )) {
@@ -90,6 +95,26 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
   )
   expect_true(all(private_alleles$private_allele %in% c("ref", "alt", "both")))
   expect_identical(nrow(private_alleles), sum(population_diversity$private_allele_loci))
+
+  kinship_matrix <- data.table::fread(file.path(root, "tables/33_kinship_matrix.tsv"))
+  expect_identical(nrow(kinship_matrix), 8L)
+  kinship_pairs <- data.table::fread(file.path(root, "tables/35_kinship_pairs.tsv"))
+  expect_setequal(
+    names(kinship_pairs),
+    c("sample_1", "sample_2", "population_1", "population_2", "IBS0", "kinship", "relationship_degree")
+  )
+  expect_identical(nrow(kinship_pairs), 28L)
+  # The bundled 9-SNP validation fixture is too small for KING-robust to be
+  # scientifically meaningful (established elsewhere this session for HWE and
+  # kinship alike); some/all pairs can legitimately come out non-finite when
+  # LD pruning leaves very few markers, so only structural bounds are checked.
+  expect_true(all(kinship_pairs$kinship <= 0.5 + 1e-6, na.rm = TRUE))
+  expect_true(all(
+    kinship_pairs$relationship_degree %in% c(
+      "duplicate/MZ twin", "1st-degree", "2nd-degree", "3rd-degree", "unrelated"
+    ) | is.na(kinship_pairs$relationship_degree)
+  ))
+  expect_false(is.null(reloaded$results$kinship$close_relatives))
 })
 
 test_that("run_pipeline completes without a metadata file and records no metadata hash", {

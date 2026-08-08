@@ -98,6 +98,14 @@ report_table_section(
   pca_loadings_top, digits = 4
 )
 report_table_section("Population differentiation", r$fst$long, digits = 4)
+close_relatives <- NULL
+if (!is.null(r$kinship$close_relatives) && nrow(r$kinship$close_relatives)) {
+  close_relatives <- head(r$kinship$close_relatives, 20)
+}
+report_table_section(
+  "Close relatives (up to 20 shown; see 36_close_relatives.tsv for the complete list)",
+  close_relatives, digits = 4
+)
 report_table_section(
   "Discriminant analysis of principal components",
   r$dapc$diagnostics,

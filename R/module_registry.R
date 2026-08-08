@@ -45,6 +45,28 @@ run_module_ibs <- function(analysis, context) {
   module_result(analysis, context)
 }
 
+run_module_kinship <- function(analysis, context) {
+  cfg <- context$cfg; dirs <- context$dirs
+  result <- run_kinship(context$gds, context$sample_ids, context$final_snps,
+                        context$metadata, cfg$compute$threads)
+  threshold <- cfg$analyses$kinship_close_relative_threshold
+  close_relatives <- result$pairs[is.finite(kinship) & kinship > threshold]
+  analysis <- set_analysis_result(analysis, "kinship", list(
+    close_relatives = close_relatives,
+    matrix_file = file.path(dirs$tables, "33_kinship_matrix.tsv"),
+    ibs0_file = file.path(dirs$tables, "34_kinship_IBS0_matrix.tsv"),
+    pairs_file = file.path(dirs$tables, "35_kinship_pairs.tsv")
+  ))
+  write_matrix_tsv(result$kinship, file.path(dirs$tables, "33_kinship_matrix.tsv"), "sample")
+  write_matrix_tsv(result$ibs0, file.path(dirs$tables, "34_kinship_IBS0_matrix.tsv"), "sample")
+  write_tsv(result$pairs, file.path(dirs$tables, "35_kinship_pairs.tsv"))
+  if (nrow(close_relatives)) {
+    write_tsv(close_relatives, file.path(dirs$tables, "36_close_relatives.tsv"))
+  }
+  plot_kinship(result, cfg, dirs)
+  module_result(analysis, context)
+}
+
 run_module_tree <- function(analysis, context) {
   tree <- build_nj_tree(context$ibs, context$metadata, context$cfg, context$dirs)
   analysis <- set_analysis_result(analysis, "tree", tree)

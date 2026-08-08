@@ -59,6 +59,12 @@ an average-linkage row dendrogram aligned to the clustered heatmap order. High
 similarity may indicate relatedness or shared population history, but IBS is
 not an identity-by-descent estimate and does not establish pedigree relationships. Check pairwise source tables, sample labels, and the amount of distortion introduced by the displayed dimensions.
 
+## Kinship
+
+Kinship (`SNPRelate::snpgdsIBDKING()`, KING-robust, Manichaikul et al. 2010) answers a different question than IBS/MDS above: not "how similar are these samples overall" but "are these two individuals related, and how closely." KING-robust is specifically chosen for robustness to population stratification, unlike naive relatedness estimators that assume a single homogeneous population -- a real requirement here, since this package explicitly supports analyzing structured populations.
+
+The estimator needs realistic marker density to behave sensibly; a handful of SNPs produces values with no biological meaning, confirmed concretely during this feature's implementation against both an undersized fixture and real chromosome-scale data. `relationship_degree` uses the standard KING thresholds and is a screening classification, not a pedigree diagnosis -- a flagged pair warrants follow-up (sample duplication, family structure in the study design, or a labeling error), not an automatic conclusion. Kinship is bounded above at 0.5 (a self/duplicate pair) but is *not* bounded below at -0.5 for arbitrarily divergent pairs; very negative values are expected, not an error, when comparing highly differentiated populations. Detected close relatives can bias the FST, diversity, and structure analyses computed from the same sample set -- consider whether to exclude or account for them before interpreting those results.
+
 ## Diversity
 
 Allelic richness, heterozygosity, nucleotide diversity, and related summaries are sensitive to sample size, missing data, marker ascertainment, and the genomic regions retained after filtering.

@@ -76,6 +76,29 @@ validate_ibs_result <- function(result, analysis, context) {
   validation_result(!length(errors), errors)
 }
 
+validate_kinship_result <- function(result, analysis, context) {
+  errors <- character()
+  required <- c("close_relatives", "matrix_file", "ibs0_file", "pairs_file")
+  if (!is.list(result) || !all(required %in% names(result))) {
+    errors <- c(errors, "kinship result is incomplete")
+  } else if (!is.null(result$close_relatives) && nrow(result$close_relatives)) {
+    if (!all(c("sample_1", "sample_2", "kinship", "relationship_degree") %in% names(result$close_relatives))) {
+      errors <- c(errors, "close relatives table is missing required columns")
+    }
+    # KING-robust's upper bound (0.5, self/duplicate) is a hard theoretical
+    # ceiling, but real data spanning highly differentiated populations can
+    # push the estimator well below the naive -0.5 lower bound -- confirmed
+    # empirically against real chr22 1000 Genomes data -- so only the upper
+    # bound is enforced here.
+    if ("kinship" %in% names(result$close_relatives) &&
+        any(result$close_relatives$kinship > 0.5 + 1e-6, na.rm = TRUE)) {
+      errors <- c(errors, "kinship values exceed the theoretical maximum of 0.5")
+    }
+  }
+  validation_result(!length(errors), errors,
+                    metrics = list(close_relatives = if (is.list(result) && !is.null(result$close_relatives)) nrow(result$close_relatives) else NA_integer_))
+}
+
 validate_fst_result <- function(result, analysis, context) {
   errors <- character(); warnings <- character()
   if (!is.list(result) || !all(c("global", "long", "matrix") %in% names(result))) {
