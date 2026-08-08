@@ -68,18 +68,25 @@ test_that("package code does not call its own namespace with triple colon", {
 
 test_that("static-analysis imports and data.table NSE declarations are retained", {
   root <- package_check_source_root()
-  namespace <- readLines(file.path(root, "NAMESPACE"), warn = FALSE)
+  # Parsed rather than line-matched: roxygen2 can write importFrom() either as
+  # one directive per line or, since 8.1.0, grouped into a single multi-line
+  # block per package (confirmed against a real CI run) -- what matters is
+  # that each function is actually imported, not the exact textual layout.
+  namespace_text <- paste(readLines(file.path(root, "NAMESPACE"), warn = FALSE), collapse = "\n")
+  import_blocks <- regmatches(namespace_text, gregexpr("importFrom\\([^)]*\\)", namespace_text))[[1]]
+  imported <- unlist(lapply(import_blocks, function(block) {
+    inner <- sub("^importFrom\\(", "", sub("\\)$", "", block))
+    parts <- trimws(strsplit(inner, ",")[[1]])
+    parts <- parts[nzchar(parts)]
+    if (length(parts) < 2L) return(character())
+    paste0(parts[1], "::", parts[-1])
+  }))
   expected_imports <- c(
-    "importFrom(stats,aggregate)",
-    "importFrom(stats,setNames)",
-    "importFrom(utils,capture.output)",
-    "importFrom(utils,head)",
-    "importFrom(utils,modifyList)",
-    "importFrom(utils,object.size)",
-    "importFrom(utils,str)",
-    "importFrom(utils,tail)"
+    "stats::aggregate", "stats::setNames",
+    "utils::capture.output", "utils::head", "utils::modifyList",
+    "utils::object.size", "utils::str", "utils::tail"
   )
-  expect_true(all(expected_imports %in% namespace))
+  expect_true(all(expected_imports %in% imported))
 
   declarations <- readLines(file.path(root, "R", "zzz-package-check.R"), warn = FALSE)
   expect_true(any(grepl("utils::globalVariables", declarations, fixed = TRUE)))
