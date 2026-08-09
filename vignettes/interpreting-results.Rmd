@@ -136,6 +136,18 @@ Windowed FST and diversity (`39_genome_scan_fst.tsv`, `40_genome_scan_diversity.
 
 `41_genome_scan_FST_outliers.tsv` is a descriptive ranking (highest-FST windows), **not** a significance test -- no permutation or null distribution is computed, so a high-FST window is a candidate worth further investigation, not a statistically confirmed selection signal. Always check a window's `n_snps` before treating its estimate as meaningful: windows below `analyses.genome_scan_min_snps` (default 5) are reported as `NA` rather than a misleadingly precise value from too few markers, and even windows just above that threshold can be noisy.
 
+```{r genome-scan-fst-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/25_genome_scan_FST_manhattan.png")
+```
+
+The 20 windows range from FST 0.051 to 0.172. The single highest, 20.80-20.85 Mb (FST=0.172, 104 SNPs), is a candidate worth further investigation under the caveats above, not a confirmed selection signal -- especially since it is only moderately above the region's known global FST of 0.0915.
+
+```{r genome-scan-diversity-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/26_genome_scan_diversity_manhattan.png")
+```
+
+Mean expected heterozygosity per window per population ranges from 0.099 to 0.398 across the 8 populations -- the same kind of real, biologically plausible spread reported for the genome-wide diversity summary above, now resolved by position.
+
 ## DAPC
 
 This package's DAPC module discriminates unsupervised `find.clusters()` partitions computed at each configured K, not user-supplied population labels; the metadata `population` column is used only for plot colour and as ground truth for the reported assignment-accuracy diagnostic. Apparent separation is therefore not independent confirmation that either the clusters or any real population labels are biologically meaningful.

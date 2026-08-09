@@ -243,6 +243,8 @@ The maintainer chose to add features before making the 1.0 decision above. This 
 
 - **2026-08-09 -- Extended the ancestry-backends demonstration to fastStructure and sNMF**, matching the ADMIXTURE treatment: cluster-number-selection figure first, then only the consensus K's figures. The three backends' independently-selected consensus K values differ (7, 3, 6) -- called out explicitly as a real illustration of why this section already advised against treating cross-backend agreement as automatic. `docs/examples/README.md` and the committed example PDF (129 pages) updated accordingly. See `NEWS.md` for full detail.
 
+- **2026-08-09 -- Added the genome-scan figures to the wiki and vignette.** The "Genome scans" section was text-only despite genome scans being a default-on module already shown in the committed report. Real quickstart values: FST windows range 0.051-0.172; window diversity ranges 0.099-0.398 across 8 populations. Already present in the committed example PDF's automatic figure gallery; only the hand-curated wiki/vignette selection was missing them. See `NEWS.md` for full detail.
+
 ## Beyond 1.0
 
 Potential post-1.0 work includes selection scans, genomic landscapes, spatial resistance models, GWAS interoperability, community plugins, interactive exploration, optional Docker Hub publication, and cloud/workflow-platform execution.

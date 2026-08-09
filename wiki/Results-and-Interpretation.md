@@ -166,6 +166,14 @@ estimate as meaningful: windows below `analyses.genome_scan_min_snps`
 from too few markers, and even windows just above that threshold can be
 noisy.
 
+![Sliding-window FST scan across the quickstart example's analyzed chr22 region, 50kb non-overlapping windows](figures/25_genome_scan_FST_manhattan.png)
+
+The 20 windows range from FST 0.051 to 0.172. The single highest, 20.80-20.85 Mb (FST=0.172, 104 SNPs), is a candidate worth further investigation under the caveats above, not a confirmed selection signal -- especially since it is only moderately above the region's known global FST of 0.0915.
+
+![Sliding-window diversity scan across the quickstart example's analyzed chr22 region, coloured by population](figures/26_genome_scan_diversity_manhattan.png)
+
+Mean expected heterozygosity per window per population ranges from 0.099 to 0.398 across the 8 populations -- the same kind of real, biologically plausible spread reported for the genome-wide diversity summary above, now resolved by position.
+
 ## DAPC
 
 DAPC is conditional on groups and retained PCs. Inspect cross-validation and
