@@ -225,6 +225,7 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads, ids = NU
 
 plot_pca_loading_manhattan <- function(loadings, cfg, dirs, profile) {
   layout <- manhattan_layout(loadings$chromosome, loadings$position)
+  bp_breaks <- manhattan_bp_breaks(loadings$chromosome, loadings$position, layout$offset)
   loadings <- data.table::copy(loadings)
   loadings[, x := layout$x]
   loadings[, chrom_group := factor(match(chromosome, layout$ticks$chromosome) %% 2L)]
@@ -234,13 +235,16 @@ plot_pca_loading_manhattan <- function(loadings, cfg, dirs, profile) {
     ggplot2::geom_hline(yintercept = 0, colour = "#D9D9D9", linewidth = 0.35) +
     ggplot2::geom_point(size = 1, alpha = .75, show.legend = FALSE) +
     ggplot2::scale_colour_manual(values = colours) +
-    ggplot2::scale_x_continuous(breaks = layout$ticks$center, labels = layout$ticks$chromosome) +
+    ggplot2::scale_x_continuous(breaks = bp_breaks$x, labels = bp_breaks$label) +
     ggplot2::facet_wrap(~axis, ncol = 1, scales = "free_y") +
     ggplot2::labs(
       title = "Principal component analysis SNP loadings",
-      x = "Chromosome", y = "SNP loading (correlation with component)"
+      x = "Chromosome position", y = "SNP loading (correlation with component)"
     ) + theme_publication(figure_base_size(cfg)) +
-    ggplot2::theme(panel.spacing = ggplot2::unit(1, "lines"))
+    ggplot2::theme(
+      panel.spacing = ggplot2::unit(1, "lines"),
+      axis.text.x = ggplot2::element_text(angle = 30, hjust = 1)
+    )
   n_axes <- data.table::uniqueN(loadings$axis)
   save_plot(
     p, "17_PCA_loadings_manhattan", dirs,

@@ -173,6 +173,28 @@ avoid retaining enough PCs to memorize individuals. Strong separation is not
 independent evidence for groups when those groups defined the discriminant
 analysis.
 
+`22d_DAPC_K_selection.tsv`/`22e_DAPC_K_selection.tsv` and this figure report
+the automatic cluster-number consensus across BIC, mean cross-validation
+success, Calinski-Harabasz, Davies-Bouldin, and replicate-membership RMSE.
+It is a starting point, not a substitute for domain judgment about how many
+groups the data can support.
+
+![DAPC cluster-number selection from the quickstart example](figures/12_DAPC_cluster_number_selection.png)
+
+The full report (`22_DAPC_coordinates_K<k>.tsv`, `22f_DAPC_loadings_K<k>.tsv`,
+and figures) contains one complete set of DAPC results for **every**
+requested K (2 through 10 by default), not only the consensus K shown here.
+Before trusting any given K's clustering, check its
+`replicate_max_rmse` in `21_DAPC_diagnostics.tsv` against
+`analyses.structure.reproducibility_rmse` (default 0.05): a K at or below
+that threshold has reproducible replicate membership across independent
+`find.clusters()`/`dapc()` runs; a K above it does not, and its clusters and
+loadings should not be interpreted, only the consensus itself and the
+diagnostics that led to it. In the quickstart example, the consensus K=3 has
+`replicate_max_rmse` effectively 0 (fully reproducible); several other K
+values in the same run exceed the threshold and are not shown here for that
+reason.
+
 `22f_DAPC_loadings_K<k>.tsv` and the per-K Manhattan/ranked loading figures
 report each SNP's contribution to every discriminant function (this
 repository's DAPC groups are the unsupervised `find.clusters()` partition at
@@ -181,13 +203,15 @@ contribution helped separate that K's clusters; it is not, by itself,
 evidence that the SNP is biologically causal for whatever the clusters
 represent.
 
-![DAPC scatter at K=8 from the quickstart example](figures/11_DAPC_K8.png)
+![DAPC scatter at the consensus K=3 from the quickstart example](figures/11_DAPC_K3.png)
 
-![DAPC SNP loadings by chromosome position at K=8, one panel per discriminant function, from the quickstart example](figures/15_DAPC_loadings_manhattan_K8.png)
+![DAPC SNP loadings by chromosome position at K=3, one panel per discriminant function, from the quickstart example](figures/15_DAPC_loadings_manhattan_K3.png)
 
-![DAPC SNP loadings ranked by descending contribution at K=8, from the quickstart example](figures/16_DAPC_loadings_ranked_K8.png)
+![DAPC SNP loadings ranked by descending contribution at K=3, from the quickstart example](figures/16_DAPC_loadings_ranked_K3.png)
 
 ## Ancestry backends
+
+**ADMIXTURE, fastStructure, and sNMF are not run by default** (`analyses.admixture`, `analyses.faststructure`, and `analyses.snmf` all default to `enabled: false`). Unlike every other module on this page, each is an external, optional dependency -- ADMIXTURE and fastStructure are separate command-line programs, not R packages, and none is required for the rest of popgenVCF to work. See [Installing and configuring ancestry backends](https://github.com/duceppemo/popgenVCF/blob/main/docs/user/ancestry-backends.md) to enable one.
 
 For ADMIXTURE, fastStructure, and sNMF:
 
@@ -199,6 +223,28 @@ For ADMIXTURE, fastStructure, and sNMF:
 
 K is a model index, and colored components are not literal ancestral
 populations without external evidence.
+
+The figures below are from a real ADMIXTURE run against the quickstart
+example (K=2..9, 5-fold cross-validation each K) -- deliberately enabled
+just for this documentation, not part of the bundled dataset's default
+analysis.
+
+![ADMIXTURE cluster-number selection from the quickstart example](figures/13b_ADMIXTURE_cluster_number_selection.png)
+
+Cross-validation error is lowest and flattens from K=6 through K=9; the
+automatic consensus selects **K=7**. The full report
+(`27_ADMIXTURE_CV.tsv`, `28_ADMIXTURE_Q_K<k>.tsv`, and figures) contains a
+complete Q matrix and pair of figures for **every** requested K, not only
+the one shown here.
+
+![ADMIXTURE ancestry proportions at K=7 from the quickstart example, samples grouped by population](figures/14_ADMIXTURE_Q_K7.png)
+
+![ADMIXTURE ancestry proportions at K=7 from the quickstart example, samples ordered by dominant inferred cluster instead of population label](figures/14_ADMIXTURE_Q_data_driven_K7.png)
+
+Comparing the two figures above is the standard check described earlier in
+this section: structure that persists regardless of sample ordering is more
+trustworthy than structure only visible when samples are pre-sorted by their
+metadata population label.
 
 ## AMOVA
 

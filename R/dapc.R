@@ -267,6 +267,7 @@ dapc_reproducibility_annotation <- function(dapc, k, cfg) {
 
 plot_dapc_loading_manhattan <- function(loadings, k, cfg, dirs, profile) {
   layout <- manhattan_layout(loadings$chromosome, loadings$position)
+  bp_breaks <- manhattan_bp_breaks(loadings$chromosome, loadings$position, layout$offset)
   loadings <- data.table::copy(loadings)
   loadings[, x := layout$x]
   loadings[, chrom_group := factor(match(chromosome, layout$ticks$chromosome) %% 2L)]
@@ -275,13 +276,16 @@ plot_dapc_loading_manhattan <- function(loadings, k, cfg, dirs, profile) {
   p <- ggplot2::ggplot(loadings, ggplot2::aes(x = x, y = contribution, colour = chrom_group)) +
     ggplot2::geom_point(size = 1, alpha = .75, show.legend = FALSE) +
     ggplot2::scale_colour_manual(values = colours) +
-    ggplot2::scale_x_continuous(breaks = layout$ticks$center, labels = layout$ticks$chromosome) +
+    ggplot2::scale_x_continuous(breaks = bp_breaks$x, labels = bp_breaks$label) +
     ggplot2::facet_wrap(~axis, ncol = 1, scales = "free_y") +
     ggplot2::labs(
       title = sprintf("Discriminant analysis SNP loadings (K = %s)", k),
-      x = "Chromosome", y = "Contribution to discriminant function"
+      x = "Chromosome position", y = "Contribution to discriminant function"
     ) + theme_publication(figure_base_size(cfg)) +
-    ggplot2::theme(panel.spacing = ggplot2::unit(1, "lines"))
+    ggplot2::theme(
+      panel.spacing = ggplot2::unit(1, "lines"),
+      axis.text.x = ggplot2::element_text(angle = 30, hjust = 1)
+    )
   n_axes <- data.table::uniqueN(loadings$axis)
   save_plot(
     p, sprintf("15_DAPC_loadings_manhattan_K%s", k), dirs,

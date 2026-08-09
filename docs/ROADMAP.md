@@ -235,6 +235,10 @@ The maintainer chose to add features before making the 1.0 decision above. This 
 
 - **2026-08-09 -- Added the PCA/DAPC loading figures to the wiki and `interpreting-results` vignette.** Both sections' prose already referenced "the Manhattan/ranked loading figures" but never embedded them. Added from the same real reference pipeline run used for every other quickstart figure; confirmed the pre-existing scatter-plot figures were byte-identical before and after the natural-sort fix, confirming only the loadings figures were actually affected. Republished the Wiki with these additions.
 
+- **2026-08-09 -- Basepair-position tick marks for the PCA/DAPC loading Manhattan plots.** Previously one uninformative chromosome-name tick per chromosome. New `manhattan_bp_breaks()` (`R/utils.R`) computes compact, Mb-formatted breaks per chromosome, with the total tick budget divided across chromosomes so genome-wide multi-chromosome data stays readable. Scoped to only these two plots. See `NEWS.md` for full detail.
+
+- **2026-08-09 -- Reworked the wiki/vignette DAPC and ancestry-backends sections to show automatic K/cluster-number selection first, then only the selected model's figures.** DAPC switched from a hardcoded, unreproducible K=8 (RMSE above threshold) to the real consensus K=3 (RMSE effectively 0). Ancestry backends gained real ADMIXTURE figures for the first time (previously none), with an explicit reminder that these backends are not run by default -- generated via a one-off enabled config in a documentation-generation script only; `default_config()` is unchanged. See `NEWS.md` for full detail.
+
 ## Beyond 1.0
 
 Potential post-1.0 work includes selection scans, genomic landscapes, spatial resistance models, GWAS interoperability, community plugins, interactive exploration, optional Docker Hub publication, and cloud/workflow-platform execution.

@@ -146,7 +146,35 @@ manhattan_layout <- function(chromosome, position) {
     }, numeric(1L)),
     stringsAsFactors = FALSE
   )
-  list(x = x, ticks = ticks)
+  list(x = x, ticks = ticks, offset = offset)
+}
+
+# Basepair-position axis breaks for a manhattan_layout()'d x-axis. Compact
+# Mb-formatted labels (not raw bp digits) keep the axis readable; the total
+# tick count is capped and divided across chromosomes so a genome-wide,
+# many-chromosome plot doesn't get one tick's worth of density per
+# chromosome. The first break of each chromosome is prefixed with its name
+# (e.g. "chr22: 20 Mb") so chromosome identity is preserved even when only
+# one tick per chromosome fits; later breaks in the same chromosome are
+# unprefixed ("20.5 Mb") to avoid repeating it.
+manhattan_bp_breaks <- function(chromosome, position, offset, target_total = 14L) {
+  chromosome <- as.character(chromosome)
+  position <- as.numeric(position)
+  chrs <- names(offset)
+  n_per_chr <- max(1L, min(6L, round(target_total / max(1L, length(chrs)))))
+  rows <- lapply(chrs, function(chr) {
+    p <- position[chromosome == chr]
+    if (!length(p)) return(NULL)
+    span <- diff(range(p))
+    breaks <- if (span <= 0) mean(p) else pretty(range(p), n = n_per_chr)
+    breaks <- breaks[breaks >= min(p) & breaks <= max(p)]
+    if (!length(breaks)) breaks <- mean(range(p))
+    accuracy <- if (span < 2e6) 0.1 else 1
+    label <- scales::label_number(scale = 1e-6, suffix = " Mb", accuracy = accuracy)(breaks)
+    label[[1L]] <- paste0("chr", chr, ": ", label[[1L]])
+    data.frame(x = breaks + offset[[chr]], label = label, stringsAsFactors = FALSE)
+  })
+  do.call(rbind, rows)
 }
 
 figure_style_profile <- function(style = "accessibility-first") {

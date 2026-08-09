@@ -103,7 +103,7 @@ test_that("DAPC loading plots are drawn only when a loadings table is present", 
   ranked <- plots[["16_DAPC_loadings_ranked_K2"]]
   expect_s3_class(manhattan$facet, "FacetWrap")
   expect_s3_class(ranked$facet, "FacetWrap")
-  expect_identical(manhattan$labels$x, "Chromosome")
+  expect_identical(manhattan$labels$x, "Chromosome position")
   expect_identical(ranked$labels$x, "SNP rank (descending contribution)")
   expect_identical(
     manhattan$labels$title,

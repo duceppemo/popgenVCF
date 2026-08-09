@@ -43,6 +43,30 @@ test_that("manhattan_layout orders non-numeric chromosome names (X, Y) after num
   expect_identical(layout$ticks$chromosome, c("2", "10", "X", "Y"))
 })
 
+test_that("manhattan_bp_breaks labels the first break per chromosome with its name and Mb-scales the rest", {
+  chromosome <- rep("22", 5)
+  position <- c(20000000, 20200000, 20500000, 20800000, 21000000)
+  layout <- popgenVCF:::manhattan_layout(chromosome, position)
+  breaks <- popgenVCF:::manhattan_bp_breaks(chromosome, position, layout$offset)
+
+  expect_true(all(breaks$x >= min(position) & breaks$x <= max(position)))
+  expect_match(breaks$label[[1L]], "^chr22: ")
+  expect_false(any(grepl("^chr22: ", breaks$label[-1L])))
+  expect_true(all(grepl("Mb$", breaks$label)))
+})
+
+test_that("manhattan_bp_breaks divides the tick budget across multiple chromosomes", {
+  chromosome <- c(rep("1", 3), rep("2", 3), rep("10", 3))
+  position <- c(1e6, 5e7, 1e8, 1e6, 3e7, 6e7, 1e6, 2e7, 4e7)
+  layout <- popgenVCF:::manhattan_layout(chromosome, position)
+  breaks <- popgenVCF:::manhattan_bp_breaks(chromosome, position, layout$offset)
+
+  expect_lte(nrow(breaks), 18L)
+  chrom_labelled <- grepl("^chr", breaks$label)
+  expect_identical(sum(chrom_labelled), 3L)
+  expect_identical(sub("^chr([0-9]+):.*$", "\\1", breaks$label[chrom_labelled]), c("1", "2", "10"))
+})
+
 test_that("dapc_loading_table joins var.contr to chromosome/position and sorts by contribution", {
   contr <- matrix(
     c(0.1, 0.5, 0.4, 0.05, 0.15, 0.8),
