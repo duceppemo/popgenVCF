@@ -1,17 +1,3 @@
-# Splits a string into alternating digit/non-digit runs and zero-pads the
-# digit runs so a plain lexicographic sort orders embedded numbers
-# numerically (K2 before K10) instead of as plain strings (order()'s default
-# on character vectors would otherwise sort "K10" before "K2", since "1" <
-# "2" at the first differing character).
-natural_sort_key <- function(x) {
-  vapply(x, function(value) {
-    parts <- regmatches(value, gregexpr("[0-9]+|[^0-9]+", value))[[1L]]
-    is_digits <- grepl("^[0-9]+$", parts)
-    parts[is_digits] <- formatC(as.numeric(parts[is_digits]), width = 12L, format = "d", flag = "0")
-    paste(parts, collapse = "")
-  }, character(1L), USE.NAMES = FALSE)
-}
-
 report_figure_caption <- function(stem) {
   caption <- sub("^[0-9]+[[:alpha:]]?_", "", stem)
   caption <- gsub("_", " ", caption, fixed = TRUE)

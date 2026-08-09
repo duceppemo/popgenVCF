@@ -227,6 +227,12 @@ The maintainer chose to add features before making the 1.0 decision above. This 
 
 - **2026-08-08 -- Fixed report figure gallery ordering for per-K figure series.** `report_figure_inventory()` sorted figures with a plain lexicographic string sort, so `11_DAPC_K10` placed right after `11_DAPC_K1`-prefixed names, before `K2`-`K9` -- confirmed as a real, user-visible bug in the already-shipped example report ("Figure 13: DAPC K 10" before "Figure 14: DAPC K 3"). Added a natural-sort helper and re-rendered the real committed quickstart report from its cached analysis results to confirm the fix and ship the corrected PDF. See `NEWS.md` for full detail.
 
+- **2026-08-09 -- Fixed the same lexicographic-sort bug in three more places, all real for multi-chromosome VCFs.** Reported against the PCA/DAPC SNP-loading figures (`PC10`/`LD10` faceted right after `PC1`/`LD1`, before `PC2`-`PC9`/`LD2`-`LD9`, since `ggplot2::facet_wrap()` alphabetizes character columns). The same root cause turned out to affect `manhattan_layout()` (shared by every Manhattan-style figure), `chromosome_summary.tsv`'s chromosome order, and the genome-scan/ROH tables' chromosome order -- none visible in this package's single-chromosome test data, but real for any genome-wide human VCF (would order chromosomes 1, 10, 11, ..., 2, 20, ..., 9, X, Y instead of 1-22, X, Y). Added a shared `natural_sort_key()`/`natural_sort_levels()` helper and applied it consistently. No public API changes. See `NEWS.md` for full detail.
+
+- **2026-08-09 -- Added the popgenVCF version to the manuscript report.** `PopgenVCFAnalysis` already recorded `package_version`, but the report template never displayed it, despite already claiming to. Now shown as "Generated with popgenVCF vX.Y.Z" in the Executive Summary of both the HTML and PDF report. See `NEWS.md` for full detail.
+
+- **2026-08-09 -- Published the Wiki.** `scripts/publish-wiki.sh --push` had never been run against this cycle's changes, so the live GitHub Wiki was missing all 9 documentation figures and several pages of content, unlike the pkgdown vignette site (which rebuilds automatically). Published with the maintainer's explicit confirmation. Remains a manual, maintainer-triggered step -- no workflow runs it automatically.
+
 ## Beyond 1.0
 
 Potential post-1.0 work includes selection scans, genomic landscapes, spatial resistance models, GWAS interoperability, community plugins, interactive exploration, optional Docker Hub publication, and cloud/workflow-platform execution.

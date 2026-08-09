@@ -1,7 +1,7 @@
 run_chromosome_analyses <- function(gds, qc_snps, final_snps, ids, sample_ids, metadata, cfg) {
   chr_qc <- split(qc_snps, ids$chromosome[match(qc_snps, ids$snp)])
   chr_ld <- split(final_snps, ids$chromosome[match(final_snps, ids$snp)])
-  chromosomes <- sort(unique(c(names(chr_qc), names(chr_ld))))
+  chromosomes <- natural_sort_levels(c(names(chr_qc), names(chr_ld)))
   out <- list()
   for (chr in chromosomes) {
     q <- chr_qc[[chr]] %||% character(); l <- chr_ld[[chr]] %||% character()

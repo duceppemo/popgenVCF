@@ -104,10 +104,34 @@ figure_base_size <- function(cfg = NULL) {
   size
 }
 
+# Splits a string into alternating digit/non-digit runs and zero-pads the
+# digit runs so a plain lexicographic sort orders embedded numbers
+# numerically (K2 before K10, chromosome 2 before chromosome 10) instead of
+# as plain strings (order()'s default on character vectors would otherwise
+# sort "K10"/"10" before "K2"/"2", since "1" < "2" at the first differing
+# character). Non-numeric strings (e.g. "X", "Y", "MT") sort after all
+# digit-leading strings, matching standard genomic chromosome ordering.
+natural_sort_key <- function(x) {
+  vapply(x, function(value) {
+    parts <- regmatches(value, gregexpr("[0-9]+|[^0-9]+", value))[[1L]]
+    is_digits <- grepl("^[0-9]+$", parts)
+    parts[is_digits] <- formatC(as.numeric(parts[is_digits]), width = 12L, format = "d", flag = "0")
+    paste(parts, collapse = "")
+  }, character(1L), USE.NAMES = FALSE)
+}
+
+# Natural-order unique values of x, for use as explicit factor levels (e.g.
+# before ggplot2::facet_wrap(), which otherwise silently alphabetizes a
+# character/default-factor column).
+natural_sort_levels <- function(x) {
+  u <- unique(x)
+  u[order(natural_sort_key(u))]
+}
+
 manhattan_layout <- function(chromosome, position) {
   chromosome <- as.character(chromosome)
   position <- as.numeric(position)
-  order_chr <- sort(unique(chromosome))
+  order_chr <- natural_sort_levels(chromosome)
   offset <- stats::setNames(numeric(length(order_chr)), order_chr)
   cum <- 0
   for (chr in order_chr) {

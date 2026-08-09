@@ -190,7 +190,9 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads, ids = NU
     keep <- paste0("PC", component_index)
     loadings <- loadings[loadings$axis %in% keep, ]
     loadings[, axis := paste0("PC", match(axis, keep))]
-    data.table::setorder(loadings, axis, -magnitude)
+    loadings[, .axis_sort_key := natural_sort_key(axis)]
+    data.table::setorder(loadings, .axis_sort_key, -magnitude)
+    loadings[, .axis_sort_key := NULL]
   }
   variance_proportion <- eig$values / sum(eig$values)
 
@@ -226,6 +228,7 @@ plot_pca_loading_manhattan <- function(loadings, cfg, dirs, profile) {
   loadings <- data.table::copy(loadings)
   loadings[, x := layout$x]
   loadings[, chrom_group := factor(match(chromosome, layout$ticks$chromosome) %% 2L)]
+  loadings[, axis := factor(axis, levels = natural_sort_levels(axis))]
   colours <- expand_figure_palette(profile, 2L, "colours")
   p <- ggplot2::ggplot(loadings, ggplot2::aes(x = x, y = contribution, colour = chrom_group)) +
     ggplot2::geom_hline(yintercept = 0, colour = "#D9D9D9", linewidth = 0.35) +
@@ -243,10 +246,12 @@ plot_pca_loading_manhattan <- function(loadings, cfg, dirs, profile) {
     p, "17_PCA_loadings_manhattan", dirs,
     cfg$output$figure_formats, 10, max(4, 2.2 * n_axes), cfg$output$dpi
   )
+  invisible(p)
 }
 
 plot_pca_loading_ranked <- function(loadings, cfg, dirs, profile) {
   ranked <- data.table::copy(loadings)
+  ranked[, axis := factor(axis, levels = natural_sort_levels(axis))]
   data.table::setorder(ranked, axis, -magnitude)
   ranked[, rank := seq_len(.N), by = axis]
   colour <- expand_figure_palette(profile, 1L, "colours")
@@ -264,6 +269,7 @@ plot_pca_loading_ranked <- function(loadings, cfg, dirs, profile) {
     p, "18_PCA_loadings_ranked", dirs,
     cfg$output$figure_formats, 8, max(4, 2.2 * n_axes), cfg$output$dpi
   )
+  invisible(p)
 }
 
 plot_pca <- function(pca, cfg, dirs) {

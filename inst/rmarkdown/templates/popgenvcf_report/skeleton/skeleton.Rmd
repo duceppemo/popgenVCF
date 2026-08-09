@@ -26,7 +26,8 @@ if (inherits(r, "PopgenVCFAnalysis")) {
       metadata = a$samples$metadata,
       qc_snps = a$variants$qc_ids,
       final_snps = a$variants$ld_ids,
-      qc = a$variants$reports
+      qc = a$variants$reports,
+      package_version = a$package_version
     ),
     a$results
   )
@@ -91,6 +92,8 @@ can be opened in a standard web browser, while the PDF version is optimized for
 compact exchange, printing, and email. The accompanying `analysis_results.rds`
 file is a reproducibility archive for
 R users; it is not required to read this report.
+
+`r if (!is.null(r$package_version)) sprintf("Generated with **popgenVCF v%s**.", r$package_version)`
 
 The analysis retained **`r nrow(r$metadata)` samples** from **`r data.table::uniqueN(r$metadata$population)` populations**, with **`r length(r$qc_snps)` QC-passing SNPs** and **`r length(r$final_snps)` LD-pruned SNPs**.
 

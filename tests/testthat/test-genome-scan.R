@@ -12,6 +12,13 @@ test_that("genome_scan_windows generates deterministic, hand-verified window bou
   expect_identical(chr2$window_end, 5199L)
 })
 
+test_that("genome_scan_windows orders chromosome blocks naturally (chr2 before chr10)", {
+  chromosome <- c("10", "2", "1")
+  position <- c(100, 100, 100)
+  out <- popgenVCF:::genome_scan_windows(chromosome, position, window_bp = 5000, step_bp = 5000)
+  expect_identical(rle(out$chromosome)$values, c("1", "2", "10"))
+})
+
 test_that("genome_scan_windows supports a real overlapping/sliding step smaller than the window", {
   out <- popgenVCF:::genome_scan_windows(rep("1", 3), c(0, 1000, 2000), window_bp = 1000, step_bp = 500)
   expect_identical(out$window_start, c(0L, 500L, 1000L, 1500L, 2000L))
@@ -45,6 +52,18 @@ test_that("run_genome_scan_diversity aggregates the locus table into hand-verifi
   win1_b <- out[chromosome == "1" & window_start == 100L & population == "PopB"]
   expect_identical(win1_b$n_snps, 1L)
   expect_equal(win1_b$mean_observed_heterozygosity, 0.5)
+})
+
+test_that("run_genome_scan_diversity orders chromosome blocks naturally (chr2 before chr10)", {
+  locus <- data.table::data.table(
+    population = c("PopA", "PopA", "PopA"),
+    chromosome = c("10", "2", "1"),
+    position = c(100L, 100L, 100L),
+    observed_heterozygosity = c(0.2, 0.3, 0.4),
+    unbiased_expected_heterozygosity = c(0.1, 0.2, 0.3)
+  )
+  out <- popgenVCF:::run_genome_scan_diversity(locus, window_bp = 1000, step_bp = 1000, min_snps = 1L)
+  expect_identical(rle(out$chromosome)$values, c("1", "2", "10"))
 })
 
 test_that("run_genome_scan_diversity reports NA (not a misleading value) below min_snps", {

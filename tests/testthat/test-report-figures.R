@@ -70,6 +70,34 @@ test_that("report figure inventory orders embedded K numbers naturally, not lexi
   expect_identical(inventory$stem, c("11_DAPC_K2", "11_DAPC_K9", "11_DAPC_K10"))
 })
 
+test_that("report displays the popgenVCF version when present, and omits it silently when absent", {
+  skip_if_not(rmarkdown::pandoc_available())
+
+  root_with <- tempfile("report-version-present-")
+  dir.create(root_with)
+  results_with <- file.path(root_with, "analysis_results.rds")
+  with_version <- minimal_standard_report_result()
+  with_version$package_version <- "9.9.9"
+  saveRDS(with_version, results_with)
+  rendered_with <- render_report(
+    results_with, file.path(root_with, "report"), title = "Versioned report",
+    formats = "html"
+  )
+  html_with <- paste(readLines(rendered_with[["html"]], warn = FALSE), collapse = "\n")
+  expect_match(html_with, "popgenVCF v9.9.9", fixed = TRUE)
+
+  root_without <- tempfile("report-version-absent-")
+  dir.create(root_without)
+  results_without <- file.path(root_without, "analysis_results.rds")
+  saveRDS(minimal_standard_report_result(), results_without)
+  rendered_without <- render_report(
+    results_without, file.path(root_without, "report"), title = "Unversioned report",
+    formats = "html"
+  )
+  html_without <- paste(readLines(rendered_without[["html"]], warn = FALSE), collapse = "\n")
+  expect_no_match(html_without, "popgenVCF v", fixed = TRUE)
+})
+
 test_that("standard HTML report embeds figures without requiring an RDS viewer", {
   skip_if_not(rmarkdown::pandoc_available())
   root <- tempfile("standard-report-render-")

@@ -23,7 +23,9 @@ dapc_loading_table <- function(model, snp_ids, chromosome, position) {
       contribution = as.numeric(contr[, axis])
     )
   }))
-  data.table::setorder(out, axis, -contribution)
+  out[, .axis_sort_key := natural_sort_key(axis)]
+  data.table::setorder(out, .axis_sort_key, -contribution)
+  out[, .axis_sort_key := NULL]
   out
 }
 
@@ -268,6 +270,7 @@ plot_dapc_loading_manhattan <- function(loadings, k, cfg, dirs, profile) {
   loadings <- data.table::copy(loadings)
   loadings[, x := layout$x]
   loadings[, chrom_group := factor(match(chromosome, layout$ticks$chromosome) %% 2L)]
+  loadings[, axis := factor(axis, levels = natural_sort_levels(axis))]
   colours <- expand_figure_palette(profile, 2L, "colours")
   p <- ggplot2::ggplot(loadings, ggplot2::aes(x = x, y = contribution, colour = chrom_group)) +
     ggplot2::geom_point(size = 1, alpha = .75, show.legend = FALSE) +
@@ -284,10 +287,12 @@ plot_dapc_loading_manhattan <- function(loadings, k, cfg, dirs, profile) {
     p, sprintf("15_DAPC_loadings_manhattan_K%s", k), dirs,
     cfg$output$figure_formats, 10, max(4, 2.2 * n_axes), cfg$output$dpi
   )
+  invisible(p)
 }
 
 plot_dapc_loading_ranked <- function(loadings, k, cfg, dirs, profile) {
   ranked <- data.table::copy(loadings)
+  ranked[, axis := factor(axis, levels = natural_sort_levels(axis))]
   data.table::setorder(ranked, axis, -contribution)
   ranked[, rank := seq_len(.N), by = axis]
   colour <- expand_figure_palette(profile, 1L, "colours")
@@ -304,6 +309,7 @@ plot_dapc_loading_ranked <- function(loadings, k, cfg, dirs, profile) {
     p, sprintf("16_DAPC_loadings_ranked_K%s", k), dirs,
     cfg$output$figure_formats, 8, max(4, 2.2 * n_axes), cfg$output$dpi
   )
+  invisible(p)
 }
 
 plot_dapc <- function(dapc, cfg, dirs) {

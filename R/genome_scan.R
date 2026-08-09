@@ -10,7 +10,11 @@ genome_scan_windows <- function(chromosome, position, window_bp, step_bp) {
       window_end = as.integer(starts + window_bp - 1)
     )
   })
-  data.table::setorder(data.table::rbindlist(out), chromosome, window_start)
+  windows <- data.table::rbindlist(out)
+  windows[, .chr_sort_key := natural_sort_key(chromosome)]
+  data.table::setorder(windows, .chr_sort_key, window_start)
+  windows[, .chr_sort_key := NULL]
+  windows[]
 }
 
 run_genome_scan_fst <- function(gds, snp_ids, ids, metadata, window_bp, step_bp, min_snps) {
@@ -63,7 +67,9 @@ run_genome_scan_diversity <- function(locus_table, window_bp, step_bp, min_snps)
     grid
   }))
   data.table::setcolorder(out, c("chromosome", "window_start", "window_end", "population", "n_snps"))
-  data.table::setorder(out, chromosome, window_start, population)
+  out[, .chr_sort_key := natural_sort_key(chromosome)]
+  data.table::setorder(out, .chr_sort_key, window_start, population)
+  out[, .chr_sort_key := NULL]
   out[]
 }
 

@@ -99,6 +99,39 @@ test_that("PCA loading plots are drawn only when a loadings table is present", {
   expect_identical(ranked$labels$title, "Principal component analysis SNP loadings, ranked")
 })
 
+test_that("PCA loading plots facet axes naturally (PC2 before PC10, not lexicographically)", {
+  plots <- list()
+  local_mocked_bindings(
+    save_plot = function(p, stem, ...) {
+      plots[[stem]] <<- p
+      invisible(TRUE)
+    },
+    .package = "popgenVCF"
+  )
+  dirs <- list(figures = tempdir())
+  cfg <- list(output = list(figure_formats = "pdf", dpi = 150L, label_samples = "none"))
+
+  axes <- c("PC1", "PC10", "PC2")
+  pca <- list(
+    scores = data.table::data.table(sample = c("s1", "s2", "s3"), PC1 = c(-1, 0, 1), PC2 = c(0.5, -0.5, 0)),
+    variance = data.table::data.table(PC = c("PC1", "PC2"), proportion = c(0.6, 0.4), percent = c(60, 40)),
+    loadings = data.table::data.table(
+      axis = rep(axes, each = 2L),
+      snp_id = rep(c("1", "2"), 3L),
+      chromosome = "1",
+      position = c(100L, 500L, 100L, 500L, 100L, 500L),
+      contribution = c(0.6, -0.2, 0.1, -0.5, 0.3, 0.05),
+      magnitude = c(0.6, 0.2, 0.1, 0.5, 0.3, 0.05)
+    )
+  )
+  popgenVCF:::plot_pca(pca, cfg, dirs)
+
+  manhattan <- plots[["17_PCA_loadings_manhattan"]]
+  ranked <- plots[["18_PCA_loadings_ranked"]]
+  expect_identical(levels(manhattan$data$axis), c("PC1", "PC2", "PC10"))
+  expect_identical(levels(ranked$data$axis), c("PC1", "PC2", "PC10"))
+})
+
 test_that("PCA loading plots are absent when no loadings table is supplied", {
   plots <- list()
   local_mocked_bindings(

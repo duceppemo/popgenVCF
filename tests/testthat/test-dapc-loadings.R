@@ -25,11 +25,22 @@ test_that("manhattan_layout computes cumulative chromosome offsets and tick cent
   expect_equal(layout$ticks$center[2], mean(range(c(50, 300, 900))) + offset_chr2)
 })
 
-test_that("manhattan_layout orders chromosomes with a plain sort, matching R/chromosome.R", {
+test_that("manhattan_layout orders chromosomes naturally, matching R/chromosome.R", {
+  # A plain sort() on these strings would give "1", "10", "2" -- wrong for
+  # real multi-chromosome data. natural_sort_key() treats the embedded
+  # number numerically instead, matching R/chromosome.R's chromosome_summary
+  # ordering (run_chromosome_analyses(), which uses the same helper).
   chromosome <- c("2", "10", "1")
   position <- c(10, 10, 10)
   layout <- popgenVCF:::manhattan_layout(chromosome, position)
-  expect_identical(layout$ticks$chromosome, sort(unique(chromosome)))
+  expect_identical(layout$ticks$chromosome, c("1", "2", "10"))
+})
+
+test_that("manhattan_layout orders non-numeric chromosome names (X, Y) after numeric ones", {
+  chromosome <- c("Y", "2", "X", "10")
+  position <- c(10, 10, 10, 10)
+  layout <- popgenVCF:::manhattan_layout(chromosome, position)
+  expect_identical(layout$ticks$chromosome, c("2", "10", "X", "Y"))
 })
 
 test_that("dapc_loading_table joins var.contr to chromosome/position and sorts by contribution", {
@@ -55,6 +66,40 @@ test_that("dapc_loading_table joins var.contr to chromosome/position and sorts b
 
   ld2 <- out[out$axis == "LD2", ]
   expect_identical(ld2$snp_id, c("snp_c", "snp_b", "snp_a"))
+})
+
+test_that("dapc_loading_table orders axis blocks naturally (LD2 before LD10, not lexicographically)", {
+  contr <- matrix(
+    c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6),
+    nrow = 3L, ncol = 2L,
+    dimnames = list(c("snp_a", "snp_b", "snp_c"), c("LD10", "LD2"))
+  )
+  model <- list(var.contr = contr)
+  out <- popgenVCF:::dapc_loading_table(
+    model, c("snp_a", "snp_b", "snp_c"), c("1", "1", "1"), c(100, 200, 300)
+  )
+  expect_identical(rle(out$axis)$values, c("LD2", "LD10"))
+})
+
+test_that("plot_dapc_loading_manhattan and plot_dapc_loading_ranked facet axes naturally (K10 loadings)", {
+  loadings <- data.table::data.table(
+    axis = rep(c("LD10", "LD2", "LD9"), each = 2L),
+    snp_id = rep(c("snp_a", "snp_b"), 3L),
+    chromosome = "1",
+    position = c(100, 200, 100, 200, 100, 200),
+    contribution = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6)
+  )
+  root <- withr::local_tempdir()
+  dirs <- list(figures = root)
+  dir.create(dirs$figures, showWarnings = FALSE)
+  profile <- popgenVCF:::figure_style_profile("accessibility-first")
+  cfg <- list(output = list(figure_formats = "png", dpi = 100))
+
+  p1 <- popgenVCF:::plot_dapc_loading_manhattan(loadings, "10", cfg, dirs, profile)
+  expect_identical(levels(p1$data$axis), c("LD2", "LD9", "LD10"))
+
+  p2 <- popgenVCF:::plot_dapc_loading_ranked(loadings, "10", cfg, dirs, profile)
+  expect_identical(levels(p2$data$axis), c("LD2", "LD9", "LD10"))
 })
 
 test_that("run_dapc_analysis produces per-K loadings only when snp_ids/chromosome/position are supplied", {

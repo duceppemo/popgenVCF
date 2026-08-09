@@ -91,7 +91,9 @@ run_roh <- function(vcf_path, sample_ids, metadata, missing_rate, gt_error_phred
     runs[, population := metadata$population[match(raw_lookup[sample], metadata$sample)]]
     data.table::setcolorder(runs, c("sample", "population", "chromosome", "start", "end", "length_bp", "n_markers", "quality"))
   }
-  data.table::setorder(runs, sample, chromosome, start)
+  runs[, .chr_sort_key := natural_sort_key(chromosome)]
+  data.table::setorder(runs, sample, .chr_sort_key, start)
+  runs[, .chr_sort_key := NULL]
 
   agg <- if (nrow(runs)) {
     runs[, .(
