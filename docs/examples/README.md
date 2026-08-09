@@ -11,8 +11,15 @@ Curated figures from this same run are embedded in
 [Results and Interpretation](https://github.com/duceppemo/popgenVCF/wiki/Results-and-Interpretation)
 (`wiki/figures/`) and the
 [interpreting-results vignette](https://duceppemo.github.io/popgenVCF/articles/interpreting-results.html)
-(`vignettes/figures/`). Run it yourself with
-`vignette("quickstart", package = "popgenVCF")`.
+(`vignettes/figures/`).
+
+Running `vignette("quickstart", package = "popgenVCF")` yourself uses pure
+`default_config()` and will **not** reproduce this exact file -- it omits
+the ADMIXTURE section described below, since ADMIXTURE is off by default
+(see [Installing and configuring ancestry
+backends](https://github.com/duceppemo/popgenVCF/blob/main/docs/user/ancestry-backends.md)).
+Use the exact snippet under "Regenerating" to reproduce this committed PDF
+precisely.
 
 ## Regenerating
 
@@ -34,11 +41,24 @@ cfg$report$enabled <- TRUE
 cfg$report$title <- "popgenVCF quickstart example: chromosome 22 subset (160 samples, 8 populations)"
 cfg$report$author <- "popgenVCF"
 
+# One-off enablement for this reference run only -- ADMIXTURE stays disabled
+# in default_config() (external, optional dependency; see
+# docs/user/ancestry-backends.md). Enabled here purely to source the real
+# ADMIXTURE cluster-number-selection and Q-matrix figures shown in the wiki
+# and interpreting-results vignette, which otherwise have no ancestry
+# figures at all since none of the three backends run by default.
+cfg$analyses$admixture$enabled <- TRUE
+cfg$analyses$admixture$k <- "2:9"
+cfg$analyses$admixture$cv_folds <- 5L
+cfg$analyses$admixture$threads <- "auto"
+
 analysis <- popgenVCF::run_pipeline(cfg)
 # report/population_genomics_report.pdf and .html land in cfg$output$directory
 ```
 
-Every module used its documented default configuration -- no non-standard
-settings were applied for this run. `dapc_k`'s default `"2:10"` range with
-cross-validation is the slowest step (a few minutes on a multi-core machine);
-everything else completes in well under a minute.
+Every other module used its documented default configuration -- ADMIXTURE
+above is the one deliberate exception, added for this reference run only.
+`dapc_k`'s default `"2:10"` range with cross-validation is the slowest
+default-on step (a few minutes on a multi-core machine); ADMIXTURE's
+`K = 2:9` cross-validation sweep adds under a minute on this small
+(357-SNP) marker set; everything else completes in well under a minute.

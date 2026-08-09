@@ -239,6 +239,8 @@ The maintainer chose to add features before making the 1.0 decision above. This 
 
 - **2026-08-09 -- Reworked the wiki/vignette DAPC and ancestry-backends sections to show automatic K/cluster-number selection first, then only the selected model's figures.** DAPC switched from a hardcoded, unreproducible K=8 (RMSE above threshold) to the real consensus K=3 (RMSE effectively 0). Ancestry backends gained real ADMIXTURE figures for the first time (previously none), with an explicit reminder that these backends are not run by default -- generated via a one-off enabled config in a documentation-generation script only; `default_config()` is unchanged. See `NEWS.md` for full detail.
 
+- **2026-08-09 -- Fixed `docs/examples/README.md`'s regeneration instructions**, which had gone stale as a side effect of the ADMIXTURE demonstration above: they claimed no non-standard settings were used, but the committed PDF was generated with ADMIXTURE force-enabled. Added the exact settings used and a note that the quickstart vignette (pure defaults) will not reproduce this exact file. See `NEWS.md` for full detail.
+
 ## Beyond 1.0
 
 Potential post-1.0 work includes selection scans, genomic landscapes, spatial resistance models, GWAS interoperability, community plugins, interactive exploration, optional Docker Hub publication, and cloud/workflow-platform execution.
