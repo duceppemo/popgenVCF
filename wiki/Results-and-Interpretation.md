@@ -224,10 +224,18 @@ For ADMIXTURE, fastStructure, and sNMF:
 K is a model index, and colored components are not literal ancestral
 populations without external evidence.
 
-The figures below are from a real ADMIXTURE run against the quickstart
-example (K=2..9, 5-fold cross-validation each K) -- deliberately enabled
+The figures below are from real ADMIXTURE, fastStructure, and sNMF runs
+against the quickstart example (K=2..9 each, ADMIXTURE with 5-fold
+cross-validation and sNMF with 5 repetitions per K) -- deliberately enabled
 just for this documentation, not part of the bundled dataset's default
-analysis.
+analysis. All three are run independently here, not cross-validated
+against each other (a separate, heavier release-gate evidence process
+covered in `docs/SCIENTIFIC_CONCORDANCE.md`); their three different
+consensus K values below (7, 3, 6) are a real, expected illustration of why
+this section says to distinguish computational agreement from biological
+truth rather than average or otherwise reconcile them by default.
+
+### ADMIXTURE
 
 ![ADMIXTURE cluster-number selection from the quickstart example](figures/13b_ADMIXTURE_cluster_number_selection.png)
 
@@ -241,10 +249,39 @@ the one shown here.
 
 ![ADMIXTURE ancestry proportions at K=7 from the quickstart example, samples ordered by dominant inferred cluster instead of population label](figures/14_ADMIXTURE_Q_data_driven_K7.png)
 
-Comparing the two figures above is the standard check described earlier in
-this section: structure that persists regardless of sample ordering is more
-trustworthy than structure only visible when samples are pre-sorted by their
-metadata population label.
+### fastStructure
+
+![fastStructure cluster-number selection from the quickstart example](figures/13d_fastStructure_cluster_number_selection.png)
+
+Marginal likelihood peaks at K=3 (-0.849, versus -0.854 to -0.872 elsewhere
+in the K=2..9 range); the automatic consensus selects **K=3**. The full
+report (`29_fastStructure_runs.tsv`, `29_fastStructure_Q_K<k>.tsv`, and
+figures) contains a complete Q matrix and pair of figures for **every**
+requested K, not only the one shown here.
+
+![fastStructure ancestry proportions at K=3 from the quickstart example, samples grouped by population](figures/14_fastStructure_Q_K3.png)
+
+![fastStructure ancestry proportions at K=3 from the quickstart example, samples ordered by dominant inferred cluster instead of population label](figures/14_fastStructure_Q_data_driven_K3.png)
+
+### sNMF
+
+![sNMF cluster-number selection from the quickstart example](figures/13c_sNMF_cluster_number_selection.png)
+
+Mean cross-entropy across replicates is lowest at K=6 (0.627, versus 0.628
+to 0.650 elsewhere in the K=2..9 range); the automatic consensus selects
+**K=6**. The full report (`30_sNMF_cross_entropy.tsv`,
+`30_sNMF_Q_K<k>.tsv`, and figures) contains a complete Q matrix and pair of
+figures for **every** requested K, not only the one shown here.
+
+![sNMF ancestry proportions at K=6 from the quickstart example, samples grouped by population](figures/14_sNMF_Q_K6.png)
+
+![sNMF ancestry proportions at K=6 from the quickstart example, samples ordered by dominant inferred cluster instead of population label](figures/14_sNMF_Q_data_driven_K6.png)
+
+Comparing the population-organized and data-driven figures within each
+backend above is the standard check described earlier in this section:
+structure that persists regardless of sample ordering is more trustworthy
+than structure only visible when samples are pre-sorted by their metadata
+population label.
 
 ## AMOVA
 

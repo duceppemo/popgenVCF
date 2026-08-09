@@ -15,8 +15,9 @@ Curated figures from this same run are embedded in
 
 Running `vignette("quickstart", package = "popgenVCF")` yourself uses pure
 `default_config()` and will **not** reproduce this exact file -- it omits
-the ADMIXTURE section described below, since ADMIXTURE is off by default
-(see [Installing and configuring ancestry
+the ADMIXTURE, fastStructure, and sNMF sections described below, since all
+three ancestry backends are off by default (see [Installing and configuring
+ancestry
 backends](https://github.com/duceppemo/popgenVCF/blob/main/docs/user/ancestry-backends.md)).
 Use the exact snippet under "Regenerating" to reproduce this committed PDF
 precisely.
@@ -41,24 +42,32 @@ cfg$report$enabled <- TRUE
 cfg$report$title <- "popgenVCF quickstart example: chromosome 22 subset (160 samples, 8 populations)"
 cfg$report$author <- "popgenVCF"
 
-# One-off enablement for this reference run only -- ADMIXTURE stays disabled
-# in default_config() (external, optional dependency; see
+# One-off enablement for this reference run only -- all three stay disabled
+# in default_config() (external, optional dependencies; see
 # docs/user/ancestry-backends.md). Enabled here purely to source the real
-# ADMIXTURE cluster-number-selection and Q-matrix figures shown in the wiki
-# and interpreting-results vignette, which otherwise have no ancestry
-# figures at all since none of the three backends run by default.
+# cluster-number-selection and Q-matrix figures shown in the wiki and
+# interpreting-results vignette, which otherwise have no ancestry figures
+# at all since none of the three backends run by default.
 cfg$analyses$admixture$enabled <- TRUE
 cfg$analyses$admixture$k <- "2:9"
 cfg$analyses$admixture$cv_folds <- 5L
 cfg$analyses$admixture$threads <- "auto"
+cfg$analyses$faststructure$enabled <- TRUE
+cfg$analyses$faststructure$k <- "2:9"
+cfg$analyses$snmf$enabled <- TRUE
+cfg$analyses$snmf$k <- "2:9"
+cfg$analyses$snmf$repetitions <- 5L
+cfg$analyses$snmf$entropy <- TRUE
+cfg$analyses$snmf$threads <- "auto"
 
 analysis <- popgenVCF::run_pipeline(cfg)
 # report/population_genomics_report.pdf and .html land in cfg$output$directory
 ```
 
-Every other module used its documented default configuration -- ADMIXTURE
-above is the one deliberate exception, added for this reference run only.
-`dapc_k`'s default `"2:10"` range with cross-validation is the slowest
-default-on step (a few minutes on a multi-core machine); ADMIXTURE's
-`K = 2:9` cross-validation sweep adds under a minute on this small
-(357-SNP) marker set; everything else completes in well under a minute.
+Every other module used its documented default configuration -- the three
+ancestry backends above are the deliberate exception, added for this
+reference run only. `dapc_k`'s default `"2:10"` range with cross-validation
+is the slowest default-on step (a few minutes on a multi-core machine);
+ADMIXTURE, fastStructure, and sNMF's `K = 2:9` sweeps each add under a
+minute on this small (357-SNP) marker set; everything else completes in
+well under a minute.
