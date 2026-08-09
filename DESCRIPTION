@@ -72,4 +72,4 @@ SystemRequirements: BCFtools and HTSlib utilities (required for VCF sorting,
     BGZF compression, indexing, and runs-of-homozygosity detection), Pandoc
     (optional, for manuscript reports), ADMIXTURE (optional), fastStructure
     (optional)
-RoxygenNote: 7.3.2
+Config/roxygen2/version: 8.1.0

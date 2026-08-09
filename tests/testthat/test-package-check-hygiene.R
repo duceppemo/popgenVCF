@@ -88,7 +88,7 @@ test_that("static-analysis imports and data.table NSE declarations are retained"
   )
   expect_true(all(expected_imports %in% imported))
 
-  declarations <- readLines(file.path(root, "R", "zzz-package-check.R"), warn = FALSE)
+  declarations <- readLines(file.path(root, "R", "package-check.R"), warn = FALSE)
   expect_true(any(grepl("utils::globalVariables", declarations, fixed = TRUE)))
 })
 

@@ -103,7 +103,7 @@ new_canonical_baseline_snapshot <- function(id, registry, recorded_at, provenanc
 }
 
 # Core per-metric drift assessment. `assess_canonical_baseline_drift()` (the
-# exported entry point, defined in zzz_canonical_drift_consistency.R) wraps
+# exported entry point, defined in canonical_drift_consistency.R) wraps
 # this to select the aggregate classification by severity value rather than
 # by row position.
 .assess_canonical_baseline_drift_core <- function(previous, current,
@@ -192,7 +192,7 @@ canonical_drift_history <- function(snapshots, profile = new_canonical_drift_pro
 }
 
 # Core per-dataset/analysis drift summary. `canonical_drift_summary()` (the
-# exported entry point, defined in zzz_canonical_drift_consistency.R) wraps
+# exported entry point, defined in canonical_drift_consistency.R) wraps
 # this to select `maximum_classification` by severity value rather than by
 # row position.
 .canonical_drift_summary_core <- function(assessment) {

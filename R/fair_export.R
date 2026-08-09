@@ -150,7 +150,7 @@ fair_creator_jsonld <- function(x) {
 }
 
 # Base FAIR document builder. `fair_documents()` (the exported entry point,
-# defined in zzz_software_identity_integration.R) wraps this to inject the
+# defined in software_identity_integration.R) wraps this to inject the
 # canonical popgenVCF software identity into the RO-Crate/CodeMeta records.
 .fair_documents_without_software_identity <- function(metadata) {
   validate_fair_metadata(metadata)

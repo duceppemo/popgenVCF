@@ -39,7 +39,7 @@ BLOCKS: dict[tuple[str, str], tuple[str, ...]] = {
         "#' @export",
     ),
     # run_admixture_cv's canonical definition (with its own correct roxygen
-    # block) moved to R/zzzz_admixture_runtime.R during the duplicate-
+    # block) moved to R/admixture_runtime.R during the duplicate-
     # definition cleanup; R/admixture.R no longer defines it at all.
     ("R/pipeline.R", "run_pipeline"): (
         "#' Run the complete popgenVCF analysis pipeline",
