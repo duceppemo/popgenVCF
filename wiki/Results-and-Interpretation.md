@@ -205,6 +205,22 @@ permutations, complete sample pairs, and sampling design. A Mantel association
 does not establish a causal spatial process and can be sensitive to
 autocorrelation and clustered sampling.
 
+The quickstart metadata includes real, documented population-level collection
+coordinates (`inst/extdata/quickstart/README.md` has the exact source and the
+GBR/ITU/STU shared-point caveat), so this analysis actually runs rather than
+being skipped for lack of coordinates.
+
+![Isolation by distance: genetic distance (IBS) against geographic distance, with a log-distance fit, from the quickstart example](figures/12_isolation_by_distance.png)
+
+On the quickstart example, the Mantel test (Pearson, 999 permutations) gives
+r = 0.3129, p = 0.001 (999-permutation floor), with a positive slope (0.00275,
+R² = 0.137) across all 12,720 complete sample pairs -- genetic distance really
+does increase with geographic distance across these 8 continentally diverse
+populations, a real, biologically sensible isolation-by-distance signal. This
+does not, by itself, establish a causal spatial process: the same 8
+populations are also the units compared by FST and PCA above, so this is not
+independent evidence from a fourth, unrelated experiment.
+
 ## Figures and reports
 
 Captions should identify the dataset, filters, estimator, sample size, software

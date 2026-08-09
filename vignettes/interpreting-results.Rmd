@@ -172,6 +172,21 @@ A relationship between genetic and geographic distance can reflect dispersal lim
 
 Inspect the distance definitions, complete coordinate pairs, spatial extent, outliers, permutation design, and residual pattern. A Mantel result does not establish a causal spatial process and can be misleading under complex spatial or hierarchical sampling.
 
+The quickstart metadata includes real, documented population-level collection
+coordinates (see the dataset's `README.md` for the exact source and the
+GBR/ITU/STU shared-point caveat), so this module actually runs for the
+quickstart example rather than being skipped for lack of coordinates.
+
+```{r ibd-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/12_isolation_by_distance.png")
+```
+
+The Mantel test (Pearson, 999 permutations) on the quickstart example gives
+r = 0.3129, p = 0.001 (the 999-permutation floor), with a positive slope
+(0.00275, R² = 0.137) across all 12,720 complete sample pairs. The same 8
+populations are also the units compared by FST and PCA elsewhere in this
+report, so this is not independent confirmation from an unrelated experiment.
+
 ## Integrating analyses
 
 Concordant analyses can strengthen a description, but shared inputs also create shared biases. PCA separation, high pairwise FST, ancestry components, and geographic clustering are not four independent experiments when they use the same samples and variants.

@@ -41,7 +41,26 @@ populations <- c("GBR", "YRI", "LWK", "CHB", "ITU", "STU", "PUR", "PEL")
 required_samples <- c("HG03873", "HG03998", "NA19331", "NA19334")
 n_per_population <- 20L
 
-panel <- data.table::fread(panel_path, data.table = TRUE, check.names = FALSE, fill = TRUE)
+# Real, documented population collection-site coordinates, source:
+# igsr/1000Genomes_data_indexes README_populations.md (GitHub). GBR = England
+# and Scotland; YRI = Ibadan, Nigeria; LWK = Webuye, Kenya; CHB = Beijing,
+# China; ITU = Indian (Telugu) samples collected in the UK; STU = Sri Lankan
+# (Tamil) samples collected in the UK; PUR = Puerto Rico; PEL = Lima, Peru.
+# GBR/ITU/STU share one representative London point since the source gives no
+# more specific city for any of the three. These are population-level
+# representative coordinates, not individual-sample GPS -- per-sample
+# locations are never published for de-identified 1000 Genomes samples.
+population_coordinates <- data.table::data.table(
+  population = c("GBR", "YRI",    "LWK",    "CHB",     "ITU",   "STU",   "PUR",     "PEL"),
+  latitude   = c(51.5074, 7.3776,  0.6075,  39.9042,  51.5074, 51.5074, 18.4655,  -12.0464),
+  longitude  = c(-0.1278, 3.9059, 34.7697, 116.4074,  -0.1278, -0.1278, -66.1057, -77.0428)
+)
+
+# header="auto" misdetects this file as headerless: the header row has two
+# trailing empty tab-separated fields that data rows don't, so fread's
+# column-count heuristic guesses no header. header=TRUE forces correct
+# parsing.
+panel <- data.table::fread(panel_path, data.table = TRUE, check.names = FALSE, fill = TRUE, header = TRUE)
 data.table::setnames(panel, tolower(names(panel)))
 panel <- panel[pop %in% populations]
 
@@ -86,7 +105,9 @@ stopifnot(setequal(vcf_sample_ids, selected$sample))
 
 metadata <- selected[match(vcf_sample_ids, sample)]
 data.table::setnames(metadata, c("population", "sample"))
-data.table::setcolorder(metadata, c("sample", "population"))
+metadata <- population_coordinates[metadata, on = "population"]
+data.table::setcolorder(metadata, c("sample", "population", "latitude", "longitude"))
+stopifnot(all(is.finite(metadata$latitude)), all(is.finite(metadata$longitude)))
 metadata_path <- file.path(out_dir, "chr22_quickstart_metadata.tsv")
 data.table::fwrite(metadata, metadata_path, sep = "\t", quote = FALSE)
 

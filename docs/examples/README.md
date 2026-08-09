@@ -17,7 +17,11 @@ Curated figures from this same run are embedded in
 ## Regenerating
 
 Source dataset SHA-256 (`inst/extdata/quickstart/chr22_quickstart.vcf.gz`):
-`33f5e2640ea09441967f055a53181276040334fc248136082160e52a0a6bd94b`
+`a71db6c3dbcbb85c717bcb246cf9e05f4d6ebdb08b3de0763b9213ade5a2b196`
+(unchanged genotype content/sample selection; the hash moved only because
+`bcftools view`'s embedded gzip header records the derivation run's
+timestamp -- see `inst/extdata/quickstart/README.md` for the coordinate
+addition that motivated regenerating the metadata TSV this hash pairs with)
 
 ```r
 paths <- popgenVCF::quickstart_dataset_paths()
