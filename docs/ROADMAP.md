@@ -225,6 +225,8 @@ The maintainer chose to add features before making the 1.0 decision above. This 
 
 - **2026-08-08 -- Fixed documentation that had drifted behind the kinship, ROH, and genome-scan features added earlier in this cycle.** `DESCRIPTION`, `README.md`, `wiki/User-Guide.md`, `vignettes/getting-started.Rmd`, and `inst/doc/architecture.md` were all missing or misstating these three analyses (e.g. describing kinship and ROH as needing population metadata, which neither does). Verified the correct classification against the actual module code (`run_module_kinship()`, `run_module_roh()`, `run_module_genome_scan()`, `template_config()`) before fixing rather than guessing. See `NEWS.md` for full detail.
 
+- **2026-08-08 -- Fixed report figure gallery ordering for per-K figure series.** `report_figure_inventory()` sorted figures with a plain lexicographic string sort, so `11_DAPC_K10` placed right after `11_DAPC_K1`-prefixed names, before `K2`-`K9` -- confirmed as a real, user-visible bug in the already-shipped example report ("Figure 13: DAPC K 10" before "Figure 14: DAPC K 3"). Added a natural-sort helper and re-rendered the real committed quickstart report from its cached analysis results to confirm the fix and ship the corrected PDF. See `NEWS.md` for full detail.
+
 ## Beyond 1.0
 
 Potential post-1.0 work includes selection scans, genomic landscapes, spatial resistance models, GWAS interoperability, community plugins, interactive exploration, optional Docker Hub publication, and cloud/workflow-platform execution.

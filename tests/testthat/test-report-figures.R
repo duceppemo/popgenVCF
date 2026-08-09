@@ -53,6 +53,23 @@ test_that("standard report inventory selects one browser-friendly figure per ste
   expect_identical(pdf_inventory$format, "pdf")
 })
 
+test_that("report figure inventory orders embedded K numbers naturally, not lexicographically", {
+  root <- tempfile("k-order-report-")
+  dir.create(file.path(root, "figures"), recursive = TRUE)
+  results <- file.path(root, "analysis_results.rds")
+  saveRDS(minimal_standard_report_result(), results)
+
+  for (k in c(2L, 9L, 10L)) {
+    png_path <- file.path(root, "figures", sprintf("11_DAPC_K%d.png", k))
+    grDevices::png(png_path, width = 320, height = 240)
+    graphics::plot(1:2, 1:2)
+    grDevices::dev.off()
+  }
+
+  inventory <- popgenVCF:::report_figure_inventory(results)
+  expect_identical(inventory$stem, c("11_DAPC_K2", "11_DAPC_K9", "11_DAPC_K10"))
+})
+
 test_that("standard HTML report embeds figures without requiring an RDS viewer", {
   skip_if_not(rmarkdown::pandoc_available())
   root <- tempfile("standard-report-render-")
