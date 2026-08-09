@@ -9,7 +9,8 @@ and external backends.
 
 Without metadata, sample names in the VCF are canonical identities. Available
 analyses include sample and variant QC, filtering, LD pruning, PCA, IBS/MDS,
-and configured ancestry backends.
+pairwise kinship (KING-robust), runs of homozygosity, and configured ancestry
+backends.
 
 ### Sample metadata
 
@@ -21,8 +22,8 @@ alias falls back to the original sample name.
 
 ### Population metadata
 
-A complete `population` column enables population diversity, FST, DAPC, AMOVA,
-and population-level summaries.
+A complete `population` column enables population diversity, FST, sliding-
+window genome scans, DAPC, AMOVA, and population-level summaries.
 
 ### Spatial metadata
 

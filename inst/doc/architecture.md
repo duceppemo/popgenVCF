@@ -9,11 +9,19 @@ views derived from those data.
 
 # SNP sets
 
-The QC-passing set is used for diversity and FST. The LD-pruned set is used for
-PCA, IBS, MDS, trees, DAPC, and chromosome-specific ordination. The fixed
-SNPRelate pruning settings are MAF from configuration, missing rate 0.2,
+The QC-passing set is used for diversity, FST, and genome scans (which
+aggregate diversity's and FST's already-computed per-locus/per-window results
+rather than recomputing on a different set). The LD-pruned set is used for
+PCA, IBS, MDS, trees, kinship, DAPC, and chromosome-specific ordination. The
+fixed SNPRelate pruning settings are MAF from configuration, missing rate 0.2,
 correlation threshold `sqrt(0.2)`, unlimited base-pair span, 50-SNP window,
 `start.pos = "first"`, and at most four threads.
+
+Runs of homozygosity is the one analysis that uses neither set: it applies its
+own filtering directly from the VCF (biallelic SNPs, the fixed missingness
+threshold, deliberately no MAF filter -- MAF filtering is known to bias run
+lengths downward), since MAF filtering appropriate for PCA/structure work
+would remove informative rare-homozygous tracts.
 
 ## Canonical analysis state (v0.5.0)
 

@@ -13,9 +13,9 @@
 
 **popgenVCF** is an R toolkit and command-line application for reproducible
 population-genomic analysis of diploid, biallelic SNP VCF files. It provides
-quality control, PCA, IBS/MDS, diversity, FST, DAPC, AMOVA, population
-structure, spatial genetics, publication outputs, and machine-readable
-validation evidence.
+quality control, PCA, IBS/MDS, diversity, FST, kinship, runs of homozygosity,
+sliding-window genome scans, DAPC, AMOVA, population structure, spatial
+genetics, publication outputs, and machine-readable validation evidence.
 
 > Current release: **0.10.0** — scientifically approved and released,
 > 2026-08-01. Interfaces and output schemas may still change before 1.0. No

@@ -19,9 +19,9 @@ popgenVCF determines which analyses are scientifically available from the suppli
 
 | Mode | Required input | Analyses that can become available |
 |---|---|---|
-| VCF only | Diploid biallelic SNP VCF | QC, filtering, LD pruning, PCA, IBS/MDS, and configured ancestry engines |
+| VCF only | Diploid biallelic SNP VCF | QC, filtering, LD pruning, PCA, IBS/MDS, kinship (KING-robust), runs of homozygosity, and configured ancestry engines |
 | Sample metadata | VCF plus exact sample identifiers | VCF-only analyses with descriptive annotations |
-| Population metadata | Complete `population` values | Diversity, FST, DAPC, AMOVA, and population summaries |
+| Population metadata | Complete `population` values | Diversity, FST, genome scans, DAPC, AMOVA, and population summaries |
 | Spatial metadata | Usable `latitude` and `longitude` values | Mantel, isolation-by-distance, maps, and spatial analyses |
 
 Missing metadata does not make a VCF-only analysis invalid. Modules whose requirements are not met are skipped transparently and recorded in `analysis_capabilities.tsv`.
