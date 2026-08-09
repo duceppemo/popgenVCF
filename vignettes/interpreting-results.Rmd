@@ -60,6 +60,14 @@ Interpret the eigenvalues and source coordinates together. Do not assign discret
 knitr::include_graphics("figures/07_PCA_PC1_PC2.png")
 ```
 
+```{r pca-loadings-manhattan-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/17_PCA_loadings_manhattan.png")
+```
+
+```{r pca-loadings-ranked-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/18_PCA_loadings_ranked.png")
+```
+
 The 8 populations in the quickstart example separate largely by continental origin along PC1/PC2, as expected for real, geographically diverse human samples.
 
 ## IBS and MDS
@@ -138,6 +146,14 @@ Document how many principal components and discriminant axes were retained, how 
 
 ```{r dapc-figure, echo=FALSE, out.width="90%"}
 knitr::include_graphics("figures/11_DAPC_K8.png")
+```
+
+```{r dapc-loadings-manhattan-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/15_DAPC_loadings_manhattan_K8.png")
+```
+
+```{r dapc-loadings-ranked-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/16_DAPC_loadings_ranked_K8.png")
 ```
 
 ## AMOVA

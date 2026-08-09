@@ -48,6 +48,10 @@ investigation, not a conclusion.
 
 ![PCA of the quickstart example, coloured by population](figures/07_PCA_PC1_PC2.png)
 
+![PCA SNP loadings by chromosome position, one panel per retained component (PC1..PC10), from the quickstart example](figures/17_PCA_loadings_manhattan.png)
+
+![PCA SNP loadings ranked by descending magnitude within each component, from the quickstart example](figures/18_PCA_loadings_ranked.png)
+
 The 8 sampled populations separate along the first two components largely by
 continental origin, as expected for real, geographically diverse human data.
 
@@ -178,6 +182,10 @@ evidence that the SNP is biologically causal for whatever the clusters
 represent.
 
 ![DAPC scatter at K=8 from the quickstart example](figures/11_DAPC_K8.png)
+
+![DAPC SNP loadings by chromosome position at K=8, one panel per discriminant function, from the quickstart example](figures/15_DAPC_loadings_manhattan_K8.png)
+
+![DAPC SNP loadings ranked by descending contribution at K=8, from the quickstart example](figures/16_DAPC_loadings_ranked_K8.png)
 
 ## Ancestry backends
 

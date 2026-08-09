@@ -233,6 +233,8 @@ The maintainer chose to add features before making the 1.0 decision above. This 
 
 - **2026-08-09 -- Published the Wiki.** `scripts/publish-wiki.sh --push` had never been run against this cycle's changes, so the live GitHub Wiki was missing all 9 documentation figures and several pages of content, unlike the pkgdown vignette site (which rebuilds automatically). Published with the maintainer's explicit confirmation. Remains a manual, maintainer-triggered step -- no workflow runs it automatically.
 
+- **2026-08-09 -- Added the PCA/DAPC loading figures to the wiki and `interpreting-results` vignette.** Both sections' prose already referenced "the Manhattan/ranked loading figures" but never embedded them. Added from the same real reference pipeline run used for every other quickstart figure; confirmed the pre-existing scatter-plot figures were byte-identical before and after the natural-sort fix, confirming only the loadings figures were actually affected. Republished the Wiki with these additions.
+
 ## Beyond 1.0
 
 Potential post-1.0 work includes selection scans, genomic landscapes, spatial resistance models, GWAS interoperability, community plugins, interactive exploration, optional Docker Hub publication, and cloud/workflow-platform execution.
