@@ -276,7 +276,71 @@ plot_pca_loading_ranked <- function(loadings, cfg, dirs, profile) {
   invisible(p)
 }
 
-plot_pca <- function(pca, cfg, dirs) {
+#' Metadata columns eligible for per-column PCA colouring
+#'
+#' A column qualifies when, after dropping missing values for samples present
+#' in `sample_ids`, it has at least two distinct values, no more than
+#' `max_levels` distinct values (keeping legends readable), and every
+#' remaining value occurs at least `min_group` times (colouring by a level
+#' with one or two samples is not a meaningful group comparison).
+#' @keywords internal
+pca_metadata_colour_columns <- function(metadata, sample_ids, min_group = 3L, max_levels = 12L) {
+  excluded <- c("sample", "vcf_sample", "population", "alias", "latitude", "longitude")
+  candidates <- setdiff(names(metadata), excluded)
+  metadata <- metadata[match(sample_ids, metadata$sample)]
+  keep <- character()
+  for (col in candidates) {
+    values <- trimws(as.character(metadata[[col]]))
+    values <- values[!is.na(values) & nzchar(values)]
+    if (!length(values)) next
+    counts <- table(values)
+    counts <- counts[counts >= min_group]
+    if (length(counts) < 2L || length(counts) > max_levels) next
+    keep <- c(keep, col)
+  }
+  keep
+}
+
+pca_metadata_display_name <- function(column) {
+  words <- strsplit(gsub("_", " ", column, fixed = TRUE), " ", fixed = TRUE)[[1]]
+  words <- words[nzchar(words)]
+  paste(toupper(substring(words, 1L, 1L)), substring(words, 2L), sep = "", collapse = " ")
+}
+
+plot_pca_by_metadata <- function(pca, metadata, column, cfg, dirs, style) {
+  fmts <- cfg$output$figure_formats; dpi <- cfg$output$dpi
+  min_group <- cfg$analyses$pca_metadata_color_min_group
+  scores <- data.table::copy(pca$scores)
+  values <- trimws(as.character(metadata[[column]][match(scores$vcf_sample, metadata$sample)]))
+  values[!nzchar(values)] <- NA_character_
+  counts <- table(values[!is.na(values)])
+  scores[["colour_group"]] <- ifelse(values %in% names(counts)[counts >= min_group], values, NA_character_)
+  scores <- scores[!is.na(scores$colour_group), ]
+  if (data.table::uniqueN(scores$colour_group) < 2L) return(invisible(NULL))
+  pal <- population_palette(scores$colour_group, style)
+  shapes <- population_shapes(scores$colour_group, style)
+  label_name <- pca_metadata_display_name(column)
+  x <- "PC1"; y <- "PC2"
+  p <- ggplot2::ggplot(
+    scores,
+    ggplot2::aes(x = .data[[x]], y = .data[[y]], colour = colour_group, shape = colour_group)
+  ) +
+    ggplot2::geom_hline(yintercept = 0, colour = "#D9D9D9", linewidth = 0.35) +
+    ggplot2::geom_vline(xintercept = 0, colour = "#D9D9D9", linewidth = 0.35) +
+    ggplot2::geom_point(size = 3, alpha = .9, stroke = 0.55) +
+    ggplot2::scale_colour_manual(values = pal) +
+    ggplot2::scale_shape_manual(values = shapes) +
+    ggplot2::labs(
+      title = sprintf("Principal component analysis, coloured by %s", tolower(label_name)),
+      x = sprintf("%s (%.2f%%)", x, pca$variance$percent[1]),
+      y = sprintf("%s (%.2f%%)", y, pca$variance$percent[2]),
+      colour = label_name, shape = label_name
+    ) + theme_publication(figure_base_size(cfg))
+  save_plot(p, sprintf("07b_PCA_PC1_PC2_by_%s", column), dirs, fmts, 8, 6, dpi)
+  invisible(p)
+}
+
+plot_pca <- function(pca, cfg, dirs, metadata = NULL) {
   fmts <- cfg$output$figure_formats; dpi <- cfg$output$dpi
   label <- cfg$output$label_samples
   do_label <- identical(label, "all") || (identical(label, "auto") && nrow(pca$scores) <= 60L)
@@ -330,6 +394,16 @@ plot_pca <- function(pca, cfg, dirs) {
   if (!is.null(pca$loadings) && nrow(pca$loadings)) {
     plot_pca_loading_manhattan(pca$loadings, cfg, dirs, profile)
     plot_pca_loading_ranked(pca$loadings, cfg, dirs, profile)
+  }
+  if (isTRUE(cfg$analyses$pca_metadata_color) && !is.null(metadata) &&
+      "vcf_sample" %in% names(pca$scores) && nrow(pca$variance) >= 2L) {
+    colour_columns <- pca_metadata_colour_columns(
+      metadata, pca$scores$vcf_sample,
+      cfg$analyses$pca_metadata_color_min_group, cfg$analyses$pca_metadata_color_max_levels
+    )
+    for (column in colour_columns) {
+      plot_pca_by_metadata(pca, metadata, column, cfg, dirs, style)
+    }
   }
 }
 

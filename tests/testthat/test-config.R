@@ -91,6 +91,30 @@ test_that("pca_loading_top_n is coerced and validated", {
   expect_error(popgenVCF::validate_config(cfg), "pca_loading_top_n")
 })
 
+test_that("pca_metadata_color_min_group and pca_metadata_color_max_levels are coerced and validated", {
+  cfg <- popgenVCF::default_config()
+  cfg$input$vcf <- tempfile(fileext = ".vcf")
+  cfg$output$directory <- tempfile("popgenvcf-output-")
+  file.create(cfg$input$vcf)
+
+  expect_true(cfg$analyses$pca_metadata_color)
+  expect_identical(cfg$analyses$pca_metadata_color_min_group, 3L)
+  expect_identical(cfg$analyses$pca_metadata_color_max_levels, 12L)
+
+  cfg$analyses$pca_metadata_color_min_group <- "5"
+  cfg$analyses$pca_metadata_color_max_levels <- "8"
+  validated <- popgenVCF::validate_config(cfg)
+  expect_identical(validated$analyses$pca_metadata_color_min_group, 5L)
+  expect_identical(validated$analyses$pca_metadata_color_max_levels, 8L)
+
+  cfg$analyses$pca_metadata_color_min_group <- 0L
+  expect_error(popgenVCF::validate_config(cfg), "pca_metadata_color_min_group")
+
+  cfg$analyses$pca_metadata_color_min_group <- 3L
+  cfg$analyses$pca_metadata_color_max_levels <- 1L
+  expect_error(popgenVCF::validate_config(cfg), "pca_metadata_color_max_levels")
+})
+
 test_that("hwe_alpha is coerced and validated", {
   cfg <- popgenVCF::default_config()
   cfg$input$vcf <- tempfile(fileext = ".vcf")

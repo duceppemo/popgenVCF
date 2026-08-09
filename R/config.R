@@ -17,6 +17,8 @@ default_config <- function() {
               ld_r2 = 0.20, ld_slide_max_bp = Inf, ld_slide_max_n = 50L,
               ld_start_pos = "first"),
     analyses = list(diversity = TRUE, hwe_alpha = 0.05, pca = TRUE, n_pcs = 10L, pca_loading_top_n = 20L,
+                    pca_metadata_color = TRUE, pca_metadata_color_min_group = 3L,
+                    pca_metadata_color_max_levels = 12L,
                     ibs = TRUE, kinship = TRUE, kinship_close_relative_threshold = 0.0442,
                     roh = TRUE, roh_gt_error_phred = 30,
                     tree = TRUE, fst = TRUE,
@@ -115,6 +117,8 @@ validate_config <- function(cfg) {
   cfg$analyses$hwe_alpha <- as.numeric(cfg$analyses$hwe_alpha)
   cfg$analyses$n_pcs <- as.integer(cfg$analyses$n_pcs)
   cfg$analyses$pca_loading_top_n <- as.integer(cfg$analyses$pca_loading_top_n)
+  cfg$analyses$pca_metadata_color_min_group <- as.integer(cfg$analyses$pca_metadata_color_min_group)
+  cfg$analyses$pca_metadata_color_max_levels <- as.integer(cfg$analyses$pca_metadata_color_max_levels)
   cfg$analyses$kinship_close_relative_threshold <- as.numeric(cfg$analyses$kinship_close_relative_threshold)
   cfg$analyses$roh_gt_error_phred <- as.numeric(cfg$analyses$roh_gt_error_phred)
   cfg$analyses$genome_scan_window_bp <- as.integer(cfg$analyses$genome_scan_window_bp)
@@ -137,6 +141,8 @@ validate_config <- function(cfg) {
   if (!is.finite(cfg$analyses$hwe_alpha) || cfg$analyses$hwe_alpha <= 0 || cfg$analyses$hwe_alpha >= 1) stop("analyses.hwe_alpha must be between zero and one", call. = FALSE)
   if (!is.finite(cfg$analyses$n_pcs) || cfg$analyses$n_pcs < 2L) stop("analyses.n_pcs must be >= 2", call. = FALSE)
   if (!is.finite(cfg$analyses$pca_loading_top_n) || cfg$analyses$pca_loading_top_n < 1L) stop("analyses.pca_loading_top_n must be >= 1", call. = FALSE)
+  if (!is.finite(cfg$analyses$pca_metadata_color_min_group) || cfg$analyses$pca_metadata_color_min_group < 1L) stop("analyses.pca_metadata_color_min_group must be >= 1", call. = FALSE)
+  if (!is.finite(cfg$analyses$pca_metadata_color_max_levels) || cfg$analyses$pca_metadata_color_max_levels < 2L) stop("analyses.pca_metadata_color_max_levels must be >= 2", call. = FALSE)
   if (!is.finite(cfg$analyses$kinship_close_relative_threshold) || cfg$analyses$kinship_close_relative_threshold <= 0 || cfg$analyses$kinship_close_relative_threshold > 0.5) stop("analyses.kinship_close_relative_threshold must be between zero (exclusive) and 0.5 (inclusive)", call. = FALSE)
   if (!is.finite(cfg$analyses$roh_gt_error_phred) || cfg$analyses$roh_gt_error_phred <= 0) stop("analyses.roh_gt_error_phred must be positive", call. = FALSE)
   if (!is.finite(cfg$analyses$genome_scan_window_bp) || cfg$analyses$genome_scan_window_bp < 1L) stop("analyses.genome_scan_window_bp must be >= 1", call. = FALSE)

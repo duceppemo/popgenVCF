@@ -245,6 +245,8 @@ The maintainer chose to add features before making the 1.0 decision above. This 
 
 - **2026-08-09 -- Added the genome-scan figures to the wiki and vignette.** The "Genome scans" section was text-only despite genome scans being a default-on module already shown in the committed report. Real quickstart values: FST windows range 0.051-0.172; window diversity ranges 0.099-0.398 across 8 populations. Already present in the committed example PDF's automatic figure gallery; only the hand-curated wiki/vignette selection was missing them. See `NEWS.md` for full detail.
 
+- **2026-08-09 -- Added static PCA panels coloured by arbitrary sample metadata columns, not just `population`.** `plot_pca()` gains one extra PC1/PC2 panel per *qualifying* metadata column (`07b_PCA_PC1_PC2_by_<column>`), reusing the already-fitted PCA -- no new model fitting. A column qualifies when it has at least 2 distinct values with at least `analyses.pca_metadata_color_min_group` samples each (default 3) and no more than `analyses.pca_metadata_color_max_levels` distinct values (default 12, keeping the legend readable); `population`, coordinates, and identifier-like columns are excluded automatically. New `analyses.pca_metadata_color`/`pca_metadata_color_min_group`/`pca_metadata_color_max_levels` config keys. The bundled quickstart dataset has no additional qualifying metadata column yet, so the committed example report is unaffected for now. No public API changes. See `NEWS.md` for full detail.
+
 ## Beyond 1.0
 
 Potential post-1.0 work includes selection scans, genomic landscapes, spatial resistance models, GWAS interoperability, community plugins, interactive exploration, optional Docker Hub publication, and cloud/workflow-platform execution.

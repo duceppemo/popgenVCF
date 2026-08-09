@@ -18,7 +18,7 @@ run_module_pca <- function(analysis, context) {
     )
     write_tsv(top, file.path(dirs$tables, "31_PCA_loadings.tsv"))
   }
-  plot_pca(pca, cfg, dirs)
+  plot_pca(pca, cfg, dirs, context$metadata)
 
   coordinates <- data.table::copy(pca$scores)
   data.table::setnames(coordinates, "sample", "sample_id")
