@@ -55,6 +55,23 @@ investigation, not a conclusion.
 The 8 sampled populations separate along the first two components largely by
 continental origin, as expected for real, geographically diverse human data.
 
+The report also draws one additional PC1/PC2 panel per other metadata column
+that qualifies for colouring: enough samples per distinct value
+(`analyses.pca_metadata_color_min_group`, default 3) and not too many
+distinct values (`analyses.pca_metadata_color_max_levels`, default 12).
+`population` itself, continuous coordinates (`latitude`/`longitude`), and
+identifier-like columns are excluded automatically. In the quickstart
+metadata, `sex` qualifies:
+
+![PCA of the quickstart example, recoloured by the sex metadata column instead of population](figures/07b_PCA_PC1_PC2_by_sex.png)
+
+Sex shows no separation here (ANOVA on this exact PCA fit: p = 0.24 on PC1,
+p = 0.62 on PC2) -- itself the expected, useful result for an autosomal
+analysis: population structure, not sex, drives this PCA. A
+per-metadata-column panel that *does* show separation on your own data would
+be a genuine signal worth investigating (a batch effect, a confound, or real
+biology), not something to assume is noise.
+
 ## IBS and MDS
 
 Confirm sample order and matrix symmetry. Interpret low-dimensional MDS only
@@ -90,10 +107,12 @@ for them before interpreting those results.
 
 The quickstart dataset deliberately includes two known real duplicate pairs
 as a worked example: `HG03873`/`HG03998` (kinship 0.4525) -- individuals
-labelled as two *different* populations, ITU and STU, that are nonetheless
-the same/an identical-twin pair, exactly the kind of labeling issue this
-analysis is meant to surface -- and `NA19331`/`NA19334` (kinship 0.4459,
-both LWK). Both are correctly classified `duplicate/MZ twin`.
+labelled as two *different* populations (ITU and STU) and two *different*
+sexes in the bundled metadata, that are nonetheless the same/an
+identical-twin pair, exactly the kind of labeling issue this analysis is
+meant to surface -- and `NA19331`/`NA19334` (kinship 0.4459, both LWK, both
+recorded with the same sex, as expected for a genuine duplicate). Both pairs
+are correctly classified `duplicate/MZ twin`.
 
 ## Runs of homozygosity
 

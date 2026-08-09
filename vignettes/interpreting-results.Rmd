@@ -70,6 +70,14 @@ knitr::include_graphics("figures/18_PCA_loadings_ranked.png")
 
 The 8 populations in the quickstart example separate largely by continental origin along PC1/PC2, as expected for real, geographically diverse human samples.
 
+The report also draws one additional PC1/PC2 panel per other metadata column that qualifies for colouring: enough samples per distinct value (`analyses.pca_metadata_color_min_group`, default 3) and not too many distinct values (`analyses.pca_metadata_color_max_levels`, default 12). `population` itself, continuous coordinates (`latitude`/`longitude`), and identifier-like columns are excluded automatically. In the quickstart metadata, `sex` qualifies:
+
+```{r pca-by-sex-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/07b_PCA_PC1_PC2_by_sex.png")
+```
+
+Sex shows no separation here (ANOVA on this exact PCA fit: p = 0.24 on PC1, p = 0.62 on PC2) -- itself the expected, useful result for an autosomal analysis: population structure, not sex, drives this PCA. A per-metadata-column panel that *does* show separation on your own data would be a genuine signal worth investigating (a batch effect, a confound, or real biology), not something to assume is noise.
+
 ## IBS and MDS
 
 Identity-by-state measures allele sharing in the retained marker set. MDS represents those distances in a lower-dimensional space.
@@ -94,7 +102,7 @@ knitr::include_graphics("figures/21_kinship_heatmap.png")
 knitr::include_graphics("figures/22_kinship_IBS0_vs_kinship.png")
 ```
 
-The quickstart example deliberately includes two known real duplicate/MZ-twin pairs: `HG03873`/`HG03998` (kinship 0.4525, labelled as two *different* populations, ITU and STU -- exactly the kind of labeling issue this analysis is meant to surface) and `NA19331`/`NA19334` (kinship 0.4459, both LWK). Both are correctly classified `duplicate/MZ twin`.
+The quickstart example deliberately includes two known real duplicate/MZ-twin pairs: `HG03873`/`HG03998` (kinship 0.4525, labelled as two *different* populations (ITU and STU) and two *different* sexes in the bundled metadata -- exactly the kind of labeling issue this analysis is meant to surface) and `NA19331`/`NA19334` (kinship 0.4459, both LWK, both recorded with the same sex, as expected for a genuine duplicate). Both pairs are correctly classified `duplicate/MZ twin`.
 
 ## Runs of homozygosity
 
