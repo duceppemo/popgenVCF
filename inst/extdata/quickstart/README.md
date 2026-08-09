@@ -41,6 +41,15 @@ scientific validation fixture -- for that, see `inst/extdata/validation/`.
   for this kind of isolation-by-distance analysis. This is what makes
   `run_pipeline()`'s Mantel/isolation-by-distance module actually execute
   (rather than skip) against this dataset.
+- Sex: the metadata TSV includes a `sex` column with real, self-reported
+  values (`male`/`female`) from the same authoritative panel file already
+  used for population assignment
+  (`integrated_call_samples_v3.20130502.ALL.panel`'s `gender` column) -- not
+  a separate lookup, an inference, or a fabricated value. 77 male / 83
+  female across the 160 samples. This is what makes any `sex`-based
+  per-metadata-column PCA panel (`07b_PCA_PC1_PC2_by_sex`) actually appear
+  in the rendered report, since it satisfies the default minimum-group-size
+  threshold in every one of the 8 populations.
 - Citation: The 1000 Genomes Project Consortium (2015). A global reference for
   human genetic variation. Nature 526:68-74. doi:10.1038/nature15393
 - License: Zenodo open dataset; use subject to record rights (see

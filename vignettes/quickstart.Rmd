@@ -75,10 +75,16 @@ R (`get_analysis_result(analysis, "kinship")`, and so on).
   the two seeded duplicate pairs should both show up classified
   `duplicate/MZ twin` with kinship near 0.5 -- one of them,
   `HG03873`/`HG03998`, is labelled as two *different* populations (ITU and
-  STU) despite being the same/an identical-twin pair, exactly the kind of
-  data issue this analysis exists to catch.
+  STU) and even records two *different* sex values in the bundled metadata,
+  despite being the same/an identical-twin pair -- exactly the kind of data
+  issue this analysis exists to catch.
 - **PCA** (`figures/07_PCA_PC1_PC2`): the 8 populations should separate
-  broadly by continental origin.
+  broadly by continental origin. `figures/07b_PCA_PC1_PC2_by_sex` is the
+  same PCA fit recoloured by the bundled `sex` metadata column instead --
+  one static panel per metadata column that qualifies (enough samples per
+  value; see the [interpretation guide](interpreting-results.html) for the
+  exact rule). Sex should show no separation here, which is itself the
+  expected, useful result: population structure, not sex, drives this PCA.
 - **Runs of homozygosity** (`tables/38_ROH_sample_summary.tsv`): `FROH` is
   scaled to this run's ~1Mb analyzed footprint, not the whole genome -- see
   the [interpretation guide](interpreting-results.html) before comparing it

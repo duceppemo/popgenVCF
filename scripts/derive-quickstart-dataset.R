@@ -103,11 +103,14 @@ n_sites <- as.integer(system2(bcftools, c("view", "-H", shQuote(out_vcf)), stdou
 vcf_sample_ids <- system2(bcftools, c("query", "-l", shQuote(out_vcf)), stdout = TRUE)
 stopifnot(setequal(vcf_sample_ids, selected$sample))
 
-metadata <- selected[match(vcf_sample_ids, sample)]
-data.table::setnames(metadata, c("population", "sample"))
+metadata <- panel[match(vcf_sample_ids, sample), .(sample, population = pop, sex = gender)]
 metadata <- population_coordinates[metadata, on = "population"]
-data.table::setcolorder(metadata, c("sample", "population", "latitude", "longitude"))
+data.table::setcolorder(metadata, c("sample", "population", "latitude", "longitude", "sex"))
 stopifnot(all(is.finite(metadata$latitude)), all(is.finite(metadata$longitude)))
+# Real, self-reported sex from the same authoritative panel file already used
+# for population assignment (integrated_call_samples_v3.20130502.ALL.panel's
+# "gender" column) -- not a separate lookup or an inferred/imputed value.
+stopifnot(all(metadata$sex %in% c("male", "female")))
 metadata_path <- file.path(out_dir, "chr22_quickstart_metadata.tsv")
 data.table::fwrite(metadata, metadata_path, sep = "\t", quote = FALSE)
 
