@@ -311,6 +311,12 @@ The 20 windows range from FST 0.051 to 0.172. The single highest, 20.80-20.85 Mb
 
 Mean expected heterozygosity per window per population ranges from 0.099 to 0.398 across the 8 populations -- the same kind of real, biologically plausible spread reported for the genome-wide diversity summary above, now resolved by position.
 
+`segregating_sites`/`tajima_d` (Tajima 1989) are also computed per window per population, reusing the same window grid and locus data -- windowed Watterson's theta vs. pairwise nucleotide diversity, a classical neutrality-test statistic (positive: excess of intermediate-frequency variants relative to neutral expectation; negative: excess of rare variants, e.g. after a selective sweep or population expansion). Like the FST outliers above, a single window's Tajima's D is descriptive, not itself a significance test.
+
+![Sliding-window Tajima's D scan across the quickstart example's analyzed chr22 region, coloured by population](figures/26b_genome_scan_tajima_d_manhattan.png)
+
+Real values are almost entirely positive (median 1.34, range -1.71 to 3.60 across the 152 windows with a defined estimate). This is an expected artifact of this pipeline's own QC, not necessarily a real signal of balancing selection or population contraction: the default minor-allele-frequency filter (`qc.maf`, default 0.05) removes rare variants *before* this scan runs, and removing rare variants is well known to bias Tajima's D upward (it reduces the segregating-sites count much more than it reduces pairwise diversity). Interpreting Tajima's D values from any MAF-filtered marker set -- the norm for SNP-array/exome-chip data, including this one -- needs this caveat kept in mind.
+
 ## Linkage disequilibrium decay
 
 `43_LD_decay.tsv` bins pairwise genotypic correlation (r-squared) between

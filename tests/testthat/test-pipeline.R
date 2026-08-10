@@ -151,7 +151,8 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
   expect_setequal(
     names(diversity_windows),
     c("chromosome", "window_start", "window_end", "population", "n_snps",
-      "mean_observed_heterozygosity", "mean_expected_heterozygosity")
+      "mean_observed_heterozygosity", "mean_expected_heterozygosity",
+      "segregating_sites", "tajima_d")
   )
   expect_false(is.null(reloaded$results$genome_scan$outliers))
 })

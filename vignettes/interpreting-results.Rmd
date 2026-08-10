@@ -186,6 +186,14 @@ knitr::include_graphics("figures/26_genome_scan_diversity_manhattan.png")
 
 Mean expected heterozygosity per window per population ranges from 0.099 to 0.398 across the 8 populations -- the same kind of real, biologically plausible spread reported for the genome-wide diversity summary above, now resolved by position.
 
+`segregating_sites`/`tajima_d` (Tajima 1989) are also computed per window per population, reusing the same window grid and locus data -- windowed Watterson's theta vs. pairwise nucleotide diversity, a classical neutrality-test statistic (positive: excess of intermediate-frequency variants relative to neutral expectation; negative: excess of rare variants, e.g. after a selective sweep or population expansion). Like the FST outliers above, a single window's Tajima's D is descriptive, not itself a significance test.
+
+```{r genome-scan-tajima-d-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/26b_genome_scan_tajima_d_manhattan.png")
+```
+
+Real values are almost entirely positive (median 1.34, range -1.71 to 3.60 across the 152 windows with a defined estimate). This is an expected artifact of this pipeline's own QC, not necessarily a real signal of balancing selection or population contraction: the default minor-allele-frequency filter (`qc.maf`, default 0.05) removes rare variants *before* this scan runs, and removing rare variants is well known to bias Tajima's D upward (it reduces the segregating-sites count much more than it reduces pairwise diversity). Interpreting Tajima's D values from any MAF-filtered marker set -- the norm for SNP-array/exome-chip data, including this one -- needs this caveat kept in mind.
+
 ## Linkage disequilibrium decay
 
 `43_LD_decay.tsv` bins pairwise genotypic correlation (r-squared) between SNPs by physical distance, computed on the QC-passing, **unpruned** marker set -- the LD-pruned set used elsewhere (PCA, kinship, DAPC, ancestry) is specifically selected to have *low* pairwise LD, so decay computed on it would systematically understate how far real LD extends. A real limitation: pairs beyond the SNP-index window `analyses.ld_decay_slide` are never computed even if within `analyses.ld_decay_max_distance_bp`, so the curve's usable range depends on marker density, not only on the configured distance cutoff.

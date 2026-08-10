@@ -8,5 +8,5 @@ genome_scan_module_spec()
 A \code{PopgenVCFModuleSpec} object.
 }
 \description{
-The descriptor owns the complete genome-scan registry contract: windowed Weir-Cockerham global FST and windowed diversity, tracked along physical position rather than only as a single genome-wide summary, while preserving the existing runner, result schema, and population-metadata requirements.
+The descriptor owns the complete genome-scan registry contract: windowed Weir-Cockerham global FST, windowed diversity, and windowed Tajima's D, tracked along physical position rather than only as a single genome-wide summary, while preserving the existing runner, result schema, and population-metadata requirements.
 }

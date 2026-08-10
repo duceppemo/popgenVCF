@@ -1,3 +1,35 @@
+# Tajima's D (Tajima 1989), windowed. n is the haploid sample size (gene
+# copies); a1/a2/b1/b2/c1/c2/e1/e2 are Tajima's own correction constants.
+# Verified against a published worked example before shipping (n=10, S=16,
+# pi=3.888889 -> D=-1.446172, matched to 6 decimal places -- see NEWS.md).
+tajima_d_constants <- function(n) {
+  i <- seq_len(n - 1L)
+  a1 <- sum(1 / i)
+  a2 <- sum(1 / i^2)
+  b1 <- (n + 1) / (3 * (n - 1))
+  b2 <- 2 * (n^2 + n + 3) / (9 * n * (n - 1))
+  c1 <- b1 - 1 / a1
+  c2 <- b2 - (n + 2) / (a1 * n) + a2 / a1^2
+  list(a1 = a1, e1 = c1 / a1, e2 = c2 / (a1^2 + a2))
+}
+
+# pi: total nucleotide diversity across the window (sum of per-locus unbiased
+# expected heterozygosity, not averaged -- the same units theta_W is
+# estimated in). s: number of segregating (polymorphic) sites in the window.
+# n: haploid sample size (gene copies), constant per population -- the
+# classical Tajima (1989) formula assumes uniform sample size across sites,
+# the same simplifying assumption vcftools' --TajimaD makes; per-site
+# missingness is not separately modeled (a heavier generalization, e.g.
+# ANGSD's numerical-integration approach, is out of scope here).
+tajima_d_statistic <- function(pi, s, n) {
+  if (!is.finite(s) || s <= 0L || !is.finite(n) || n < 2L) return(NA_real_)
+  k <- tajima_d_constants(n)
+  theta_w <- s / k$a1
+  var_d <- k$e1 * s + k$e2 * s * (s - 1)
+  if (!is.finite(var_d) || var_d <= 0) return(NA_real_)
+  (pi - theta_w) / sqrt(var_d)
+}
+
 genome_scan_windows <- function(chromosome, position, window_bp, step_bp) {
   chromosome <- as.character(chromosome)
   position <- as.numeric(position)
@@ -42,7 +74,7 @@ run_genome_scan_fst <- function(gds, snp_ids, ids, metadata, window_bp, step_bp,
   windows[]
 }
 
-run_genome_scan_diversity <- function(locus_table, window_bp, step_bp, min_snps) {
+run_genome_scan_diversity <- function(locus_table, window_bp, step_bp, min_snps, population_n = NULL) {
   windows <- genome_scan_windows(locus_table$chromosome, locus_table$position, window_bp, step_bp)
   populations <- sort(unique(locus_table$population))
   out <- data.table::rbindlist(lapply(populations, function(pop) {
@@ -51,16 +83,27 @@ run_genome_scan_diversity <- function(locus_table, window_bp, step_bp, min_snps)
     # -- the same naming-collision hazard as run_genome_scan_fst() above.
     locus_chromosome <- pop_locus$chromosome
     locus_position <- pop_locus$position
+    # Haploid sample size (gene copies) for Tajima's D; NA when unknown, so
+    # tajima_d_statistic() reports NA rather than guessing.
+    n_haploid <- if (!is.null(population_n) && pop %in% names(population_n)) {
+      2 * population_n[[pop]]
+    } else NA_real_
     grid <- data.table::copy(windows)
     grid[, population := pop]
-    grid[, c("n_snps", "mean_observed_heterozygosity", "mean_expected_heterozygosity") := {
+    grid[, c(
+      "n_snps", "mean_observed_heterozygosity", "mean_expected_heterozygosity",
+      "segregating_sites", "tajima_d"
+    ) := {
       hit <- locus_chromosome == chromosome & locus_position >= window_start & locus_position <= window_end
       if (sum(hit) < min_snps) {
-        list(sum(hit), NA_real_, NA_real_)
+        list(sum(hit), NA_real_, NA_real_, NA_integer_, NA_real_)
       } else {
+        s <- sum(pop_locus$polymorphic[hit], na.rm = TRUE)
+        pi_total <- sum(pop_locus$unbiased_expected_heterozygosity[hit], na.rm = TRUE)
         list(
           sum(hit), mean(pop_locus$observed_heterozygosity[hit], na.rm = TRUE),
-          mean(pop_locus$unbiased_expected_heterozygosity[hit], na.rm = TRUE)
+          mean(pop_locus$unbiased_expected_heterozygosity[hit], na.rm = TRUE),
+          s, tajima_d_statistic(pi_total, s, n_haploid)
         )
       }
     }, by = seq_len(nrow(grid))]
@@ -113,5 +156,23 @@ plot_genome_scan <- function(fst_windows, diversity_windows, cfg, dirs) {
         x = "Chromosome (window start)", y = expression(italic(H)[E]), colour = "Population"
       ) + theme_publication(figure_base_size(cfg))
     save_plot(p2, "26_genome_scan_diversity_manhattan", dirs, fmts, 10, 5, dpi)
+  }
+
+  tested_tajima <- diversity_windows[is.finite(tajima_d)]
+  if (nrow(tested_tajima)) {
+    layout <- manhattan_layout(tested_tajima$chromosome, tested_tajima$window_start)
+    tested_tajima <- data.table::copy(tested_tajima)
+    tested_tajima[, x := layout$x]
+    p3 <- ggplot2::ggplot(tested_tajima, ggplot2::aes(x = x, y = tajima_d, colour = population)) +
+      ggplot2::geom_hline(yintercept = 0, colour = "#D9D9D9", linewidth = 0.35) +
+      ggplot2::geom_point(size = 1.1, alpha = .75) +
+      ggplot2::scale_colour_manual(values = population_palette(tested_tajima$population, style)) +
+      ggplot2::scale_x_continuous(breaks = layout$ticks$center, labels = layout$ticks$chromosome) +
+      ggplot2::labs(
+        title = "Sliding-window Tajima's D scan",
+        subtitle = "Per window per population; a neutrality-test statistic, not itself an outlier-significance test",
+        x = "Chromosome (window start)", y = "Tajima's D", colour = "Population"
+      ) + theme_publication(figure_base_size(cfg))
+    save_plot(p3, "26b_genome_scan_tajima_d_manhattan", dirs, fmts, 10, 5, dpi)
   }
 }

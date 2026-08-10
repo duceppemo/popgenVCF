@@ -182,8 +182,9 @@ run_module_genome_scan <- function(analysis, context) {
     context$gds, context$qc_snps, context$ids, context$metadata,
     window_bp, step_bp, min_snps
   )
+  population_n <- context$metadata[, .N, by = population][, stats::setNames(N, population)]
   diversity_windows <- run_genome_scan_diversity(
-    context$diversity_full$locus, window_bp, step_bp, min_snps
+    context$diversity_full$locus, window_bp, step_bp, min_snps, population_n
   )
   outliers <- fst_windows[is.finite(global_fst)]
   data.table::setorder(outliers, -global_fst)

@@ -116,14 +116,17 @@ test_that("plot_genome_scan draws both Manhattan-style figures with correct titl
   diversity_windows <- data.table::data.table(
     chromosome = c("1", "1"), window_start = c(0L, 0L), window_end = c(999L, 999L),
     population = c("PopA", "PopB"), n_snps = c(10L, 10L),
-    mean_observed_heterozygosity = c(0.2, 0.3), mean_expected_heterozygosity = c(0.25, 0.28)
+    mean_observed_heterozygosity = c(0.2, 0.3), mean_expected_heterozygosity = c(0.25, 0.28),
+    segregating_sites = c(6L, 7L), tajima_d = c(0.5, -0.3)
   )
   popgenVCF:::plot_genome_scan(fst_windows, diversity_windows, cfg, dirs)
 
   expect_true("25_genome_scan_FST_manhattan" %in% names(plots))
   expect_true("26_genome_scan_diversity_manhattan" %in% names(plots))
+  expect_true("26b_genome_scan_tajima_d_manhattan" %in% names(plots))
   expect_identical(plots[["25_genome_scan_FST_manhattan"]]$labels$title, "Sliding-window FST scan")
   expect_identical(plots[["26_genome_scan_diversity_manhattan"]]$labels$title, "Sliding-window diversity scan")
+  expect_identical(plots[["26b_genome_scan_tajima_d_manhattan"]]$labels$title, "Sliding-window Tajima's D scan")
 })
 
 test_that("plot_genome_scan skips a figure entirely when its windows are all non-finite", {
@@ -139,7 +142,8 @@ test_that("plot_genome_scan skips a figure entirely when its windows are all non
   )
   diversity_windows <- data.table::data.table(
     chromosome = "1", window_start = 0L, window_end = 999L, population = "PopA",
-    n_snps = 1L, mean_observed_heterozygosity = NA_real_, mean_expected_heterozygosity = NA_real_
+    n_snps = 1L, mean_observed_heterozygosity = NA_real_, mean_expected_heterozygosity = NA_real_,
+    segregating_sites = NA_integer_, tajima_d = NA_real_
   )
   popgenVCF:::plot_genome_scan(fst_windows, diversity_windows, cfg, dirs)
   expect_length(plots, 0L)
@@ -151,7 +155,7 @@ test_that("genome scan module descriptor owns the complete registry contract", {
   expect_identical(spec$name, "genome_scan")
   expect_identical(spec$requires, "diversity")
   expect_identical(spec$outputs, "genome_scan")
-  expect_identical(spec$references, "Weir and Cockerham 1984")
+  expect_identical(spec$references, c("Weir and Cockerham 1984", "Tajima 1989"))
   expect_identical(spec$resource_class, "heavy")
   expect_identical(spec$contract_version, "1.0")
   expect_identical(spec$run, popgenVCF:::run_module_genome_scan)
@@ -204,4 +208,57 @@ test_that("genome_scan is gated by population capability like fst", {
     registry, list(population = TRUE, population_levels = 2L, metadata_supplied = TRUE, coordinates = FALSE)
   )
   expect_true(two_populations[module == "genome_scan", available])
+})
+
+test_that("tajima_d_statistic matches a published worked example exactly", {
+  # n=10 sequences, S=16 segregating sites, pi=3.888889 -> D=-1.446172
+  # (independently verified against a secondary source before implementing,
+  # not just recalled -- see NEWS.md).
+  d <- popgenVCF:::tajima_d_statistic(pi = 3.888889, s = 16L, n = 10L)
+  expect_equal(d, -1.446172, tolerance = 1e-6)
+})
+
+test_that("tajima_d_constants match the published worked example's intermediate values", {
+  k <- popgenVCF:::tajima_d_constants(10L)
+  expect_equal(k$a1, 2.828968, tolerance = 1e-6)
+  expect_equal(k$e1, 0.01906053, tolerance = 1e-6)
+  expect_equal(k$e2, 0.004948928, tolerance = 1e-6)
+})
+
+test_that("tajima_d_statistic returns NA for undefined or degenerate inputs", {
+  expect_true(is.na(popgenVCF:::tajima_d_statistic(pi = 1, s = 0L, n = 10L)))
+  expect_true(is.na(popgenVCF:::tajima_d_statistic(pi = 1, s = 5L, n = NA_real_)))
+  expect_true(is.na(popgenVCF:::tajima_d_statistic(pi = 1, s = 5L, n = 1L)))
+})
+
+test_that("run_genome_scan_diversity computes hand-verified segregating_sites and tajima_d", {
+  # Window has 3 loci for PopA: 2 polymorphic (He 0.3, 0.5), 1 monomorphic
+  # (He 0, not segregating). pi is the SUM of unbiased He across all loci in
+  # the window (the same units theta_W is estimated in), not the mean.
+  locus <- data.table::data.table(
+    population = c("PopA", "PopA", "PopA"),
+    chromosome = c("1", "1", "1"),
+    position = c(100L, 200L, 300L),
+    observed_heterozygosity = c(0.2, 0.4, 0),
+    unbiased_expected_heterozygosity = c(0.3, 0.5, 0),
+    polymorphic = c(TRUE, TRUE, FALSE)
+  )
+  population_n <- c(PopA = 20L)
+  out <- popgenVCF:::run_genome_scan_diversity(
+    locus, window_bp = 1000, step_bp = 1000, min_snps = 1L, population_n = population_n
+  )
+  expect_identical(out$segregating_sites, 2L)
+  expected_d <- popgenVCF:::tajima_d_statistic(pi = 0.8, s = 2L, n = 40L)
+  expect_equal(out$tajima_d, expected_d)
+  expect_true(is.finite(out$tajima_d))
+})
+
+test_that("run_genome_scan_diversity reports NA tajima_d when population_n is unavailable", {
+  locus <- data.table::data.table(
+    population = "PopA", chromosome = "1", position = 100L,
+    observed_heterozygosity = 0.3, unbiased_expected_heterozygosity = 0.25,
+    polymorphic = TRUE
+  )
+  out <- popgenVCF:::run_genome_scan_diversity(locus, window_bp = 1000, step_bp = 1000, min_snps = 1L)
+  expect_true(is.na(out$tajima_d))
 })

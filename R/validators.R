@@ -185,6 +185,10 @@ validate_genome_scan_result <- function(result, analysis, context) {
       # can occasionally exceed 1 under small-sample noise, a deliberate,
       # already-established policy elsewhere in this codebase, not
       # something to tighten here.
+      if ("segregating_sites" %in% names(result$diversity_windows) &&
+          any(result$diversity_windows$segregating_sites < 0L, na.rm = TRUE)) {
+        errors <- c(errors, "genome scan segregating_sites is negative")
+      }
       if ("global_fst" %in% names(result$fst_windows) && any(result$fst_windows$global_fst > 1, na.rm = TRUE)) {
         warnings <- c(warnings, "some windowed FST values exceed one")
       }
