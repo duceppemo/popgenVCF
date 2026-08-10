@@ -311,5 +311,5 @@ test_that("template analysis toggles drive registry enablement", {
   enabled <- names(registry$modules)[vapply(
     registry$modules, popgenVCF:::module_is_enabled, logical(1L), config = cfg
   )]
-  expect_identical(enabled, c("pca", "ibs", "kinship", "roh", "tree"))
+  expect_identical(enabled, c("pca", "ibs", "kinship", "sex_check", "roh", "tree"))
 })

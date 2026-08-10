@@ -67,6 +67,21 @@ run_module_kinship <- function(analysis, context) {
   module_result(analysis, context)
 }
 
+run_module_sex_check <- function(analysis, context) {
+  cfg <- context$cfg; dirs <- context$dirs
+  result <- run_sex_check(
+    context$gds, context$sample_ids, context$qc_snps, context$ids, context$metadata,
+    cfg$analyses$sex_check_x_chromosome_names,
+    cfg$analyses$sex_check_male_f_threshold, cfg$analyses$sex_check_female_f_threshold
+  )
+  analysis <- set_analysis_result(analysis, "sex_check", result)
+  if (!is.null(result) && nrow(result$table)) {
+    write_tsv(result$table, file.path(dirs$tables, "42_sex_check.tsv"))
+    plot_sex_check(result, cfg, dirs)
+  }
+  module_result(analysis, context)
+}
+
 run_module_roh <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
   result <- run_roh(context$vcf_path, context$sample_ids, context$metadata,

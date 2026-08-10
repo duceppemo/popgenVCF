@@ -9,8 +9,9 @@ and external backends.
 
 Without metadata, sample names in the VCF are canonical identities. Available
 analyses include sample and variant QC, filtering, LD pruning, PCA, IBS/MDS,
-pairwise kinship (KING-robust), runs of homozygosity, and configured ancestry
-backends.
+pairwise kinship (KING-robust), genetic sex check (X-chromosome
+heterozygosity; compares against a metadata `sex` column when present), runs
+of homozygosity, and configured ancestry backends.
 
 ### Sample metadata
 
@@ -19,6 +20,16 @@ sex, species, or group. PCA and IBS/MDS do not require these annotations. The
 optional `alias` column supplies a public label for tables, figures, trees, and
 reports while the `sample` column remains the immutable VCF/GDS key. A missing
 alias falls back to the original sample name.
+
+Any repeated-value annotation column -- `sex` is a common example -- also
+drives an extra PCA panel automatically: once a column has enough samples per
+distinct value (`analyses.pca_metadata_color_min_group`, default 3) and not
+too many distinct values (`analyses.pca_metadata_color_max_levels`, default
+12), the report gains a panel recolouring the same PCA fit by that column
+(`07b_PCA_PC1_PC2_by_<column>`). `population`, coordinates, and identifier-like
+columns are excluded automatically since they are already handled elsewhere.
+See [Results and Interpretation](Results-and-Interpretation#pca) for a real
+example coloured by `sex`.
 
 ### Population metadata
 
@@ -71,6 +82,7 @@ reliably. Keep one row for every VCF sample even when annotations are missing.
 | `family` | Optional family/pedigree grouping; repeated values are allowed |
 | `replicate` | Optional replicate grouping; repeated values are allowed |
 | `display_order` | Optional positive integer; non-missing values must be unique |
+| `sex` | Optional annotation (e.g. `male`/`female`); when enough samples share each value, drives an extra per-metadata-column PCA panel like any other qualifying column |
 | Other columns | Preserved as descriptive annotations |
 
 Header names are normalized to lowercase with underscores. Common sample-key

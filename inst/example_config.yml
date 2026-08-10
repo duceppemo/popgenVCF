@@ -33,11 +33,23 @@ analyses:
   pca: true
   n_pcs: 10
   pca_loading_top_n: 20
+  # Extra PCA panel per other metadata column with enough samples per value
+  # (min_group) and not too many distinct values (max_levels).
+  pca_metadata_color: true
+  pca_metadata_color_min_group: 3
+  pca_metadata_color_max_levels: 12
   ibs: true
   kinship: true
   # Pairs with kinship above this cutoff are written to 36_close_relatives.tsv.
   # Default is the KING-robust (Manichaikul et al. 2010) 3rd-degree cutoff.
   kinship_close_relative_threshold: 0.0442
+  sex_check: true
+  # Chromosome name(s) treated as X; comparison against a metadata sex
+  # column is skipped transparently when none are found (e.g. single-
+  # autosome VCFs). Thresholds are PLINK's own --check-sex convention.
+  sex_check_x_chromosome_names: [X, chrX]
+  sex_check_male_f_threshold: 0.8
+  sex_check_female_f_threshold: 0.2
   roh: true
   # Phred-scaled genotype-error rate for bcftools roh's HMM (its own
   # documented "safe value... to account for GT errors").

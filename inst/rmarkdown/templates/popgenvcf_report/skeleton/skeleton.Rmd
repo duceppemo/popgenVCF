@@ -143,6 +143,22 @@ report_table_section(
   "Close relatives (up to 20 shown; see 36_close_relatives.tsv for the complete list)",
   close_relatives, digits = 4
 )
+sex_check_top <- NULL
+if (!is.null(r$sex_check$table) && nrow(r$sex_check$table)) {
+  sc <- r$sex_check$table
+  if ("status" %in% names(sc) && any(!is.na(sc$status))) {
+    priority <- match(sc$status, c("mismatch", "ambiguous", "not_reported", "match"))
+    priority[is.na(priority)] <- 5L
+    sc <- sc[order(priority, sc$x_heterozygosity_F), ]
+  } else {
+    sc <- sc[order(sc$x_heterozygosity_F), ]
+  }
+  sex_check_top <- head(sc, 20)
+}
+report_table_section(
+  "Sex check (reported vs inferred sex from X-chromosome heterozygosity; up to 20 shown, mismatches and ambiguous calls first; see 42_sex_check.tsv for the complete list)",
+  sex_check_top, digits = 4
+)
 roh_top <- NULL
 if (!is.null(r$roh$sample_summary) && nrow(r$roh$sample_summary)) {
   roh_top <- head(r$roh$sample_summary[order(-r$roh$sample_summary$froh), ], 20)

@@ -99,6 +99,26 @@ validate_kinship_result <- function(result, analysis, context) {
                     metrics = list(close_relatives = if (is.list(result) && !is.null(result$close_relatives)) nrow(result$close_relatives) else NA_integer_))
 }
 
+validate_sex_check_result <- function(result, analysis, context) {
+  if (is.null(result)) {
+    return(validation_result(TRUE, metrics = list(n_x_snps = 0L)))
+  }
+  errors <- character()
+  if (!is.list(result) || !all(c("table", "n_x_snps") %in% names(result))) {
+    errors <- c(errors, "sex-check result is incomplete")
+  } else if (nrow(result$table)) {
+    if (!all(c("sample", "x_heterozygosity_F", "inferred_sex") %in% names(result$table))) {
+      errors <- c(errors, "sex-check table is missing required columns")
+    }
+    if (!all(result$table$inferred_sex[!is.na(result$table$inferred_sex)] %in%
+             c("male", "female", "ambiguous"))) {
+      errors <- c(errors, "sex-check inferred_sex must be male, female, ambiguous, or NA")
+    }
+  }
+  validation_result(!length(errors), errors,
+                    metrics = list(n_x_snps = if (is.list(result)) result$n_x_snps else 0L))
+}
+
 validate_roh_result <- function(result, analysis, context) {
   errors <- character()
   if (!is.list(result) || !all(c("runs", "sample_summary") %in% names(result))) {

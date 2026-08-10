@@ -104,6 +104,12 @@ knitr::include_graphics("figures/22_kinship_IBS0_vs_kinship.png")
 
 The quickstart example deliberately includes two known real duplicate/MZ-twin pairs: `HG03873`/`HG03998` (kinship 0.4525, labelled as two *different* populations (ITU and STU) and two *different* sexes in the bundled metadata -- exactly the kind of labeling issue this analysis is meant to surface) and `NA19331`/`NA19334` (kinship 0.4459, both LWK, both recorded with the same sex, as expected for a genuine duplicate). Both pairs are correctly classified `duplicate/MZ twin`.
 
+## Sex check
+
+Genetic sex inference from X-chromosome heterozygosity (Visscher et al. 2010's F-statistic, the same convention PLINK's `--check-sex` uses) flags samples whose metadata-reported `sex` disagrees with what their genotypes imply -- a standard upstream QC check, since a mislabelled sex can also signal a sample swap or contamination. `SNPRelate::snpgdsIndInb(method = "mom.visscher")`, already used elsewhere in this package, is reused unchanged, restricted to X-chromosome SNPs: hemizygous males show excess homozygosity (F close to 1) relative to diploid females (F close to 0). Default thresholds (male F > 0.8, female F < 0.2) are PLINK's own documented defaults, verified on a hand-built synthetic fixture with known male/female genotypes before shipping this feature: simulated males gave F in [0.84, 1.13], simulated females in [-0.06, 0.10] -- a clean separation either side of both thresholds. Pseudoautosomal (PAR) regions are not excluded by default, since their boundaries are genome-build-specific and this package accepts VCFs from any build or organism; PAR SNPs dilute, not reverse, the separation.
+
+This module needs only genotypes (no metadata required, though a `sex` column enables the mismatch comparison) and is on by default (`analyses.sex_check`). It skips transparently -- no table, no figure -- when fewer than 20 QC-passing X-chromosome SNPs are found, exactly like Mantel/isolation-by-distance skipping without coordinates. **The quickstart example does this**: its chromosome 22 region contains no X chromosome, so sex check has nothing to compute here despite the dataset's real `sex` metadata column.
+
 ## Runs of homozygosity
 
 Runs of homozygosity (`bcftools roh`, an HMM-based method, Narasimhan et al. 2016) identify long stretches where a sample's genotype calls are consistently homozygous -- a standard per-sample autozygosity/inbreeding signal, distinct from both diversity's population-level FIS below and kinship's pairwise relatedness above.

@@ -56,7 +56,19 @@ first and longitude second.
 | `family` | Optional family or pedigree grouping | Allowed; repeated values are expected |
 | `replicate` | Optional technical or biological replicate grouping | Allowed; repeated values are expected |
 | `display_order` | Optional positive integer for stable identity-table ordering | Allowed; non-missing values must be unique |
+| `sex` | Optional annotation (e.g. `male`/`female`) | Allowed; see below for its PCA-colouring role |
 | Any other column | Preserved as descriptive metadata | Allowed |
+
+Any repeated-value annotation column -- `sex` is a common example -- also
+drives an extra PCA panel automatically: once a column has enough samples per
+distinct value (`analyses.pca_metadata_color_min_group`, default 3) and not
+too many distinct values (`analyses.pca_metadata_color_max_levels`, default
+12), the report gains a panel recolouring the same PCA fit by that column
+(`figures/07b_PCA_PC1_PC2_by_<column>`). `population`, coordinates, and
+identifier-like columns are excluded automatically since they are already
+handled elsewhere. See the
+[interpreting-results](interpreting-results.html#pca) article for a real
+example coloured by `sex`.
 
 Use the exact names above in new files. The reader also recognizes common
 sample-key headers (`sample_id`, `id`, `individual`, `individual_id`) and `pop`
