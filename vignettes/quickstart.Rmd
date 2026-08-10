@@ -14,7 +14,8 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 This is the fastest way to see real popgenVCF output: no Docker, no download,
 no configuration file. The package ships a small but real dataset -- 160
 individuals from 8 populations in the 1000 Genomes Project's chromosome 22
-callset -- and every analysis runs on it exactly as it would on your own VCF.
+and chromosome X callsets -- and every analysis runs on it exactly as it
+would on your own VCF.
 
 Prefer to look before running anything? [Results and Interpretation](https://github.com/duceppemo/popgenVCF/wiki/Results-and-Interpretation)
 shows real figures from this exact dataset, and the complete
@@ -31,8 +32,10 @@ paths
 
 See `system.file("extdata", "quickstart", "README.md", package = "popgenVCF")`
 for exactly which real samples and populations are included and why (it
-deliberately contains two known real duplicate/MZ-twin pairs, so the kinship
-analysis below has genuine, verifiable signal).
+deliberately contains a known real duplicate/MZ-twin pair, so the kinship
+analysis below has genuine, verifiable signal -- and, as a bonus, a
+cautionary real example of why a single flagged pair needs corroborating
+evidence, not blind acceptance; see "What to look for" below).
 
 ## 2. Run the pipeline
 
@@ -49,8 +52,8 @@ analysis <- run_pipeline(cfg)
 On a modern multi-core machine this takes a few minutes -- most of the time
 is DAPC's cross-validation across the default `K = 2:10` range, run in full
 because it is exactly what a real analysis does. Every module runs with its
-documented defaults: QC and LD pruning, PCA, IBS, kinship, runs of
-homozygosity, FST, diversity, DAPC, AMOVA, and a neighbour-joining tree.
+documented defaults: QC and LD pruning, PCA, IBS, kinship, sex check, runs
+of homozygosity, FST, diversity, DAPC, AMOVA, and a neighbour-joining tree.
 Mantel/isolation-by-distance runs too: the bundled metadata includes real,
 documented population-level collection-site coordinates (see the dataset's
 `README.md` for the exact source and caveats), so the analysis has real
@@ -72,12 +75,19 @@ R (`get_analysis_result(analysis, "kinship")`, and so on).
 ## 4. What to look for
 
 - **Kinship** (`tables/36_close_relatives.tsv`, `figures/21_kinship_heatmap`):
-  the two seeded duplicate pairs should both show up classified
-  `duplicate/MZ twin` with kinship near 0.5 -- one of them,
-  `HG03873`/`HG03998`, is labelled as two *different* populations (ITU and
-  STU) and even records two *different* sex values in the bundled metadata,
-  despite being the same/an identical-twin pair -- exactly the kind of data
-  issue this analysis exists to catch.
+  both seeded high-kinship pairs show up classified `duplicate/MZ twin` with
+  kinship near 0.5, but only one of them actually is a duplicate.
+  `NA19331`/`NA19334` (both LWK) are confirmed consistent: real, matching
+  male chromosome X genotypes, no contradicting evidence. `HG03873`/`HG03998`
+  (labelled as two *different* populations, ITU and STU) is the more
+  interesting case: sex check below shows their real chromosome X genotypes
+  are genuinely different sexes, which rules out MZ twins/duplicate despite
+  the high autosomal kinship -- a real example of why a single flagged pair
+  needs corroborating evidence, not blind acceptance.
+- **Sex check** (`tables/42_sex_check.tsv`, `figures/27_sex_check_F_by_sample`):
+  genetic sex inferred from chromosome X heterozygosity, compared against
+  the bundled `sex` metadata column. This is what actually reveals the
+  `HG03873`/`HG03998` kinship caveat above.
 - **PCA** (`figures/07_PCA_PC1_PC2`): the 8 populations should separate
   broadly by continental origin. `figures/07b_PCA_PC1_PC2_by_sex` is the
   same PCA fit recoloured by the bundled `sex` metadata column instead --

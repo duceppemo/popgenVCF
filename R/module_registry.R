@@ -70,7 +70,7 @@ run_module_kinship <- function(analysis, context) {
 run_module_sex_check <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
   result <- run_sex_check(
-    context$gds, context$sample_ids, context$qc_snps, context$ids, context$metadata,
+    context$gds, context$sample_ids, context$qc_snps_all, context$ids, context$metadata,
     cfg$analyses$sex_check_x_chromosome_names,
     cfg$analyses$sex_check_male_f_threshold, cfg$analyses$sex_check_female_f_threshold
   )
@@ -84,9 +84,10 @@ run_module_sex_check <- function(analysis, context) {
 
 run_module_roh <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
+  non_autosomal <- if (isTRUE(cfg$qc$autosome_only)) cfg$qc$non_autosomal_chromosome_names else character()
   result <- run_roh(context$vcf_path, context$sample_ids, context$metadata,
                     cfg$qc$max_variant_missing, cfg$analyses$roh_gt_error_phred,
-                    cfg$compute$threads)
+                    cfg$compute$threads, non_autosomal)
   analysis <- set_analysis_result(analysis, "roh", result)
   write_tsv(result$runs, file.path(dirs$tables, "37_ROH_runs.tsv"))
   write_tsv(result$sample_summary, file.path(dirs$tables, "38_ROH_sample_summary.tsv"))

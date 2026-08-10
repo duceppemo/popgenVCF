@@ -99,7 +99,7 @@ variant_qc <- function(gds, sample_ids, ids, maf_threshold, max_missing = 0.2) {
   dt
 }
 
-ld_prune_exact <- function(gds, sample_ids, maf_threshold, threads, seed) {
+ld_prune_exact <- function(gds, sample_ids, maf_threshold, threads, seed, snp_ids = NULL) {
   safe_threads <- max(1L, min(as.integer(threads), 4L))
   set.seed(seed)
 
@@ -112,6 +112,7 @@ ld_prune_exact <- function(gds, sample_ids, maf_threshold, threads, seed) {
   z <- SNPRelate::snpgdsLDpruning(
     gds,
     sample.id = sample_ids,
+    snp.id = snp_ids,
     maf = maf_threshold,
     missing.rate = 0.2,
     method = "corr",

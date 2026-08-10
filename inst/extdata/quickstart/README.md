@@ -12,17 +12,48 @@ scientific validation fixture -- for that, see `inst/extdata/validation/`.
   `canonical` tier.
 - Region: `22:20000000-21000000` (the same bounded 1Mb interval those gates use),
   restricted to biallelic SNPs.
+- Chromosome X: also includes a bounded, non-PAR 1Mb region
+  (`X:70000000-71000000`; PAR1 ends at 2,699,520 and PAR2 starts at
+  154,931,044 in GRCh37, so this region is safely hemizygous-only in males),
+  restricted to biallelic SNPs, from the same already-approved Zenodo record
+  (`10.5281/zenodo.3359882`) the chr22 source uses --
+  `ALL.chrX.phase3_shapeit2_mvncall_integrated_v1b.20130502.genotypes.vcf.gz`,
+  MD5-verified against the record's declared checksum before use. This gives
+  the sex-check module (`analyses.sex_check`) real data to demonstrate,
+  since it needs chromosome X SNPs and the chr22-only dataset had none.
+  **A real, load-bearing data-preparation finding**: this release represents
+  males' non-PAR chromosome X genotypes as genuinely haploid VCF `GT` fields
+  (a single allele, e.g. `0` or `1`, not `0/0`/`1/1`) -- confirmed by direct
+  inspection, and `SNPRelate::snpgdsVCF2GDS()` does not parse a haploid `GT`
+  field as "duplicate the observed allele": empirically, it pads the missing
+  second allele with the ALT allele index, silently turning every male
+  REF-hemizygous call into a false heterozygous dosage and every male
+  ALT-hemizygous call into a homozygous-ALT dosage. Left unfixed, this would
+  corrupt genotypes at these sites for every module, not just sex-check.
+  Fixed at derivation time with `bcftools +fixploidy -- -f 2` (correct here
+  specifically because the extracted region is entirely non-PAR; already
+  diploid female calls are left untouched, verified before shipping).
 - Samples: 160 real individuals, 20 each from 8 populations spanning continental
   diversity -- GBR (British, EUR), YRI (Yoruba, AFR), LWK (Luhya, AFR), CHB (Han
   Chinese, EAS), ITU (Indian Telugu, SAS), STU (Sri Lankan Tamil, SAS), PUR (Puerto
   Rican, AMR), PEL (Peruvian, AMR). No further QC/LD filtering has been applied --
   the pipeline's own QC and LD pruning run on this exactly as they would on a real
   user-supplied VCF.
-- Real, verifiable relatedness signal: deliberately includes two known real
-  duplicate/MZ-twin pairs confirmed against this exact source and region --
-  `HG03873`/`HG03998` (a genuine **cross-population** duplicate, ITU/STU) and
-  `NA19331`/`NA19334` (same-population, LWK) -- so the bundled kinship demo has
-  real, interesting signal rather than an arbitrary sample selection.
+- Real, verifiable relatedness signal: deliberately includes a known real
+  duplicate/MZ-twin pair, `NA19331`/`NA19334` (same-population, LWK) -- kinship
+  ~0.446, confirmed consistent on chromosome X too (both genuinely male, real
+  hemizygous genotypes, not just a metadata label) -- so the bundled kinship
+  demo has real, interesting signal rather than an arbitrary sample selection.
+  Also includes `HG03873`/`HG03998` (labelled as two *different* populations,
+  ITU/STU), a real, high chr22-only kinship pair (~0.453, correctly classified
+  `duplicate/MZ twin` by KING's threshold) that chromosome X data added later
+  revealed is *not* actually a duplicate: their real chromosome X genotypes
+  show genuinely different sexes, and MZ twins/duplicates share genetic sex by
+  definition. A deliberately kept, real cautionary example -- the autosomal
+  kinship signal is real, not a computation error, but a single small
+  autosomal window is not sufficient evidence for "duplicate" on its own; see
+  the sex-check section of
+  [Results and Interpretation](https://github.com/duceppemo/popgenVCF/wiki/Results-and-Interpretation).
 - Geographic coordinates: the metadata TSV includes `latitude`/`longitude`
   columns with real, documented population collection-site coordinates, source:
   `igsr/1000Genomes_data_indexes` `README_populations.md`
@@ -58,11 +89,14 @@ scientific validation fixture -- for that, see `inst/extdata/validation/`.
 ## Regenerating
 
 ```bash
-Rscript scripts/derive-quickstart-dataset.R <path-to-downloaded-canonical-chr22-source>
+Rscript scripts/derive-quickstart-dataset.R <source-data-dir>
 ```
 
-Deterministic (`set.seed(42)`); re-running against the same source reproduces this
-exact sample selection.
+`<source-data-dir>` must contain the canonical chr22 VCF/index/panel *and* the
+chrX VCF/index (`ALL.chrX.phase3_shapeit2_mvncall_integrated_v1b.20130502.genotypes.vcf.gz`
+and its `.tbi`, both from the same Zenodo record) co-located together.
+Deterministic (`set.seed(42)`); re-running against the same sources reproduces
+this exact sample selection.
 
 ## Accessing from R
 

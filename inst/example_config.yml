@@ -27,6 +27,12 @@ qc:
   ld_slide_max_bp: .inf
   ld_slide_max_n: 50
   ld_start_pos: first
+  # Excludes sex/mitochondrial chromosomes from kinship, PCA, DAPC, ancestry
+  # backends, ROH, FST, genome scans, diversity, and AMOVA -- these assume
+  # uniform diploid genotypes, which a hemizygous sex chromosome violates.
+  # sex_check is the deliberate exception and always sees these chromosomes.
+  autosome_only: true
+  non_autosomal_chromosome_names: [X, "Y", MT, M, chrX, chrY, chrM, chrMT]
 analyses:
   diversity: false
   hwe_alpha: 0.05

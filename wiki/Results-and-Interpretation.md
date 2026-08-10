@@ -24,9 +24,19 @@ the preferred population pattern.
 
 ![Minor allele frequency distribution from the quickstart example, with the retention threshold marked](figures/01_MAF.png)
 
-On the quickstart example, MAF filtering (`maf = 0.05`) reduced 21,418
-biallelic SNPs to 1,969, and LD pruning further reduced that to 357 SNPs
-used for PCA/IBS/kinship.
+The quickstart example's input is 38,417 biallelic SNPs: 21,418 on
+chromosome 22 and 16,999 on chromosome X. MAF filtering (`maf = 0.05`)
+retains 3,117 of these combined. By default (`qc.autosome_only`, on unless
+turned off) only the 1,969 that are on chromosome 22 continue into LD
+pruning, which further reduces that to 357 SNPs used for PCA, IBS, kinship,
+DAPC, the ancestry backends, ROH, FST, genome scans, diversity, and AMOVA --
+every module that assumes uniform diploid genotypes at every marker, which a
+hemizygous sex chromosome violates for the hemizygous sex. Mixing sex-
+chromosome markers into these modules is not just imprecise: on this exact
+dataset it collapsed a known real duplicate pair's kinship from 0.4525 to
+essentially zero, confirmed before this exclusion was added. The remaining
+1,148 QC-passing chromosome X SNPs are reserved for the sex-check module
+below, the one place this package deliberately needs them.
 
 ## PCA
 
@@ -105,14 +115,25 @@ for them before interpreting those results.
 
 ![KING-robust IBS0-vs-kinship diagnostic scatter from the quickstart example, coloured by relationship degree](figures/22_kinship_IBS0_vs_kinship.png)
 
-The quickstart dataset deliberately includes two known real duplicate pairs
-as a worked example: `HG03873`/`HG03998` (kinship 0.4525) -- individuals
-labelled as two *different* populations (ITU and STU) and two *different*
-sexes in the bundled metadata, that are nonetheless the same/an
-identical-twin pair, exactly the kind of labeling issue this analysis is
-meant to surface -- and `NA19331`/`NA19334` (kinship 0.4459, both LWK, both
-recorded with the same sex, as expected for a genuine duplicate). Both pairs
-are correctly classified `duplicate/MZ twin`.
+The quickstart dataset deliberately includes a known real duplicate/MZ-twin
+pair, `NA19331`/`NA19334` (kinship 0.4459, both LWK, correctly classified
+`duplicate/MZ twin`), confirmed consistent on chromosome X too: both are
+genuinely male (real hemizygous chromosome X genotypes, not just a metadata
+label), matching each other, with no contradicting evidence.
+
+`HG03873`/`HG03998` (kinship 0.4525, also classified `duplicate/MZ twin`)
+is a more interesting cautionary example, not a second confirmed duplicate:
+their real chromosome X genotypes show `HG03873` is genuinely female and
+`HG03998` is genuinely male (not just a metadata discrepancy between two
+population labels, ITU and STU) -- and MZ twins share genetic sex by
+definition, so despite the high chr22-only kinship, this pair cannot
+actually be the same individual or identical twins. The autosomal kinship
+signal is real (it is not a computation error), but a single small
+autosomal window is not sufficient evidence for "duplicate" on its own; the
+sex-check module below is exactly the kind of corroborating, independent
+evidence needed before accepting a kinship-based duplicate call as
+biological fact. Treat a single flagged pair as a lead to investigate, not
+a conclusion -- this is a real example of why.
 
 ## Sex check
 
@@ -136,10 +157,24 @@ This module needs only genotypes (no metadata required, though a `sex`
 column enables the mismatch comparison) and is on by default
 (`analyses.sex_check`). It skips transparently -- no table, no figure --
 when fewer than 20 QC-passing X-chromosome SNPs are found, exactly like
-Mantel/isolation-by-distance skipping without coordinates. **The quickstart
-example does this**: its chromosome 22 region contains no X chromosome, so
-sex check has nothing to compute here despite the dataset's real `sex`
-metadata column.
+Mantel/isolation-by-distance skipping without coordinates.
+
+![Genetic sex inference from X-chromosome heterozygosity for the quickstart example](figures/27_sex_check_F_by_sample.png)
+
+The quickstart example's bounded chromosome X region gives 1,148 QC-passing
+SNPs (deliberately excluded from every other module above, per the Quality
+control section). Of 160 samples, 115 classify as a confident `match`, 40 as
+`ambiguous` (F falls between the two thresholds), and 5 as `mismatch`. A
+single 1Mb region is a much smaller, noisier marker set than production
+sex-checks typically use (whole-chromosome, tens to hundreds of thousands of
+markers); a follow-up check against genome-wide chromosome X data for these
+same 160 samples confirmed the signal is directionally sound throughout --
+no genuine mismatches remained at that scale, and the 5 apparent mismatches
+seen here resolved to a clean `match`. The honest takeaway is that more
+markers give a more confident call, not that these specific calls are wrong
+-- treat `ambiguous` and single-region `mismatch` results as a prompt to
+gather more chromosome X markers before concluding a real labelling problem,
+not as a final answer on their own.
 
 ## Runs of homozygosity
 

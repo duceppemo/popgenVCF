@@ -79,12 +79,28 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
   }
 
   vq <- stage("variant QC audit", variant_qc(gds, sample_ids, ids, cfg$qc$maf, 0.2))
-  qc_snps <- vq[pass_combined == TRUE, snp_id]
+  qc_snps_all <- vq[pass_combined == TRUE, snp_id]
+  # Ploidy-sensitive modules (kinship, PCA, IBS, DAPC, ancestry backends, ROH,
+  # FST, genome scans, diversity/HWE, AMOVA) assume uniform diploid genotypes
+  # at every retained marker. Sex chromosomes violate that for the hemizygous
+  # sex (e.g. human male chrX): pooling them into the same marker set as
+  # autosomes measurably corrupts results -- confirmed empirically, a known
+  # real duplicate pair's kinship collapsed from 0.45 to ~0 once chrX markers
+  # were mixed in with autosomal ones for the estimate. Standard tools (PLINK,
+  # KING, GCTA) exclude sex chromosomes from genome-wide kinship/PCA/GRM by
+  # default for the same reason. sex_check is the deliberate exception: it
+  # receives the unfiltered qc_snps_all and does its own chromosome-name-based
+  # restriction to X internally.
+  qc_snps <- if (isTRUE(cfg$qc$autosome_only)) {
+    non_autosomal <- ids$chromosome[match(qc_snps_all, ids$snp)] %in% cfg$qc$non_autosomal_chromosome_names
+    qc_snps_all[!non_autosomal]
+  } else qc_snps_all
   analysis$variants$audit <- vq
   analysis$variants$qc_ids <- qc_snps
+  analysis$variants$qc_ids_all <- qc_snps_all
   final_snps <- stage(
     "exact SNPRelate LD pruning",
-    ld_prune_exact(gds, sample_ids, cfg$qc$maf, cfg$compute$threads, cfg$compute$seed)
+    ld_prune_exact(gds, sample_ids, cfg$qc$maf, cfg$compute$threads, cfg$compute$seed, snp_ids = qc_snps)
   )
   analysis$variants$ld_ids <- final_snps
   validate_analysis(analysis, "ordination")
@@ -103,7 +119,7 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
   context <- list(
     cfg = cfg, dirs = dirs, gds = gds, ids = ids, sample_ids = sample_ids,
     metadata = metadata, hs = hs, vq = vq, qc_snps = qc_snps,
-    final_snps = final_snps, capabilities = capabilities,
+    qc_snps_all = qc_snps_all, final_snps = final_snps, capabilities = capabilities,
     vcf_path = prepared_vcf$path
   )
 

@@ -2,9 +2,9 @@
 
 `chr22-quickstart-report.pdf` is the real, complete PDF report produced by running
 `popgenVCF::run_pipeline()` against the bundled quickstart dataset
-(`inst/extdata/quickstart/`, 160 real 1000 Genomes chromosome 22 samples across
-8 populations -- see that directory's `README.md` for full provenance). It is
-committed here so a prospective user can see exactly what popgenVCF produces
+(`inst/extdata/quickstart/`, 160 real 1000 Genomes chromosome 22 and X samples
+across 8 populations -- see that directory's `README.md` for full provenance). It
+is committed here so a prospective user can see exactly what popgenVCF produces
 before installing anything.
 
 Curated figures from this same run are embedded in
@@ -25,11 +25,13 @@ precisely.
 ## Regenerating
 
 Source dataset SHA-256 (`inst/extdata/quickstart/chr22_quickstart.vcf.gz`):
-`a71db6c3dbcbb85c717bcb246cf9e05f4d6ebdb08b3de0763b9213ade5a2b196`
-(unchanged genotype content/sample selection; the hash moved only because
-`bcftools view`'s embedded gzip header records the derivation run's
-timestamp -- see `inst/extdata/quickstart/README.md` for the coordinate
-addition that motivated regenerating the metadata TSV this hash pairs with)
+`5cfd9364158e85384a61cf16df39668e1f4e4cb50249960760331d68c0d627c4`
+(a real content change this time, not just a timestamp artifact: the file now
+also includes a bounded, non-PAR chromosome X region for the same 160
+samples, giving the sex-check module real data to demonstrate -- see
+`inst/extdata/quickstart/README.md` for full provenance, including a real
+data-preparation finding about this 1000 Genomes release's haploid male
+chromosome X genotype representation)
 
 ```r
 paths <- popgenVCF::quickstart_dataset_paths()

@@ -36,7 +36,8 @@ roh_analyzed_footprint_bp <- function(bcftools, vcf_path) {
   list(footprint_bp = sum(span), n_sites = length(lines))
 }
 
-run_roh <- function(vcf_path, sample_ids, metadata, missing_rate, gt_error_phred, threads) {
+run_roh <- function(vcf_path, sample_ids, metadata, missing_rate, gt_error_phred, threads,
+                     non_autosomal_chromosome_names = character()) {
   bcftools <- require_vcf_tool("bcftools")
   work_dir <- tempfile("roh-")
   dir.create(work_dir)
@@ -49,6 +50,14 @@ run_roh <- function(vcf_path, sample_ids, metadata, missing_rate, gt_error_phred
     "view", "--min-alleles", "2", "--max-alleles", "2", "--types", "snps",
     "-S", shQuote(samples_file),
     "--exclude", shQuote(sprintf("F_MISSING > %s", missing_rate)),
+    # ROH assumes uniform diploid genotypes at every retained site; the
+    # hemizygous sex is always homozygous by construction on a sex
+    # chromosome, which would inflate apparent autozygosity for reasons
+    # unrelated to real inbreeding. Excluded the same way autosome_only
+    # excludes these chromosomes from every other ploidy-sensitive module.
+    if (length(non_autosomal_chromosome_names)) {
+      c("--targets", shQuote(paste0("^", paste(non_autosomal_chromosome_names, collapse = ","))))
+    },
     "--output-type", "z", "--output", shQuote(subset_vcf), shQuote(vcf_path)
   )
   viewed <- vcf_command_status(bcftools, view_args)

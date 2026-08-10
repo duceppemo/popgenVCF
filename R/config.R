@@ -15,7 +15,9 @@ default_config <- function() {
                    seed = 42L, force_gds = FALSE),
     qc = list(maf = 0.05, max_variant_missing = 0.20, max_sample_missing = 0.20,
               ld_r2 = 0.20, ld_slide_max_bp = Inf, ld_slide_max_n = 50L,
-              ld_start_pos = "first"),
+              ld_start_pos = "first",
+              autosome_only = TRUE,
+              non_autosomal_chromosome_names = c("X", "Y", "MT", "M", "chrX", "chrY", "chrM", "chrMT")),
     analyses = list(diversity = TRUE, hwe_alpha = 0.05, pca = TRUE, n_pcs = 10L, pca_loading_top_n = 20L,
                     pca_metadata_color = TRUE, pca_metadata_color_min_group = 3L,
                     pca_metadata_color_max_levels = 12L,
@@ -107,6 +109,7 @@ validate_config <- function(cfg) {
   if (fixed_changed) warning("The fixed QC contract requires max_variant_missing = 0.2 and LD r^2 = 0.2; overriding configured values.", call. = FALSE)
   cfg$qc$ld_r2 <- 0.2; cfg$qc$max_variant_missing <- 0.2
   cfg$qc$ld_slide_max_bp <- Inf; cfg$qc$ld_slide_max_n <- 50L; cfg$qc$ld_start_pos <- "first"
+  cfg$qc$non_autosomal_chromosome_names <- as.character(cfg$qc$non_autosomal_chromosome_names)
 
   if (is.null(cfg$compute$memory_mb)) {
     cfg$compute$memory_mb <- detect_available_memory_mb()

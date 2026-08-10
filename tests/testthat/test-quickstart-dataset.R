@@ -9,9 +9,13 @@ test_that("quickstart_dataset_paths returns existing, matching files", {
   expect_identical(nrow(metadata), 160L)
   expect_identical(data.table::uniqueN(metadata$population), 8L)
 
-  # Both known real duplicate/MZ-twin pairs this dataset was deliberately
-  # built around (confirmed against the real source this session) must be
-  # present, including the cross-population one.
+  # Both real high-kinship pairs this dataset was deliberately built around
+  # must be present. NA19331/NA19334 is a confirmed real duplicate/MZ twin
+  # (chromosome X later confirmed both are genuinely male, no contradiction).
+  # HG03873/HG03998 is a real high chr22-only-kinship pair that chromosome X
+  # data proved is NOT actually a duplicate/twin (genuinely different sexes,
+  # and MZ twins share genetic sex by definition) -- deliberately kept as a
+  # real cautionary example, see inst/extdata/quickstart/README.md.
   expect_true(all(c("HG03873", "HG03998", "NA19331", "NA19334") %in% metadata$sample))
   expect_identical(metadata$population[metadata$sample == "HG03873"], "ITU")
   expect_identical(metadata$population[metadata$sample == "HG03998"], "STU")
@@ -25,13 +29,14 @@ test_that("quickstart_dataset_paths returns existing, matching files", {
 
   # The same-population duplicate pair (NA19331/NA19334, both LWK) records
   # the same sex for both, as expected for a genuine duplicate/MZ twin. The
-  # cross-population "duplicate" (HG03873 filed as ITU, HG03998 filed as
-  # STU) records *different* sex for the two entries -- real, verified
-  # against the source panel, and consistent with this pair being a
-  # same-individual cross-population cataloguing/mislabelling artifact
-  # rather than genuine identical twins (who would essentially always share
-  # recorded sex), reinforcing the interpretation already noted for this
-  # pair's unusually high cross-population kinship.
+  # high-chr22-kinship pair (HG03873 filed as ITU, HG03998 filed as STU)
+  # records *different* sex for the two entries -- and this is not just a
+  # metadata quirk: their raw chromosome X genotypes independently confirm
+  # genuinely different biological sex (real heterozygous chrX calls for
+  # HG03873, real hemizygous calls for HG03998), which rules out this pair
+  # being the same individual or MZ twins despite the high autosomal
+  # kinship. See test-autosome-filtering.R and
+  # inst/extdata/quickstart/README.md for the full finding.
   expect_identical(metadata$sex[metadata$sample == "NA19331"], "male")
   expect_identical(metadata$sex[metadata$sample == "NA19334"], "male")
   expect_identical(metadata$sex[metadata$sample == "HG03873"], "female")
