@@ -24,7 +24,7 @@ analysis_capability_table <- function(registry, capabilities) {
   modules <- names(registry$modules)
   population_modules <- intersect(
     modules,
-    c("diversity", "fst", "genome_scan", "dapc", "amova", "bootstrap", "chromosome")
+    c("diversity", "fst", "genome_scan", "dapc", "amova", "bootstrap", "chromosome", "ne_ld")
   )
   multi_population_modules <- intersect(
     modules,

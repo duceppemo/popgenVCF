@@ -33,6 +33,7 @@ default_config <- function() {
                     genome_scan_step_bp = 50000L, genome_scan_min_snps = 5L,
                     ld_decay = TRUE, ld_decay_max_distance_bp = 500000L,
                     ld_decay_bin_bp = 5000L, ld_decay_slide = 100L,
+                    ne_ld = TRUE, ne_ld_max_snps = 2000L,
                     dapc = TRUE, dapc_k = "2:10", dapc_cross_validation = TRUE,
                     dapc_loading_top_n = 20L,
                     amova = TRUE, mantel = TRUE, isolation_by_distance = TRUE,
@@ -61,6 +62,7 @@ template_config <- function() {
   cfg$analyses$diversity <- FALSE
   cfg$analyses$fst <- FALSE
   cfg$analyses$genome_scan <- FALSE
+  cfg$analyses$ne_ld <- FALSE
   cfg$analyses$dapc <- FALSE
   cfg$analyses$amova <- FALSE
   cfg$analyses$mantel <- FALSE
@@ -143,6 +145,7 @@ validate_config <- function(cfg) {
   cfg$analyses$ld_decay_max_distance_bp <- as.integer(cfg$analyses$ld_decay_max_distance_bp)
   cfg$analyses$ld_decay_bin_bp <- as.integer(cfg$analyses$ld_decay_bin_bp)
   cfg$analyses$ld_decay_slide <- as.integer(cfg$analyses$ld_decay_slide)
+  cfg$analyses$ne_ld_max_snps <- as.integer(cfg$analyses$ne_ld_max_snps)
   cfg$analyses$chromosome_min_snps <- as.integer(cfg$analyses$chromosome_min_snps)
   cfg$analyses$dapc_loading_top_n <- as.integer(cfg$analyses$dapc_loading_top_n)
   cfg$analyses$bootstrap$replicates <- as.integer(cfg$analyses$bootstrap$replicates)
@@ -177,6 +180,7 @@ validate_config <- function(cfg) {
   if (!is.finite(cfg$analyses$ld_decay_max_distance_bp) || cfg$analyses$ld_decay_max_distance_bp < 1L) stop("analyses.ld_decay_max_distance_bp must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$ld_decay_bin_bp) || cfg$analyses$ld_decay_bin_bp < 1L) stop("analyses.ld_decay_bin_bp must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$ld_decay_slide) || cfg$analyses$ld_decay_slide < 1L) stop("analyses.ld_decay_slide must be >= 1", call. = FALSE)
+  if (!is.finite(cfg$analyses$ne_ld_max_snps) || cfg$analyses$ne_ld_max_snps < 2L) stop("analyses.ne_ld_max_snps must be >= 2", call. = FALSE)
   if (!is.finite(cfg$analyses$chromosome_min_snps) || cfg$analyses$chromosome_min_snps < 2L) stop("analyses.chromosome_min_snps must be >= 2", call. = FALSE)
   if (!is.finite(cfg$analyses$dapc_loading_top_n) || cfg$analyses$dapc_loading_top_n < 1L) stop("analyses.dapc_loading_top_n must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$bootstrap$replicates) || cfg$analyses$bootstrap$replicates < 0L) stop("bootstrap.replicates must be >= 0", call. = FALSE)

@@ -311,6 +311,31 @@ under 0.04 by roughly 50kb -- a real, biologically sensible decay curve
 (not flat or noisy), consistent with typical human LD extent at this
 marker density.
 
+## LD-based effective population size
+
+`45_Ne_LD.tsv` estimates contemporary effective population size (Ne) per
+population from linkage disequilibrium between **cross-chromosome**
+(effectively unlinked) SNP pairs -- the opposite pair selection from LD
+decay above, which specifically wants physically close pairs
+(Waples 2006; Waples & Do 2008, the "LDNe" method also implemented by the
+NeEstimator software). A single realization's LD-based Ne estimate has
+real, substantial sampling variance -- treat a point estimate as an
+order-of-magnitude indication, not a precise count, especially without a
+confidence interval (not yet implemented; see the module's own
+documentation for why). `ne = Inf` means no drift signal was detectable
+above sampling noise (a real, informative result, not a failure); `NA`
+with `ne_status = "below_formula_domain"` means the implied Ne is outside
+the estimator's valid range.
+
+This method fundamentally needs markers on **at least two chromosomes** to
+work at all. The quickstart dataset's retained autosomal marker set is
+chr22-only by design (the same reason chromosome X/Y are reserved for the
+sex-check module rather than pooled into other analyses), so every
+population in the real reference run correctly reports
+`ne_status = "fewer_than_two_chromosomes"` -- an honest, expected skip for
+this particular demo dataset, not a bug or a broken feature. A real
+multi-chromosome VCF will produce real per-population estimates.
+
 ## DAPC
 
 DAPC is conditional on groups and retained PCs. Inspect cross-validation and

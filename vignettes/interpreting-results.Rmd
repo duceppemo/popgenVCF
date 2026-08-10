@@ -190,6 +190,12 @@ knitr::include_graphics("figures/43_LD_decay.png")
 
 Mean r-squared falls from 0.238 at the shortest distance bin (0-5kb) to under 0.04 by roughly 50kb -- a real, biologically sensible decay curve (not flat or noisy), consistent with typical human LD extent at this marker density.
 
+## LD-based effective population size
+
+`45_Ne_LD.tsv` estimates contemporary effective population size (Ne) per population from linkage disequilibrium between **cross-chromosome** (effectively unlinked) SNP pairs -- the opposite pair selection from LD decay above, which specifically wants physically close pairs (Waples 2006; Waples & Do 2008, the "LDNe" method also implemented by the NeEstimator software). A single realization's LD-based Ne estimate has real, substantial sampling variance -- treat a point estimate as an order-of-magnitude indication, not a precise count, especially without a confidence interval (not yet implemented). `ne = Inf` means no drift signal was detectable above sampling noise (a real, informative result, not a failure); `NA` with `ne_status = "below_formula_domain"` means the implied Ne is outside the estimator's valid range.
+
+This method fundamentally needs markers on **at least two chromosomes** to work at all. The quickstart dataset's retained autosomal marker set is chr22-only by design (the same reason chromosome X/Y are reserved for the sex-check module rather than pooled into other analyses), so every population in the real reference run correctly reports `ne_status = "fewer_than_two_chromosomes"` -- an honest, expected skip for this particular demo dataset, not a bug or a broken feature. A real multi-chromosome VCF will produce real per-population estimates.
+
 ## DAPC
 
 This package's DAPC module discriminates unsupervised `find.clusters()` partitions computed at each configured K, not user-supplied population labels; the metadata `population` column is used only for plot colour and as ground truth for the reported assignment-accuracy diagnostic. Apparent separation is therefore not independent confirmation that either the clusters or any real population labels are biologically meaningful.

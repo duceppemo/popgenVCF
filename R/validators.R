@@ -216,6 +216,21 @@ validate_ld_decay_result <- function(result, analysis, context) {
                     ))
 }
 
+validate_ne_ld_result <- function(result, analysis, context) {
+  errors <- character(); warnings <- character()
+  if (!is.data.frame(result) || !all(c("population", "ne", "ne_status") %in% names(result))) {
+    errors <- c(errors, "Ne(LD) result requires population, ne, and ne_status columns")
+  } else if (nrow(result)) {
+    finite_ne <- result$ne[is.finite(result$ne)]
+    if (any(finite_ne <= 0)) errors <- c(errors, "Ne(LD) estimates must be positive")
+    if ("n_pairs" %in% names(result) && any(result$n_pairs < 0L, na.rm = TRUE)) {
+      errors <- c(errors, "Ne(LD) n_pairs is negative")
+    }
+  }
+  validation_result(!length(errors), errors, warnings,
+                    metrics = list(populations = if (is.data.frame(result)) nrow(result) else NA_integer_))
+}
+
 validate_dapc_result <- function(result, analysis, context) {
   errors <- character(); warnings <- character(); metrics <- list()
   if (!is.list(result) || !all(c("models", "diagnostics") %in% names(result))) {

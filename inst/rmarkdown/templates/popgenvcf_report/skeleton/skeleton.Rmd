@@ -139,6 +139,10 @@ report_table_section(
   "Linkage disequilibrium decay (mean r-squared by physical distance bin; see 43_LD_decay.tsv for the complete list)",
   r$ld_decay$binned, digits = 4
 )
+report_table_section(
+  "LD-based effective population size (per population; see 45_Ne_LD.tsv for full diagnostics)",
+  r$ne_ld, digits = 4
+)
 close_relatives <- NULL
 if (!is.null(r$kinship$close_relatives) && nrow(r$kinship$close_relatives)) {
   close_relatives <- head(r$kinship$close_relatives, 20)

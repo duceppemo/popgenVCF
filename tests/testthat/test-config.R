@@ -273,6 +273,23 @@ test_that("ld_decay max_distance_bp/bin_bp/slide keys are coerced and validated"
   expect_error(popgenVCF::validate_config(cfg), "ld_decay_slide")
 })
 
+test_that("ne_ld_max_snps is coerced and validated", {
+  cfg <- popgenVCF::default_config()
+  cfg$input$vcf <- tempfile(fileext = ".vcf")
+  cfg$output$directory <- tempfile("popgenvcf-output-")
+  file.create(cfg$input$vcf)
+
+  expect_identical(cfg$analyses$ne_ld, TRUE)
+  expect_identical(cfg$analyses$ne_ld_max_snps, 2000L)
+
+  cfg$analyses$ne_ld_max_snps <- "500"
+  validated <- popgenVCF::validate_config(cfg)
+  expect_identical(validated$analyses$ne_ld_max_snps, 500L)
+
+  cfg$analyses$ne_ld_max_snps <- 1L
+  expect_error(popgenVCF::validate_config(cfg), "ne_ld_max_snps")
+})
+
 test_that("system resource helpers understand container limits", {
   expect_equal(popgenVCF:::cpu_set_size("0-3,8,10-11"), 7L)
   expect_equal(popgenVCF:::cpu_quota_size("150000 100000"), 2L)

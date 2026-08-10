@@ -53,8 +53,9 @@ On a modern multi-core machine this takes a few minutes -- most of the time
 is DAPC's cross-validation across the default `K = 2:10` range, run in full
 because it is exactly what a real analysis does. Every module runs with its
 documented defaults: QC and LD pruning, PCA, IBS, kinship, sex check, runs
-of homozygosity, FST, genome scans, linkage disequilibrium decay, diversity
-(including allelic richness), DAPC, AMOVA, and a neighbour-joining tree.
+of homozygosity, FST, genome scans, linkage disequilibrium decay,
+LD-based effective population size, diversity (including allelic richness),
+DAPC, AMOVA, and a neighbour-joining tree.
 Mantel/isolation-by-distance runs too: the bundled metadata includes real,
 documented population-level collection-site coordinates (see the dataset's
 `README.md` for the exact source and caveats), so the analysis has real
@@ -107,6 +108,12 @@ R (`get_analysis_result(analysis, "kinship")`, and so on).
   `figures/12_isolation_by_distance`): a real, statistically significant
   positive signal (Mantel r = 0.313, p = 0.001) -- genetic distance increases
   with geographic distance across these 8 continentally diverse populations.
+- **LD-based effective population size** (`tables/45_Ne_LD.tsv`): needs
+  markers on at least two chromosomes to work at all, and this dataset's
+  retained autosomal marker set is chr22-only by design, so every population
+  correctly reports an honest "insufficient data" skip here -- see the
+  [interpretation guide](interpreting-results.html) for what a real
+  multi-chromosome VCF produces instead.
 
 ## 5. Next steps
 

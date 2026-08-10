@@ -81,6 +81,12 @@ analyses:
   ld_decay_max_distance_bp: 500000
   ld_decay_bin_bp: 5000
   ld_decay_slide: 100
+  ne_ld: false
+  # LD-based effective population size (Waples 2006; Waples and Do 2008),
+  # per population, from cross-chromosome (unlinked) marker pairs. Subsampled
+  # to this many SNPs per population when the marker set is larger, bounding
+  # the O(n^2) pairwise LD computation.
+  ne_ld_max_snps: 2000
   dapc: false
   dapc_k: 2:10
   dapc_cross_validation: true

@@ -308,6 +308,27 @@ run_module_ld_decay <- function(analysis, context) {
   module_result(analysis, context)
 }
 
+run_module_ne_ld <- function(analysis, context) {
+  cfg <- context$cfg; dirs <- context$dirs
+  result <- compute_ne_ld(
+    context$gds, context$sample_ids, context$qc_snps, context$ids, context$metadata,
+    cfg$analyses$ne_ld_max_snps, cfg$compute$seed
+  )
+  analysis <- set_analysis_result(analysis, "ne_ld", result)
+  write_tsv(result, file.path(dirs$tables, "45_Ne_LD.tsv"))
+  if (nrow(result) && all(result$ne_status == "fewer_than_two_chromosomes")) {
+    analysis <- record_analysis_message(
+      analysis, "WARNING", "ne_ld",
+      paste(
+        "LD-based Ne estimation requires unlinked (cross-chromosome) marker pairs;",
+        "the retained autosomal marker set spans only one chromosome"
+      )
+    )
+  }
+  plot_ne_ld(result, cfg, dirs)
+  module_result(analysis, context)
+}
+
 run_module_chromosome <- function(analysis, context) {
   chromosome <- run_chromosome_analyses(
     context$gds, context$qc_snps, context$final_snps, context$ids,
