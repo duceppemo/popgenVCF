@@ -5,6 +5,7 @@
 # intentionally inside data.table non-standard evaluation expressions.
 
 #' @import data.table
+#' @importFrom methods new
 #' @importFrom stats aggregate setNames
 #' @importFrom utils capture.output head modifyList object.size str tail
 #' @importClassesFrom adegenet genpop

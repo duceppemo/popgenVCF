@@ -42,6 +42,7 @@ Imports:
     ggrepel,
     grid,
     jsonlite,
+    methods,
     openssl,
     parallel,
     poppr,

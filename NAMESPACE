@@ -637,6 +637,7 @@ export(write_submission_companions)
 export(write_submission_package)
 import(data.table)
 importClassesFrom(adegenet,genpop)
+importFrom(methods,new)
 importFrom(stats,
   aggregate,
   setNames
