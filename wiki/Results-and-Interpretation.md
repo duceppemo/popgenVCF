@@ -237,6 +237,22 @@ of any particular demographic history.
 
 ![Observed heterozygosity by population from the quickstart example](figures/05_sample_heterozygosity.png)
 
+`allelic_richness` (rarefied via `hierfstat::allelic.richness()`, an optional
+dependency that skips transparently with a logged warning if not installed)
+is a per-population, sample-size-corrected count of alleles per locus --
+unlike raw heterozygosity, it is comparable across populations with unequal
+sample sizes, since it rarefies every population down to the same allele
+count before counting. For biallelic SNPs it ranges from 1 (monomorphic
+within the population) to 2 (both alleles present).
+
+![Allelic richness by population from the quickstart example](figures/44_allelic_richness.png)
+
+The quickstart example's 8 populations are all exactly 20 samples, so
+richness is rarefied to 40 allele copies and unsurprisingly narrow (1.82 to
+1.94 across populations) -- this metric earns its keep on real datasets with
+unbalanced population sizes, where it can diverge from raw heterozygosity in
+ways worth investigating.
+
 ## FST
 
 State the estimator explicitly. Global and pairwise values depend on population
@@ -275,6 +291,25 @@ The 20 windows range from FST 0.051 to 0.172. The single highest, 20.80-20.85 Mb
 ![Sliding-window diversity scan across the quickstart example's analyzed chr22 region, coloured by population](figures/26_genome_scan_diversity_manhattan.png)
 
 Mean expected heterozygosity per window per population ranges from 0.099 to 0.398 across the 8 populations -- the same kind of real, biologically plausible spread reported for the genome-wide diversity summary above, now resolved by position.
+
+## Linkage disequilibrium decay
+
+`43_LD_decay.tsv` bins pairwise genotypic correlation (r-squared) between
+SNPs by physical distance, computed on the QC-passing, **unpruned** marker
+set -- the LD-pruned set used elsewhere (PCA, kinship, DAPC, ancestry) is
+specifically selected to have *low* pairwise LD, so decay computed on it
+would systematically understate how far real LD extends. A real limitation:
+pairs beyond the SNP-index window `analyses.ld_decay_slide` are never
+computed even if within `analyses.ld_decay_max_distance_bp`, so the curve's
+usable range depends on marker density, not only on the configured distance
+cutoff.
+
+![Linkage disequilibrium decay from the quickstart example](figures/43_LD_decay.png)
+
+Mean r-squared falls from 0.238 at the shortest distance bin (0-5kb) to
+under 0.04 by roughly 50kb -- a real, biologically sensible decay curve
+(not flat or noisy), consistent with typical human LD extent at this
+marker density.
 
 ## DAPC
 

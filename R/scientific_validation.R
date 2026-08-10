@@ -335,14 +335,7 @@ pca_covariance_reference <- function(gds, sample_ids, snp_ids, components, threa
 }
 
 hierfstat_reference_fst <- function(genotype, populations) {
-  encoded <- as.data.frame(genotype, check.names = FALSE)
-  encoded[] <- lapply(encoded, function(x) {
-    out <- rep(NA_integer_, length(x))
-    out[x == 0] <- 11L
-    out[x == 1] <- 12L
-    out[x == 2] <- 22L
-    out
-  })
+  encoded <- hierfstat_encode_genotype(genotype)
   dat <- data.frame(pop = as.integer(factor(populations)), encoded, check.names = FALSE)
   pairwise <- as.matrix(hierfstat::pairwise.WCfst(dat))
   labels <- levels(factor(populations))

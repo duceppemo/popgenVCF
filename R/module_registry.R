@@ -24,6 +24,12 @@ run_module_diversity <- function(analysis, context) {
     ]
     write_tsv(private_loci, file.path(dirs$tables, "32_private_alleles.tsv"))
   }
+  if (!isTRUE(div$allelic_richness_available)) {
+    analysis <- record_analysis_message(
+      analysis, "WARNING", "diversity",
+      "Allelic richness was skipped: the optional hierfstat package is not installed"
+    )
+  }
   plot_diversity(div, ci, cfg, dirs)
   module_result(analysis, context)
 }
@@ -286,6 +292,19 @@ run_module_snmf <- function(analysis, context) {
     paste("sNMF input", snmf_input$source, "with", snmf_input$n_samples,
           "samples and", snmf_input$n_snps, "SNPs")
   )
+  module_result(analysis, context)
+}
+
+run_module_ld_decay <- function(analysis, context) {
+  cfg <- context$cfg; dirs <- context$dirs
+  result <- compute_ld_decay(
+    context$gds, context$sample_ids, context$qc_snps, context$ids,
+    cfg$analyses$ld_decay_max_distance_bp, cfg$analyses$ld_decay_bin_bp,
+    cfg$analyses$ld_decay_slide
+  )
+  analysis <- set_analysis_result(analysis, "ld_decay", result)
+  write_tsv(result$binned, file.path(dirs$tables, "43_LD_decay.tsv"))
+  plot_ld_decay(result, cfg, dirs)
   module_result(analysis, context)
 }
 

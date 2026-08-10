@@ -56,6 +56,12 @@ analyses:
   sex_check_x_chromosome_names: [X, chrX]
   sex_check_male_f_threshold: 0.8
   sex_check_female_f_threshold: 0.2
+  # Chromosome-Y call rate, a corroborating second signal alongside X:
+  # confident X/Y disagreement is reported as "discordant" rather than
+  # silently resolved.
+  sex_check_y_chromosome_names: [Y, chrY]
+  sex_check_y_male_call_rate_threshold: 0.5
+  sex_check_y_female_call_rate_threshold: 0.1
   roh: true
   # Phred-scaled genotype-error rate for bcftools roh's HMM (its own
   # documented "safe value... to account for GT errors").
@@ -68,6 +74,13 @@ analyses:
   genome_scan_window_bp: 50000
   genome_scan_step_bp: 50000
   genome_scan_min_snps: 5
+  ld_decay: true
+  # Computed only on the QC-passed, unpruned SNP set -- the LD-pruned set is
+  # selected to have LOW pairwise LD by construction, so decay on it would
+  # be a systematic underestimate.
+  ld_decay_max_distance_bp: 500000
+  ld_decay_bin_bp: 5000
+  ld_decay_slide: 100
   dapc: false
   dapc_k: 2:10
   dapc_cross_validation: true

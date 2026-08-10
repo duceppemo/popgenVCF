@@ -310,6 +310,22 @@ save_plot <- function(p, stem, dirs, formats = c("pdf", "png"), width = 8, heigh
   invisible(TRUE)
 }
 
+# hierfstat's own genotype convention: each allele occupies one digit, so a
+# 0/1/2 dosage becomes 11 (homozygous reference), 12 (heterozygous), or 22
+# (homozygous alternate); missing dosage stays NA. Shared by the FST
+# scientific-validation reference implementation and allelic richness.
+hierfstat_encode_genotype <- function(genotype) {
+  encoded <- as.data.frame(genotype, check.names = FALSE)
+  encoded[] <- lapply(encoded, function(x) {
+    out <- rep(NA_integer_, length(x))
+    out[x == 0] <- 11L
+    out[x == 1] <- 12L
+    out[x == 2] <- 22L
+    out
+  })
+  encoded
+}
+
 popgenvcf_version <- function() {
   installed <- tryCatch(as.character(utils::packageVersion("popgenVCF")), error = function(e) NA_character_)
   if (!is.na(installed)) return(installed)

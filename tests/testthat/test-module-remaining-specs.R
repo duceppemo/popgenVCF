@@ -82,8 +82,8 @@ test_that("external and chromosome module enablement is unchanged", {
 test_that("the default registry is fully descriptor-driven", {
   registry <- default_analysis_registry()
   expected <- c(
-    "diversity", "pca", "ibs", "kinship", "sex_check", "roh", "tree", "fst", "genome_scan", "dapc", "amova", "ibd",
-    "admixture", "faststructure", "snmf", "chromosome"
+    "diversity", "pca", "ibs", "kinship", "sex_check", "roh", "tree", "fst", "genome_scan", "ld_decay",
+    "dapc", "amova", "ibd", "admixture", "faststructure", "snmf", "chromosome"
   )
 
   expect_setequal(names(registry$modules), expected)

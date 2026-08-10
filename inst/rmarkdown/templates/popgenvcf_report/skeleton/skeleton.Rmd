@@ -135,6 +135,10 @@ report_table_section(
   "Genome scan FST outliers (top 20 windows by FST; see 39_genome_scan_fst.tsv for the complete list)",
   r$genome_scan$outliers, digits = 4
 )
+report_table_section(
+  "Linkage disequilibrium decay (mean r-squared by physical distance bin; see 43_LD_decay.tsv for the complete list)",
+  r$ld_decay$binned, digits = 4
+)
 close_relatives <- NULL
 if (!is.null(r$kinship$close_relatives) && nrow(r$kinship$close_relatives)) {
   close_relatives <- head(r$kinship$close_relatives, 20)
@@ -147,7 +151,7 @@ sex_check_top <- NULL
 if (!is.null(r$sex_check$table) && nrow(r$sex_check$table)) {
   sc <- r$sex_check$table
   if ("status" %in% names(sc) && any(!is.na(sc$status))) {
-    priority <- match(sc$status, c("mismatch", "ambiguous", "not_reported", "match"))
+    priority <- match(sc$status, c("discordant", "mismatch", "ambiguous", "not_reported", "match"))
     priority[is.na(priority)] <- 5L
     sc <- sc[order(priority, sc$x_heterozygosity_F), ]
   } else {
@@ -156,7 +160,7 @@ if (!is.null(r$sex_check$table) && nrow(r$sex_check$table)) {
   sex_check_top <- head(sc, 20)
 }
 report_table_section(
-  "Sex check (reported vs inferred sex from X-chromosome heterozygosity; up to 20 shown, mismatches and ambiguous calls first; see 42_sex_check.tsv for the complete list)",
+  "Sex check (reported vs inferred sex from X-chromosome heterozygosity and Y-chromosome call rate; up to 20 shown, discordant and ambiguous calls first; see 42_sex_check.tsv for the complete list)",
   sex_check_top, digits = 4
 )
 roh_top <- NULL

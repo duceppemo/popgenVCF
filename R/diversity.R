@@ -1,4 +1,12 @@
 compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha = 0.05) {
+  # SNPRelate::snpgdsGetGeno() silently returns rows/columns in the GDS's own
+  # native storage order (verified empirically, same behavior class as
+  # snpgdsSampMissRate()'s with.id ordering found for sex_check), not the
+  # requested sample.id/snp.id order -- confirmed harmless here only because
+  # sample_ids/snp_ids are always order-preserving subsequences of
+  # ids$sample/ids$snp (filtered, never reordered, throughout QC), so
+  # requested order and native order coincide. Every positional use of
+  # `geno`'s columns against `snp_ids` below depends on that invariant.
   geno <- SNPRelate::snpgdsGetGeno(gds, sample.id = sample_ids, snp.id = snp_ids,
                                    snpfirstdim = FALSE, verbose = FALSE)
   called <- rowSums(!is.na(geno)); het <- rowSums(geno == 1, na.rm = TRUE)
@@ -64,11 +72,40 @@ compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha
     locus[, private_allele := NA_character_]
   }
 
+  # Rarefaction-corrected allelic richness (hierfstat::allelic.richness(),
+  # Suggests-only -- optional, like the LEA/ADMIXTURE/fastStructure ancestry
+  # backends -- so this skips transparently rather than erroring when
+  # hierfstat is not installed). Matched back to locus/population by NAME
+  # (hierfstat preserves the exact colnames() passed in as Ar's rownames,
+  # verified empirically), never positionally, matching this codebase's
+  # established discipline for every SNPRelate/hierfstat function whose
+  # return order is not guaranteed to match the request.
+  locus[, allelic_richness := NA_real_]
+  allelic_richness_available <- FALSE
+  if (requireNamespace("hierfstat", quietly = TRUE)) {
+    population_factor <- metadata[match(sample_ids, sample), population]
+    encoded <- hierfstat_encode_genotype(geno)
+    colnames(encoded) <- as.character(snp_ids)
+    ar <- hierfstat::allelic.richness(data.frame(pop = population_factor, encoded, check.names = FALSE))
+    ar_idx <- match(as.character(snp_ids), rownames(ar$Ar))
+    if (!anyNA(ar_idx)) {
+      ar_matrix <- as.matrix(ar$Ar[ar_idx, , drop = FALSE])
+      ar_long <- data.table::data.table(
+        snp_id = rep(snp_ids, times = ncol(ar_matrix)),
+        population = rep(colnames(ar_matrix), each = nrow(ar_matrix)),
+        allelic_richness = as.vector(ar_matrix)
+      )
+      locus[ar_long, allelic_richness := i.allelic_richness, on = c("population", "snp_id")]
+      allelic_richness_available <- TRUE
+    }
+  }
+
   population <- locus[, {
     mho <- mean(observed_heterozygosity, na.rm = TRUE)
     mhe <- mean(unbiased_expected_heterozygosity, na.rm = TRUE)
     tested <- is.finite(hwe_pvalue)
     fdr <- if (any(tested)) stats::p.adjust(hwe_pvalue[tested], method = "BH") else numeric()
+    ar_finite <- allelic_richness[is.finite(allelic_richness)]
     .(n_samples = metadata[population == .BY$population, .N],
       n_loci = .N,
       polymorphic_loci = sum(polymorphic, na.rm = TRUE),
@@ -81,9 +118,12 @@ compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha
       hwe_tested_loci = sum(tested),
       hwe_significant_loci = sum(hwe_pvalue[tested] < hwe_alpha),
       hwe_significant_loci_fdr = sum(fdr < hwe_alpha),
-      private_allele_loci = sum(private_allele != "none", na.rm = TRUE))
+      private_allele_loci = sum(private_allele != "none", na.rm = TRUE),
+      mean_allelic_richness = if (length(ar_finite)) mean(ar_finite) else NA_real_)
   }, by = population]
-  list(genotype = geno, sample = sample, locus = locus, population = population)
+  list(genotype = geno, sample = sample, locus = locus, population = population,
+       allelic_richness_available = allelic_richness_available,
+       allelic_richness_min_alleles = if (allelic_richness_available) ar$min.all else NA_real_)
 }
 
 bootstrap_diversity <- function(locus_stats, replicates, seed, unit = "chromosome") {
@@ -249,5 +289,37 @@ plot_diversity <- function(div, ci, cfg, dirs) {
         axis.text.x = ggplot2::element_text(angle = 35, hjust = 1)
       )
     save_plot(p4, "20_private_alleles", dirs, fmts, 7, 5, dpi)
+  }
+
+  if (isTRUE(div$allelic_richness_available) &&
+      !is.null(div$locus) && "allelic_richness" %in% names(div$locus) &&
+      any(is.finite(div$locus$allelic_richness))) {
+    ar_tested <- div$locus[is.finite(allelic_richness)]
+    p5 <- ggplot2::ggplot(ar_tested, ggplot2::aes(population, allelic_richness, fill = population)) +
+      ggplot2::geom_boxplot(
+        outlier.shape = NA, alpha = .30, width = 0.62,
+        colour = "#333333", linewidth = 0.55
+      ) +
+      ggplot2::geom_point(
+        ggplot2::aes(colour = population),
+        position = ggplot2::position_jitter(width = .12, height = 0, seed = jitter_seed),
+        size = 1.3, alpha = .5
+      ) +
+      ggplot2::scale_fill_manual(values = population_colours) +
+      ggplot2::scale_colour_manual(values = population_colours) +
+      ggplot2::labs(
+        title = "Allelic richness by population",
+        subtitle = sprintf(
+          "Rarefied to %s allele copies (hierfstat::allelic.richness())",
+          scales::comma(div$allelic_richness_min_alleles)
+        ),
+        x = "Population", y = "Allelic richness"
+      ) +
+      theme_publication(figure_base_size(cfg)) +
+      ggplot2::theme(
+        legend.position = "none",
+        axis.text.x = ggplot2::element_text(angle = 35, hjust = 1)
+      )
+    save_plot(p5, "44_allelic_richness", dirs, fmts, 8, 5.5, dpi)
   }
 }

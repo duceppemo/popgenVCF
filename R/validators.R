@@ -43,6 +43,12 @@ validate_diversity_result <- function(result, analysis, context) {
     for (nm in hcols) if (any(result$population[[nm]] < 0 | result$population[[nm]] > 1, na.rm = TRUE)) {
       errors <- c(errors, sprintf("population %s is outside [0,1]", nm))
     }
+    # Biallelic SNPs have at most 2 alleles, so rarefied allelic richness
+    # cannot exceed 2 regardless of the rarefaction sample size.
+    if ("allelic_richness" %in% names(result$locus) &&
+        any(result$locus$allelic_richness > 2 + 1e-6, na.rm = TRUE)) {
+      errors <- c(errors, "locus allelic_richness exceeds the biallelic maximum of 2")
+    }
   }
   validation_result(!length(errors), errors, warnings,
                     list(samples = if (is.list(result) && !is.null(result$sample)) nrow(result$sample) else NA_integer_,
@@ -186,6 +192,28 @@ validate_genome_scan_result <- function(result, analysis, context) {
   }
   validation_result(!length(errors), errors, warnings,
                     metrics = list(windows = if (is.list(result) && !is.null(result$fst_windows)) nrow(result$fst_windows) else NA_integer_))
+}
+
+validate_ld_decay_result <- function(result, analysis, context) {
+  errors <- character(); warnings <- character()
+  if (!is.list(result) || !all(c("binned", "n_snps", "n_pairs") %in% names(result))) {
+    errors <- c(errors, "LD decay result requires binned, n_snps, and n_pairs")
+  } else if (!is.data.frame(result$binned)) {
+    errors <- c(errors, "LD decay binned result must be tabular")
+  } else if (nrow(result$binned)) {
+    if (any(result$binned$n_pairs < 0L, na.rm = TRUE)) errors <- c(errors, "LD decay n_pairs is negative")
+    if (any(result$binned$mean_r2 < -1e-6, na.rm = TRUE)) errors <- c(errors, "LD decay mean_r2 is negative")
+    # r is a correlation bounded in [-1, 1], so r^2 <= 1 mathematically;
+    # matches validate_fst_result()'s and validate_genome_scan_result()'s
+    # existing policy of warning rather than erroring on tiny floating-point
+    # overshoot rather than tightening a bound none of them enforce as hard.
+    if (any(result$binned$mean_r2 > 1 + 1e-6, na.rm = TRUE)) warnings <- c(warnings, "some LD decay mean_r2 values exceed one")
+  }
+  validation_result(!length(errors), errors, warnings,
+                    metrics = list(
+                      bins = if (is.list(result) && !is.null(result$binned)) nrow(result$binned) else NA_integer_,
+                      n_pairs = if (is.list(result)) result$n_pairs else NA_integer_
+                    ))
 }
 
 validate_dapc_result <- function(result, analysis, context) {

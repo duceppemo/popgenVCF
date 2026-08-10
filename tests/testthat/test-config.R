@@ -242,6 +242,37 @@ test_that("genome_scan window/step/min_snps keys are coerced and validated", {
   expect_error(popgenVCF::validate_config(cfg), "genome_scan_min_snps")
 })
 
+test_that("ld_decay max_distance_bp/bin_bp/slide keys are coerced and validated", {
+  cfg <- popgenVCF::default_config()
+  cfg$input$vcf <- tempfile(fileext = ".vcf")
+  cfg$output$directory <- tempfile("popgenvcf-output-")
+  file.create(cfg$input$vcf)
+
+  expect_identical(cfg$analyses$ld_decay, TRUE)
+  expect_identical(cfg$analyses$ld_decay_max_distance_bp, 500000L)
+  expect_identical(cfg$analyses$ld_decay_bin_bp, 5000L)
+  expect_identical(cfg$analyses$ld_decay_slide, 100L)
+
+  cfg$analyses$ld_decay_max_distance_bp <- "100000"
+  cfg$analyses$ld_decay_bin_bp <- "1000"
+  cfg$analyses$ld_decay_slide <- "50"
+  validated <- popgenVCF::validate_config(cfg)
+  expect_identical(validated$analyses$ld_decay_max_distance_bp, 100000L)
+  expect_identical(validated$analyses$ld_decay_bin_bp, 1000L)
+  expect_identical(validated$analyses$ld_decay_slide, 50L)
+
+  cfg$analyses$ld_decay_max_distance_bp <- 0L
+  expect_error(popgenVCF::validate_config(cfg), "ld_decay_max_distance_bp")
+  cfg$analyses$ld_decay_max_distance_bp <- 500000L
+
+  cfg$analyses$ld_decay_bin_bp <- 0L
+  expect_error(popgenVCF::validate_config(cfg), "ld_decay_bin_bp")
+  cfg$analyses$ld_decay_bin_bp <- 5000L
+
+  cfg$analyses$ld_decay_slide <- 0L
+  expect_error(popgenVCF::validate_config(cfg), "ld_decay_slide")
+})
+
 test_that("system resource helpers understand container limits", {
   expect_equal(popgenVCF:::cpu_set_size("0-3,8,10-11"), 7L)
   expect_equal(popgenVCF:::cpu_quota_size("150000 100000"), 2L)
@@ -354,5 +385,5 @@ test_that("template analysis toggles drive registry enablement", {
   enabled <- names(registry$modules)[vapply(
     registry$modules, popgenVCF:::module_is_enabled, logical(1L), config = cfg
   )]
-  expect_identical(enabled, c("pca", "ibs", "kinship", "sex_check", "roh", "tree"))
+  expect_identical(enabled, c("pca", "ibs", "kinship", "sex_check", "roh", "tree", "ld_decay"))
 })

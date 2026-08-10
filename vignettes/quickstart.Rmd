@@ -53,7 +53,8 @@ On a modern multi-core machine this takes a few minutes -- most of the time
 is DAPC's cross-validation across the default `K = 2:10` range, run in full
 because it is exactly what a real analysis does. Every module runs with its
 documented defaults: QC and LD pruning, PCA, IBS, kinship, sex check, runs
-of homozygosity, FST, diversity, DAPC, AMOVA, and a neighbour-joining tree.
+of homozygosity, FST, genome scans, linkage disequilibrium decay, diversity
+(including allelic richness), DAPC, AMOVA, and a neighbour-joining tree.
 Mantel/isolation-by-distance runs too: the bundled metadata includes real,
 documented population-level collection-site coordinates (see the dataset's
 `README.md` for the exact source and caveats), so the analysis has real
