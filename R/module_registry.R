@@ -329,6 +329,17 @@ run_module_ne_ld <- function(analysis, context) {
   module_result(analysis, context)
 }
 
+run_module_population_tree <- function(analysis, context) {
+  dirs <- context$dirs
+  result <- compute_population_genetic_distance(context$diversity_full$locus)
+  if (nrow(result$distance)) {
+    write_matrix_tsv(result$distance, file.path(dirs$tables, "46_population_genetic_distance.tsv"), "population")
+    result$tree <- build_population_tree(result$distance, dirs)
+  }
+  analysis <- set_analysis_result(analysis, "population_tree", result)
+  module_result(analysis, context)
+}
+
 run_module_chromosome <- function(analysis, context) {
   chromosome <- run_chromosome_analyses(
     context$gds, context$qc_snps, context$final_snps, context$ids,

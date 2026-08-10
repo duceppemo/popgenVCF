@@ -28,7 +28,7 @@ default_config <- function() {
                     sex_check_y_male_call_rate_threshold = 0.5,
                     sex_check_y_female_call_rate_threshold = 0.1,
                     roh = TRUE, roh_gt_error_phred = 30,
-                    tree = TRUE, fst = TRUE,
+                    tree = TRUE, population_tree = TRUE, fst = TRUE,
                     genome_scan = TRUE, genome_scan_window_bp = 50000L,
                     genome_scan_step_bp = 50000L, genome_scan_min_snps = 5L,
                     ld_decay = TRUE, ld_decay_max_distance_bp = 500000L,
@@ -63,6 +63,7 @@ template_config <- function() {
   cfg$analyses$fst <- FALSE
   cfg$analyses$genome_scan <- FALSE
   cfg$analyses$ne_ld <- FALSE
+  cfg$analyses$population_tree <- FALSE
   cfg$analyses$dapc <- FALSE
   cfg$analyses$amova <- FALSE
   cfg$analyses$mantel <- FALSE

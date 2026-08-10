@@ -216,6 +216,19 @@ validate_ld_decay_result <- function(result, analysis, context) {
                     ))
 }
 
+validate_population_tree_result <- function(result, analysis, context) {
+  errors <- character()
+  if (!is.list(result) || !all(c("distance", "n_snps", "populations") %in% names(result))) {
+    errors <- c(errors, "population tree result requires distance, n_snps, and populations")
+  } else if (is.matrix(result$distance) && nrow(result$distance)) {
+    if (nrow(result$distance) != ncol(result$distance)) errors <- c(errors, "population distance matrix must be square")
+    if (any(abs(diag(result$distance)) > 1e-8)) errors <- c(errors, "population distance diagonal must be zero")
+    if (any(result$distance < -1e-8, na.rm = TRUE)) errors <- c(errors, "population genetic distance cannot be negative")
+  }
+  validation_result(!length(errors), errors,
+                    metrics = list(populations = if (is.list(result)) length(result$populations) else NA_integer_))
+}
+
 validate_ne_ld_result <- function(result, analysis, context) {
   errors <- character(); warnings <- character()
   if (!is.data.frame(result) || !all(c("population", "ne", "ne_status") %in% names(result))) {

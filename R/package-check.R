@@ -7,6 +7,7 @@
 #' @import data.table
 #' @importFrom stats aggregate setNames
 #' @importFrom utils capture.output head modifyList object.size str tail
+#' @importClassesFrom adegenet genpop
 NULL
 
 utils::globalVariables(c(

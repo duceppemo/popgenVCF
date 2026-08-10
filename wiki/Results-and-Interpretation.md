@@ -266,6 +266,25 @@ The global FST estimate for the quickstart example is 0.0915, consistent
 with real, moderate differentiation across 8 geographically diverse
 populations at this marker density.
 
+## Population genetic distance and tree
+
+`46_population_genetic_distance.tsv` is Nei's (1972) standard genetic
+distance between populations, computed from allele frequencies -- a
+different deliverable from the "Runs of homozygosity"/kinship/individual
+tree sections above: those describe relationships among **samples**, this
+describes relationships among **populations**. A neighbour-joining tree
+built from this distance matrix is written to
+`trees/population_Nei_neighbor_joining.nwk` (Newick format, no bundled
+figure -- open it in any tree viewer, e.g. `ape::plot.phylo()` in R,
+FigTree, or an online viewer) whenever at least three populations are
+present.
+
+On the quickstart example, LWK-YRI (Luhya, Kenya and Yoruba, Nigeria, both
+African) is the single closest pair (D=0.0112), while the largest
+distances are all African-vs-non-African population pairs (up to
+D=0.091) -- the expected continental-population-structure pattern, a real
+result from real chr22 data, not a fabricated demonstration.
+
 ## Genome scans
 
 Windowed FST and diversity (`39_genome_scan_fst.tsv`,

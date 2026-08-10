@@ -131,6 +131,16 @@ report_table_section(
   pca_loadings_top, digits = 4
 )
 report_table_section("Population differentiation", r$fst$long, digits = 4)
+population_distance_table <- NULL
+if (!is.null(r$population_tree$distance) && nrow(r$population_tree$distance)) {
+  population_distance_table <- as.data.frame(r$population_tree$distance)
+  population_distance_table <- cbind(population = rownames(population_distance_table), population_distance_table)
+  rownames(population_distance_table) <- NULL
+}
+report_table_section(
+  "Nei's standard genetic distance between populations (see 46_population_genetic_distance.tsv; a neighbour-joining tree is written alongside the individual-level tree when at least three populations are present)",
+  population_distance_table, digits = 4
+)
 report_table_section(
   "Genome scan FST outliers (top 20 windows by FST; see 39_genome_scan_fst.tsv for the complete list)",
   r$genome_scan$outliers, digits = 4

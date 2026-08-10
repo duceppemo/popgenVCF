@@ -54,8 +54,9 @@ is DAPC's cross-validation across the default `K = 2:10` range, run in full
 because it is exactly what a real analysis does. Every module runs with its
 documented defaults: QC and LD pruning, PCA, IBS, kinship, sex check, runs
 of homozygosity, FST, genome scans, linkage disequilibrium decay,
-LD-based effective population size, diversity (including allelic richness),
-DAPC, AMOVA, and a neighbour-joining tree.
+LD-based effective population size, population genetic distance and tree,
+diversity (including allelic richness), DAPC, AMOVA, and a
+neighbour-joining tree of individuals.
 Mantel/isolation-by-distance runs too: the bundled metadata includes real,
 documented population-level collection-site coordinates (see the dataset's
 `README.md` for the exact source and caveats), so the analysis has real
@@ -114,6 +115,12 @@ R (`get_analysis_result(analysis, "kinship")`, and so on).
   correctly reports an honest "insufficient data" skip here -- see the
   [interpretation guide](interpreting-results.html) for what a real
   multi-chromosome VCF produces instead.
+- **Population genetic distance and tree** (`tables/46_population_genetic_distance.tsv`,
+  `trees/population_Nei_neighbor_joining.nwk`): Nei's standard genetic
+  distance between populations, unlike the sample-level kinship/tree
+  results above. `LWK`/`YRI` (both African) are the closest pair; the
+  largest distances are all African-vs-non-African pairs -- real
+  continental population structure.
 
 ## 5. Next steps
 

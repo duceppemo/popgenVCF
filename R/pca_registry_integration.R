@@ -57,6 +57,7 @@ default_analysis_registry <- function() {
     sex_check_module_spec(),
     roh_module_spec(),
     tree_module_spec(),
+    population_tree_module_spec(),
     fst_module_spec(),
     genome_scan_module_spec(),
     ld_decay_module_spec(),

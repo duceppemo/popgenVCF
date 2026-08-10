@@ -162,6 +162,12 @@ knitr::include_graphics("figures/10_pairwise_FST.png")
 
 The global FST estimate for the quickstart example is 0.0915, consistent with real, moderate differentiation across 8 geographically diverse populations at this marker density.
 
+## Population genetic distance and tree
+
+`46_population_genetic_distance.tsv` is Nei's (1972) standard genetic distance between populations, computed from allele frequencies -- a different deliverable from kinship/the individual tree above: those describe relationships among **samples**, this describes relationships among **populations**. A neighbour-joining tree built from this distance matrix is written to `trees/population_Nei_neighbor_joining.nwk` (Newick format, no bundled figure) whenever at least three populations are present.
+
+On the quickstart example, LWK-YRI (Luhya, Kenya and Yoruba, Nigeria, both African) is the single closest pair (D=0.0112), while the largest distances are all African-vs-non-African population pairs (up to D=0.091) -- the expected continental-population-structure pattern, a real result from real chr22 data.
+
 ## Genome scans
 
 Windowed FST and diversity (`39_genome_scan_fst.tsv`, `40_genome_scan_diversity.tsv`) track the same statistics above along physical position rather than only as a single genome-wide number -- useful for spotting localized differentiation or diversity outliers. Windows are non-overlapping by default (`analyses.genome_scan_step_bp` equals `analyses.genome_scan_window_bp`); a smaller step gives a real overlapping/sliding scan.

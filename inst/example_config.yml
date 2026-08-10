@@ -67,6 +67,10 @@ analyses:
   # documented "safe value... to account for GT errors").
   roh_gt_error_phred: 30
   tree: true
+  # Nei's (1972) standard genetic distance between populations and an NJ
+  # tree from it -- distinct from "tree" above, which is an individual-level
+  # tree from IBS distance, not population allele frequencies.
+  population_tree: false
   fst: false
   genome_scan: false
   # Non-overlapping by default (step = window); set step below window for a
