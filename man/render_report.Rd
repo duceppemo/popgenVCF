@@ -15,7 +15,7 @@ render_report(
   \item{output_dir}{Report output directory.}
   \item{title}{Report title.}
   \item{author}{Report author.}
-  \item{formats}{One or more of \code{html} and \code{pdf}. Both are produced by default. PDF rendering requires XeLaTeX, LuaLaTeX, or pdfLaTeX. When both formats are requested and LaTeX is unavailable, HTML is still produced and PDF is skipped with a warning.}
+  \item{formats}{One or more of \code{html} and \code{pdf}. Both are produced by default. PDF rendering requires XeLaTeX, LuaLaTeX, or pdfLaTeX. When both formats are requested and LaTeX is unavailable, HTML is still produced and PDF is skipped with a warning. When both formats are requested on a non-Windows platform, they render concurrently in forked worker processes; Windows (no fork support) always renders sequentially.}
 }
 \value{Named rendered report paths, invisibly.}
 \description{Renders the bundled manuscript-oriented report template as portable HTML, compact PDF, or both.}

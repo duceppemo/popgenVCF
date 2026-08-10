@@ -223,6 +223,58 @@ test_that("standard PDF report uses compact vector figure sources", {
   expect_lt(file.info(rendered[["pdf"]])$size, 1e6)
 })
 
+test_that("requesting both formats together renders each correctly, whether concurrently or sequentially", {
+  skip_if_not(rmarkdown::pandoc_available())
+  skip_if(is.null(popgenVCF:::report_latex_engine()), "No LaTeX engine")
+  root <- tempfile("both-formats-report-")
+  dir.create(file.path(root, "figures"), recursive = TRUE)
+  results <- file.path(root, "analysis_results.rds")
+  saveRDS(minimal_standard_report_result(), results)
+
+  rendered <- render_report(
+    results, file.path(root, "report"), title = "Both formats report",
+    formats = c("html", "pdf")
+  )
+
+  expect_identical(names(rendered), c("html", "pdf"))
+  expect_true(file.exists(rendered[["html"]]))
+  expect_true(file.exists(rendered[["pdf"]]))
+  header <- readBin(rendered[["pdf"]], what = "raw", n = 4L)
+  expect_identical(rawToChar(header), "%PDF")
+  html <- paste(readLines(rendered[["html"]], warn = FALSE), collapse = "\n")
+  expect_match(html, "Both formats report", fixed = TRUE)
+})
+
+test_that("render_report_formats renders a single format sequentially", {
+  calls <- character()
+  result <- popgenVCF:::render_report_formats("html", function(format) {
+    calls <<- c(calls, format)
+    paste0("path-", format)
+  })
+  expect_identical(result, c(html = "path-html"))
+  expect_identical(calls, "html")
+})
+
+test_that("render_report_formats renders multiple formats and preserves naming/order", {
+  skip_on_os("windows")
+  result <- popgenVCF:::render_report_formats(c("html", "pdf"), function(format) {
+    Sys.sleep(0.05)
+    paste0("path-", format)
+  })
+  expect_identical(result, c(html = "path-html", pdf = "path-pdf"))
+})
+
+test_that("render_report_formats re-signals a worker error as a real R condition", {
+  skip_on_os("windows")
+  expect_error(
+    suppressWarnings(popgenVCF:::render_report_formats(c("html", "pdf"), function(format) {
+      if (identical(format, "pdf")) stop("simulated render failure")
+      "path-html"
+    })),
+    "simulated render failure"
+  )
+})
+
 test_that("reduced HTML reports omit the loading/private-allele sections when the data is absent", {
   skip_if_not(rmarkdown::pandoc_available())
   root <- tempfile("reduced-loadings-report-")

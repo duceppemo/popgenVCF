@@ -125,11 +125,15 @@ render_standard_report_format <- function(template, results_rds, output_dir,
       includes = rmarkdown::includes(in_header = report_pdf_preamble())
     )
   }
+  intermediates_dir <- tempfile(paste0("popgenvcf-report-", format, "-"))
+  dir.create(intermediates_dir, recursive = TRUE)
+  on.exit(unlink(intermediates_dir, recursive = TRUE), add = TRUE)
   rmarkdown::render(
     template,
     output_format = output_format,
     output_file = output_file,
     output_dir = output_dir,
+    intermediates_dir = intermediates_dir,
     params = list(
       results_rds = results_rds, title = title, author = author,
       figures = figures, report_format = format
@@ -137,6 +141,34 @@ render_standard_report_format <- function(template, results_rds, output_dir,
     envir = new.env(parent = globalenv()),
     quiet = TRUE
   )
+}
+
+# Renders each requested format via `render_one(format)`. HTML and PDF share
+# the same input template (system.file() -- installed, possibly read-only
+# outside this directory), so per-format intermediates_dir isolation above is
+# what makes concurrent rendering safe: without it, both formats would race
+# on the same knitr intermediate file names. Uses fork-based parallelism
+# (mclapply): each worker is a live copy of the calling process, so no
+# package-namespace resolution or object-export step is needed, unlike a
+# PSOCK cluster. Windows has no fork, so it always falls back to the
+# original sequential path. mclapply() does not propagate worker errors as
+# R conditions -- it returns a "try-error" object in the failed slot instead
+# -- so failures are detected and re-signalled explicitly to preserve the
+# same error-throwing behaviour the sequential path already has.
+render_report_formats <- function(formats, render_one) {
+  if (length(formats) <= 1L || identical(.Platform$OS.type, "windows")) {
+    return(stats::setNames(vapply(formats, render_one, character(1L)), formats))
+  }
+  results <- parallel::mclapply(
+    formats, render_one,
+    mc.cores = length(formats), mc.preschedule = FALSE
+  )
+  failed <- vapply(results, inherits, logical(1L), what = "try-error")
+  if (any(failed)) {
+    condition <- attr(results[[which(failed)[1L]]], "condition")
+    stop(conditionMessage(condition), call. = FALSE)
+  }
+  stats::setNames(unlist(results), formats)
 }
 
 #' Render a population-genomics report
@@ -148,7 +180,9 @@ render_standard_report_format <- function(template, results_rds, output_dir,
 #' @param formats One or more of `html` and `pdf`. Both are produced by
 #'   default. PDF rendering requires XeLaTeX, LuaLaTeX, or pdfLaTeX. When both
 #'   formats are requested and LaTeX is unavailable, HTML is still produced
-#'   and PDF is skipped with a warning.
+#'   and PDF is skipped with a warning. When both formats are requested on a
+#'   non-Windows platform, they render concurrently in forked worker
+#'   processes; Windows (no fork support) always renders sequentially.
 #' @return Named rendered report paths, invisibly.
 #' @export
 render_report <- function(results_rds, output_dir,
@@ -173,12 +207,12 @@ render_report <- function(results_rds, output_dir,
     warning(paste0(message, "; generating HTML only"), call. = FALSE)
     formats <- setdiff(formats, "pdf")
   }
-  paths <- vapply(formats, function(format) {
+  paths <- render_report_formats(formats, function(format) {
     render_standard_report_format(
       template, results_rds, output_dir, title, author, format,
       latex_engine = if (identical(format, "pdf")) latex_engine else NULL
     )
-  }, character(1L))
+  })
   invisible(paths)
 }
 
