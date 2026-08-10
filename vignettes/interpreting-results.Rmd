@@ -339,6 +339,18 @@ r = 0.3129, p = 0.001 (the 999-permutation floor), with a positive slope
 populations are also the units compared by FST and PCA elsewhere in this
 report, so this is not independent confirmation from an unrelated experiment.
 
+When population metadata is present with at least two populations, a
+**partial Mantel test** (`vegan::mantel.partial()`, Smouse, Long, and Sokal
+1986) also runs automatically, controlling the genetic-vs-geographic distance
+correlation for a same/different population indicator -- does the
+isolation-by-distance signal survive once population membership is accounted
+for, or is it purely an artifact of population clustering? On the quickstart
+example the partial Mantel r drops to 0.1627 (p = 0.001): weaker than the
+plain Mantel r, but still real and statistically significant, indicating
+geographic distance carries genuine explanatory power beyond simple
+population clustering. Both results are reported together in the figure's
+subtitle above.
+
 ## Integrating analyses
 
 Concordant analyses can strengthen a description, but shared inputs also create shared biases. PCA separation, high pairwise FST, ancestry components, and geographic clustering are not four independent experiments when they use the same samples and variants.

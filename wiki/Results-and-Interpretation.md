@@ -507,6 +507,18 @@ does not, by itself, establish a causal spatial process: the same 8
 populations are also the units compared by FST and PCA above, so this is not
 independent evidence from a fourth, unrelated experiment.
 
+When population metadata is present and at least two populations are
+represented, a **partial Mantel test** (`vegan::mantel.partial()`, Smouse,
+Long, and Sokal 1986) also runs automatically, controlling the genetic-vs-
+geographic distance correlation for a same/different population indicator --
+does the isolation-by-distance signal survive once population membership is
+accounted for, or is it purely an artifact of population clustering? On the
+quickstart example, the partial Mantel r drops to 0.1627 (p = 0.001): the
+signal weakens considerably but remains real and statistically significant
+once population identity is controlled for, indicating that geographic
+distance carries genuine explanatory power beyond simple population
+clustering. Both results are shown together in the figure's subtitle above.
+
 ## Figures and reports
 
 Captions should identify the dataset, filters, estimator, sample size, software

@@ -8,5 +8,5 @@ ibd_module_spec()
 A \code{PopgenVCFModuleSpec} object.
 }
 \description{
-Constructs the self-contained registry contract for Mantel tests and isolation-by-distance analysis. The descriptor owns execution, the IBS dependency, configuration enablement, validation, output naming, scientific references, resource classification, and contract version while preserving existing spatial capability requirements.
+The descriptor owns Mantel, partial Mantel (controlling for population identity), and isolation-by-distance execution, its dependency on IBS, configuration enablement, validation, output name, scientific references, resource classification, and contract version.
 }

@@ -39,3 +39,75 @@ test_that("Mantel IBD rejects coordinates outside geographic ranges", {
     distance, metadata, c("latitude", "longitude"), permutations = 9L
   ))
 })
+
+test_that("run_mantel_ibd computes a partial Mantel test controlling for population", {
+  set.seed(5)
+  n <- 20L
+  pop <- rep(c("A", "B"), each = n / 2L)
+  sample_id <- paste0("S", seq_len(n))
+  coord <- seq_len(n)
+  metadata <- data.table::data.table(
+    sample = sample_id, population = pop,
+    latitude = 40 + coord * 0.1, longitude = -70 + coord * 0.1
+  )
+  gd <- as.matrix(stats::dist(coord)) + matrix(stats::rnorm(n * n, 0, 0.5), n, n)
+  gd <- (gd + t(gd)) / 2; diag(gd) <- 0
+  rownames(gd) <- colnames(gd) <- sample_id
+
+  res <- popgenVCF:::run_mantel_ibd(gd, metadata, c("latitude", "longitude"), permutations = 199L, seed = 42L)
+
+  expect_false(is.null(res$partial_mantel))
+  expect_s3_class(res$partial_mantel, "mantel")
+  expect_true(is.finite(res$summary$partial_mantel_r))
+  expect_true(is.finite(res$summary$partial_mantel_p))
+  expect_true(res$summary$partial_mantel_r >= -1 && res$summary$partial_mantel_r <= 1)
+})
+
+test_that("run_mantel_ibd leaves partial Mantel NA without a population column or with only one population", {
+  set.seed(6)
+  n <- 8L
+  sample_id <- paste0("S", seq_len(n))
+  gd <- as.matrix(stats::dist(seq_len(n)))
+  rownames(gd) <- colnames(gd) <- sample_id
+  coord <- seq_len(n)
+
+  no_population <- data.table::data.table(sample = sample_id, latitude = 40 + coord, longitude = -70 + coord)
+  res1 <- popgenVCF:::run_mantel_ibd(gd, no_population, c("latitude", "longitude"), permutations = 19L, seed = 42L)
+  expect_null(res1$partial_mantel)
+  expect_true(is.na(res1$summary$partial_mantel_r))
+
+  one_population <- data.table::data.table(
+    sample = sample_id, population = "A", latitude = 40 + coord, longitude = -70 + coord
+  )
+  res2 <- popgenVCF:::run_mantel_ibd(gd, one_population, c("latitude", "longitude"), permutations = 19L, seed = 42L)
+  expect_null(res2$partial_mantel)
+  expect_true(is.na(res2$summary$partial_mantel_r))
+})
+
+test_that("plot_ibd's subtitle includes the partial Mantel result when available", {
+  fx <- data.table::data.table(
+    genetic_distance = c(0.1, 0.5, 0.9), geographic_distance_km = c(10, 500, 900)
+  )
+  x_with_partial <- list(
+    pairs = fx,
+    summary = data.table::data.table(
+      mantel_r = 0.5, mantel_p = 0.01, slope = 1, r_squared = 0.25,
+      partial_mantel_r = 0.3, partial_mantel_p = 0.04
+    )
+  )
+  out <- tempfile("ibd-plot-"); dirs <- list(figures = file.path(out, "figures"))
+  dir.create(dirs$figures, recursive = TRUE)
+  cfg <- popgenVCF::default_config(); cfg$output$figure_formats <- "png"
+  popgenVCF:::plot_ibd(x_with_partial, cfg, dirs)
+  expect_true(file.exists(file.path(dirs$figures, "12_isolation_by_distance.png")))
+
+  x_without_partial <- x_with_partial
+  x_without_partial$summary <- data.table::data.table(
+    mantel_r = 0.5, mantel_p = 0.01, slope = 1, r_squared = 0.25,
+    partial_mantel_r = NA_real_, partial_mantel_p = NA_real_
+  )
+  out2 <- tempfile("ibd-plot2-"); dirs2 <- list(figures = file.path(out2, "figures"))
+  dir.create(dirs2$figures, recursive = TRUE)
+  popgenVCF:::plot_ibd(x_without_partial, cfg, dirs2)
+  expect_true(file.exists(file.path(dirs2$figures, "12_isolation_by_distance.png")))
+})

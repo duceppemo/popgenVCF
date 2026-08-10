@@ -6,7 +6,7 @@ test_that("IBD module descriptor owns the complete registry contract", {
   expect_identical(module$requires, "ibs")
   expect_true(is.function(module$enabled))
   expect_identical(module$outputs, "ibd")
-  expect_identical(module$references, c("Mantel 1967", "Rousset 1997"))
+  expect_identical(module$references, c("Mantel 1967", "Rousset 1997", "Smouse, Long, and Sokal 1986"))
   expect_identical(module$resource_class, "standard")
   expect_identical(module$contract_version, "1.0")
 

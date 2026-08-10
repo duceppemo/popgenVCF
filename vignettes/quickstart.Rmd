@@ -109,6 +109,10 @@ R (`get_analysis_result(analysis, "kinship")`, and so on).
   `figures/12_isolation_by_distance`): a real, statistically significant
   positive signal (Mantel r = 0.313, p = 0.001) -- genetic distance increases
   with geographic distance across these 8 continentally diverse populations.
+  A partial Mantel test controlling for population identity (r = 0.163,
+  p = 0.001) shows the signal weakens but survives once population
+  membership is accounted for -- see the
+  [interpretation guide](interpreting-results.html) for what this means.
 - **LD-based effective population size** (`tables/45_Ne_LD.tsv`): needs
   markers on at least two chromosomes to work at all, and this dataset's
   retained autosomal marker set is chr22-only by design, so every population

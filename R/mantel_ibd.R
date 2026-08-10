@@ -25,12 +25,43 @@ run_mantel_ibd <- function(genetic_distance, metadata, geographic_columns, permu
   geo <- haversine_matrix(lat[keep], lon[keep], distance_ids[keep])
   set.seed(seed)
   mantel <- vegan::mantel(stats::as.dist(gd), stats::as.dist(geo), permutations = permutations, method = "pearson")
+
+  # Partial Mantel, controlling for population identity (0 = same
+  # population, 1 = different): the standard landscape-genetics follow-up
+  # question -- does the IBD correlation hold once population membership is
+  # controlled for, or is it purely an artifact of population clustering?
+  # Reuses vegan::mantel.partial(), already a dependency (vegan::mantel()
+  # above). The binary same/different indicator only fully collapses onto
+  # geographic distance when there are exactly two populations (a single
+  # between-population distance value); with three or more it leaves real,
+  # testable residual variance even when coordinates are population-level
+  # representative points rather than individual GPS (verified empirically
+  # against a synthetic multi-population fixture before shipping -- see
+  # NEWS.md), so this is not degenerate for this package's own quickstart
+  # dataset (8 populations).
+  partial <- NULL
+  if ("population" %in% names(m)) {
+    population <- m$population[keep]
+    if (data.table::uniqueN(population) >= 2L) {
+      pop_dissim <- outer(population, population, `!=`) * 1
+      set.seed(seed)
+      partial <- vegan::mantel.partial(
+        stats::as.dist(gd), stats::as.dist(geo), stats::as.dist(pop_dissim),
+        permutations = permutations, method = "pearson"
+      )
+    }
+  }
+
   idx <- upper.tri(gd)
   pairs <- data.table::data.table(genetic_distance = gd[idx], geographic_distance_km = geo[idx])
   fit <- stats::lm(genetic_distance ~ log1p(geographic_distance_km), data = pairs)
-  list(mantel = mantel, pairs = pairs, model = fit,
-       summary = data.table::data.table(mantel_r = unname(mantel$statistic), mantel_p = mantel$signif,
-                                        slope = stats::coef(fit)[2], r_squared = summary(fit)$r.squared))
+  summary_dt <- data.table::data.table(
+    mantel_r = unname(mantel$statistic), mantel_p = mantel$signif,
+    slope = stats::coef(fit)[2], r_squared = summary(fit)$r.squared,
+    partial_mantel_r = if (!is.null(partial)) unname(partial$statistic) else NA_real_,
+    partial_mantel_p = if (!is.null(partial)) partial$signif else NA_real_
+  )
+  list(mantel = mantel, partial_mantel = partial, pairs = pairs, model = fit, summary = summary_dt)
 }
 
 plot_ibd <- function(x, cfg, dirs) {
@@ -50,10 +81,15 @@ plot_ibd <- function(x, cfg, dirs) {
     ) +
     ggplot2::labs(
       title = "Isolation by distance",
-      subtitle = sprintf(
-        "Mantel r = %.3f, p = %.4f",
-        x$summary$mantel_r, x$summary$mantel_p
-      ),
+      subtitle = if (is.finite(x$summary$partial_mantel_r)) {
+        sprintf(
+          "Mantel r = %.3f, p = %.4f (partial, controlling for population: r = %.3f, p = %.4f)",
+          x$summary$mantel_r, x$summary$mantel_p,
+          x$summary$partial_mantel_r, x$summary$partial_mantel_p
+        )
+      } else {
+        sprintf("Mantel r = %.3f, p = %.4f", x$summary$mantel_r, x$summary$mantel_p)
+      },
       caption = sprintf(
         "Curve: linear model of genetic distance on log(1 + geographic distance); %s pairwise comparisons.",
         scales::comma(nrow(x$pairs))
