@@ -42,11 +42,17 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
   analysis$inputs$ids <- ids
 
   if (is.null(metadata)) metadata <- metadata_from_samples(ids$sample)
+  # Computed before any SNP-level QC exists yet, so this is a plain
+  # chromosome-name filter, not a QC-passing subset -- the same restriction
+  # applied again, post-QC, to qc_snps/final_snps further below.
+  early_autosomal_snps <- if (isTRUE(cfg$qc$autosome_only)) {
+    ids$snp[!ids$chromosome %in% cfg$qc$non_autosomal_chromosome_names]
+  } else NULL
   hs <- stage(
     "sample identity validation and QC",
     harmonize_samples(
       gds, ids, metadata, cfg$qc$max_sample_missing,
-      metadata_supplied = metadata_supplied
+      metadata_supplied = metadata_supplied, snp_ids = early_autosomal_snps
     )
   )
   sample_ids <- hs$sample_ids
@@ -78,7 +84,10 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
     )
   }
 
-  vq <- stage("variant QC audit", variant_qc(gds, sample_ids, ids, cfg$qc$maf, 0.2))
+  vq <- stage(
+    "variant QC audit",
+    variant_qc(gds, sample_ids, ids, cfg$qc$maf, 0.2, cfg$analyses$sex_check_y_chromosome_names)
+  )
   qc_snps_all <- vq[pass_combined == TRUE, snp_id]
   # Ploidy-sensitive modules (kinship, PCA, IBS, DAPC, ancestry backends, ROH,
   # FST, genome scans, diversity/HWE, AMOVA) assume uniform diploid genotypes

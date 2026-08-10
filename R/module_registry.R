@@ -72,7 +72,9 @@ run_module_sex_check <- function(analysis, context) {
   result <- run_sex_check(
     context$gds, context$sample_ids, context$qc_snps_all, context$ids, context$metadata,
     cfg$analyses$sex_check_x_chromosome_names,
-    cfg$analyses$sex_check_male_f_threshold, cfg$analyses$sex_check_female_f_threshold
+    cfg$analyses$sex_check_male_f_threshold, cfg$analyses$sex_check_female_f_threshold,
+    cfg$analyses$sex_check_y_chromosome_names,
+    cfg$analyses$sex_check_y_male_call_rate_threshold, cfg$analyses$sex_check_y_female_call_rate_threshold
   )
   analysis <- set_analysis_result(analysis, "sex_check", result)
   if (!is.null(result) && nrow(result$table)) {

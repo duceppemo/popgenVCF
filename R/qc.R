@@ -76,7 +76,8 @@ normalize_snpratefreq <- function(result) {
   )
 }
 
-variant_qc <- function(gds, sample_ids, ids, maf_threshold, max_missing = 0.2) {
+variant_qc <- function(gds, sample_ids, ids, maf_threshold, max_missing = 0.2,
+                        sex_limited_chromosome_names = character()) {
   raw <- call_supported(
     SNPRelate::snpgdsSNPRateFreq,
     list(gds, sample.id = sample_ids, with.id = TRUE, verbose = FALSE),
@@ -95,6 +96,15 @@ variant_qc <- function(gds, sample_ids, ids, maf_threshold, max_missing = 0.2) {
   )
   dt[, pass_maf := is.finite(maf) & maf >= maf_threshold]
   dt[, pass_missing := is.finite(missing_rate) & missing_rate <= max_missing]
+  # A chromosome only some samples biologically have (e.g. human chromosome
+  # Y) is expected to be ~100% "missing" in the other sex -- that is the
+  # real signal sex_check measures, not a data-quality problem, so the
+  # cross-sample missingness threshold does not apply to it. MAF filtering
+  # is unaffected: allele frequency is still computed from whichever
+  # samples do have a call, exactly as for any other chromosome.
+  if (length(sex_limited_chromosome_names)) {
+    dt[chromosome %in% sex_limited_chromosome_names, pass_missing := TRUE]
+  }
   dt[, pass_combined := pass_maf & pass_missing]
   dt
 }

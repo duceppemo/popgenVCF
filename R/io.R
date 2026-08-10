@@ -115,7 +115,7 @@ get_gds_ids <- function(gds) {
 }
 
 harmonize_samples <- function(gds, ids, metadata, max_missing,
-                              metadata_supplied = TRUE) {
+                              metadata_supplied = TRUE, snp_ids = NULL) {
   vcf_samples <- as.character(ids$sample)
   if (isTRUE(metadata_supplied)) {
     metadata <- validate_metadata_sample_ids(metadata, vcf_samples)
@@ -125,8 +125,15 @@ harmonize_samples <- function(gds, ids, metadata, max_missing,
   metadata <- normalize_sample_aliases(metadata)
   public_samples <- public_sample_ids(metadata, vcf_samples)
 
+  # Sex chromosomes are not uniformly present across samples the way
+  # autosomes are (e.g. chromosome Y has no calls at all for a non-Y sex),
+  # so including them here would inflate per-sample missingness for one
+  # sex only and fail them out of sample QC entirely -- a much larger, more
+  # severe version of the same pooling problem `qc.autosome_only` already
+  # fixes for kinship/PCA/etc. `snp_ids`, when supplied, restricts this
+  # missingness calculation the same way.
   geno <- SNPRelate::snpgdsGetGeno(
-    gds, sample.id = vcf_samples, snpfirstdim = FALSE, verbose = FALSE
+    gds, sample.id = vcf_samples, snp.id = snp_ids, snpfirstdim = FALSE, verbose = FALSE
   )
   missing <- rowMeans(is.na(geno))
   rm(geno)

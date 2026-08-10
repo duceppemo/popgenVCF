@@ -54,6 +54,26 @@ stopifnot(
   identical(tools::md5sum(chrx_source_tbi)[[1L]], chrx_tbi_md5)
 )
 
+# 1000 Genomes Phase 3 chromosome Y genotypes -- the same file
+# canonical_1000g_chrY_source() already describes and checksums, reused
+# here rather than re-declared, for the sex-check module's Y-chromosome
+# call-rate signal. This release is genuinely male-only (chrY has no
+# biological meaning for females): the source VCF's sample list is a
+# strict subset of the 1000 Genomes cohort, containing only males.
+chry_source_meta <- popgenVCF::canonical_1000g_chrY_source()
+chry_vcf_filename <- chry_source_meta$files$filename[grepl("\\.vcf\\.gz$", chry_source_meta$files$filename)]
+chry_vcf_md5 <- chry_source_meta$files$upstream_md5[chry_source_meta$files$filename == chry_vcf_filename]
+chry_tbi_md5 <- chry_source_meta$files$upstream_md5[chry_source_meta$files$filename == paste0(chry_vcf_filename, ".tbi")]
+chry_source_vcf <- file.path(data_dir, chry_vcf_filename)
+chry_source_tbi <- file.path(data_dir, paste0(chry_vcf_filename, ".tbi"))
+if (!file.exists(chry_source_vcf) || !file.exists(chry_source_tbi)) {
+  stop("chrY source VCF/index not found under ", data_dir, call. = FALSE)
+}
+stopifnot(
+  identical(tools::md5sum(chry_source_vcf)[[1L]], chry_vcf_md5),
+  identical(tools::md5sum(chry_source_tbi)[[1L]], chry_tbi_md5)
+)
+
 # 8 real populations spanning continental diversity, plus a real
 # duplicate/MZ-twin pair (NA19331/NA19334, same-population LWK, confirmed
 # consistent on chromosome X too -- both genuinely male) deliberately
@@ -184,10 +204,78 @@ stopifnot(identical(
   TRUE
 ))
 
+# Chromosome Y: the whole callable non-PAR region this 1000 Genomes release
+# ships (already a small, curated set, ~60k biallelic SNPs -- no further
+# bounding needed). Male-only source: extract the real male genotypes for
+# the selected males, then pad in the selected females as fully missing
+# genotypes at the same sites via `bcftools merge` (a female sample column
+# with no records anywhere is exactly what a real chrY VCF that includes
+# females would show, so this is not fabricated data, just an explicit,
+# correct representation of "no chromosome Y"). No fixploidy needed here:
+# Y call rate only checks whether a genotype is present, not its dosage,
+# so the haploid-GT-field mis-parsing that affects chrX does not apply.
+male_ids <- panel[sample %in% chr22_sample_ids & gender == "male", sample]
+female_ids <- panel[sample %in% chr22_sample_ids & gender == "female", sample]
+stopifnot(length(male_ids) + length(female_ids) == length(chr22_sample_ids))
+
+males_file <- file.path(work_dir, "males.txt")
+writeLines(male_ids, males_file)
+chry_male_vcf <- file.path(work_dir, "chrY_male.vcf.gz")
+status <- system2(
+  bcftools,
+  c("view", "--min-alleles", "2", "--max-alleles", "2", "--types", "snps",
+    "-S", shQuote(males_file), "--output-type", "z", "--output", shQuote(chry_male_vcf),
+    shQuote(chry_source_vcf))
+)
+if (!identical(status, 0L)) stop("bcftools view (chrY male) failed", call. = FALSE)
+status <- system2(bcftools, c("index", "--tbi", "--force", shQuote(chry_male_vcf)))
+if (!identical(status, 0L)) stop("bcftools index (chrY male) failed", call. = FALSE)
+
+# Header-only VCF with the female sample columns and zero records; merging
+# it with the real male genotypes fills every site with a missing
+# genotype ("./.") for every female, since none of them appear in any
+# input at those positions.
+female_header <- system2(bcftools, c("view", "-h", shQuote(chry_male_vcf)), stdout = TRUE)
+chrom_line_idx <- grep("^#CHROM", female_header)
+fixed_columns <- strsplit(female_header[chrom_line_idx], "\t")[[1]][1:9]
+female_header[chrom_line_idx] <- paste(c(fixed_columns, female_ids), collapse = "\t")
+chry_female_vcf_path <- file.path(work_dir, "chrY_female_empty.vcf")
+writeLines(female_header, chry_female_vcf_path)
+status <- system2(bcftools, c("view", "--output-type", "z", "--output",
+                               shQuote(paste0(chry_female_vcf_path, ".gz")), shQuote(chry_female_vcf_path)))
+if (!identical(status, 0L)) stop("bcftools view (chrY female placeholder) failed", call. = FALSE)
+chry_female_vcf <- paste0(chry_female_vcf_path, ".gz")
+status <- system2(bcftools, c("index", "--tbi", "--force", shQuote(chry_female_vcf)))
+if (!identical(status, 0L)) stop("bcftools index (chrY female placeholder) failed", call. = FALSE)
+
+chry_merged_vcf <- file.path(work_dir, "chrY_merged.vcf.gz")
+status <- system2(
+  bcftools,
+  c("merge", "-m", "none", "--output-type", "z", "--output", shQuote(chry_merged_vcf),
+    shQuote(chry_male_vcf), shQuote(chry_female_vcf))
+)
+if (!identical(status, 0L)) stop("bcftools merge (chrY) failed", call. = FALSE)
+status <- system2(bcftools, c("index", "--tbi", "--force", shQuote(chry_merged_vcf)))
+if (!identical(status, 0L)) stop("bcftools index (chrY merged) failed", call. = FALSE)
+
+chry_vcf <- file.path(work_dir, "chrY_subset.vcf.gz")
+status <- system2(
+  bcftools,
+  c("view", "-S", shQuote(chr22_vcf), "--output-type", "z", "--output", shQuote(chry_vcf),
+    shQuote(chry_merged_vcf))
+)
+if (!identical(status, 0L)) stop("bcftools view (chrY reorder) failed", call. = FALSE)
+status <- system2(bcftools, c("index", "--tbi", "--force", shQuote(chry_vcf)))
+if (!identical(status, 0L)) stop("bcftools index (chrY reordered) failed", call. = FALSE)
+stopifnot(identical(
+  system2(bcftools, c("query", "-l", shQuote(chry_vcf)), stdout = TRUE),
+  chr22_sample_ids
+))
+
 status <- system2(
   bcftools,
   c("concat", "--allow-overlaps", "--output-type", "z", "--output", shQuote(out_vcf),
-    shQuote(chr22_vcf), shQuote(chrx_vcf))
+    shQuote(chr22_vcf), shQuote(chrx_vcf), shQuote(chry_vcf))
 )
 if (!identical(status, 0L)) stop("bcftools concat failed", call. = FALSE)
 status <- system2(bcftools, c("index", "--tbi", "--force", shQuote(out_vcf)))

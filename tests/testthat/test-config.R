@@ -151,6 +151,49 @@ test_that("kinship_close_relative_threshold is coerced and validated", {
   expect_error(popgenVCF::validate_config(cfg), "kinship_close_relative_threshold")
 })
 
+test_that("sex-check X and Y thresholds/chromosome names are coerced and validated", {
+  fresh_cfg <- function() {
+    cfg <- popgenVCF::default_config()
+    cfg$input$vcf <- tempfile(fileext = ".vcf")
+    cfg$output$directory <- tempfile("popgenvcf-output-")
+    file.create(cfg$input$vcf)
+    cfg
+  }
+
+  cfg <- fresh_cfg()
+  expect_identical(cfg$analyses$sex_check_x_chromosome_names, c("X", "chrX"))
+  expect_identical(cfg$analyses$sex_check_male_f_threshold, 0.8)
+  expect_identical(cfg$analyses$sex_check_female_f_threshold, 0.2)
+  expect_identical(cfg$analyses$sex_check_y_chromosome_names, c("Y", "chrY"))
+  expect_identical(cfg$analyses$sex_check_y_male_call_rate_threshold, 0.5)
+  expect_identical(cfg$analyses$sex_check_y_female_call_rate_threshold, 0.1)
+
+  cfg$analyses$sex_check_male_f_threshold <- "0.9"
+  cfg$analyses$sex_check_y_male_call_rate_threshold <- "0.6"
+  validated <- popgenVCF::validate_config(cfg)
+  expect_identical(validated$analyses$sex_check_male_f_threshold, 0.9)
+  expect_identical(validated$analyses$sex_check_y_male_call_rate_threshold, 0.6)
+
+  cfg$analyses$sex_check_female_f_threshold <- 0.95
+  expect_error(popgenVCF::validate_config(cfg), "sex_check_female_f_threshold")
+
+  cfg <- fresh_cfg()
+  cfg$analyses$sex_check_y_female_call_rate_threshold <- 0.9
+  expect_error(popgenVCF::validate_config(cfg), "sex_check_y_female_call_rate_threshold")
+
+  cfg <- fresh_cfg()
+  cfg$analyses$sex_check_y_male_call_rate_threshold <- 1.5
+  expect_error(popgenVCF::validate_config(cfg), "sex_check_y_.*_call_rate_threshold")
+
+  cfg <- fresh_cfg()
+  cfg$analyses$sex_check_x_chromosome_names <- character()
+  expect_error(popgenVCF::validate_config(cfg), "sex_check_x_chromosome_names")
+
+  cfg <- fresh_cfg()
+  cfg$analyses$sex_check_y_chromosome_names <- character()
+  expect_error(popgenVCF::validate_config(cfg), "sex_check_y_chromosome_names")
+})
+
 test_that("roh_gt_error_phred is coerced and validated", {
   cfg <- popgenVCF::default_config()
   cfg$input$vcf <- tempfile(fileext = ".vcf")

@@ -24,6 +24,9 @@ default_config <- function() {
                     ibs = TRUE, kinship = TRUE, kinship_close_relative_threshold = 0.0442,
                     sex_check = TRUE, sex_check_x_chromosome_names = c("X", "chrX"),
                     sex_check_male_f_threshold = 0.8, sex_check_female_f_threshold = 0.2,
+                    sex_check_y_chromosome_names = c("Y", "chrY"),
+                    sex_check_y_male_call_rate_threshold = 0.5,
+                    sex_check_y_female_call_rate_threshold = 0.1,
                     roh = TRUE, roh_gt_error_phred = 30,
                     tree = TRUE, fst = TRUE,
                     genome_scan = TRUE, genome_scan_window_bp = 50000L,
@@ -128,6 +131,9 @@ validate_config <- function(cfg) {
   cfg$analyses$sex_check_x_chromosome_names <- as.character(cfg$analyses$sex_check_x_chromosome_names)
   cfg$analyses$sex_check_male_f_threshold <- as.numeric(cfg$analyses$sex_check_male_f_threshold)
   cfg$analyses$sex_check_female_f_threshold <- as.numeric(cfg$analyses$sex_check_female_f_threshold)
+  cfg$analyses$sex_check_y_chromosome_names <- as.character(cfg$analyses$sex_check_y_chromosome_names)
+  cfg$analyses$sex_check_y_male_call_rate_threshold <- as.numeric(cfg$analyses$sex_check_y_male_call_rate_threshold)
+  cfg$analyses$sex_check_y_female_call_rate_threshold <- as.numeric(cfg$analyses$sex_check_y_female_call_rate_threshold)
   cfg$analyses$roh_gt_error_phred <- as.numeric(cfg$analyses$roh_gt_error_phred)
   cfg$analyses$genome_scan_window_bp <- as.integer(cfg$analyses$genome_scan_window_bp)
   cfg$analyses$genome_scan_step_bp <- as.integer(cfg$analyses$genome_scan_step_bp)
@@ -155,6 +161,10 @@ validate_config <- function(cfg) {
   if (!length(cfg$analyses$sex_check_x_chromosome_names) || anyNA(cfg$analyses$sex_check_x_chromosome_names) || any(!nzchar(cfg$analyses$sex_check_x_chromosome_names))) stop("analyses.sex_check_x_chromosome_names must be one or more non-empty chromosome name(s)", call. = FALSE)
   if (!is.finite(cfg$analyses$sex_check_male_f_threshold) || !is.finite(cfg$analyses$sex_check_female_f_threshold)) stop("analyses.sex_check_male_f_threshold and analyses.sex_check_female_f_threshold must be finite", call. = FALSE)
   if (cfg$analyses$sex_check_female_f_threshold >= cfg$analyses$sex_check_male_f_threshold) stop("analyses.sex_check_female_f_threshold must be less than analyses.sex_check_male_f_threshold", call. = FALSE)
+  if (!length(cfg$analyses$sex_check_y_chromosome_names) || anyNA(cfg$analyses$sex_check_y_chromosome_names) || any(!nzchar(cfg$analyses$sex_check_y_chromosome_names))) stop("analyses.sex_check_y_chromosome_names must be one or more non-empty chromosome name(s)", call. = FALSE)
+  if (!is.finite(cfg$analyses$sex_check_y_male_call_rate_threshold) || !is.finite(cfg$analyses$sex_check_y_female_call_rate_threshold)) stop("analyses.sex_check_y_male_call_rate_threshold and analyses.sex_check_y_female_call_rate_threshold must be finite", call. = FALSE)
+  if (cfg$analyses$sex_check_y_female_call_rate_threshold >= cfg$analyses$sex_check_y_male_call_rate_threshold) stop("analyses.sex_check_y_female_call_rate_threshold must be less than analyses.sex_check_y_male_call_rate_threshold", call. = FALSE)
+  if (cfg$analyses$sex_check_y_male_call_rate_threshold > 1 || cfg$analyses$sex_check_y_female_call_rate_threshold < 0) stop("analyses.sex_check_y_*_call_rate_threshold must be between zero and one", call. = FALSE)
   if (!is.finite(cfg$analyses$roh_gt_error_phred) || cfg$analyses$roh_gt_error_phred <= 0) stop("analyses.roh_gt_error_phred must be positive", call. = FALSE)
   if (!is.finite(cfg$analyses$genome_scan_window_bp) || cfg$analyses$genome_scan_window_bp < 1L) stop("analyses.genome_scan_window_bp must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$genome_scan_step_bp) || cfg$analyses$genome_scan_step_bp < 1L) stop("analyses.genome_scan_step_bp must be >= 1", call. = FALSE)

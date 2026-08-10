@@ -33,6 +33,33 @@ scientific validation fixture -- for that, see `inst/extdata/validation/`.
   Fixed at derivation time with `bcftools +fixploidy -- -f 2` (correct here
   specifically because the extracted region is entirely non-PAR; already
   diploid female calls are left untouched, verified before shipping).
+- Chromosome Y: also includes the whole callable non-PAR region this 1000
+  Genomes release ships (~60,505 biallelic SNPs, already a small curated
+  set -- no further bounding needed), from `canonical_1000g_chrY_source()`'s
+  already-approved, checksummed source. This release is genuinely
+  male-only (chromosome Y has no biological meaning for females): the
+  source VCF's sample list is a strict subset containing only males. The
+  83 selected female samples are added at derivation time as explicit,
+  correctly-missing genotype columns (`bcftools merge` with a header-only
+  placeholder VCF) at the same real sites -- not fabricated data, just an
+  honest representation of "no chromosome Y", exactly what a real chrY VCF
+  that included females would show. Gives the sex-check module a second,
+  much cleaner corroborating signal (Y-chromosome call rate) alongside
+  chromosome X heterozygosity.
+  **Two further real, load-bearing findings, both more severe than the
+  chromosome X ploidy issue above, found while adding this**: (1) sample-
+  level missingness QC (`harmonize_samples()`) computed missingness across
+  *all* SNPs including chromosome Y; since chromosome Y is ~100% "missing"
+  for one whole sex by biology, not by data-quality problem, this silently
+  dropped every sample of the unaffected sex out of the *entire pipeline*
+  before this was fixed. (2) Per-SNP missingness QC (`variant_qc()`)
+  likewise failed every chromosome Y SNP out of QC for the same reason,
+  leaving sex-check with zero chromosome Y markers. Both are now fixed:
+  sample-level QC restricts its missingness calculation to autosomal
+  markers by default, and variant-level QC exempts configured sex-limited
+  chromosomes (`analyses.sex_check_y_chromosome_names`) from the
+  missingness threshold specifically (MAF filtering is unaffected). See
+  `NEWS.md` for the full story and real before/after numbers.
 - Samples: 160 real individuals, 20 each from 8 populations spanning continental
   diversity -- GBR (British, EUR), YRI (Yoruba, AFR), LWK (Luhya, AFR), CHB (Han
   Chinese, EAS), ITU (Indian Telugu, SAS), STU (Sri Lankan Tamil, SAS), PUR (Puerto
@@ -41,9 +68,10 @@ scientific validation fixture -- for that, see `inst/extdata/validation/`.
   user-supplied VCF.
 - Real, verifiable relatedness signal: deliberately includes a known real
   duplicate/MZ-twin pair, `NA19331`/`NA19334` (same-population, LWK) -- kinship
-  ~0.446, confirmed consistent on chromosome X too (both genuinely male, real
-  hemizygous genotypes, not just a metadata label) -- so the bundled kinship
-  demo has real, interesting signal rather than an arbitrary sample selection.
+  ~0.446, confirmed consistent on both chromosome X (real hemizygous
+  genotypes) and chromosome Y (real, matching, high call rate) too, both
+  genuinely male -- so the bundled kinship demo has real, interesting signal
+  rather than an arbitrary sample selection.
   Also includes `HG03873`/`HG03998` (labelled as two *different* populations,
   ITU/STU), a real, high chr22-only kinship pair (~0.453, correctly classified
   `duplicate/MZ twin` by KING's threshold) that chromosome X data added later
@@ -92,9 +120,10 @@ scientific validation fixture -- for that, see `inst/extdata/validation/`.
 Rscript scripts/derive-quickstart-dataset.R <source-data-dir>
 ```
 
-`<source-data-dir>` must contain the canonical chr22 VCF/index/panel *and* the
+`<source-data-dir>` must contain the canonical chr22 VCF/index/panel, the
 chrX VCF/index (`ALL.chrX.phase3_shapeit2_mvncall_integrated_v1b.20130502.genotypes.vcf.gz`
-and its `.tbi`, both from the same Zenodo record) co-located together.
+and its `.tbi`), and the chrY VCF/index (`ALL.chrY.phase3_integrated_v2a.20130502.genotypes.vcf.gz`
+and its `.tbi`), all from the same Zenodo record, co-located together.
 Deterministic (`set.seed(42)`); re-running against the same sources reproduces
 this exact sample selection.
 
