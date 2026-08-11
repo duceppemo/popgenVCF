@@ -51,6 +51,7 @@ run_module_pca <- function(analysis, context) {
 default_analysis_registry <- function() {
   modules <- list(
     diversity_module_spec(),
+    bottleneck_module_spec(),
     pca_module_spec(),
     ibs_module_spec(),
     kinship_module_spec(),

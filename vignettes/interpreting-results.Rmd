@@ -150,6 +150,18 @@ knitr::include_graphics("figures/44_allelic_richness.png")
 
 The quickstart example's 8 populations are all exactly 20 samples, so richness is rarefied to 40 allele copies and unsurprisingly narrow (1.82 to 1.94 across populations) -- this metric earns its keep on real datasets with unbalanced population sizes, where it can diverge from raw heterozygosity in ways worth investigating.
 
+`effective_alleles` (Kimura and Crow 1964, Ae = 1 / (1 - unbiased expected heterozygosity)) complements allelic richness; `mean_effective_alleles` averages the per-locus values (not the same as computing Ae from the mean heterozygosity). Unlike rarefied allelic richness, Ae is not bounded above at 2 for biallelic markers -- it is a bias-corrected continuous estimator, and small samples can legitimately push it above 2 or to infinity (`Inf`, not a fabricated value, the same convention as Nm and Ne(LD)). On the quickstart example, `mean_effective_alleles` ranges from 1.44 to 1.51 across the 8 populations.
+
+## Site frequency spectrum and bottleneck screen
+
+`48_site_frequency_spectrum.tsv` bins each population's segregating loci by folded minor allele frequency. `49_bottleneck_mode_shift.tsv` applies the mode-shift test (Luikart and Cornuet 1998): under mutation-drift equilibrium the lowest frequency class should hold the most loci; a mode shifted to a higher class is a possible recent-bottleneck signature. This is a qualitative screen, not a p-value or a confirmed bottleneck, and (unlike the classic heterozygosity-excess test) makes no assumption about the locus mutation model.
+
+```{r bottleneck-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/48_site_frequency_spectrum.png")
+```
+
+Read this with the same caution as any MAF-filtered analysis: with the default `qc.maf = 0.05` filter, all 8 quickstart populations show `mode_shifted = TRUE`, but re-running with `qc.maf = 0` on the same data shows only 3 of 8 (ITU, STU, YRI) are genuinely mode-shifted -- the other 5 correctly show the expected unshifted, lowest-class mode once the filter is removed. The default MAF filter removes population-rare variants before this test runs, which alone can produce a spurious mode-shift signal (the same caveat already documented for Tajima's D). This is not evidence that all 8 populations experienced a recent bottleneck.
+
 ## FST
 
 FST summarizes relative allele-frequency differentiation under a specified estimator. It is not a direct measure of migration rate, divergence time, or reproductive isolation.

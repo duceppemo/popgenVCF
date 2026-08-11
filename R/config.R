@@ -18,7 +18,8 @@ default_config <- function() {
               ld_start_pos = "first",
               autosome_only = TRUE,
               non_autosomal_chromosome_names = c("X", "Y", "MT", "M", "chrX", "chrY", "chrM", "chrMT")),
-    analyses = list(diversity = TRUE, hwe_alpha = 0.05, pca = TRUE, n_pcs = 10L, pca_loading_top_n = 20L,
+    analyses = list(diversity = TRUE, hwe_alpha = 0.05, bottleneck = TRUE, bottleneck_n_bins = 10L,
+                    pca = TRUE, n_pcs = 10L, pca_loading_top_n = 20L,
                     pca_metadata_color = TRUE, pca_metadata_color_min_group = 3L,
                     pca_metadata_color_max_levels = 12L,
                     ibs = TRUE, kinship = TRUE, kinship_close_relative_threshold = 0.0442,
@@ -60,6 +61,7 @@ template_config <- function() {
   # the generated template. Existing partial configurations retain the historic
   # defaults supplied by default_config().
   cfg$analyses$diversity <- FALSE
+  cfg$analyses$bottleneck <- FALSE
   cfg$analyses$fst <- FALSE
   cfg$analyses$genome_scan <- FALSE
   cfg$analyses$ne_ld <- FALSE
@@ -129,6 +131,7 @@ validate_config <- function(cfg) {
   cfg$output$dpi <- as.integer(cfg$output$dpi)
   cfg$output$base_font_size <- as.numeric(cfg$output$base_font_size)
   cfg$analyses$hwe_alpha <- as.numeric(cfg$analyses$hwe_alpha)
+  cfg$analyses$bottleneck_n_bins <- as.integer(cfg$analyses$bottleneck_n_bins)
   cfg$analyses$n_pcs <- as.integer(cfg$analyses$n_pcs)
   cfg$analyses$pca_loading_top_n <- as.integer(cfg$analyses$pca_loading_top_n)
   cfg$analyses$pca_metadata_color_min_group <- as.integer(cfg$analyses$pca_metadata_color_min_group)
@@ -163,6 +166,7 @@ validate_config <- function(cfg) {
     stop("output.base_font_size must be >= 8", call. = FALSE)
   }
   if (!is.finite(cfg$analyses$hwe_alpha) || cfg$analyses$hwe_alpha <= 0 || cfg$analyses$hwe_alpha >= 1) stop("analyses.hwe_alpha must be between zero and one", call. = FALSE)
+  if (!is.finite(cfg$analyses$bottleneck_n_bins) || cfg$analyses$bottleneck_n_bins < 2L) stop("analyses.bottleneck_n_bins must be >= 2", call. = FALSE)
   if (!is.finite(cfg$analyses$n_pcs) || cfg$analyses$n_pcs < 2L) stop("analyses.n_pcs must be >= 2", call. = FALSE)
   if (!is.finite(cfg$analyses$pca_loading_top_n) || cfg$analyses$pca_loading_top_n < 1L) stop("analyses.pca_loading_top_n must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$pca_metadata_color_min_group) || cfg$analyses$pca_metadata_color_min_group < 1L) stop("analyses.pca_metadata_color_min_group must be >= 1", call. = FALSE)

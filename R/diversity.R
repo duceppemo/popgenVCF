@@ -31,6 +31,14 @@ compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha
     ho <- ifelse(n_called > 0, colSums(x == 1, na.rm = TRUE) / n_called, NA_real_)
     he <- 2 * p * (1 - p)
     he_unbiased <- ifelse(gene_copies > 1, he * gene_copies / (gene_copies - 1), NA_real_)
+    # Kimura and Crow's (1964) effective number of alleles, Ae = 1 / (1 - He),
+    # from the unbiased He estimate for consistency with the rest of this
+    # table. Bounded in [1, 2] for a biallelic locus at the true population
+    # allele frequency, but the small-sample bias correction on He_unbiased
+    # can push it to (or, for very small n, past) 1 -- reported as Inf, not a
+    # fabricated finite number, matching this codebase's Nm/Ne(LD) convention.
+    effective_alleles <- ifelse(is.na(he_unbiased), NA_real_,
+                                ifelse(he_unbiased < 1, 1 / (1 - he_unbiased), Inf))
     polymorphic <- is.finite(p) & p > 0 & p < 1
     # SNPRelate's exact HWE test (Wigginton et al. 2005) reports a trivial p = 1
     # for monomorphic input; report NA instead of p = 1 for loci monomorphic
@@ -46,6 +54,7 @@ compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha
       alternate_allele_frequency = p, maf = pmin(p, 1 - p),
       observed_heterozygosity = ho, expected_heterozygosity = he,
       unbiased_expected_heterozygosity = he_unbiased,
+      effective_alleles = effective_alleles,
       polymorphic = polymorphic, hwe_pvalue = hwe_pvalue
     )
   })
@@ -106,6 +115,7 @@ compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha
     tested <- is.finite(hwe_pvalue)
     fdr <- if (any(tested)) stats::p.adjust(hwe_pvalue[tested], method = "BH") else numeric()
     ar_finite <- allelic_richness[is.finite(allelic_richness)]
+    ae_finite <- effective_alleles[is.finite(effective_alleles)]
     .(n_samples = metadata[population == .BY$population, .N],
       n_loci = .N,
       polymorphic_loci = sum(polymorphic, na.rm = TRUE),
@@ -119,7 +129,8 @@ compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha
       hwe_significant_loci = sum(hwe_pvalue[tested] < hwe_alpha),
       hwe_significant_loci_fdr = sum(fdr < hwe_alpha),
       private_allele_loci = sum(private_allele != "none", na.rm = TRUE),
-      mean_allelic_richness = if (length(ar_finite)) mean(ar_finite) else NA_real_)
+      mean_allelic_richness = if (length(ar_finite)) mean(ar_finite) else NA_real_,
+      mean_effective_alleles = if (length(ae_finite)) mean(ae_finite) else NA_real_)
   }, by = population]
   list(genotype = geno, sample = sample, locus = locus, population = population,
        allelic_richness_available = allelic_richness_available,

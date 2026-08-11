@@ -49,6 +49,20 @@ validate_diversity_result <- function(result, analysis, context) {
         any(result$locus$allelic_richness > 2 + 1e-6, na.rm = TRUE)) {
       errors <- c(errors, "locus allelic_richness exceeds the biallelic maximum of 2")
     }
+    # Unlike allelic richness (a rarefied count with a hard combinatorial
+    # ceiling of 2 for biallelic data), Ae = 1/(1 - He_unbiased) is a
+    # bias-corrected continuous estimator and can legitimately exceed 2 for
+    # small per-population samples -- the same kind of expected sampling
+    # noise already accepted for W&C84 FST going slightly negative elsewhere
+    # in this codebase. The one universal bound that does always hold is
+    # Ae >= 1 (He_unbiased is never negative, so 1/(1 - He_unbiased) >= 1 or
+    # Inf).
+    if ("effective_alleles" %in% names(result$locus)) {
+      finite_ae <- result$locus$effective_alleles[is.finite(result$locus$effective_alleles)]
+      if (any(finite_ae < 1 - 1e-6)) {
+        errors <- c(errors, "locus effective_alleles is below the minimum of 1")
+      }
+    }
   }
   validation_result(!length(errors), errors, warnings,
                     list(samples = if (is.list(result) && !is.null(result$sample)) nrow(result$sample) else NA_integer_,
@@ -259,6 +273,34 @@ validate_population_assignment_result <- function(result, analysis, context) {
   }
   validation_result(!length(errors), errors, warnings,
                     metrics = list(samples = if (is.list(result)) nrow(result$assignment) else NA_integer_))
+}
+
+validate_bottleneck_result <- function(result, analysis, context) {
+  errors <- character(); warnings <- character()
+  if (!is.list(result) || !all(c("spectrum", "summary", "n_bins") %in% names(result))) {
+    errors <- c(errors, "bottleneck result requires spectrum, summary, and n_bins")
+  } else {
+    if (!all(c("population", "bin", "bin_lower", "bin_upper", "n_loci") %in% names(result$spectrum))) {
+      errors <- c(errors, "bottleneck spectrum table is missing required columns")
+    } else if (any(result$spectrum$n_loci < 0L)) {
+      errors <- c(errors, "bottleneck spectrum n_loci is negative")
+    } else if (any(result$spectrum$bin_lower >= result$spectrum$bin_upper)) {
+      errors <- c(errors, "bottleneck spectrum bin bounds are not increasing")
+    }
+    if (!all(c("population", "n_polymorphic_loci", "mode_bin", "mode_shifted") %in% names(result$summary))) {
+      errors <- c(errors, "bottleneck summary table is missing required columns")
+    } else {
+      n_shifted <- sum(result$summary$mode_shifted, na.rm = TRUE)
+      if (n_shifted > 0L) {
+        warnings <- c(warnings, sprintf(
+          "%d population(s) show a mode-shifted site frequency spectrum, a possible recent-bottleneck signature",
+          n_shifted
+        ))
+      }
+    }
+  }
+  validation_result(!length(errors), errors, warnings,
+                    metrics = list(populations = if (is.list(result)) nrow(result$summary) else NA_integer_))
 }
 
 validate_ne_ld_result <- function(result, analysis, context) {

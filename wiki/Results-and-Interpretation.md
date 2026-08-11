@@ -253,6 +253,47 @@ richness is rarefied to 40 allele copies and unsurprisingly narrow (1.82 to
 unbalanced population sizes, where it can diverge from raw heterozygosity in
 ways worth investigating.
 
+`effective_alleles` (Kimura and Crow 1964, Ae = 1 / (1 - unbiased expected
+heterozygosity)) is a per-locus, per-population summary complementing
+allelic richness; `mean_effective_alleles` is its population-level average
+(averaged per locus, not computed from the mean heterozygosity -- these are
+not the same value). Unlike rarefied allelic richness, Ae is not bounded
+above at 2 for biallelic markers: it is a bias-corrected continuous
+estimator, and small per-population samples can legitimately push a
+locus's Ae above 2 or, in the extreme, to infinity -- reported as `Inf`,
+not a fabricated finite number, the same convention used for Nm and
+Ne(LD). On the quickstart example, `mean_effective_alleles` ranges from
+1.44 to 1.51 across the 8 populations.
+
+## Site frequency spectrum and bottleneck screen
+
+`48_site_frequency_spectrum.tsv` bins each population's segregating loci
+by folded minor allele frequency (10 classes spanning 0-0.5 by default).
+`49_bottleneck_mode_shift.tsv` applies the mode-shift test (Luikart and
+Cornuet 1998): under mutation-drift equilibrium the lowest frequency class
+is expected to hold the most loci; a mode shifted to a higher class is a
+possible recent-bottleneck signature. This is the qualitative screening
+version of the test -- a signal worth investigating further, not a p-value
+or a confirmed bottleneck. Unlike the classic heterozygosity-excess
+bottleneck test, it makes no assumption about the locus mutation model, so
+it is a clean fit for biallelic SNP data.
+
+![Site frequency spectrum and mode-shift bottleneck screen from the quickstart example](figures/48_site_frequency_spectrum.png)
+
+**Read this result with the same caution as any MAF-filtered analysis.**
+With this package's default `qc.maf = 0.05` filter, all 8 quickstart
+populations show `mode_shifted = TRUE`. Before reporting this, it was
+checked against an unfiltered re-analysis (`qc.maf = 0` on the same data):
+only 3 of 8 populations (ITU, STU, YRI) are genuinely mode-shifted: the
+other 5 (CHB, GBR, LWK, PEL, PUR) correctly show the expected unshifted,
+lowest-class mode once the MAF filter is removed. The default filter
+systematically removes population-rare variants before this test ever
+sees the data, and that alone can produce a spurious mode-shift signal --
+the same general caveat already documented for Tajima's D's own
+MAF-filtering bias. This is not evidence that all 8 quickstart populations
+experienced a recent bottleneck; a real investigation would rerun with a
+low or zero `qc.maf`.
+
 ## FST
 
 State the estimator explicitly. Global and pairwise values depend on population

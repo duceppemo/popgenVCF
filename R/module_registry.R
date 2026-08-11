@@ -361,6 +361,26 @@ run_module_population_assignment <- function(analysis, context) {
   module_result(analysis, context)
 }
 
+run_module_bottleneck <- function(analysis, context) {
+  cfg <- context$cfg; dirs <- context$dirs
+  result <- run_bottleneck_analysis(context$diversity_full$locus, cfg$analyses$bottleneck_n_bins)
+  analysis <- set_analysis_result(analysis, "bottleneck", result)
+  write_tsv(result$spectrum, file.path(dirs$tables, "48_site_frequency_spectrum.tsv"))
+  write_tsv(result$summary, file.path(dirs$tables, "49_bottleneck_mode_shift.tsv"))
+  plot_bottleneck(result, cfg, dirs)
+  n_shifted <- sum(result$summary$mode_shifted, na.rm = TRUE)
+  if (n_shifted > 0L) {
+    analysis <- record_analysis_message(
+      analysis, "WARNING", "bottleneck",
+      sprintf(
+        "%d population(s) show a mode-shifted site frequency spectrum, a possible recent-bottleneck signature",
+        n_shifted
+      )
+    )
+  }
+  module_result(analysis, context)
+}
+
 run_module_chromosome <- function(analysis, context) {
   chromosome <- run_chromosome_analyses(
     context$gds, context$qc_snps, context$final_snps, context$ids,

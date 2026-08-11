@@ -101,3 +101,74 @@ test_that("run_module_diversity records a WARNING message when allelic richness 
       grepl("hierfstat", messages$message, fixed = TRUE)
   ))
 })
+
+test_that("compute_diversity computes Kimura and Crow's (1964) effective number of alleles", {
+  fx <- allelic_richness_fixture()
+  on.exit(SNPRelate::snpgdsClose(fx$gds), add = TRUE)
+  div <- popgenVCF:::compute_diversity(fx$gds, fx$sample_id, fx$ids$snp, fx$metadata, fx$ids)
+
+  by_locus <- function(pop, snp) div$locus[population == pop & snp_id == snp, effective_alleles]
+  # Hand-computed from the same genotypes allelic richness already pins:
+  # Ae = 1 / (1 - He_unbiased), He_unbiased = He * 2n / (2n - 1).
+  expect_equal(by_locus("PopA", 1L), 7 / 3) # p=0.5, n=4 -> He_unbiased=4/7
+  expect_equal(by_locus("PopB", 1L), 1) # monomorphic -> He=0
+  expect_equal(by_locus("PopA", 2L), 1) # monomorphic
+  expect_equal(by_locus("PopB", 2L), 1) # monomorphic
+  expect_equal(by_locus("PopA", 3L), 1.75) # p=0.25, n=4 -> He_unbiased=3/7
+  expect_true(is.na(by_locus("PopB", 3L))) # fully missing
+  expect_equal(by_locus("PopA", 4L), 7 / 3)
+  expect_equal(by_locus("PopB", 4L), 1 / (1 - 3.75 / 7)) # p=0.375, n=4
+  expect_equal(by_locus("PopA", 5L), 1) # monomorphic everywhere
+  expect_equal(by_locus("PopB", 5L), 1)
+
+  # Ae is a bias-corrected continuous estimator, not a rarefied count, so
+  # unlike allelic richness it is not bounded above by 2 for small samples
+  # (PopB/L4 above is a real example, ~2.15) -- only >= 1 always holds.
+  expect_true(all(div$locus$effective_alleles[is.finite(div$locus$effective_alleles)] >= 1 - 1e-8))
+  expect_equal(div$population[population == "PopA", mean_effective_alleles], mean(c(7 / 3, 1, 1.75, 7 / 3, 1)))
+})
+
+test_that("effective_alleles reports Inf, not a fabricated finite value, when the unbiased He correction reaches or exceeds one", {
+  # A single called, heterozygous individual: n=1 -> He_unbiased = 0.5 * 2/1 = 1
+  # exactly -> Ae = 1/(1-1) is a genuine division by zero, reported as Inf.
+  sample_id <- c("A1", "A2")
+  gds_path <- tempfile(fileext = ".gds")
+  SNPRelate::snpgdsCreateGeno(
+    gds_path, genmat = matrix(c(1L, NA_integer_), nrow = 2L, ncol = 1L),
+    sample.id = sample_id, snp.id = 1L, snp.chromosome = 1L, snp.position = 100L,
+    snp.allele = "A/G", snpfirstdim = FALSE
+  )
+  gds <- SNPRelate::snpgdsOpen(gds_path)
+  on.exit(SNPRelate::snpgdsClose(gds), add = TRUE)
+  ids <- popgenVCF:::get_gds_ids(gds)
+  metadata <- popgenVCF:::normalize_sample_aliases(data.table::data.table(
+    sample = sample_id, population = c("PopA", "PopB")
+  ))
+  div <- popgenVCF:::compute_diversity(gds, sample_id, ids$snp, metadata, ids)
+  expect_identical(div$locus[population == "PopA", effective_alleles], Inf)
+  expect_true(is.na(div$locus[population == "PopB", effective_alleles]))
+})
+
+test_that("validate_diversity_result tolerates Inf and above-2 effective_alleles, but flags a value below 1", {
+  fx <- allelic_richness_fixture()
+  on.exit(SNPRelate::snpgdsClose(fx$gds), add = TRUE)
+  div <- popgenVCF:::compute_diversity(fx$gds, fx$sample_id, fx$ids$snp, fx$metadata, fx$ids)
+  expect_true(popgenVCF:::validate_diversity_result(div, NULL, NULL)$valid)
+
+  inf_ok <- data.table::copy(div)
+  inf_ok$locus <- data.table::copy(div$locus)
+  inf_ok$locus[1L, effective_alleles := Inf]
+  expect_true(popgenVCF:::validate_diversity_result(inf_ok, NULL, NULL)$valid)
+
+  above_two_ok <- data.table::copy(div)
+  above_two_ok$locus <- data.table::copy(div$locus)
+  above_two_ok$locus[1L, effective_alleles := 2.5]
+  expect_true(popgenVCF:::validate_diversity_result(above_two_ok, NULL, NULL)$valid)
+
+  bad <- data.table::copy(div)
+  bad$locus <- data.table::copy(div$locus)
+  bad$locus[1L, effective_alleles := 0.5]
+  broken <- popgenVCF:::validate_diversity_result(bad, NULL, NULL)
+  expect_false(broken$valid)
+  expect_true(any(grepl("effective_alleles", broken$errors)))
+})

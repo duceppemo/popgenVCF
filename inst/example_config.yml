@@ -36,6 +36,12 @@ qc:
 analyses:
   diversity: false
   hwe_alpha: 0.05
+  bottleneck: false
+  # Folded site frequency spectrum and the mode-shift bottleneck screen
+  # (Luikart and Cornuet 1998): a mode away from the lowest allele-frequency
+  # class is a possible recent-bottleneck signature. Bin count for the
+  # frequency classes spanning 0 to 0.5.
+  bottleneck_n_bins: 10
   pca: true
   n_pcs: 10
   pca_loading_top_n: 20
