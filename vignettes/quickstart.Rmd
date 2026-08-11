@@ -53,7 +53,7 @@ On a modern multi-core machine this takes a few minutes -- most of the time
 is DAPC's cross-validation across the default `K = 2:10` range, run in full
 because it is exactly what a real analysis does. Every module runs with its
 documented defaults: QC and LD pruning, PCA, IBS, kinship, sex check, runs
-of homozygosity, FST (and its Nm gene-flow estimate), genome scans, linkage
+of homozygosity, FST (with its Nm gene-flow estimate and Jost's D), genome scans, linkage
 disequilibrium decay, LD-based effective population size, population
 genetic distance and tree, a population assignment test, diversity
 (including allelic richness and effective number of alleles), a site

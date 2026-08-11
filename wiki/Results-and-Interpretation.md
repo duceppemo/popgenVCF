@@ -316,6 +316,20 @@ minimum (ITU-STU, FST = 0.0052) gives Nm = 48.3 and the pairwise maximum
 (PEL-YRI, FST = 0.180) gives Nm = 1.14 -- consistent with FST = 0 giving
 infinite (unrestricted) gene flow and FST = 1 giving zero gene flow.
 
+The same tables also carry Jost's (2008) D (`global_jost_d`, `jost_d` on
+`18_pairwise_FST.tsv`, and a `19b_pairwise_jost_d_matrix.tsv`) -- a
+different differentiation measure, not a transform of FST. FST's
+denominator is bounded by within-population heterozygosity, so a highly
+polymorphic marker set can never show a high FST even under strong true
+differentiation; Jost's D was designed specifically to avoid that
+constraint. On the quickstart example, global Jost's D = 0.0387 versus
+global FST = 0.0915 -- Jost's D being numerically smaller than FST here is
+expected, not a discrepancy. Pairwise D correlates strongly with pairwise
+FST (r = 0.998) but is not a strict re-ranking of it: FST's closest pair is
+ITU-STU with LWK-YRI a close second, while Jost's D reverses that order --
+both pairs are near-ties on both measures, illustrating that the two
+statistics agree overall without being interchangeable in fine detail.
+
 ## Population genetic distance and tree
 
 `46_population_genetic_distance.tsv` is Nei's (1972) standard genetic

@@ -112,15 +112,24 @@ run_module_tree <- function(analysis, context) {
 run_module_fst <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
   fst <- run_fst(context$gds, context$qc_snps, context$metadata)
+  jost <- compute_jost_d(context$diversity_full$locus)
+  fst$global_jost_d <- jost$global
+  fst$jost_d_matrix <- jost$matrix
+  fst$long[, `:=`(jost_d = NA_real_, jost_d_n_snps = NA_integer_)]
+  if (nrow(jost$long)) {
+    fst$long[jost$long, `:=`(jost_d = i.jost_d, jost_d_n_snps = i.jost_d_n_snps),
+             on = c("population_1", "population_2")]
+  }
   fst_ci <- if (isTRUE(cfg$analyses$bootstrap$enabled)) {
     bootstrap_fst(context$gds, context$qc_snps, context$ids, context$metadata,
                   cfg$analyses$bootstrap$replicates, cfg$compute$seed)
   } else data.table::data.table()
   analysis <- set_analysis_result(analysis, "fst", fst)
   analysis <- set_analysis_result(analysis, "fst_ci", fst_ci)
-  write_tsv(data.table::data.table(global_fst = fst$global, global_nm = fst$global_nm), file.path(dirs$tables, "17_global_FST.tsv"))
+  write_tsv(data.table::data.table(global_fst = fst$global, global_nm = fst$global_nm, global_jost_d = fst$global_jost_d), file.path(dirs$tables, "17_global_FST.tsv"))
   write_tsv(fst$long, file.path(dirs$tables, "18_pairwise_FST.tsv"))
   write_matrix_tsv(fst$matrix, file.path(dirs$tables, "19_pairwise_FST_matrix.tsv"), "population")
+  if (nrow(jost$matrix)) write_matrix_tsv(jost$matrix, file.path(dirs$tables, "19b_pairwise_jost_d_matrix.tsv"), "population")
   if (nrow(fst_ci)) write_tsv(fst_ci, file.path(dirs$tables, "20_pairwise_FST_bootstrap_CI.tsv"))
   plot_fst(fst, cfg, dirs)
   module_result(analysis, context)
