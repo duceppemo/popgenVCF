@@ -233,6 +233,34 @@ validate_population_tree_result <- function(result, analysis, context) {
                     metrics = list(populations = if (is.list(result)) length(result$populations) else NA_integer_))
 }
 
+validate_population_assignment_result <- function(result, analysis, context) {
+  errors <- character(); warnings <- character()
+  if (!is.list(result) || !all(c("assignment", "populations") %in% names(result))) {
+    errors <- c(errors, "population assignment result requires assignment and populations")
+  } else if (nrow(result$assignment)) {
+    a <- result$assignment
+    required <- c("sample", "recorded_population", "assigned_population", "mismatch",
+                  "log_likelihood", "likelihood_ratio", "posterior_probability", "n_loci_used")
+    if (!all(required %in% names(a))) {
+      errors <- c(errors, "population assignment table is missing required columns")
+    } else {
+      finite_posterior <- a$posterior_probability[is.finite(a$posterior_probability)]
+      if (any(finite_posterior < -1e-8 | finite_posterior > 1 + 1e-8)) {
+        errors <- c(errors, "assignment posterior probability outside [0, 1]")
+      }
+      if (any(a$n_loci_used < 0L, na.rm = TRUE)) errors <- c(errors, "assignment n_loci_used is negative")
+      n_mismatch <- sum(a$mismatch, na.rm = TRUE)
+      if (n_mismatch > 0L) {
+        warnings <- c(warnings, sprintf(
+          "%d sample(s) assign to a population other than their recorded label", n_mismatch
+        ))
+      }
+    }
+  }
+  validation_result(!length(errors), errors, warnings,
+                    metrics = list(samples = if (is.list(result)) nrow(result$assignment) else NA_integer_))
+}
+
 validate_ne_ld_result <- function(result, analysis, context) {
   errors <- character(); warnings <- character()
   if (!is.data.frame(result) || !all(c("population", "ne", "ne_status") %in% names(result))) {

@@ -71,6 +71,11 @@ analyses:
   # tree from it -- distinct from "tree" above, which is an individual-level
   # tree from IBS distance, not population allele frequencies.
   population_tree: false
+  # Frequency-based self-assignment test (Paetkau et al. 1995, 2004): does
+  # each sample's genotype fit its own recorded population's allele
+  # frequencies best, or a different one (a candidate migrant or metadata
+  # error)? Leave-one-out corrected (Rannala and Mountain 1997).
+  population_assignment: false
   fst: false
   genome_scan: false
   # Non-overlapping by default (step = window); set step below window for a

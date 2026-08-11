@@ -162,11 +162,23 @@ knitr::include_graphics("figures/10_pairwise_FST.png")
 
 The global FST estimate for the quickstart example is 0.0915, consistent with real, moderate differentiation across 8 geographically diverse populations at this marker density.
 
+Every FST estimate is accompanied by Wright's (1931) island-model gene-flow estimate, Nm = (1 - FST) / (4 * FST), on `17_global_FST.tsv` (`global_nm`) and `18_pairwise_FST.tsv` (`nm`) -- a direct, monotonic transform of the same FST value, not shown as a separate figure. On the quickstart example, global Nm = 2.48; the pairwise minimum (ITU-STU, FST = 0.0052) gives Nm = 48.3 and the pairwise maximum (PEL-YRI, FST = 0.180) gives Nm = 1.14.
+
 ## Population genetic distance and tree
 
 `46_population_genetic_distance.tsv` is Nei's (1972) standard genetic distance between populations, computed from allele frequencies -- a different deliverable from kinship/the individual tree above: those describe relationships among **samples**, this describes relationships among **populations**. A neighbour-joining tree built from this distance matrix is written to `trees/population_Nei_neighbor_joining.nwk` (Newick format, no bundled figure) whenever at least three populations are present.
 
 On the quickstart example, LWK-YRI (Luhya, Kenya and Yoruba, Nigeria, both African) is the single closest pair (D=0.0112), while the largest distances are all African-vs-non-African population pairs (up to D=0.091) -- the expected continental-population-structure pattern, a real result from real chr22 data.
+
+## Population assignment test
+
+`47_population_assignment.tsv` is a frequency-based self-assignment test (Paetkau et al. 1995, 2004): for each sample, the leave-one-out likelihood (Rannala and Mountain 1997) of its genotype is computed under every population's allele frequencies, and the sample is assigned to whichever population maximizes that likelihood. A sample whose assigned population differs from its recorded metadata label (`mismatch = TRUE`) is a candidate migrant or a metadata error. Uses the same LD-pruned marker set as kinship/PCA/IBS, since the per-locus likelihoods are multiplied together assuming independence across loci.
+
+```{r assignment-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/47_population_assignment.png")
+```
+
+On the quickstart example, 106 of 160 samples (66%) correctly self-assign. The 54 mismatches are heavily concentrated in the two most genetically similar population pairs already identified above by FST/Nm: 31 of 54 (57%) are ITU/STU or LWK/YRI cross-assignments -- an independent cross-validation of the FST/Nm and Nei's-distance results, using a per-sample genotype-likelihood approach rather than aggregate allele-frequency distance, not a defect in the method.
 
 ## Genome scans
 

@@ -53,10 +53,11 @@ On a modern multi-core machine this takes a few minutes -- most of the time
 is DAPC's cross-validation across the default `K = 2:10` range, run in full
 because it is exactly what a real analysis does. Every module runs with its
 documented defaults: QC and LD pruning, PCA, IBS, kinship, sex check, runs
-of homozygosity, FST, genome scans, linkage disequilibrium decay,
-LD-based effective population size, population genetic distance and tree,
-diversity (including allelic richness), DAPC, AMOVA, and a
-neighbour-joining tree of individuals.
+of homozygosity, FST (and its Nm gene-flow estimate), genome scans, linkage
+disequilibrium decay, LD-based effective population size, population
+genetic distance and tree, a population assignment test, diversity
+(including allelic richness), DAPC, AMOVA, and a neighbour-joining tree of
+individuals.
 Mantel/isolation-by-distance runs too: the bundled metadata includes real,
 documented population-level collection-site coordinates (see the dataset's
 `README.md` for the exact source and caveats), so the analysis has real
@@ -125,6 +126,13 @@ R (`get_analysis_result(analysis, "kinship")`, and so on).
   results above. `LWK`/`YRI` (both African) are the closest pair; the
   largest distances are all African-vs-non-African pairs -- real
   continental population structure.
+- **Population assignment test** (`tables/47_population_assignment.tsv`,
+  `figures/47_population_assignment`): 66% of samples correctly self-assign
+  to their recorded population from genotype alone; most of the rest are
+  `ITU`/`STU` or `LWK`/`YRI` cross-assignments -- exactly the same two
+  closely related population pairs the FST/Nm and Nei's-distance results
+  above already flagged, a real cross-method confirmation rather than a
+  method weakness.
 
 ## 5. Next steps
 

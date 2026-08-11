@@ -1,3 +1,12 @@
+# Wright's (1931) island-model estimate of gene flow, Nm = (1 - FST) / (4 * FST).
+# FST <= 0 (no detectable differentiation, including small-sample negative
+# W&C84 noise) reports Nm = Inf -- no evidence of restricted gene flow, not a
+# fabricated finite number -- matching this codebase's existing convention
+# for ne_ld()'s undetectable-drift-signal case.
+fst_to_nm <- function(fst) {
+  ifelse(is.na(fst), NA_real_, ifelse(fst <= 0, Inf, (1 - fst) / (4 * fst)))
+}
+
 fst_pair <- function(gds, snp_ids, metadata, p1, p2) {
   s1 <- metadata[population == p1, sample]; s2 <- metadata[population == p2, sample]
   if (length(s1) < 2L || length(s2) < 2L) return(NA_real_)
@@ -34,13 +43,16 @@ run_fst <- function(gds, snp_ids, metadata) {
     )$Fst)
   } else NA_real_
   pops <- sort(unique(metadata$population)); pairs <- if (length(pops) >= 2L) utils::combn(pops, 2, simplify = FALSE) else list()
-  long <- data.table::rbindlist(lapply(pairs, function(pp) data.table::data.table(
-    population_1 = pp[1], population_2 = pp[2],
-    n_1 = metadata[population == pp[1], .N], n_2 = metadata[population == pp[2], .N],
-    fst = fst_pair(gds, snp_ids, metadata, pp[1], pp[2]))), fill = TRUE)
+  long <- data.table::rbindlist(lapply(pairs, function(pp) {
+    fst_value <- fst_pair(gds, snp_ids, metadata, pp[1], pp[2])
+    data.table::data.table(
+      population_1 = pp[1], population_2 = pp[2],
+      n_1 = metadata[population == pp[1], .N], n_2 = metadata[population == pp[2], .N],
+      fst = fst_value, nm = fst_to_nm(fst_value))
+  }), fill = TRUE)
   mat <- matrix(0, length(pops), length(pops), dimnames = list(pops, pops))
   if (nrow(long)) for (i in seq_len(nrow(long))) mat[long$population_1[i], long$population_2[i]] <- mat[long$population_2[i], long$population_1[i]] <- long$fst[i]
-  list(global = global, long = long, matrix = mat)
+  list(global = global, global_nm = fst_to_nm(global), long = long, matrix = mat)
 }
 
 bootstrap_fst <- function(gds, snp_ids, ids, metadata, replicates, seed) {

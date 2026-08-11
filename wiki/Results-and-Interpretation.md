@@ -266,6 +266,15 @@ The global FST estimate for the quickstart example is 0.0915, consistent
 with real, moderate differentiation across 8 geographically diverse
 populations at this marker density.
 
+Every FST estimate is accompanied by Wright's (1931) island-model gene-flow
+estimate, Nm = (1 - FST) / (4 * FST), on `17_global_FST.tsv` (`global_nm`)
+and `18_pairwise_FST.tsv` (`nm`) -- a direct, monotonic transform of the
+same FST value, not a new independent measurement, so it is not shown as a
+separate figure. On the quickstart example, global Nm = 2.48; the pairwise
+minimum (ITU-STU, FST = 0.0052) gives Nm = 48.3 and the pairwise maximum
+(PEL-YRI, FST = 0.180) gives Nm = 1.14 -- consistent with FST = 0 giving
+infinite (unrestricted) gene flow and FST = 1 giving zero gene flow.
+
 ## Population genetic distance and tree
 
 `46_population_genetic_distance.tsv` is Nei's (1972) standard genetic
@@ -284,6 +293,34 @@ African) is the single closest pair (D=0.0112), while the largest
 distances are all African-vs-non-African population pairs (up to
 D=0.091) -- the expected continental-population-structure pattern, a real
 result from real chr22 data, not a fabricated demonstration.
+
+## Population assignment test
+
+`47_population_assignment.tsv` is a frequency-based self-assignment test
+(Paetkau et al. 1995, 2004): for each sample, the leave-one-out likelihood
+(Rannala and Mountain 1997 -- a sample's own genotype is excluded from its
+own recorded population's allele frequencies before scoring against it) of
+its genotype is computed under every population's allele frequencies, and
+the sample is assigned to whichever population maximizes that likelihood.
+A sample whose assigned population differs from its recorded metadata
+label (`mismatch = TRUE`) is a candidate migrant or a metadata error, the
+same kind of "does the data match the metadata" question kinship and sex
+check already ask, applied here to population identity. Uses the same
+LD-pruned marker set as kinship/PCA/IBS, not the full QC-passing set: the
+per-locus likelihoods are multiplied together assuming independence, which
+linked markers would violate.
+
+![Population assignment test: recorded population (rows) against assigned population (columns), from the quickstart example](figures/47_population_assignment.png)
+
+On the quickstart example, 106 of 160 samples (66%) correctly self-assign.
+The 54 mismatches are heavily concentrated in exactly the two most
+genetically similar population pairs already identified above by FST/Nm:
+31 of 54 (57%) are ITU/STU or LWK/YRI cross-assignments. This is not a
+defect in the method -- a 357-SNP marker panel genuinely cannot cleanly
+separate population pairs this closely related -- and it is a real,
+independent cross-validation of the FST/Nm and Nei's-distance results
+above, using a completely different statistical approach (per-sample
+genotype likelihood rather than aggregate allele-frequency distance).
 
 ## Genome scans
 

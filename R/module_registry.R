@@ -118,7 +118,7 @@ run_module_fst <- function(analysis, context) {
   } else data.table::data.table()
   analysis <- set_analysis_result(analysis, "fst", fst)
   analysis <- set_analysis_result(analysis, "fst_ci", fst_ci)
-  write_tsv(data.table::data.table(global_fst = fst$global), file.path(dirs$tables, "17_global_FST.tsv"))
+  write_tsv(data.table::data.table(global_fst = fst$global, global_nm = fst$global_nm), file.path(dirs$tables, "17_global_FST.tsv"))
   write_tsv(fst$long, file.path(dirs$tables, "18_pairwise_FST.tsv"))
   write_matrix_tsv(fst$matrix, file.path(dirs$tables, "19_pairwise_FST_matrix.tsv"), "population")
   if (nrow(fst_ci)) write_tsv(fst_ci, file.path(dirs$tables, "20_pairwise_FST_bootstrap_CI.tsv"))
@@ -338,6 +338,26 @@ run_module_population_tree <- function(analysis, context) {
     result$tree <- build_population_tree(result$distance, dirs)
   }
   analysis <- set_analysis_result(analysis, "population_tree", result)
+  module_result(analysis, context)
+}
+
+run_module_population_assignment <- function(analysis, context) {
+  cfg <- context$cfg; dirs <- context$dirs
+  div <- compute_diversity(
+    context$gds, context$sample_ids, context$final_snps, context$metadata,
+    context$ids, cfg$analyses$hwe_alpha
+  )
+  result <- run_population_assignment(div$genotype, div$sample, div$locus, context$final_snps)
+  analysis <- set_analysis_result(analysis, "population_assignment", result)
+  write_tsv(result$assignment, file.path(dirs$tables, "47_population_assignment.tsv"))
+  plot_population_assignment(result, cfg, dirs)
+  n_mismatch <- sum(result$assignment$mismatch, na.rm = TRUE)
+  if (n_mismatch > 0L) {
+    analysis <- record_analysis_message(
+      analysis, "WARNING", "population_assignment",
+      sprintf("%d sample(s) assign to a population other than their recorded label", n_mismatch)
+    )
+  }
   module_result(analysis, context)
 }
 
