@@ -63,11 +63,8 @@ plot_bottleneck <- function(result, cfg, dirs) {
     ggplot2::facet_wrap(~population, scales = "free_y") +
     ggplot2::labs(
       title = "Site frequency spectrum (folded) and mode-shift bottleneck screen",
-      subtitle = paste(
-        "Highlighted bar is each population's modal minor-allele-frequency class;",
-        "a mode away from the lowest class is a possible recent-bottleneck signature",
-        "(Luikart and Cornuet 1998)"
-      ),
+      subtitle = "Highlighted bar: each population's modal minor-allele-frequency class",
+      caption = "A mode away from the lowest class is a possible recent-bottleneck signature (Luikart and Cornuet 1998)",
       x = "Minor allele frequency class", y = "Segregating loci"
     ) +
     theme_publication(figure_base_size(cfg)) +
