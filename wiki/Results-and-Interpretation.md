@@ -522,6 +522,12 @@ consensus K values below (7, 3, 6) are a real, expected illustration of why
 this section says to distinguish computational agreement from biological
 truth rather than average or otherwise reconcile them by default.
 
+In every population-organized membership figure below, populations are
+ordered by similarity of their mean ancestry composition (average-linkage
+clustering on each population's per-cluster mean proportions), not
+alphabetically -- so populations with a similar ancestry profile sit next
+to each other in the panel instead of being scattered apart by their name.
+
 ### ADMIXTURE
 
 ![ADMIXTURE cluster-number selection from the quickstart example](figures/13b_ADMIXTURE_cluster_number_selection.png)
@@ -610,6 +616,30 @@ signal weakens considerably but remains real and statistically significant
 once population identity is controlled for, indicating that geographic
 distance carries genuine explanatory power beyond simple population
 clustering. Both results are shown together in the figure's subtitle above.
+
+## Spatial autocorrelation
+
+`50_spatial_autocorrelation.tsv` bins sample pairs into geographic-distance
+classes and reports a spatial-autocorrelation coefficient r per class
+(Smouse and Peakall 1999), with a permutation-based 95% null envelope and
+p-value -- a distance-resolved complement to the single overall Mantel r
+above, showing whether the isolation-by-distance signal is concentrated at
+particular spatial scales rather than smooth across the whole range.
+
+![Spatial autocorrelation correlogram from the quickstart example](figures/50_spatial_autocorrelation.png)
+
+**Read this one with real caution.** The quickstart metadata uses real,
+documented *population-level* representative coordinates (individual
+sample locations are never published for de-identified 1000 Genomes data),
+so 21% of sample pairs (same population, or populations sharing one
+representative point) sit at exactly zero geographic distance, and the
+smallest *nonzero* distance jumps straight to 3,503 km -- leaving the two
+shortest distance classes completely empty. The correlogram therefore
+mostly resolves differences between population collection sites, not the
+fine-grained, continuous within-population spatial structure this method
+was designed to detect. Treat the quickstart values as a demonstration of
+the analysis running correctly, not as a finding about within-population
+spatial genetic structure.
 
 ## Figures and reports
 

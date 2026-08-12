@@ -109,6 +109,13 @@ analyses:
   amova: false
   mantel: false
   isolation_by_distance: false
+  spatial_autocorrelation: false
+  # Distance-class correlogram (Smouse and Peakall 1999): a genetic
+  # autocorrelation coefficient r per geographic-distance class, with a
+  # permutation-based null envelope and p-value -- a distance-resolved
+  # complement to the single overall Mantel r above.
+  spatial_autocorrelation_bins: 10
+  spatial_autocorrelation_permutations: 999
   chromosome_specific: false
   chromosome_min_snps: 100
   bootstrap:

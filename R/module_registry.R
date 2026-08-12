@@ -233,6 +233,28 @@ run_module_ibd <- function(analysis, context) {
   module_result(analysis, context)
 }
 
+run_module_spatial_autocorrelation <- function(analysis, context) {
+  cfg <- context$cfg; dirs <- context$dirs
+  geno <- SNPRelate::snpgdsGetGeno(
+    context$gds, sample.id = context$sample_ids, snp.id = context$final_snps,
+    snpfirstdim = FALSE, verbose = FALSE
+  )
+  rownames(geno) <- context$sample_ids
+  result <- run_spatial_autocorrelation(
+    geno, context$sample_ids, context$metadata, cfg$input$geographic_columns,
+    cfg$analyses$spatial_autocorrelation_bins,
+    cfg$analyses$spatial_autocorrelation_permutations, cfg$compute$seed
+  )
+  analysis <- set_analysis_result(analysis, "spatial_autocorrelation", result)
+  if (!is.null(result)) {
+    write_tsv(result, file.path(dirs$tables, "50_spatial_autocorrelation.tsv"))
+    plot_spatial_autocorrelation(result, cfg, dirs)
+  } else {
+    log_msg("Skipping spatial autocorrelation because valid latitude/longitude columns were unavailable", level = "WARNING")
+  }
+  module_result(analysis, context)
+}
+
 run_module_snmf <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs; sc <- cfg$analyses$snmf
   snmf_input <- prepare_snmf_input(

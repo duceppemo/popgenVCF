@@ -67,6 +67,7 @@ default_analysis_registry <- function() {
     dapc_module_spec(),
     amova_module_spec(),
     ibd_module_spec(),
+    spatial_autocorrelation_module_spec(),
     admixture_module_spec(),
     faststructure_module_spec(),
     snmf_module_spec(),

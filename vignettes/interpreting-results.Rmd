@@ -294,6 +294,8 @@ Interpret replicate alignment, convergence, fit metrics, cross-validation or ent
 
 The figures below are from real ADMIXTURE, fastStructure, and sNMF runs against the quickstart example (K=2..9 each, ADMIXTURE with 5-fold cross-validation and sNMF with 5 repetitions per K) -- deliberately enabled just for this documentation, not part of the bundled dataset's default analysis. All three are run independently here, not cross-validated against each other (a separate, heavier release-gate evidence process); their three different consensus K values below (7, 3, 6) are a real, expected illustration of why this section says to distinguish computational agreement from biological truth rather than average or otherwise reconcile them by default.
 
+In every population-organized membership figure below, populations are ordered by similarity of their mean ancestry composition (average-linkage clustering on each population's per-cluster mean proportions), not alphabetically, so similar populations sit next to each other rather than being scattered apart by name.
+
 ### ADMIXTURE
 
 ```{r admixture-k-selection-figure, echo=FALSE, out.width="90%"}
@@ -376,6 +378,16 @@ plain Mantel r, but still real and statistically significant, indicating
 geographic distance carries genuine explanatory power beyond simple
 population clustering. Both results are reported together in the figure's
 subtitle above.
+
+## Spatial autocorrelation
+
+`50_spatial_autocorrelation.tsv` bins sample pairs into geographic-distance classes and reports a spatial-autocorrelation coefficient r per class (Smouse and Peakall 1999), with a permutation-based 95% null envelope and p-value -- a distance-resolved complement to the single overall Mantel r above.
+
+```{r spatial-autocorrelation-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/50_spatial_autocorrelation.png")
+```
+
+Read this one with real caution: the quickstart metadata uses population-level representative coordinates, not per-individual GPS, so 21% of sample pairs sit at exactly zero geographic distance and the smallest nonzero distance jumps to 3,503 km, leaving the shortest distance classes empty. The correlogram mostly resolves population-site-to-site differences here, not fine-grained within-population spatial structure -- treat the quickstart values as a demonstration that the analysis runs correctly, not as a spatial-structure finding.
 
 ## Integrating analyses
 

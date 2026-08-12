@@ -59,6 +59,25 @@ plot_admixture_cv <- function(cv, cfg, dirs) {
   save_plot(p, "13_ADMIXTURE_CV", dirs, cfg$output$figure_formats, 7, 5, cfg$output$dpi)
 }
 
+# Orders populations by similarity of their mean per-cluster ancestry
+# proportions (average-linkage hierarchical clustering on Euclidean distance
+# between population-mean Q-matrix rows, the same linkage convention already
+# used for the kinship dendrogram elsewhere in this package), so that
+# populations with similar ancestry composition end up adjacent in the
+# population-organized membership plots -- alphabetical order otherwise
+# places genetically similar populations arbitrarily far apart. Falls back
+# to alphabetical order with fewer than two populations (nothing to cluster).
+population_ancestry_similarity_order <- function(x, clusters) {
+  pop_means <- x[, lapply(.SD, mean), by = population, .SDcols = clusters]
+  data.table::setorder(pop_means, population)
+  populations <- pop_means$population
+  if (length(populations) < 2L) return(populations)
+  mat <- as.matrix(pop_means[, ..clusters])
+  rownames(mat) <- populations
+  hc <- stats::hclust(stats::dist(mat), method = "average")
+  hc$labels[hc$order]
+}
+
 plot_q_matrix <- function(q, k, cfg, dirs, prefix = "ADMIXTURE_Q",
                           title = NULL, subtitle = NULL,
                           subtitle_is_warning = FALSE, sample_labels = NULL,
@@ -81,6 +100,8 @@ plot_q_matrix <- function(q, k, cfg, dirs, prefix = "ADMIXTURE_Q",
     if (!"population" %in% names(x)) {
       stop("Population-organized membership plots require a population column", call. = FALSE)
     }
+    population_levels <- population_ancestry_similarity_order(x, clusters)
+    x[, population := factor(population, levels = population_levels)]
     data.table::setorderv(
       x, c("population", "dominant", clusters, "sample_label"),
       c(1, 1, rep(-1, length(clusters)), 1)

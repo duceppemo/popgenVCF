@@ -35,7 +35,7 @@ analysis_capability_table <- function(registry, capabilities) {
     capabilities$population_levels %||%
       if (isTRUE(capabilities$population)) 1L else 0L
   )
-  coordinate_modules <- intersect(modules, c("mantel", "isolation_by_distance", "ibd", "spatial_pca", "spca", "maps"))
+  coordinate_modules <- intersect(modules, c("mantel", "isolation_by_distance", "ibd", "spatial_autocorrelation", "spatial_pca", "spca", "maps"))
   sample_modules <- intersect(modules, c(
     "pca", "ibs", "mds", "nj", "neighbor_joining", "neighbour_joining",
     "admixture", "faststructure", "snmf"

@@ -59,10 +59,11 @@ genetic distance and tree, a population assignment test, diversity
 (including allelic richness and effective number of alleles), a site
 frequency spectrum with a mode-shift bottleneck screen, DAPC, AMOVA, and a
 neighbour-joining tree of individuals.
-Mantel/isolation-by-distance runs too: the bundled metadata includes real,
-documented population-level collection-site coordinates (see the dataset's
-`README.md` for the exact source and caveats), so the analysis has real
-geographic distances to work with rather than being skipped.
+Mantel/isolation-by-distance and the spatial autocorrelation correlogram
+run too: the bundled metadata includes real, documented population-level
+collection-site coordinates (see the dataset's `README.md` for the exact
+source and caveats), so both analyses have real geographic distances to
+work with rather than being skipped.
 
 ## 3. Look at the output
 
@@ -115,6 +116,12 @@ R (`get_analysis_result(analysis, "kinship")`, and so on).
   p = 0.001) shows the signal weakens but survives once population
   membership is accounted for -- see the
   [interpretation guide](interpreting-results.html) for what this means.
+- **Spatial autocorrelation** (`tables/50_spatial_autocorrelation.tsv`,
+  `figures/50_spatial_autocorrelation`): a distance-class correlogram
+  complementing the Mantel test above. Read with real caution here: the
+  bundled coordinates are population-level representative points, not
+  per-individual GPS, so the shortest distance classes are empty -- see the
+  [interpretation guide](interpreting-results.html) for why.
 - **LD-based effective population size** (`tables/45_Ne_LD.tsv`): needs
   markers on at least two chromosomes to work at all, and this dataset's
   retained autosomal marker set is chr22-only by design, so every population

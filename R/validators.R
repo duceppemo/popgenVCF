@@ -359,6 +359,24 @@ validate_ibd_result <- function(result, analysis, context) {
   validation_result(!length(errors), errors)
 }
 
+validate_spatial_autocorrelation_result <- function(result, analysis, context) {
+  if (is.null(result)) {
+    return(validation_result(TRUE, warnings = "Spatial autocorrelation was skipped because geographic data were unavailable"))
+  }
+  errors <- character()
+  required <- c("bin_upper", "n_pairs", "r", "p_value", "null_lower", "null_upper")
+  if (!is.data.frame(result) || !all(required %in% names(result))) {
+    errors <- c(errors, "spatial autocorrelation result is missing required columns")
+  } else {
+    if (any(result$n_pairs < 0L)) errors <- c(errors, "spatial autocorrelation n_pairs is negative")
+    if (any(diff(result$bin_upper) <= 0)) errors <- c(errors, "spatial autocorrelation distance-class upper bounds are not increasing")
+    finite_p <- result$p_value[is.finite(result$p_value)]
+    if (any(finite_p < 0 | finite_p > 1)) errors <- c(errors, "spatial autocorrelation p_value outside [0, 1]")
+  }
+  validation_result(!length(errors), errors,
+                    metrics = list(bins = if (is.data.frame(result)) nrow(result) else NA_integer_))
+}
+
 validate_tree_result <- function(result, analysis, context) {
   errors <- character()
   if (!inherits(result, "phylo")) errors <- c(errors, "tree result is not an ape phylo object")

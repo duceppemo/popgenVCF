@@ -175,6 +175,53 @@ test_that("large membership figures retain labels within device limits", {
   expect_gt(captured$theme$axis.text.x$size, 0)
 })
 
+test_that("population_ancestry_similarity_order clusters similar populations adjacent, not alphabetically", {
+  # A_pop and C_pop share a near-identical, cluster-1-dominant ancestry
+  # profile; B_pop is the opposite (cluster-2-dominant). Alphabetical order
+  # (A_pop, B_pop, C_pop) is the worst possible arrangement here, sandwiching
+  # the two similar populations apart. The similarity order should place
+  # A_pop and C_pop next to each other.
+  x <- data.table::data.table(
+    population = c("A_pop", "A_pop", "B_pop", "B_pop", "C_pop", "C_pop"),
+    cluster_1 = c(0.9, 0.85, 0.1, 0.15, 0.88, 0.82),
+    cluster_2 = c(0.1, 0.15, 0.9, 0.85, 0.12, 0.18)
+  )
+  ord <- popgenVCF:::population_ancestry_similarity_order(x, c("cluster_1", "cluster_2"))
+  expect_setequal(ord, c("A_pop", "B_pop", "C_pop"))
+  a_pos <- which(ord == "A_pop"); c_pos <- which(ord == "C_pop")
+  expect_equal(abs(a_pos - c_pos), 1L)
+})
+
+test_that("population_ancestry_similarity_order falls back to alphabetical order with fewer than two populations", {
+  x <- data.table::data.table(population = "solo", cluster_1 = 0.5, cluster_2 = 0.5)
+  expect_identical(popgenVCF:::population_ancestry_similarity_order(x, c("cluster_1", "cluster_2")), "solo")
+})
+
+test_that("plot_q_matrix's population-organized view orders and facets populations by ancestry similarity, not alphabetically", {
+  captured <- NULL
+  local_mocked_bindings(
+    save_plot = function(p, ...) {
+      captured <<- p
+      invisible(TRUE)
+    },
+    .package = "popgenVCF"
+  )
+  q <- data.table::data.table(
+    sample = c("s1", "s2", "s3", "s4", "s5", "s6"),
+    population = c("A_pop", "A_pop", "B_pop", "B_pop", "C_pop", "C_pop"),
+    cluster_1 = c(0.9, 0.85, 0.1, 0.15, 0.88, 0.82),
+    cluster_2 = c(0.1, 0.15, 0.9, 0.85, 0.12, 0.18)
+  )
+  popgenVCF:::plot_q_matrix(q, 2L, default_config(), list(figures = tempdir()))
+
+  expect_s3_class(captured$data$population, "factor")
+  built_populations <- levels(captured$data$population)
+  expect_setequal(built_populations, c("A_pop", "B_pop", "C_pop"))
+  a_pos <- which(built_populations == "A_pop"); c_pos <- which(built_populations == "C_pop")
+  expect_equal(abs(a_pos - c_pos), 1L)
+  expect_false(identical(built_populations, c("A_pop", "B_pop", "C_pop")))
+})
+
 test_that("membership figures reject ambiguous sample labels", {
   q <- data.table::data.table(
     sample = c("raw_a", "raw_b"),
