@@ -100,6 +100,47 @@ test_that("run_genome_scan_fst produces real, plausible windowed values on the r
   expect_true(all(out$n_snps[!is.finite(out$global_fst)] < 5L))
 })
 
+test_that("run_genome_scan_fst does not crash when sample QC has excluded a sample from metadata", {
+  # Real, routine scenario: ids$sample is the raw GDS sample list (captured
+  # before sample-level QC in the real pipeline), while metadata is already
+  # filtered to the QC-retained set. Any sample present in ids$sample but
+  # absent from metadata must not be passed to snpgdsFst() -- it previously
+  # was, producing an NA population value and a hard crash
+  # ("'population' should not have missing values!").
+  skip_if(Sys.which("bcftools") == "", "bcftools is not available")
+  paths <- popgenVCF::quickstart_dataset_paths()
+  gds <- popgenVCF:::prepare_gds(paths$vcf, tempfile(fileext = ".gds"))
+  on.exit(SNPRelate::snpgdsClose(gds), add = TRUE)
+  ids <- popgenVCF:::get_gds_ids(gds)
+  sample_ids <- as.character(ids$sample)
+  metadata_full <- popgenVCF:::normalize_sample_aliases(data.table::fread(paths$metadata))
+  vq <- popgenVCF:::variant_qc(gds, sample_ids, ids, 0.05, 0.20)
+  qc_snps <- vq[pass_combined == TRUE, snp_id]
+
+  excluded_sample <- metadata_full$sample[[1L]]
+  metadata_qc <- metadata_full[sample != excluded_sample]
+  expect_lt(nrow(metadata_qc), length(ids$sample))
+
+  out <- expect_no_error(
+    popgenVCF:::run_genome_scan_fst(
+      gds, qc_snps, ids, metadata_qc, window_bp = 50000, step_bp = 50000, min_snps = 5L
+    )
+  )
+  expect_gt(nrow(out), 0L)
+
+  # Confirm the fix actually derives its sample set from metadata (the
+  # QC-retained set), not from ids$sample: an ids object whose $sample is
+  # already pre-restricted to metadata_qc's samples must give byte-identical
+  # results to the real, still-unfiltered ids -- proving the extra sample
+  # present only in ids$sample was correctly ignored, not silently included.
+  ids_prefiltered <- ids
+  ids_prefiltered$sample <- metadata_qc$sample
+  reference <- popgenVCF:::run_genome_scan_fst(
+    gds, qc_snps, ids_prefiltered, metadata_qc, window_bp = 50000, step_bp = 50000, min_snps = 5L
+  )
+  expect_identical(out$global_fst, reference$global_fst)
+})
+
 test_that("plot_genome_scan draws both Manhattan-style figures with correct titles", {
   plots <- list()
   local_mocked_bindings(

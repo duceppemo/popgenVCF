@@ -57,14 +57,20 @@ run_genome_scan_fst <- function(gds, snp_ids, ids, metadata, window_bp, step_bp,
   snp_chromosome <- ids$chromosome[match(snp_ids, ids$snp)]
   snp_position <- ids$position[match(snp_ids, ids$snp)]
   windows <- genome_scan_windows(snp_chromosome, snp_position, window_bp, step_bp)
-  population <- factor(metadata$population[match(ids$sample, metadata$sample)])
+  # `ids$sample` is the raw, pre-sample-QC GDS sample list; `metadata` is
+  # already filtered to the QC-retained set (harmonize_samples()), so the
+  # retained sample.id/population pair must come from metadata, not ids --
+  # using ids$sample here would pass QC-excluded samples straight to
+  # snpgdsFst() with an undefined (NA) population, which it rejects outright.
+  sample_ids <- metadata$sample
+  population <- factor(metadata$population)
   windows[, c("n_snps", "global_fst") := {
     w <- snp_ids[snp_chromosome == chromosome & snp_position >= window_start & snp_position <= window_end]
     if (length(w) < min_snps) {
       list(length(w), NA_real_)
     } else {
       z <- SNPRelate::snpgdsFst(
-        gds, sample.id = ids$sample, snp.id = w, population = population,
+        gds, sample.id = sample_ids, snp.id = w, population = population,
         method = "W&C84", autosome.only = FALSE, remove.monosnp = TRUE,
         maf = NaN, missing.rate = NaN, verbose = FALSE
       )

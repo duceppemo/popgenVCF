@@ -103,6 +103,19 @@ resolve_analysis_order <- function(registry, config, selected = NULL) {
     req <- modules[[name]]$requires
     missing <- setdiff(req, names(modules))
     if (length(missing)) stop("Module '", name, "' requires unregistered module(s): ", paste(missing, collapse = ", "), call. = FALSE)
+    # A dependency must be explicitly enabled, not just registered -- without
+    # this check, requesting `name` would silently pull a config-disabled
+    # dependency back into the execution closure and run it anyway, directly
+    # overriding the user's own `analyses.<dep>: false` setting with no
+    # indication anywhere in the output that this happened.
+    disabled <- req[!vapply(req, function(dep) module_is_enabled(modules[[dep]], config), logical(1))]
+    if (length(disabled)) {
+      stop(
+        "Module '", name, "' requires disabled module(s): ", paste(disabled, collapse = ", "),
+        " -- enable them (analyses.<module>: true) or disable '", name, "' too.",
+        call. = FALSE
+      )
+    }
     for (dep in req) add_with_dependencies(dep, c(trail, name))
     closure <<- c(closure, name)
     invisible(NULL)

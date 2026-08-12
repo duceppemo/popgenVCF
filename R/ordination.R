@@ -194,7 +194,22 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads, ids = NU
     data.table::setorder(loadings, .axis_sort_key, -magnitude)
     loadings[, .axis_sort_key := NULL]
   }
-  variance_proportion <- eig$values / sum(eig$values)
+  # Percent variance explained must come from the true total variance, not
+  # from re-normalizing against only the requested/retained eigenvalues --
+  # SNPRelate's own z$varprop is already computed against the true total
+  # trace regardless of eigen.cnt (verified against live SNPRelate output:
+  # eig$values / sum(eig$values) inflates every percentage by roughly
+  # requested_components / (n_samples - 1)). The covariance-eigendecomposition
+  # fallback in recover_pca_eigensystem() already sets varprop correctly the
+  # same way (dividing its truncated eigenval subset by the *full* spectrum's
+  # positive total), so this is correct for both eigensystem_source values.
+  variance_proportion <- as.numeric(z$varprop)
+  if (length(variance_proportion) < max(component_index)) {
+    stop(
+      "SNPRelate PCA did not return enough varprop entries for the retained components",
+      call. = FALSE
+    )
+  }
 
   public_ids <- public_sample_ids(metadata, z$sample.id)
   scores <- data.table::data.table(sample = public_ids, vcf_sample = z$sample.id)
