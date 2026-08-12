@@ -1,19 +1,31 @@
 rc_module_dir <- function() {
-  installed <- system.file("scripts", package = "popgenVCF")
+  # Prefer the checked-out source tree so these tests exercise *this commit's*
+  # files -- a stale system.file()-resolved installed copy of popgenVCF (from
+  # an earlier commit, cached dependency install, or a developer's separately
+  # installed library) would otherwise silently shadow it, testing old code
+  # against new fixtures with no error. Fall back to the installed copy only
+  # when the source tree genuinely isn't reachable (e.g. testing a built
+  # tarball with no accompanying source), matching
+  # release_reconciliation_test_root()'s own source-preferred convention.
+  source_dir <- testthat::test_path("..", "..", "inst", "scripts")
   modules <- c(
     "release_candidate_utils.R",
     "release_candidate_policy.R",
     "release_candidate_evaluate.R",
     "release_candidate_write.R"
   )
-  if (nzchar(installed) && all(file.exists(file.path(installed, modules)))) return(installed)
-  testthat::test_path("..", "..", "inst", "scripts")
+  if (dir.exists(source_dir) && all(file.exists(file.path(source_dir, modules)))) return(source_dir)
+  installed <- system.file("scripts", package = "popgenVCF")
+  if (nzchar(installed)) return(installed)
+  source_dir
 }
 
 rc_policy_path <- function() {
+  source_path <- testthat::test_path("..", "..", "inst", "metadata", "release-candidate-policy.json")
+  if (file.exists(source_path)) return(source_path)
   installed <- system.file("metadata", "release-candidate-policy.json", package = "popgenVCF")
   if (nzchar(installed)) return(installed)
-  testthat::test_path("..", "..", "inst", "metadata", "release-candidate-policy.json")
+  source_path
 }
 
 rc_env <- function() {

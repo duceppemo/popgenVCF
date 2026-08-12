@@ -8,9 +8,14 @@ rcec_script_path <- function() {
 }
 
 rcec_policy_path <- function() {
+  # Prefer the checked-out source tree over a possibly-stale installed copy --
+  # see the identical rationale on rc_policy_path() in
+  # helper-release-candidate-dossier.R.
+  source_path <- testthat::test_path("..", "..", "inst", "metadata", "release-candidate-policy.json")
+  if (file.exists(source_path)) return(source_path)
   installed <- system.file("metadata", "release-candidate-policy.json", package = "popgenVCF")
   if (nzchar(installed)) return(installed)
-  testthat::test_path("..", "..", "inst", "metadata", "release-candidate-policy.json")
+  source_path
 }
 
 rcec_write_fragment <- function(dir, gate_id, status = "passed", summary = "test summary",
