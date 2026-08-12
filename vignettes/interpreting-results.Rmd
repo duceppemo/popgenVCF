@@ -124,11 +124,19 @@ The quickstart example gives 1,148 QC-passing chromosome X SNPs and 60,468 QC-pa
 
 Runs of homozygosity (`bcftools roh`, an HMM-based method, Narasimhan et al. 2016) identify long stretches where a sample's genotype calls are consistently homozygous -- a standard per-sample autozygosity/inbreeding signal, distinct from both diversity's population-level FIS below and kinship's pairwise relatedness above.
 
-Allele frequencies are self-estimated from the analyzed samples (there is no mechanism to attach an external reference-panel frequency), so informative site count -- and therefore sensitivity -- drops with smaller cohorts, confirmed concretely during this feature's implementation. `FROH` (total run length divided by the analyzed genomic footprint) is scaled to the footprint actually covered by the analyzed variants, **not the whole genome** -- a single-region VCF and a whole-genome VCF give very different `FROH` for the same underlying biology, so never compare `FROH` values across analyses that covered different genomic spans. No short/medium/long run-length classification is imposed; that convention is species- and study-specific and is left for the analyst to apply if relevant, unlike kinship's KING thresholds, which are a defined property of the estimator itself.
+Allele frequencies are self-estimated from the analyzed samples (there is no mechanism to attach an external reference-panel frequency), so informative site count -- and therefore sensitivity -- drops with smaller cohorts, confirmed concretely during this feature's implementation. `FROH` (total run length divided by the analyzed genomic footprint) is scaled to the footprint actually covered by the analyzed variants, **not the whole genome** -- a single-region VCF and a whole-genome VCF give very different `FROH` for the same underlying biology, so never compare `FROH` values across analyses that covered different genomic spans.
 
 ```{r roh-figure, echo=FALSE, out.width="90%"}
 knitr::include_graphics("figures/24_ROH_FROH_by_sample.png")
 ```
+
+Each run is also classified into a length class (Ceballos et al. 2018): short (background LD), intermediate (distant common ancestors via genetic drift), and long (recent close inbreeding), with the two boundaries configurable (`analyses.roh_length_class_short_max_bp`/`roh_length_class_long_min_bp`, defaulting to 500 kb and 2 Mb -- this package's own convention chosen within Ceballos et al.'s published ranges, not a universal standard). `FROH` is reported per class as well as in total, on `38_ROH_sample_summary.tsv` and the figure below.
+
+```{r roh-length-class-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/24b_ROH_FROH_by_length_class.png")
+```
+
+**Watch the analyzed genomic footprint against the long-class threshold.** In the quickstart example, all 8 populations show zero "long" runs -- not because recent close inbreeding is genuinely absent, but because the quickstart's analyzed chr22 region spans under 1 Mb end to end, smaller than the 2 Mb long-class threshold, so no single run can ever be classified "long" there regardless of true biology. This is a property of the demo's narrow genomic scope, not a general limitation -- a whole-genome VCF is not subject to this ceiling.
 
 ## Diversity
 
@@ -177,6 +185,14 @@ The global FST estimate for the quickstart example is 0.0915, consistent with re
 Every FST estimate is accompanied by Wright's (1931) island-model gene-flow estimate, Nm = (1 - FST) / (4 * FST), on `17_global_FST.tsv` (`global_nm`) and `18_pairwise_FST.tsv` (`nm`) -- a direct, monotonic transform of the same FST value, not shown as a separate figure. On the quickstart example, global Nm = 2.48; the pairwise minimum (ITU-STU, FST = 0.0052) gives Nm = 48.3 and the pairwise maximum (PEL-YRI, FST = 0.180) gives Nm = 1.14.
 
 The same tables also carry Jost's (2008) D (`global_jost_d`, `jost_d` on `18_pairwise_FST.tsv`, and `19b_pairwise_jost_d_matrix.tsv`) -- a different differentiation measure, not a transform of FST. FST's denominator is bounded by within-population heterozygosity, so a highly polymorphic marker set can never show a high FST even under strong true differentiation; Jost's D avoids that constraint. On the quickstart example, global Jost's D = 0.0387 versus global FST = 0.0915 (expected -- Jost's D is typically smaller than FST). Pairwise D correlates strongly with FST (r = 0.998) but reverses the order of the two closest, near-tied population pairs (ITU-STU vs. LWK-YRI) -- the two measures agree overall without being interchangeable in fine detail.
+
+Global and pairwise FST both describe the whole dataset or a pair of populations; neither directly answers "how distinct is this one population from the panel as a whole." Population-specific FST / beta (Weir and Goudet 2017), via `hierfstat::betas()` (the reference implementation), fills that gap: a per-population value using a common ("global") kinship reference rather than a pairwise one, on `51_population_specific_fst.tsv`.
+
+```{r population-specific-fst-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/51_population_specific_fst.png")
+```
+
+On the quickstart example, the overall weighted mean (`global_beta_fst`) is 0.0915 -- agreeing with `global_fst` to 9 significant figures, an expected internal-consistency check rather than a coincidence. Per-population beta ranges from ITU (0.0446, least distinct from the rest of the panel) to PEL (0.1558, most distinct); PEL standing out as the most differentiated population matches this package's own Nei's-distance and population-assignment results elsewhere in this report, an independent third confirmation of the same real population-structure pattern.
 
 ## Population genetic distance and tree
 

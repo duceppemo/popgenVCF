@@ -164,6 +164,20 @@ validate_roh_result <- function(result, analysis, context) {
           any(result$sample_summary$froh < -1e-6 | result$sample_summary$froh > 1 + 1e-6, na.rm = TRUE)) {
         errors <- c(errors, "ROH froh is outside [0, 1]")
       }
+      froh_class_cols <- c("froh_short", "froh_intermediate", "froh_long")
+      if (all(froh_class_cols %in% names(result$sample_summary))) {
+        s <- result$sample_summary
+        if (any(s$froh_short < -1e-6 | s$froh_intermediate < -1e-6 | s$froh_long < -1e-6, na.rm = TRUE)) {
+          errors <- c(errors, "ROH froh_<class> is negative")
+        }
+        # The three length classes partition every run exactly once, so
+        # their froh values must sum to the overall froh -- a real
+        # correctness invariant, not just a plausibility bound.
+        class_sum <- s$froh_short + s$froh_intermediate + s$froh_long
+        if ("froh" %in% names(s) && any(abs(class_sum - s$froh) > 1e-6, na.rm = TRUE)) {
+          errors <- c(errors, "ROH froh_<class> values do not sum to froh")
+        }
+      }
     }
   }
   validation_result(!length(errors), errors,

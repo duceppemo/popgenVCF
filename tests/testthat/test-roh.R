@@ -116,7 +116,7 @@ test_that("run_roh executes on the tiny bundled CI validation fixture without cr
   # Values are not scientifically meaningful at 9 SNPs (established this
   # session for HWE and kinship alike); only structural correctness matters.
   result <- popgenVCF:::run_roh(paths$vcf, sample_ids, metadata, 0.2, 30, 1L)
-  expect_setequal(names(result$runs), c("sample", "chromosome", "start", "end", "length_bp", "n_markers", "quality"))
+  expect_setequal(names(result$runs), c("sample", "chromosome", "start", "end", "length_bp", "n_markers", "quality", "length_class"))
   expect_identical(nrow(result$sample_summary), 8L)
   expect_true(all(result$sample_summary$froh >= 0 & result$sample_summary$froh <= 1 + 1e-6))
 })
@@ -180,7 +180,7 @@ test_that("ROH module descriptor owns the complete registry contract", {
   expect_identical(spec$name, "roh")
   expect_identical(spec$requires, character())
   expect_identical(spec$outputs, "roh")
-  expect_identical(spec$references, "Narasimhan et al. 2016")
+  expect_identical(spec$references, c("Narasimhan et al. 2016", "Ceballos et al. 2018"))
   expect_identical(spec$resource_class, "heavy")
   expect_identical(spec$contract_version, "1.0")
   expect_identical(spec$run, popgenVCF:::run_module_roh)
@@ -214,4 +214,110 @@ test_that("validate_roh_result flags missing components, negative lengths, and o
   impossible_froh <- ok
   impossible_froh$sample_summary$froh <- 1.5
   expect_false(popgenVCF:::validate_roh_result(impossible_froh, NULL, NULL)$valid)
+})
+
+test_that("roh_length_class classifies run lengths against the short/long boundaries (Ceballos et al. 2018)", {
+  cls <- popgenVCF:::roh_length_class
+  short_max <- 500000L; long_min <- 2000000L
+  expect_identical(cls(1L, short_max, long_min), "short")
+  expect_identical(cls(499999L, short_max, long_min), "short")
+  expect_identical(cls(500000L, short_max, long_min), "intermediate")
+  expect_identical(cls(1999999L, short_max, long_min), "intermediate")
+  expect_identical(cls(2000000L, short_max, long_min), "long")
+  expect_identical(cls(5000000L, short_max, long_min), "long")
+  expect_identical(
+    cls(c(100L, 600000L, 3000000L), short_max, long_min),
+    c("short", "intermediate", "long")
+  )
+})
+
+test_that("run_roh's froh_short/froh_intermediate/froh_long always sum exactly to froh, and reflect the configured boundaries", {
+  skip_if(Sys.which("bcftools") == "", "bcftools is not available")
+  vcf <- roh_fixture_vcf()
+  sample_ids <- c("TARGET_HET", "TARGET_HOM", "ANCHOR_HET", "ANCHOR_ALT")
+  metadata <- popgenVCF:::metadata_from_samples(sample_ids)
+
+  # TARGET_HOM's single known run is 3901 bp (start 100, end 4000). Under the
+  # default boundaries (short < 500 kb) it falls in the "short" class.
+  default_result <- popgenVCF:::run_roh(vcf, sample_ids, metadata, 0.2, 30, 1L)
+  s <- default_result$sample_summary
+  class_sum <- s$froh_short + s$froh_intermediate + s$froh_long
+  expect_equal(class_sum, s$froh, tolerance = 1e-9)
+  target_hom <- s[sample == "TARGET_HOM"]
+  expect_equal(target_hom$froh_short, target_hom$froh, tolerance = 1e-9)
+  expect_equal(target_hom$froh_intermediate, 0)
+  expect_equal(target_hom$froh_long, 0)
+
+  # With deliberately small custom boundaries, the exact same 3901 bp run
+  # instead falls in the "long" class -- confirming the thresholds are
+  # actually threaded through, not just accepted and ignored.
+  custom_result <- popgenVCF:::run_roh(
+    vcf, sample_ids, metadata, 0.2, 30, 1L,
+    length_class_short_max_bp = 1000L, length_class_long_min_bp = 3000L
+  )
+  s2 <- custom_result$sample_summary
+  target_hom2 <- s2[sample == "TARGET_HOM"]
+  expect_equal(target_hom2$froh_long, target_hom2$froh, tolerance = 1e-9)
+  expect_equal(target_hom2$froh_short, 0)
+  expect_equal(target_hom2$froh_intermediate, 0)
+})
+
+test_that("run_roh reports zero per-class froh for a sample with zero runs", {
+  skip_if(Sys.which("bcftools") == "", "bcftools is not available")
+  vcf <- roh_fixture_vcf()
+  sample_ids <- c("TARGET_HET", "TARGET_HOM", "ANCHOR_HET", "ANCHOR_ALT")
+  metadata <- popgenVCF:::metadata_from_samples(sample_ids)
+  result <- popgenVCF:::run_roh(vcf, sample_ids, metadata, 0.2, 30, 1L)
+  target_het <- result$sample_summary[sample == "TARGET_HET"]
+  expect_equal(target_het$froh_short, 0)
+  expect_equal(target_het$froh_intermediate, 0)
+  expect_equal(target_het$froh_long, 0)
+})
+
+test_that("plot_roh_length_class draws a stacked FROH-by-length-class figure, and is a no-op without per-class columns", {
+  plots <- list()
+  local_mocked_bindings(
+    save_plot = function(p, stem, ...) { plots[[stem]] <<- p; invisible(TRUE) },
+    .package = "popgenVCF"
+  )
+  dirs <- list(figures = tempdir())
+  cfg <- popgenVCF::default_config(); cfg$output$figure_formats <- "pdf"
+  result <- list(
+    sample_summary = data.table::data.table(
+      sample = c("s1", "s2"), froh = c(0.3, 0.1),
+      froh_short = c(0.1, 0.1), froh_intermediate = c(0.1, 0), froh_long = c(0.1, 0)
+    )
+  )
+  popgenVCF:::plot_roh_length_class(result, cfg, dirs)
+  expect_true("24b_ROH_FROH_by_length_class" %in% names(plots))
+
+  plots2 <- list()
+  local_mocked_bindings(
+    save_plot = function(p, stem, ...) { plots2[[stem]] <<- p; invisible(TRUE) },
+    .package = "popgenVCF"
+  )
+  no_class_cols <- list(sample_summary = data.table::data.table(sample = "s1", froh = 0.3))
+  popgenVCF:::plot_roh_length_class(no_class_cols, cfg, dirs)
+  expect_false("24b_ROH_FROH_by_length_class" %in% names(plots2))
+})
+
+test_that("validate_roh_result flags negative or non-summing froh_<class> values", {
+  ok <- list(
+    runs = data.table::data.table(sample = "s1", length_bp = 300L),
+    sample_summary = data.table::data.table(
+      sample = "s1", n_runs = 1L, froh = 0.3,
+      froh_short = 0.1, froh_intermediate = 0.1, froh_long = 0.1
+    )
+  )
+  expect_true(popgenVCF:::validate_roh_result(ok, NULL, NULL)$valid)
+
+  negative_class <- data.table::copy(ok)
+  negative_class$sample_summary <- data.table::copy(ok$sample_summary)
+  negative_class$sample_summary[1L, froh_short := -0.1]
+  expect_false(popgenVCF:::validate_roh_result(negative_class, NULL, NULL)$valid)
+
+  bad_sum <- data.table::copy(ok)
+  bad_sum$sample_summary <- data.table::copy(ok$sample_summary)
+  bad_sum$sample_summary[1L, froh_long := 0.5]
+  expect_false(popgenVCF:::validate_roh_result(bad_sum, NULL, NULL)$valid)
 })

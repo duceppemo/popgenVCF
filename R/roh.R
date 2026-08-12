@@ -1,3 +1,20 @@
+# Run-length classification (Ceballos et al. 2018): short runs (tens to
+# hundreds of kb) mostly reflect background LD rather than real autozygosity;
+# intermediate runs (hundreds of kb to ~2 Mb) reflect background relatedness
+# from distant common ancestors, shaped by drift and effective population
+# size; long runs (over ~1-2 Mb) arise from recent parental relatedness --
+# close inbreeding within the last few generations. The paper describes these
+# as fuzzy, overlapping ranges rather than one universally agreed cutoff, so
+# this package picks specific, clean boundaries within the paper's own
+# described ranges and makes them configurable
+# (analyses.roh_length_class_short_max_bp, default 500 kb;
+# analyses.roh_length_class_long_min_bp, default 2 Mb) rather than presenting
+# them as a single fixed standard.
+roh_length_class <- function(length_bp, short_max_bp, long_min_bp) {
+  ifelse(length_bp < short_max_bp, "short",
+        ifelse(length_bp < long_min_bp, "intermediate", "long"))
+}
+
 # bcftools roh's region rows are unambiguously prefixed "RG\t", distinct from
 # its "#"-comment header and informational log lines that share stdout/stderr
 # once captured through system2(stdout=TRUE, stderr=TRUE).
@@ -37,7 +54,8 @@ roh_analyzed_footprint_bp <- function(bcftools, vcf_path) {
 }
 
 run_roh <- function(vcf_path, sample_ids, metadata, missing_rate, gt_error_phred, threads,
-                     non_autosomal_chromosome_names = character()) {
+                     non_autosomal_chromosome_names = character(),
+                     length_class_short_max_bp = 500000L, length_class_long_min_bp = 2000000L) {
   bcftools <- require_vcf_tool("bcftools")
   work_dir <- tempfile("roh-")
   dir.create(work_dir)
@@ -68,7 +86,9 @@ run_roh <- function(vcf_path, sample_ids, metadata, missing_rate, gt_error_phred
   public_ids <- public_sample_ids(metadata, sample_ids)
   empty_summary <- function() data.table::data.table(
     sample = public_ids, n_runs = 0L, total_length_bp = 0, mean_length_bp = NA_real_,
-    longest_run_bp = 0L, froh = 0
+    longest_run_bp = 0L, froh = 0,
+    total_length_bp_short = 0, total_length_bp_intermediate = 0, total_length_bp_long = 0,
+    froh_short = 0, froh_intermediate = 0, froh_long = 0
   )
 
   footprint <- roh_analyzed_footprint_bp(bcftools, subset_vcf)
@@ -78,7 +98,7 @@ run_roh <- function(vcf_path, sample_ids, metadata, missing_rate, gt_error_phred
       runs = data.table::data.table(
         sample = character(), population = character(), chromosome = character(),
         start = integer(), end = integer(), length_bp = integer(),
-        n_markers = integer(), quality = numeric()
+        n_markers = integer(), quality = numeric(), length_class = character()
       ),
       sample_summary = empty_summary(),
       analyzed_footprint_bp = 0
@@ -95,10 +115,11 @@ run_roh <- function(vcf_path, sample_ids, metadata, missing_rate, gt_error_phred
   }
   runs <- roh_parse_regions(called$output)
   runs[, sample := public_ids[match(sample, sample_ids)]]
+  runs[, length_class := roh_length_class(length_bp, length_class_short_max_bp, length_class_long_min_bp)]
   if ("population" %in% names(metadata)) {
     raw_lookup <- stats::setNames(sample_ids, public_ids)
     runs[, population := metadata$population[match(raw_lookup[sample], metadata$sample)]]
-    data.table::setcolorder(runs, c("sample", "population", "chromosome", "start", "end", "length_bp", "n_markers", "quality"))
+    data.table::setcolorder(runs, c("sample", "population", "chromosome", "start", "end", "length_bp", "n_markers", "quality", "length_class"))
   }
   runs[, .chr_sort_key := natural_sort_key(chromosome)]
   data.table::setorder(runs, sample, .chr_sort_key, start)
@@ -113,18 +134,39 @@ run_roh <- function(vcf_path, sample_ids, metadata, missing_rate, gt_error_phred
     data.table::data.table(sample = character(), n_runs = integer(), total_length_bp = numeric(),
                            mean_length_bp = numeric(), longest_run_bp = integer())
   }
+  class_levels <- c("short", "intermediate", "long")
   sample_summary <- merge(
     data.table::data.table(sample = public_ids), agg, by = "sample", all.x = TRUE
   )
   sample_summary[is.na(n_runs), n_runs := 0L]
   sample_summary[is.na(total_length_bp), total_length_bp := 0]
   sample_summary[is.na(longest_run_bp), longest_run_bp := 0L]
+  # Per-class totals computed and merged independently (rather than a single
+  # wide reshape) so each class's zero-default is unambiguous regardless of
+  # whether any sample has runs in that class at all.
+  for (cls in class_levels) {
+    total_col <- paste0("total_length_bp_", cls)
+    class_totals <- if (nrow(runs)) {
+      runs[length_class == cls, .(total = sum(length_bp)), by = sample]
+    } else {
+      data.table::data.table(sample = character(), total = numeric())
+    }
+    sample_summary <- merge(sample_summary, class_totals, by = "sample", all.x = TRUE)
+    sample_summary[is.na(total), total := 0]
+    data.table::setnames(sample_summary, "total", total_col)
+  }
   sample_summary[, froh := if (footprint$footprint_bp > 0) total_length_bp / footprint$footprint_bp else 0]
+  for (cls in class_levels) {
+    total_col <- paste0("total_length_bp_", cls); froh_col <- paste0("froh_", cls)
+    sample_summary[, (froh_col) := if (footprint$footprint_bp > 0) get(total_col) / footprint$footprint_bp else 0]
+  }
   if ("population" %in% names(metadata)) {
     raw_lookup <- stats::setNames(sample_ids, public_ids)
     sample_summary[, population := metadata$population[match(raw_lookup[sample], metadata$sample)]]
-    data.table::setcolorder(sample_summary, c("sample", "population", "n_runs", "total_length_bp",
-                                              "mean_length_bp", "longest_run_bp", "froh"))
+    data.table::setcolorder(sample_summary, c(
+      "sample", "population", "n_runs", "total_length_bp", "mean_length_bp", "longest_run_bp", "froh",
+      paste0("total_length_bp_", class_levels), paste0("froh_", class_levels)
+    ))
   }
   data.table::setorder(sample_summary, -froh)
 
@@ -176,4 +218,45 @@ plot_roh <- function(result, cfg, dirs) {
   }
   n <- nrow(summary)
   save_plot(p2, "24_ROH_FROH_by_sample", dirs, fmts, 8, max(4, n * 0.18), dpi)
+}
+
+plot_roh_length_class <- function(result, cfg, dirs) {
+  summary <- data.table::copy(result$sample_summary)
+  if (!nrow(summary)) return(invisible(NULL))
+  class_levels <- c("short", "intermediate", "long")
+  froh_cols <- paste0("froh_", class_levels)
+  if (!all(froh_cols %in% names(summary))) return(invisible(NULL))
+
+  data.table::setorder(summary, froh)
+  summary[, sample := factor(sample, levels = sample)]
+  long <- data.table::melt(
+    summary, id.vars = "sample", measure.vars = froh_cols,
+    variable.name = "length_class", value.name = "froh_class"
+  )
+  long[, length_class := factor(sub("^froh_", "", length_class), levels = class_levels)]
+
+  cfg_a <- cfg$analyses
+  class_labels <- c(
+    short = sprintf("Short (< %.2f Mb)", cfg_a$roh_length_class_short_max_bp / 1e6),
+    intermediate = sprintf("Intermediate (%.2f-%.2f Mb)", cfg_a$roh_length_class_short_max_bp / 1e6, cfg_a$roh_length_class_long_min_bp / 1e6),
+    long = sprintf("Long (> %.2f Mb)", cfg_a$roh_length_class_long_min_bp / 1e6)
+  )
+  style <- figure_style_name(cfg)
+  class_colours <- unname(expand_figure_palette(figure_style_profile(style), 3L, "colours"))
+  names(class_colours) <- class_levels
+
+  p <- ggplot2::ggplot(long, ggplot2::aes(sample, froh_class, fill = length_class)) +
+    ggplot2::geom_col() +
+    ggplot2::coord_flip() +
+    ggplot2::scale_fill_manual(values = class_colours, labels = class_labels[class_levels], name = "Run length class") +
+    ggplot2::labs(
+      title = expression(paste("Runs of homozygosity: ", italic(F)[ROH], " by run-length class")),
+      subtitle = paste(
+        "Short: background LD; intermediate: distant common ancestors;",
+        "long: recent close inbreeding (Ceballos et al. 2018)"
+      ),
+      x = NULL, y = expression(italic(F)[ROH])
+    ) + theme_publication(figure_base_size(cfg))
+  n <- nrow(summary)
+  save_plot(p, "24b_ROH_FROH_by_length_class", dirs, cfg$output$figure_formats, 8, max(4, n * 0.18), cfg$output$dpi)
 }

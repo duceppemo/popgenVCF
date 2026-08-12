@@ -131,13 +131,15 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
   roh_runs <- data.table::fread(file.path(root, "tables/37_ROH_runs.tsv"))
   expect_setequal(
     names(roh_runs),
-    c("sample", "population", "chromosome", "start", "end", "length_bp", "n_markers", "quality")
+    c("sample", "population", "chromosome", "start", "end", "length_bp", "n_markers", "quality", "length_class")
   )
   roh_summary <- data.table::fread(file.path(root, "tables/38_ROH_sample_summary.tsv"))
   expect_identical(nrow(roh_summary), 8L)
   expect_setequal(
     names(roh_summary),
-    c("sample", "population", "n_runs", "total_length_bp", "mean_length_bp", "longest_run_bp", "froh")
+    c("sample", "population", "n_runs", "total_length_bp", "mean_length_bp", "longest_run_bp", "froh",
+      "total_length_bp_short", "total_length_bp_intermediate", "total_length_bp_long",
+      "froh_short", "froh_intermediate", "froh_long")
   )
   # Values are not scientifically meaningful at 9 SNPs (established elsewhere
   # this session for HWE/kinship); only structural bounds are checked.

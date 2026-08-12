@@ -29,6 +29,8 @@ default_config <- function() {
                     sex_check_y_male_call_rate_threshold = 0.5,
                     sex_check_y_female_call_rate_threshold = 0.1,
                     roh = TRUE, roh_gt_error_phred = 30,
+                    roh_length_class_short_max_bp = 500000L,
+                    roh_length_class_long_min_bp = 2000000L,
                     tree = TRUE, population_tree = TRUE, population_assignment = TRUE, fst = TRUE,
                     genome_scan = TRUE, genome_scan_window_bp = 50000L,
                     genome_scan_step_bp = 50000L, genome_scan_min_snps = 5L,
@@ -147,6 +149,8 @@ validate_config <- function(cfg) {
   cfg$analyses$sex_check_y_male_call_rate_threshold <- as.numeric(cfg$analyses$sex_check_y_male_call_rate_threshold)
   cfg$analyses$sex_check_y_female_call_rate_threshold <- as.numeric(cfg$analyses$sex_check_y_female_call_rate_threshold)
   cfg$analyses$roh_gt_error_phred <- as.numeric(cfg$analyses$roh_gt_error_phred)
+  cfg$analyses$roh_length_class_short_max_bp <- as.integer(cfg$analyses$roh_length_class_short_max_bp)
+  cfg$analyses$roh_length_class_long_min_bp <- as.integer(cfg$analyses$roh_length_class_long_min_bp)
   cfg$analyses$genome_scan_window_bp <- as.integer(cfg$analyses$genome_scan_window_bp)
   cfg$analyses$genome_scan_step_bp <- as.integer(cfg$analyses$genome_scan_step_bp)
   cfg$analyses$genome_scan_min_snps <- as.integer(cfg$analyses$genome_scan_min_snps)
@@ -185,6 +189,8 @@ validate_config <- function(cfg) {
   if (cfg$analyses$sex_check_y_female_call_rate_threshold >= cfg$analyses$sex_check_y_male_call_rate_threshold) stop("analyses.sex_check_y_female_call_rate_threshold must be less than analyses.sex_check_y_male_call_rate_threshold", call. = FALSE)
   if (cfg$analyses$sex_check_y_male_call_rate_threshold > 1 || cfg$analyses$sex_check_y_female_call_rate_threshold < 0) stop("analyses.sex_check_y_*_call_rate_threshold must be between zero and one", call. = FALSE)
   if (!is.finite(cfg$analyses$roh_gt_error_phred) || cfg$analyses$roh_gt_error_phred <= 0) stop("analyses.roh_gt_error_phred must be positive", call. = FALSE)
+  if (!is.finite(cfg$analyses$roh_length_class_short_max_bp) || cfg$analyses$roh_length_class_short_max_bp < 1L) stop("analyses.roh_length_class_short_max_bp must be >= 1", call. = FALSE)
+  if (!is.finite(cfg$analyses$roh_length_class_long_min_bp) || cfg$analyses$roh_length_class_long_min_bp <= cfg$analyses$roh_length_class_short_max_bp) stop("analyses.roh_length_class_long_min_bp must be greater than analyses.roh_length_class_short_max_bp", call. = FALSE)
   if (!is.finite(cfg$analyses$genome_scan_window_bp) || cfg$analyses$genome_scan_window_bp < 1L) stop("analyses.genome_scan_window_bp must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$genome_scan_step_bp) || cfg$analyses$genome_scan_step_bp < 1L) stop("analyses.genome_scan_step_bp must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$genome_scan_min_snps) || cfg$analyses$genome_scan_min_snps < 2L) stop("analyses.genome_scan_min_snps must be >= 2", call. = FALSE)

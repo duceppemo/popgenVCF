@@ -8,5 +8,5 @@ fst_module_spec()
 A \code{PopgenVCFModuleSpec} object.
 }
 \description{
-Constructs the self-contained registry contract for global and pairwise Weir-Cockerham FST analysis. The descriptor owns execution, validation, output names, scientific references, resource classification, and contract version while preserving the existing estimates, confidence intervals, Wright's island-model Nm (gene flow) estimates, Jost's (2008) D differentiation measure, population-metadata requirements, and output schemas.
+Constructs the self-contained registry contract for global and pairwise Weir-Cockerham FST analysis. The descriptor owns execution, validation, output names, scientific references, resource classification, and contract version while preserving the existing estimates, confidence intervals, Wright's island-model Nm (gene flow) estimates, Jost's (2008) D differentiation measure, Weir and Goudet's (2017) population-specific FST (beta), population-metadata requirements, and output schemas.
 }

@@ -95,11 +95,14 @@ run_module_roh <- function(analysis, context) {
   non_autosomal <- if (isTRUE(cfg$qc$autosome_only)) cfg$qc$non_autosomal_chromosome_names else character()
   result <- run_roh(context$vcf_path, context$sample_ids, context$metadata,
                     cfg$qc$max_variant_missing, cfg$analyses$roh_gt_error_phred,
-                    cfg$compute$threads, non_autosomal)
+                    cfg$compute$threads, non_autosomal,
+                    cfg$analyses$roh_length_class_short_max_bp,
+                    cfg$analyses$roh_length_class_long_min_bp)
   analysis <- set_analysis_result(analysis, "roh", result)
   write_tsv(result$runs, file.path(dirs$tables, "37_ROH_runs.tsv"))
   write_tsv(result$sample_summary, file.path(dirs$tables, "38_ROH_sample_summary.tsv"))
   plot_roh(result, cfg, dirs)
+  plot_roh_length_class(result, cfg, dirs)
   module_result(analysis, context)
 }
 
@@ -120,17 +123,34 @@ run_module_fst <- function(analysis, context) {
     fst$long[jost$long, `:=`(jost_d = i.jost_d, jost_d_n_snps = i.jost_d_n_snps),
              on = c("population_1", "population_2")]
   }
+  beta <- compute_population_specific_fst(
+    context$diversity_full$genotype, context$diversity_full$sample$population, context$qc_snps
+  )
+  fst$global_beta_fst <- beta$overall
+  fst$population_specific_fst <- beta$table
   fst_ci <- if (isTRUE(cfg$analyses$bootstrap$enabled)) {
     bootstrap_fst(context$gds, context$qc_snps, context$ids, context$metadata,
                   cfg$analyses$bootstrap$replicates, cfg$compute$seed)
   } else data.table::data.table()
   analysis <- set_analysis_result(analysis, "fst", fst)
   analysis <- set_analysis_result(analysis, "fst_ci", fst_ci)
-  write_tsv(data.table::data.table(global_fst = fst$global, global_nm = fst$global_nm, global_jost_d = fst$global_jost_d), file.path(dirs$tables, "17_global_FST.tsv"))
+  write_tsv(data.table::data.table(
+    global_fst = fst$global, global_nm = fst$global_nm, global_jost_d = fst$global_jost_d,
+    global_beta_fst = fst$global_beta_fst
+  ), file.path(dirs$tables, "17_global_FST.tsv"))
   write_tsv(fst$long, file.path(dirs$tables, "18_pairwise_FST.tsv"))
   write_matrix_tsv(fst$matrix, file.path(dirs$tables, "19_pairwise_FST_matrix.tsv"), "population")
   if (nrow(jost$matrix)) write_matrix_tsv(jost$matrix, file.path(dirs$tables, "19b_pairwise_jost_d_matrix.tsv"), "population")
   if (nrow(fst_ci)) write_tsv(fst_ci, file.path(dirs$tables, "20_pairwise_FST_bootstrap_CI.tsv"))
+  if (beta$available) {
+    write_tsv(beta$table, file.path(dirs$tables, "51_population_specific_fst.tsv"))
+    plot_population_specific_fst(beta, cfg, dirs)
+  } else {
+    analysis <- record_analysis_message(
+      analysis, "WARNING", "fst",
+      "Population-specific FST (Weir and Goudet 2017) skipped: hierfstat is not installed"
+    )
+  }
   plot_fst(fst, cfg, dirs)
   module_result(analysis, context)
 }

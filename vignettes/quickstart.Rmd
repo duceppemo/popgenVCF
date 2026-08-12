@@ -53,7 +53,8 @@ On a modern multi-core machine this takes a few minutes -- most of the time
 is DAPC's cross-validation across the default `K = 2:10` range, run in full
 because it is exactly what a real analysis does. Every module runs with its
 documented defaults: QC and LD pruning, PCA, IBS, kinship, sex check, runs
-of homozygosity, FST (with its Nm gene-flow estimate and Jost's D), genome scans, linkage
+of homozygosity (with a length-class breakdown), FST (with its Nm gene-flow
+estimate, Jost's D, and population-specific FST/beta), genome scans, linkage
 disequilibrium decay, LD-based effective population size, population
 genetic distance and tree, a population assignment test, diversity
 (including allelic richness and effective number of alleles), a site
@@ -107,7 +108,10 @@ R (`get_analysis_result(analysis, "kinship")`, and so on).
 - **Runs of homozygosity** (`tables/38_ROH_sample_summary.tsv`): `FROH` is
   scaled to this run's ~1Mb analyzed footprint, not the whole genome -- see
   the [interpretation guide](interpreting-results.html) before comparing it
-  to anything else.
+  to anything else. The same table also splits `FROH` by run-length class
+  (short/intermediate/long, Ceballos et al. 2018); at this footprint size no
+  run can reach the "long" class, a mechanical consequence of the ~1Mb
+  region rather than a biological finding -- see the interpretation guide.
 - **Mantel/isolation by distance** (`tables/25_Mantel_IBD_summary.tsv`,
   `figures/12_isolation_by_distance`): a real, statistically significant
   positive signal (Mantel r = 0.313, p = 0.001) -- genetic distance increases

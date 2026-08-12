@@ -212,11 +212,28 @@ length divided by the analyzed genomic footprint) is scaled to the footprint
 actually covered by the analyzed variants, **not the whole genome** -- a
 single-region VCF and a whole-genome VCF give very different `FROH` for the
 same underlying biology, so never compare `FROH` values across analyses that
-covered different genomic spans. No short/medium/long run-length
-classification is imposed; that convention is species- and study-specific
-and is left for the analyst to apply if relevant.
+covered different genomic spans.
 
 ![FROH by sample from the quickstart example](figures/24_ROH_FROH_by_sample.png)
+
+Each run is also classified into a length class (Ceballos et al. 2018): short
+(background LD), intermediate (distant common ancestors via genetic drift),
+and long (recent close inbreeding, e.g. parental relatedness), with the two
+boundaries between classes configurable
+(`analyses.roh_length_class_short_max_bp`/`roh_length_class_long_min_bp`,
+defaulting to 500 kb and 2 Mb -- this package's own convention chosen within
+Ceballos et al.'s published ranges, not a universal standard). `FROH` is
+reported per class as well as in total, on `38_ROH_sample_summary.tsv` and the
+figure below. **Watch the analyzed genomic footprint against the long-class
+threshold**: in the quickstart example, all 8 populations show zero "long"
+runs -- not because recent close inbreeding is genuinely absent, but because
+the quickstart's analyzed chr22 region spans under 1 Mb end to end, smaller
+than the 2 Mb long-class threshold, so no single run can ever be classified
+"long" there regardless of true biology. This is a property of the demo's
+narrow genomic scope, not a general limitation -- a whole-genome VCF is not
+subject to this ceiling.
+
+![FROH by run-length class from the quickstart example](figures/24b_ROH_FROH_by_length_class.png)
 
 ## Diversity and FIS
 
@@ -329,6 +346,23 @@ FST (r = 0.998) but is not a strict re-ranking of it: FST's closest pair is
 ITU-STU with LWK-YRI a close second, while Jost's D reverses that order --
 both pairs are near-ties on both measures, illustrating that the two
 statistics agree overall without being interchangeable in fine detail.
+
+Global and pairwise FST both describe the whole dataset or a pair of
+populations; neither directly answers "how distinct is this one population
+from the panel as a whole." Population-specific FST / beta (Weir and Goudet
+2017), via `hierfstat::betas()` (the reference implementation), fills that
+gap: a per-population value using a common ("global") kinship reference
+rather than a pairwise one, on `51_population_specific_fst.tsv`. On the
+quickstart example, the overall weighted mean (`global_beta_fst`) is
+0.0915 -- agreeing with `global_fst` to 9 significant figures, an expected
+internal-consistency check rather than a coincidence. Per-population beta
+ranges from ITU (0.0446, least distinct from the rest of the panel) to PEL
+(0.1558, most distinct); PEL standing out as the most differentiated
+population matches this package's own Nei's-distance and population-
+assignment results elsewhere in this report, an independent third
+confirmation of the same real population-structure pattern.
+
+![Population-specific FST (beta) from the quickstart example](figures/51_population_specific_fst.png)
 
 ## Population genetic distance and tree
 

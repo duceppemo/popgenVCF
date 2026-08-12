@@ -72,6 +72,11 @@ analyses:
   # Phred-scaled genotype-error rate for bcftools roh's HMM (its own
   # documented "safe value... to account for GT errors").
   roh_gt_error_phred: 30
+  # Run-length classification (Ceballos et al. 2018): short runs mostly
+  # reflect background LD; intermediate runs reflect distant common
+  # ancestors; long runs reflect recent close inbreeding.
+  roh_length_class_short_max_bp: 500000
+  roh_length_class_long_min_bp: 2000000
   tree: true
   # Nei's (1972) standard genetic distance between populations and an NJ
   # tree from it -- distinct from "tree" above, which is an individual-level

@@ -63,7 +63,7 @@ test_that("compute_jost_d returns an empty/NA result with fewer than two populat
   expect_identical(dim(res$matrix), c(0L, 0L))
 })
 
-test_that("run_module_fst merges Jost's D into the same tables as FST/Nm", {
+test_that("run_module_fst merges Jost's D and population-specific FST into the same tables as FST/Nm", {
   paths <- popgenVCF:::validation_fixture_paths()
   gds_path <- tempfile(fileext = ".gds")
   gds <- popgenVCF:::prepare_gds(paths$vcf, gds_path, force = TRUE)
@@ -97,4 +97,12 @@ test_that("run_module_fst merges Jost's D into the same tables as FST/Nm", {
   expect_true(file.exists(file.path(dirs$tables, "19b_pairwise_jost_d_matrix.tsv")))
   global_table <- data.table::fread(file.path(dirs$tables, "17_global_FST.tsv"))
   expect_true("global_jost_d" %in% names(global_table))
+
+  expect_true("global_beta_fst" %in% names(fst))
+  expect_true("global_beta_fst" %in% names(global_table))
+  expect_true("population_specific_fst" %in% names(fst))
+  if (requireNamespace("hierfstat", quietly = TRUE)) {
+    expect_true(nrow(fst$population_specific_fst) > 0L)
+    expect_true(file.exists(file.path(dirs$tables, "51_population_specific_fst.tsv")))
+  }
 })
