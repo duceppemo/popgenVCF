@@ -10,9 +10,14 @@ the task-oriented manual. The
 [pkgdown site](https://duceppemo.github.io/popgenVCF/) provides generated API
 documentation and rendered vignettes.
 
-> **Development status:** 0.10.0 is under release-conformance review. A green
-> routine CI run is not production scientific approval. Only a complete
-> candidate dossier can report `READY`.
+> **Development status:** 0.10.0 was scientifically approved and released
+> 2026-08-01 (DOI [10.5281/zenodo.21747548](https://doi.org/10.5281/zenodo.21747548),
+> production dossier `READY`, 15/15 required gates passed). `main` now
+> contains additional post-0.10.0 feature development toward the next
+> release (see `docs/ROADMAP.md`); a green routine CI run on `main` is not by
+> itself production scientific approval for those unreleased changes --
+> only a complete candidate dossier for the exact release commit can report
+> `READY`.
 
 ## Choose your path
 

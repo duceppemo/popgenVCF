@@ -90,11 +90,41 @@ biology), not something to assume is noise.
 
 ## IBS and MDS
 
-Confirm sample order and matrix symmetry. Interpret low-dimensional MDS only
-after inspecting the distance definition and retained eigenvalues. Close pairs
-may reflect relatives or duplicates rather than population-level structure.
+Identity-by-state (IBS, `SNPRelate::snpgdsIBS()`) is a simpler, symmetric
+similarity measure than kinship below: the fraction of alleles shared
+between every pair of samples, with no explicit relatedness model behind
+it. Multidimensional scaling (classical `stats::cmdscale()` on the 1 - IBS
+distance matrix, Zheng et al. 2012) projects that pairwise matrix into
+low-dimensional coordinates for visualization -- the same purpose as PCA
+above, but built from a similarity matrix rather than the raw genotype
+matrix directly, so treat it as a complementary view, not a substitute.
+Confirm sample order and matrix symmetry before trusting either the heatmap
+or the MDS coordinates. Interpret low-dimensional MDS only after checking
+how much variance each axis actually explains: `cmdscale()` can produce
+negative eigenvalues for a non-Euclidean distance like IBS (goodness-of-fit
+is computed from the positive eigenvalues only), and a low percentage means
+the 2D plot is compressing away real structure, not that little structure
+exists. Close pairs in either view may reflect relatives or duplicates
+rather than population-level structure -- the Kinship section below is the
+right tool to tell those apart, not IBS/MDS alone.
 
 ![Pairwise IBS heatmap from the quickstart example, average-linkage clustered](figures/09_IBS_heatmap.png)
+
+![IBS multidimensional scaling of the quickstart example, coloured by population](figures/08_IBS_MDS.png)
+
+On the quickstart example, MDS1 and MDS2 explain 11.97% and 6.99% of the
+positive-eigenvalue variation respectively (65 of the 160 eigenvalues are
+negative -- an expected property of IBS-based distances, not an error).
+Modest but real: MDS1 alone already separates the two African populations
+(LWK, YRI) from the rest (ANOVA on MDS1 by population, p = 5.5e-64), the
+same continental pattern PCA recovers above, now from a completely
+different starting matrix (pairwise allele-sharing rather than PCA's
+genotype covariance structure) -- an independent confirmation, not a
+re-derivation of the same PCA result. The single highest pairwise IBS
+similarity in the whole dataset (0.979) is `HG03873`/`HG03998` -- the same
+pair the next section flags as a kinship "duplicate/MZ twin" call that
+turns out, on corroborating sex-check evidence, not actually to be one;
+worth keeping in mind while reading that section.
 
 ## Kinship
 
@@ -612,9 +642,31 @@ population label.
 
 ## AMOVA
 
-Report the hierarchy, distance definition, permutations, missing-data handling,
-and variance components. Interpret negative components transparently rather
-than silently truncating them.
+Analysis of molecular variance (Excoffier et al. 1992, via
+`poppr::poppr.amova()`) partitions total genetic variance hierarchically --
+between populations, between samples within populations, and within
+samples -- and tests each component's significance by permutation
+(`ade4::randtest()`, 999 permutations, not currently configurable). Report
+the hierarchy, distance definition, permutations, missing-data handling,
+and variance components. Interpret a negative variance component transparently
+(a real, expected outcome of the estimator under weak or absent true
+structure, not an error) rather than silently truncating it to zero.
+
+`24_AMOVA_phi_statistics.tsv`'s `Phi-population-total` is the same quantity
+as FST in this hierarchical framework -- the fraction of total variance
+attributable to among-population differences, computed by an entirely
+different route (variance partitioning on a distance matrix, rather than
+FST's allele-frequency-based estimator). On the quickstart example,
+`23_AMOVA_components.tsv` partitions total variance into 9.04%
+between-population, 4.27% between-samples-within-population, and 86.69%
+within-samples; `Phi-population-total` = 0.0904, and all three components
+are significant at p = 0.001 (999/999 permutations, the permutation floor).
+This 9.04% is an independent, method-agnostic confirmation of the same ~9%
+among-population signal already reported by Weir and Cockerham's (1984)
+global FST (0.0915) and Weir and Goudet's (2017) population-specific FST
+(`global_beta_fst` = 0.0915) above -- three different estimators converging
+on the same real value from the same real population structure, not three
+unrelated numbers that happen to look similar.
 
 ## Mantel and isolation by distance
 
