@@ -74,7 +74,7 @@ rc_fixture <- function(env, mode = "production", blocked = NULL,
     mode = mode,
     candidate_id = "0.10.0-rc1",
     target_release = "v0.10.0",
-    package_version = "0.10.0",
+    package_version = "0.10.0.9000",
     git_commit = paste(rep("a", 40L), collapse = ""),
     evaluated_at = "2026-07-22T23:59:59Z",
     records = records

@@ -26,6 +26,17 @@ for (module in c(
 }
 
 policy <- read_release_candidate_policy(args[[1L]])
+repo_root <- normalizePath(file.path(dirname(script_path), ".."), mustWork = TRUE)
+# Rehearsal mode evaluates the dossier machinery against whatever commit CI is
+# currently building, not a deliberately-declared release candidate -- so its
+# evidence index's package_version tracks the live DESCRIPTION directly rather
+# than the policy file's own package_version (which stays meaningful only for
+# a real, deliberately-declared production candidate). This is the one value
+# in the whole release-metadata contract with no independent reason to ever
+# diverge from DESCRIPTION, so it is derived here instead of hand-synced.
+rehearsal_package_version <- unname(read.dcf(
+  file.path(repo_root, "DESCRIPTION"), fields = "Version"
+)[1L, "Version"])
 git_commit <- tolower(rc_scalar(args[[4L]], "git commit"))
 if (!grepl("^[0-9a-f]{40}$", git_commit)) {
   stop("git commit must be a lowercase 40-character SHA", call. = FALSE)
@@ -66,7 +77,7 @@ index <- list(
   mode = "rehearsal",
   candidate_id = rc_scalar(args[[3L]], "candidate id"),
   target_release = rc_scalar(policy$target_release, "target release"),
-  package_version = rc_scalar(policy$package_version, "package version"),
+  package_version = rehearsal_package_version,
   git_commit = git_commit,
   evaluated_at = evaluated_at,
   records = records

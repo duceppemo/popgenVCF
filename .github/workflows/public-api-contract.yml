@@ -54,7 +54,13 @@ jobs:
           metadata <- read.dcf("inst/api-contract/public-api-baseline.dcf")
           expected_version <- unname(metadata[1L, "Version"])
           installed_version <- as.character(utils::packageVersion("popgenVCF"))
-          if (is.na(expected_version) || expected_version != installed_version) {
+          # A `.9NNN`-suffixed installed version (standard R convention for a
+          # development build following a release) is reconciled against its
+          # released X.Y.Z prefix -- the baseline stays pinned to the last
+          # release the public API was actually audited against, and is
+          # re-pinned to a new exact version only when the API itself changes.
+          released_prefix <- sub("^([0-9]+\\.[0-9]+\\.[0-9]+)\\.9[0-9]{3}$", "\\1", installed_version)
+          if (is.na(expected_version) || expected_version != released_prefix) {
             stop("Baseline version ", expected_version, " does not match installed package version ", installed_version)
           }
           expected_entries <- suppressWarnings(as.integer(unname(metadata[1L, "Entries"])))
