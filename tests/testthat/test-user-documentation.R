@@ -129,7 +129,7 @@ test_that("public user documentation uses current or release-neutral image examp
 test_that("README is a minimal landing page for the Wiki and pkgdown", {
   root <- require_user_documentation_root()
   description <- read.dcf(file.path(root, "DESCRIPTION"))
-  expect_identical(unname(description[1L, "Version"]), "0.10.0")
+  expect_identical(unname(description[1L, "Version"]), "0.10.0.9000")
 
   readme <- readLines(file.path(root, "README.md"), warn = FALSE)
   required_text <- c(

@@ -55,7 +55,7 @@ test_that("release-facing metadata and public API remain reconciled", {
   root <- release_reconciliation_test_root()
   audit <- release_api_reconciliation(root)
 
-  expect_identical(audit$version, "0.10.0")
+  expect_identical(audit$version, "0.10.0.9000")
   expect_true(all(audit$version_signals$present), info = paste(
     audit$version_signals$file[!audit$version_signals$present],
     collapse = ", "
@@ -68,6 +68,42 @@ test_that("release-facing metadata and public API remain reconciled", {
     collapse = "\n"
   ))
   expect_true(audit$passed)
+})
+
+test_that("a .9000-suffixed version is treated as unreleased even when the archived release_status is released", {
+  root <- withr::local_tempdir()
+  dir.create(file.path(root, "inst", "metadata"), recursive = TRUE)
+  dir.create(file.path(root, "inst", "doc"), recursive = TRUE)
+  dir.create(file.path(root, "docs"), recursive = TRUE)
+
+  writeLines("Version: 0.10.0.9000", file.path(root, "DESCRIPTION"))
+  writeLines("# popgenVCF 0.10.0.9000 development\n\n- entry", file.path(root, "NEWS.md"))
+  writeLines("Development series: **0.10.0.9000**", file.path(root, "README.md"))
+  writeLines("**0.10.0.9000**", file.path(root, "docs", "ROADMAP.md"))
+  writeLines("**0.10.0.9000**", file.path(root, "inst", "doc", "ROADMAP.md"))
+
+  jsonlite::write_json(
+    list(release_status = "released"),
+    file.path(root, "inst", "metadata", "software-identity.json"),
+    auto_unbox = TRUE
+  )
+
+  signals <- release_reconciliation_version_signals(root, "0.10.0.9000")
+  expect_true(all(signals$present), info = paste(
+    signals$file[!signals$present], collapse = ", "
+  ))
+
+  # A bare, non-.9000 version still follows the archived release_status
+  # exactly as before -- released_status = "released" expects the
+  # "no development suffix" NEWS.md/README.md patterns.
+  writeLines("# popgenVCF 0.10.0", file.path(root, "NEWS.md"))
+  writeLines("Current release: **0.10.0**", file.path(root, "README.md"))
+  writeLines("**0.10.0**", file.path(root, "docs", "ROADMAP.md"))
+  writeLines("**0.10.0**", file.path(root, "inst", "doc", "ROADMAP.md"))
+  released_signals <- release_reconciliation_version_signals(root, "0.10.0")
+  expect_true(all(released_signals$present), info = paste(
+    released_signals$file[!released_signals$present], collapse = ", "
+  ))
 })
 
 test_that("every roxygen export has an explicit namespace declaration", {

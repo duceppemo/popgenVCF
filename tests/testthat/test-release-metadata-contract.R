@@ -5,7 +5,14 @@ test_that("packaged software identity is complete and release-consistent", {
   expect_identical(identity$title, "Population Genomics Toolkit for VCF Data")
   expect_identical(identity$citation_title,
                    "popgenVCF: Population Genomics Toolkit for VCF Data")
-  expect_identical(identity$version, as.character(utils::packageVersion("popgenVCF")))
+  # A `.9NNN`-suffixed installed version (the standard R convention for a
+  # development build following a release) is reconciled against its
+  # released X.Y.Z prefix -- identity.json keeps truthfully describing the
+  # real archived release (see scripts/validate_release_metadata.R for the
+  # same rule applied to DESCRIPTION/CITATION.cff).
+  installed_version <- as.character(utils::packageVersion("popgenVCF"))
+  released_prefix <- sub("^([0-9]+\\.[0-9]+\\.[0-9]+)\\.9[0-9]{3}$", "\\1", installed_version)
+  expect_identical(identity$version, released_prefix)
   expect_identical(identity$release_status, "released")
   expect_identical(identity$date_released, "2026-08-01")
   expect_identical(identity$doi, "10.5281/zenodo.21747548")
@@ -38,7 +45,11 @@ test_that("installed package citation follows package metadata", {
 
   entry <- citation[[1L]]
   expect_identical(unname(entry$title), identity$citation_title)
-  expect_identical(unname(entry$note), paste("R package version", identity$version))
+  # R's citation() note embeds the *installed* package version directly, which
+  # legitimately diverges from identity$version by a `.9NNN` development
+  # suffix following a release (see the version-reconciliation test above).
+  installed_version <- as.character(utils::packageVersion("popgenVCF"))
+  expect_identical(unname(entry$note), paste("R package version", installed_version))
   expect_identical(unname(entry$url), identity$repository)
 
   text <- paste(format(citation, style = "text"), collapse = "\n")

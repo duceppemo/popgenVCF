@@ -167,7 +167,16 @@ release_reconciliation_release_status <- function(root) {
 release_reconciliation_version_signals <- function(root, version) {
   files <- c("DESCRIPTION", "NEWS.md", "README.md", "docs/ROADMAP.md", "inst/doc/ROADMAP.md")
   files <- files[file.exists(file.path(root, files))]
-  released <- identical(release_reconciliation_release_status(root), "released")
+  # `release_status` in inst/metadata/software-identity.json records whether
+  # this project has ever published a release (and stays "released" once it
+  # has -- that is a durable historical fact about the archived version, not
+  # about whatever DESCRIPTION currently says). A `.9000`-suffixed DESCRIPTION
+  # version (the standard R community convention for "development build
+  # following a release", e.g. usethis::use_dev_version()) means the *current*
+  # build has moved past that archived release and is unreleased again,
+  # regardless of the archived release's own historical status.
+  is_dev_build <- grepl("\\.9[0-9]{3}$", version)
+  released <- identical(release_reconciliation_release_status(root), "released") && !is_dev_build
   patterns <- c(
     DESCRIPTION = paste0("Version: ", version),
     NEWS.md = paste0("# popgenVCF ", version, if (released) "" else " development"),

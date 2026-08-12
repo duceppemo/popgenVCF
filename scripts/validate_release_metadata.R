@@ -93,9 +93,26 @@ repository <- scalar(identity$repository)
 documentation <- scalar(identity$documentation)
 issue_tracker <- scalar(identity$issue_tracker)
 
+# A `.9NNN`-suffixed DESCRIPTION version (the standard R community convention
+# for "development build following a release", e.g. usethis::use_dev_version())
+# means the current build has moved past the archived software identity's own
+# release without a new release existing yet. software-identity.json's version
+# (and the DOI/date_released next to it) must keep truthfully describing the
+# real archived release, not the in-progress build -- so a dev build is
+# reconciled against its released X.Y.Z prefix instead of requiring exact
+# equality, which would otherwise force identity.json to falsely claim a
+# release (and DOI) for a version that was never actually archived.
+dev_version_prefix <- sub("^([0-9]+\\.[0-9]+\\.[0-9]+)\\.9[0-9]{3}$", "\\1", package_version)
+is_dev_build <- !identical(dev_version_prefix, package_version)
+released_version <- if (is_dev_build) dev_version_prefix else package_version
+
 record_check("description.package", identical(package_name, scalar(identity$name)), "Package must match software identity")
 record_check("description.title", identical(package_title, scalar(identity$title)), "Title must match software identity")
-record_check("description.version", identical(package_version, scalar(identity$version)), "Version must match software identity")
+record_check(
+  "description.version",
+  identical(released_version, scalar(identity$version)),
+  "Version must match software identity (or its released X.Y.Z prefix for a .9NNN development build)"
+)
 record_check(
   "description.author",
   !("Author" %in% names(description)) &&
@@ -134,7 +151,11 @@ cff_author <- cff$authors[[1L]] %||% list()
 record_check("cff.schema", identical(scalar(cff[["cff-version"]]), "1.2.0"), "CFF schema must be 1.2.0")
 record_check("cff.type", identical(scalar(cff$type), "software"), "CFF type must be software")
 record_check("cff.title", identical(scalar(cff$title), scalar(identity$citation_title)), "CFF title must match canonical citation title")
-record_check("cff.version", identical(scalar(cff$version), package_version), "CFF version must match DESCRIPTION")
+record_check(
+  "cff.version",
+  identical(scalar(cff$version), released_version),
+  "CFF version must match DESCRIPTION (or its released X.Y.Z prefix for a .9NNN development build)"
+)
 record_check("cff.repository", identical(scalar(cff[["repository-code"]]), repository), "CFF repository-code must match identity")
 record_check("cff.artifact_repository", identical(scalar(cff[["repository-artifact"]]), scalar(identity$release_archive)), "CFF repository-artifact must match release archive")
 record_check("cff.url", identical(scalar(cff$url), documentation), "CFF URL must match documentation site")

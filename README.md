@@ -18,9 +18,10 @@ runs of homozygosity, sliding-window genome scans, DAPC, AMOVA, population
 structure, spatial genetics, publication outputs, and machine-readable
 validation evidence.
 
-> Current release: **0.10.0** — scientifically approved and released,
-> 2026-08-01. Interfaces and output schemas may still change before 1.0. No
-> development build should be treated as release-approved unless its
+> Development series: **0.10.0.9000** — active development on `main` toward
+> the next release, past the current stable release **0.10.0** (approved and
+> released 2026-08-01, [DOI 10.5281/zenodo.21747548](https://doi.org/10.5281/zenodo.21747548)).
+> No development build should be treated as release-approved unless its own
 > production dossier reports `READY`.
 
 ## See it before you install it
