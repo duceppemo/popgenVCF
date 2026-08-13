@@ -6,9 +6,14 @@ software_identity_scalar <- function(x, label) {
 }
 
 popgenvcf_software_identity_path <- function() {
-  installed <- system.file("metadata", "software-identity.json", package = "popgenVCF")
-  if (nzchar(installed) && file.exists(installed)) return(installed)
-
+  # Prefer the checked-out source tree over a possibly-stale system.file()
+  # install: a real end-user installed copy has no source tree reachable
+  # here at all (these candidates simply won't exist), so this only changes
+  # behavior in a development/test context, where a stale previously-
+  # installed popgenVCF (different version, license terms, or DOI than the
+  # current checkout) would otherwise silently shadow the current commit's
+  # actual inst/metadata/software-identity.json. See the identical rationale
+  # on rc_policy_path() in tests/testthat/helper-release-candidate-dossier.R.
   source_root <- Sys.getenv("POPGENVCF_SOURCE_ROOT", unset = "")
   candidates <- unique(c(
     if (nzchar(source_root)) file.path(source_root, "inst", "metadata", "software-identity.json"),
@@ -16,8 +21,12 @@ popgenvcf_software_identity_path <- function() {
     file.path(dirname(getwd()), "inst", "metadata", "software-identity.json")
   ))
   matches <- candidates[file.exists(candidates)]
-  if (!length(matches)) stop("canonical software identity metadata is unavailable", call. = FALSE)
-  normalizePath(matches[[1L]], winslash = "/", mustWork = TRUE)
+  if (length(matches)) return(normalizePath(matches[[1L]], winslash = "/", mustWork = TRUE))
+
+  installed <- system.file("metadata", "software-identity.json", package = "popgenVCF")
+  if (nzchar(installed) && file.exists(installed)) return(installed)
+
+  stop("canonical software identity metadata is unavailable", call. = FALSE)
 }
 
 validate_popgenvcf_software_identity <- function(identity) {
