@@ -27,7 +27,8 @@ run_faststructure(
   plink_prefix,
   k_values,
   output_dir = ".",
-  seed = 42L
+  seed = 42L,
+  timeout_seconds = 14400
 )
 
 run_snmf(
@@ -55,6 +56,7 @@ run_population_structure_validation(integration = FALSE, seed = 42L)
   \item{k_values}{Integer values of K to evaluate.}
   \item{output_dir}{Directory for external-program output.}
   \item{seed}{Random seed.}
+  \item{timeout_seconds}{Maximum wall-clock seconds allowed per subprocess call (each K value's \code{structure.py} run, and the final \code{chooseK.py} run) before it is killed and treated as a failure.}
   \item{geno_file}{LEA-format \code{.geno} file.}
   \item{repetitions}{Number of sNMF repetitions per K.}
   \item{entropy}{Whether sNMF computes cross entropy.}
