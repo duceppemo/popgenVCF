@@ -339,6 +339,24 @@ test_that("auto ancestry threads resolve from the compute budget", {
   expect_identical(validated$analyses$snmf$threads, 3L)
 })
 
+test_that("ancestry-backend timeout_seconds defaults and validates", {
+  cfg <- popgenVCF::default_config()
+  cfg$input$vcf <- tempfile(fileext = ".vcf")
+  cfg$output$directory <- tempfile("popgenvcf-output-")
+  file.create(cfg$input$vcf)
+
+  validated <- popgenVCF::validate_config(cfg)
+  expect_identical(validated$analyses$admixture$timeout_seconds, 14400)
+  expect_identical(validated$analyses$faststructure$timeout_seconds, 14400)
+
+  cfg$analyses$admixture$timeout_seconds <- 0
+  expect_error(popgenVCF::validate_config(cfg), "analyses.admixture.timeout_seconds")
+
+  cfg$analyses$admixture$timeout_seconds <- 60
+  cfg$analyses$faststructure$timeout_seconds <- -1
+  expect_error(popgenVCF::validate_config(cfg), "analyses.faststructure.timeout_seconds")
+})
+
 test_that("sNMF forwards CPU and deterministic seed settings to LEA", {
   args <- popgenVCF:::snmf_project_arguments(
     "input.geno", 2:4, 5L, TRUE, "new", 6L, 123L

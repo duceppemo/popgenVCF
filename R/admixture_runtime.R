@@ -131,10 +131,16 @@ admixture_output_tail <- function(output, n = 12L) {
 #' @param cv_folds Number of cross-validation folds.
 #' @param output_dir Directory for ADMIXTURE logs and outputs.
 #' @param seed Deterministic ADMIXTURE seed.
+#' @param timeout_seconds Maximum wall-clock seconds allowed per K value
+#'   before ADMIXTURE (and its full process tree) is killed and treated as a
+#'   failure, guarding against a hang on a degenerate or malformed genotype
+#'   matrix -- a documented real ADMIXTURE failure mode -- rather than
+#'   blocking the pipeline forever with no way to recover.
 #' @return A data table of K values and cross-validation errors.
 #' @export
 run_admixture_cv <- function(executable, plink_prefix, k_values, threads = 1L,
-                             cv_folds = 5L, output_dir = ".", seed = 42L) {
+                             cv_folds = 5L, output_dir = ".", seed = 42L,
+                             timeout_seconds = 14400) {
   plink_prefix <- path.expand(as.character(plink_prefix)[1L])
   paths <- plink_bundle_paths(plink_prefix)
   missing <- names(paths)[!file.exists(paths)]
@@ -161,9 +167,6 @@ run_admixture_cv <- function(executable, plink_prefix, k_values, threads = 1L,
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   output_dir <- normalizePath(output_dir, mustWork = TRUE)
   bed <- normalizePath(paths[["bed"]], mustWork = TRUE)
-  old <- getwd()
-  on.exit(setwd(old), add = TRUE)
-  setwd(output_dir)
 
   results <- vector("list", length(k_values))
   names(results) <- as.character(k_values)
@@ -177,23 +180,11 @@ run_admixture_cv <- function(executable, plink_prefix, k_values, threads = 1L,
     unlink(paste0(output_stub, c(".Q", ".P")), force = TRUE)
 
     args <- admixture_command_arguments(bed, k, cv_folds, threads, seed)
-    out <- tryCatch(
-      suppressWarnings(system2(
-        exe,
-        args,
-        stdout = TRUE,
-        stderr = TRUE
-      )),
-      error = function(e) structure(
-        conditionMessage(e),
-        status = NA_integer_
-      )
-    )
+    run <- run_supervised_line_command(exe, args, output_dir, timeout_seconds)
+    out <- run$output
     writeLines(as.character(out), log_file, useBytes = TRUE)
 
-    status <- attr(out, "status")
-    if (is.null(status)) status <- 0L
-    status <- suppressWarnings(as.integer(status)[1L])
+    status <- run$status
     if (is.na(status) || status != 0L) {
       stop(
         sprintf(

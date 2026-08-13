@@ -132,7 +132,8 @@ run_module_admixture <- function(analysis, context) {
   context$structure_plink <- plink
   cv <- run_admixture_cv(
     ac$executable, plink$prefix, parse_int_range(ac$k),
-    ac$threads, ac$cv_folds, dirs$admixture, cfg$compute$seed
+    ac$threads, ac$cv_folds, dirs$admixture, cfg$compute$seed,
+    timeout_seconds = ac$timeout_seconds
   )
   k_selection <- select_structure_k_if_informative(cv)
   analysis <- set_analysis_result(analysis, "admixture_cv", cv)
@@ -190,7 +191,8 @@ run_module_faststructure <- function(analysis, context) {
   context$structure_plink <- plink
   result <- run_faststructure(
     fc$structure_executable, fc$choosek_executable,
-    plink$prefix, parse_int_range(fc$k), dirs$structure, cfg$compute$seed
+    plink$prefix, parse_int_range(fc$k), dirs$structure, cfg$compute$seed,
+    timeout_seconds = fc$timeout_seconds
   )
   if (nrow(result$choose_k_votes)) {
     k_selection <- select_structure_k(

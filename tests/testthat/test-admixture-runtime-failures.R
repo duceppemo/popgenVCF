@@ -115,3 +115,38 @@ test_that("ADMIXTURE backend failures retain the real diagnostic", {
   )
   expect_true(file.exists(file.path(output_dir, "admixture_K2.log")))
 })
+
+test_that("run_admixture_cv() kills a hung ADMIXTURE process instead of blocking forever", {
+  skip_on_cran()
+  skip_on_os("windows")
+  root <- tempfile("admixture-hang-")
+  dir.create(root)
+  prefix <- write_test_plink_bundle(file.path(root, "cohort"))
+  executable <- file.path(root, "fake-admixture-hang")
+  writeLines(
+    c(
+      "#!/bin/sh",
+      "echo 'starting'",
+      "sleep 5",
+      "echo 'CV error (K=2): 0.5'"
+    ),
+    executable
+  )
+  Sys.chmod(executable, mode = "0755")
+  output_dir <- file.path(root, "output")
+
+  elapsed <- system.time(
+    expect_error(
+      popgenVCF::run_admixture_cv(
+        executable = executable,
+        plink_prefix = prefix,
+        k_values = 2L,
+        output_dir = output_dir,
+        timeout_seconds = 1
+      ),
+      "ADMIXTURE failed for K=2.*exceeded timeout"
+    )
+  )
+  expect_lt(elapsed[["elapsed"]], 4)
+  expect_true(file.exists(file.path(output_dir, "admixture_K2.log")))
+})

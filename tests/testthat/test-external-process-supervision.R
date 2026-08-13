@@ -123,3 +123,50 @@ test_that("non-zero commands preserve exit status and output", {
   expect_match(result$stdout, "partial-output", fixed = TRUE)
   expect_match(result$stderr, "diagnostic-error", fixed = TRUE)
 })
+
+test_that("run_supervised_line_command() preserves system2(stdout=TRUE, stderr=TRUE)'s return shape on success", {
+  script <- supervision_script(c(
+    "cat('line one\\n')",
+    "cat('line two\\n')",
+    "message('an error line')"
+  ))
+  on.exit(unlink(script), add = TRUE)
+  run <- run_supervised_line_command(
+    supervised_rscript(), script, dirname(script), timeout_seconds = 30
+  )
+  expect_identical(run$status, 0L)
+  expect_false(run$timed_out)
+  expect_true(is.character(run$output))
+  expect_true(any(grepl("line one", run$output, fixed = TRUE)))
+  expect_true(any(grepl("line two", run$output, fixed = TRUE)))
+  expect_true(any(grepl("an error line", run$output, fixed = TRUE)))
+})
+
+test_that("run_supervised_line_command() reports a non-zero exit status like system2()", {
+  script <- supervision_script(c("cat('failing')", "quit(status = 3L)"))
+  on.exit(unlink(script), add = TRUE)
+  run <- run_supervised_line_command(
+    supervised_rscript(), script, dirname(script), timeout_seconds = 30
+  )
+  expect_identical(run$status, 3L)
+  expect_false(run$timed_out)
+  expect_true(any(grepl("failing", run$output, fixed = TRUE)))
+})
+
+test_that("run_supervised_line_command() kills a hung process instead of blocking forever", {
+  skip_on_cran()
+  script <- supervision_script("Sys.sleep(5)")
+  on.exit(unlink(script), add = TRUE)
+  elapsed <- system.time(
+    run <- run_supervised_line_command(
+      supervised_rscript(), script, dirname(script), timeout_seconds = 1
+    )
+  )
+  expect_true(run$timed_out)
+  expect_true(is.na(run$status))
+  expect_true(any(grepl("exceeded timeout", run$output, fixed = TRUE)))
+  # The process was actually killed, not just reported as timed out while
+  # still running in the background -- the call returns close to the
+  # 1-second timeout, not the full 5-second sleep.
+  expect_lt(elapsed[["elapsed"]], 4)
+})

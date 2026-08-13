@@ -75,6 +75,39 @@ test_that("marginal likelihood is parsed from fastStructure's native per-K log",
   expect_true(is.na(popgenVCF:::parse_faststructure_marginal_likelihood("no such line here")))
 })
 
+test_that("run_faststructure() kills a hung structure.py process instead of blocking forever", {
+  skip_on_cran()
+  skip_on_os("windows")
+  root <- tempfile("faststructure-hang-")
+  dir.create(root)
+  prefix <- file.path(root, "cohort")
+  file.create(paste0(prefix, c(".bed", ".bim", ".fam")))
+
+  structure_executable <- file.path(root, "fake-structure-hang.py")
+  writeLines(c("#!/bin/sh", "echo starting", "sleep 5"), structure_executable)
+  Sys.chmod(structure_executable, mode = "0755")
+  choosek_executable <- file.path(root, "fake-choosek")
+  writeLines(c("#!/bin/sh", "echo unused"), choosek_executable)
+  Sys.chmod(choosek_executable, mode = "0755")
+
+  output_dir <- file.path(root, "output")
+  elapsed <- system.time(
+    expect_error(
+      popgenVCF::run_faststructure(
+        structure_executable = structure_executable,
+        choosek_executable = choosek_executable,
+        plink_prefix = prefix,
+        k_values = 2L,
+        output_dir = output_dir,
+        timeout_seconds = 1
+      ),
+      "fastStructure failed for K=2.*exceeded timeout"
+    )
+  )
+  expect_lt(elapsed[["elapsed"]], 4)
+  expect_true(file.exists(file.path(output_dir, "fastStructure_K2.log")))
+})
+
 test_that("the primary Conda environment declares fastStructure", {
   environment_file <- system.file(
     "conda", "environment.yml",

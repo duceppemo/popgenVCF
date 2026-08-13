@@ -48,10 +48,10 @@ default_config <- function() {
                                      minimum_cluster_correlation = 0.90),
                     admixture = list(enabled = FALSE, executable = "admixture", plink_prefix = NULL,
                                      k = "2:10", threads = "auto", cv_folds = 5L,
-                                     q_sample_file = NULL),
+                                     q_sample_file = NULL, timeout_seconds = 14400),
                     faststructure = list(enabled = FALSE, structure_executable = "structure.py",
                                          choosek_executable = "chooseK.py", plink_prefix = NULL,
-                                         k = "2:10", q_sample_file = NULL),
+                                         k = "2:10", q_sample_file = NULL, timeout_seconds = 14400),
                     snmf = list(enabled = FALSE, geno_file = NULL, q_sample_file = NULL,
                                 k = "2:10", repetitions = 5L, entropy = TRUE,
                                 threads = "auto")),
@@ -229,6 +229,18 @@ validate_config <- function(cfg) {
   )
   cfg$analyses$snmf$threads <- resolve_threads(
     cfg$analyses$snmf$threads, "analyses.snmf.threads"
+  )
+
+  resolve_timeout_seconds <- function(value, field) {
+    value <- suppressWarnings(as.numeric(value)[1L])
+    if (is.na(value) || value <= 0) stop(field, " must be a positive number of seconds", call. = FALSE)
+    value
+  }
+  cfg$analyses$admixture$timeout_seconds <- resolve_timeout_seconds(
+    cfg$analyses$admixture$timeout_seconds, "analyses.admixture.timeout_seconds"
+  )
+  cfg$analyses$faststructure$timeout_seconds <- resolve_timeout_seconds(
+    cfg$analyses$faststructure$timeout_seconds, "analyses.faststructure.timeout_seconds"
   )
 
   # ADMIXTURE and fastStructure PLINK inputs are prepared from the retained

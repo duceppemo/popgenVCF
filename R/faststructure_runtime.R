@@ -45,21 +45,12 @@ parse_faststructure_marginal_likelihood <- function(log_lines) {
   suppressWarnings(as.numeric(matches[[length(matches)]]))
 }
 
-run_faststructure_process <- function(executable, arguments, log_file) {
-  output <- tryCatch(
-    suppressWarnings(system2(
-      executable,
-      arguments,
-      stdout = TRUE,
-      stderr = TRUE
-    )),
-    error = function(e) structure(conditionMessage(e), status = NA_integer_)
-  )
-  writeLines(as.character(output), log_file, useBytes = TRUE)
-  status <- attr(output, "status")
-  if (is.null(status)) status <- 0L
-  status <- suppressWarnings(as.integer(status)[1L])
-  list(output = output, status = status)
+run_faststructure_process <- function(executable, arguments, log_file,
+                                      working_directory = dirname(log_file),
+                                      timeout_seconds = 14400) {
+  run <- run_supervised_line_command(executable, arguments, working_directory, timeout_seconds)
+  writeLines(as.character(run$output), log_file, useBytes = TRUE)
+  list(output = run$output, status = run$status)
 }
 
 # The supported Bioconda package installs structure.py and chooseK.py directly
@@ -72,12 +63,17 @@ run_faststructure_process <- function(executable, arguments, log_file) {
 #' @param k_values Integer K values.
 #' @param output_dir Output directory.
 #' @param seed Random seed.
+#' @param timeout_seconds Maximum wall-clock seconds allowed per subprocess
+#'   call (each K value's `structure.py` run, and the final `chooseK.py`
+#'   run) before it (and its full process tree) is killed and treated as a
+#'   failure, guarding against a hang rather than blocking the pipeline
+#'   forever with no way to recover.
 #' @return A list containing run records, Q matrices, and chooseK output.
 #' @export
 run_faststructure <- function(structure_executable = "structure.py",
                               choosek_executable = "chooseK.py",
                               plink_prefix, k_values, output_dir = ".",
-                              seed = 42L) {
+                              seed = 42L, timeout_seconds = 14400) {
   paths <- plink_bundle_paths(plink_prefix)
   missing <- names(paths)[!file.exists(paths)]
   if (length(missing)) {
@@ -128,7 +124,8 @@ run_faststructure <- function(structure_executable = "structure.py",
       "--format", "bed"
     )
     process <- run_faststructure_process(
-      structure_command, arguments, log_file
+      structure_command, arguments, log_file,
+      working_directory = output_dir, timeout_seconds = timeout_seconds
     )
     if (is.na(process$status) || process$status != 0L) {
       stop(
@@ -173,7 +170,8 @@ run_faststructure <- function(structure_executable = "structure.py",
   choose_process <- run_faststructure_process(
     choosek_command,
     c("--input", prefix),
-    choose_log
+    choose_log,
+    working_directory = output_dir, timeout_seconds = timeout_seconds
   )
   if (is.na(choose_process$status) || choose_process$status != 0L) {
     stop(

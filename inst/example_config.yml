@@ -140,6 +140,11 @@ analyses:
     k: 2:10
     threads: auto
     cv_folds: 5
+    # Maximum wall-clock seconds allowed per K value before ADMIXTURE (and
+    # its full process tree) is killed and treated as a failure -- guards
+    # against a hang on a degenerate or malformed genotype matrix rather
+    # than blocking the pipeline forever with no way to recover.
+    timeout_seconds: 14400
   faststructure:
     enabled: false
     structure_executable: structure.py
@@ -147,6 +152,10 @@ analyses:
     # Optional: otherwise generated from retained samples and LD-pruned SNPs.
     plink_prefix: null
     k: 2:10
+    # Maximum wall-clock seconds allowed per subprocess call (each K value's
+    # structure.py run, and the final chooseK.py run) before it is killed
+    # and treated as a failure.
+    timeout_seconds: 14400
   snmf:
     enabled: false
     # Optional pair: otherwise generated from retained samples and LD-pruned SNPs.

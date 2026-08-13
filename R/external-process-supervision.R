@@ -214,3 +214,55 @@ run_supervised_external_command <- function(
     )
   )
 }
+
+#' Run a supervised external command, returning `system2()`'s line-oriented shape
+#'
+#' A thin convenience wrapper around [run_supervised_external_command()] for
+#' external tools (ADMIXTURE, fastStructure) whose callers parse stdout/stderr
+#' as line-oriented plain text and only need an exit status -- the same
+#' return contract `system2(..., stdout = TRUE, stderr = TRUE)` provided,
+#' which these callers were originally built against, kept unchanged so their
+#' parsing logic did not need to change when supervision (timeout and
+#' process-tree cleanup) was added. Admission always uses the default
+#' single-thread requirement/policy (`new_module_resource_requirements()`,
+#' `new_execution_resource_policy()`) -- this wrapper's whole purpose is
+#' adding a timeout, not resource-bounding, so it deliberately never rejects
+#' admission the way an unbounded `system2()` call never did either.
+#'
+#' @param executable Executable name or path.
+#' @param args Character vector of command-line arguments.
+#' @param working_directory Existing directory the subprocess should run in.
+#' @param timeout_seconds Maximum wall-clock seconds before the process
+#'   (and its full process tree) is killed and treated as a failure.
+#' @return A list with `output` (character vector of output lines, stdout
+#'   followed by stderr, matching `system2()`'s combined-capture convention),
+#'   `status` (integer exit status, or `NA_integer_` on timeout/launch
+#'   failure -- `system2()`'s own convention for an unresolvable execution),
+#'   and `timed_out` (logical).
+#' @keywords internal
+run_supervised_line_command <- function(executable, args, working_directory,
+                                        timeout_seconds) {
+  command <- new_external_command(
+    executable = executable, args = args, working_directory = working_directory
+  )
+  policy <- new_external_process_supervision_policy(timeout_seconds = timeout_seconds)
+  result <- run_supervised_external_command(command, supervision_policy = policy)
+
+  combined <- c(result$stdout, result$stderr)
+  combined <- combined[nzchar(combined)]
+  lines <- if (length(combined)) {
+    unlist(strsplit(combined, "\n", fixed = TRUE), use.names = FALSE)
+  } else {
+    character()
+  }
+  timed_out <- identical(result$status, "timed_out")
+  status <- if (result$status %in% c("timed_out", "launch_failed", "resource_unavailable", "cancelled")) {
+    NA_integer_
+  } else {
+    result$exit_status
+  }
+  if (!is.na(result$error_message) && result$status %in% c("timed_out", "launch_failed")) {
+    lines <- c(lines, result$error_message)
+  }
+  list(output = lines, status = status, timed_out = timed_out)
+}
