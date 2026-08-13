@@ -76,12 +76,24 @@ new_module_resource_requirements <- function(threads = 1L,
 
 #' Evaluate deterministic resource admission
 #'
+#' Each call is independent and stateless: it only checks `requirements`
+#' against `policy`'s fixed capacity, exactly as documented above. Callers
+#' that admit multiple overlapping (not-yet-finalized) requests against the
+#' same policy -- as [start_supervised_external_command()] does -- must pass
+#' `in_use` themselves to have those already-admitted requests actually
+#' count against capacity; nothing here tracks that automatically.
+#'
 #' @param requirements Module requirements from [new_module_resource_requirements()].
 #' @param policy Execution resource policy.
+#' @param in_use Resources already committed against `policy` by other
+#'   still-running admissions, as a named vector with the same names as
+#'   `requirements` (default: none). Subtracted from `policy`'s capacity
+#'   before checking `requirements`.
 #' @return A `PopgenVCFExecutionAdmissionDecision` object.
 #' @export
 admit_execution_resources <- function(requirements,
-                                      policy = new_execution_resource_policy()) {
+                                      policy = new_execution_resource_policy(),
+                                      in_use = c(threads = 0, memory_mb = 0, temp_mb = 0, processes = 0)) {
   if (!inherits(policy, "PopgenVCFExecutionResourcePolicy")) {
     stop("policy must be a PopgenVCFExecutionResourcePolicy", call. = FALSE)
   }
@@ -89,8 +101,12 @@ admit_execution_resources <- function(requirements,
   if (!is.numeric(requirements) || !identical(names(requirements), required_names) || anyNA(requirements)) {
     stop("requirements must be a validated module resource vector", call. = FALSE)
   }
+  if (!is.numeric(in_use) || !identical(names(in_use), required_names) || anyNA(in_use) || any(in_use < 0)) {
+    stop("in_use must be a non-negative resource vector", call. = FALSE)
+  }
   capacity <- unlist(policy[required_names], use.names = TRUE)
-  exceeded <- required_names[requirements > capacity]
+  available <- capacity - in_use
+  exceeded <- required_names[requirements > available]
   admitted <- !length(exceeded)
   structure(
     list(
@@ -99,6 +115,8 @@ admit_execution_resources <- function(requirements,
       exceeded = exceeded,
       requirements = requirements,
       capacity = capacity,
+      in_use = in_use,
+      available = available,
       policy = policy$label
     ),
     class = "PopgenVCFExecutionAdmissionDecision"

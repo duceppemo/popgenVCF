@@ -68,3 +68,32 @@ test_that("over-capacity requests fail closed with explicit dimensions", {
   expect_equal(decision$status, "resource_unavailable")
   expect_identical(decision$exceeded, c("threads", "memory_mb", "processes"))
 })
+
+test_that("in_use resources reduce available capacity for later admission checks", {
+  policy <- new_execution_resource_policy(
+    threads = 4L, memory_mb = 2048, temp_mb = 512, processes = 2L, label = "shared"
+  )
+  requirements <- new_module_resource_requirements(threads = 3L, memory_mb = 512, temp_mb = 64, processes = 1L)
+
+  # With nothing else in flight, this request fits comfortably.
+  fresh <- admit_execution_resources(requirements, policy)
+  expect_true(fresh$admitted)
+
+  # The identical request is rejected once another 2 threads are already
+  # committed against the same policy -- this is the actual concurrency
+  # protection admission is meant to provide; a stateless per-call check
+  # against the full, undiminished capacity would admit both regardless of
+  # what else is genuinely running.
+  contended <- admit_execution_resources(
+    requirements, policy,
+    in_use = c(threads = 2, memory_mb = 0, temp_mb = 0, processes = 0)
+  )
+  expect_false(contended$admitted)
+  expect_identical(contended$exceeded, "threads")
+  expect_identical(contended$available, c(threads = 2, memory_mb = 2048, temp_mb = 512, processes = 2))
+
+  expect_error(
+    admit_execution_resources(requirements, policy, in_use = c(threads = -1, memory_mb = 0, temp_mb = 0, processes = 0)),
+    "non-negative"
+  )
+})

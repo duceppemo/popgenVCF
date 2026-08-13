@@ -110,3 +110,57 @@ test_that("resource rejection and launch failures finalize without a process", {
   expect_identical(finalize_supervised_external_command(missing)$status,
                    "launch_failed")
 })
+
+test_that("overlapping handles under the same resource policy actually compete for capacity", {
+  skip_on_cran()
+  # A unique label isolates this test's ledger entries from every other
+  # test's use of the *default* policy label running in the same session.
+  policy <- new_execution_resource_policy(processes = 1L, label = "ledger-contention-test")
+  script <- async_script("Sys.sleep(2)")
+  on.exit(unlink(script), add = TRUE)
+
+  first <- start_supervised_external_command(
+    new_external_command(async_rscript(), script),
+    supervision_policy = new_external_process_supervision_policy(resource_policy = policy)
+  )
+  expect_true(first$state %in% c("running", "success"))
+
+  # A second request against the *same* policy while the first is still
+  # running (not yet finalized) must now be rejected: previously each
+  # admission check only ever saw the full, undiminished policy capacity, so
+  # two genuinely concurrent handles could both be "admitted" regardless of
+  # what was already running.
+  second <- start_supervised_external_command(
+    new_external_command(async_rscript(), "--version"),
+    supervision_policy = new_external_process_supervision_policy(resource_policy = policy)
+  )
+  expect_identical(finalize_supervised_external_command(second)$status, "resource_unavailable")
+
+  first_result <- finalize_supervised_external_command(first)
+  expect_identical(first_result$status, "success")
+
+  # Once the first handle has finalized (releasing its committed resources),
+  # a fresh request against the same policy is admitted again.
+  third <- start_supervised_external_command(
+    new_external_command(async_rscript(), "--version"),
+    supervision_policy = new_external_process_supervision_policy(resource_policy = policy)
+  )
+  expect_identical(finalize_supervised_external_command(third)$status, "success")
+})
+
+test_that("a handle's ledger commitment is released if it is garbage-collected without being finalized", {
+  policy <- new_execution_resource_policy(processes = 1L, label = "ledger-gc-test")
+  local({
+    handle <- start_supervised_external_command(
+      new_external_command(async_rscript(), "--version"),
+      supervision_policy = new_external_process_supervision_policy(resource_policy = policy)
+    )
+    expect_true(isTRUE(handle$admission_committed))
+  })
+  gc(full = TRUE)
+  gc(full = TRUE)
+  expect_identical(
+    popgenVCF:::admission_ledger_in_use("ledger-gc-test"),
+    popgenVCF:::admission_zero_usage()
+  )
+})

@@ -150,3 +150,41 @@ test_that("run_admixture_cv() kills a hung ADMIXTURE process instead of blocking
   expect_lt(elapsed[["elapsed"]], 4)
   expect_true(file.exists(file.path(output_dir, "admixture_K2.log")))
 })
+
+test_that("run_admixture_cv() normalizes chromosomes on a private copy, leaving the shared PLINK bundle untouched", {
+  skip_on_os("windows")
+  root <- tempfile("admixture-shared-bundle-")
+  dir.create(root)
+  prefix <- write_test_plink_bundle(file.path(root, "cohort"))
+  executable <- file.path(root, "fake-admixture-ok")
+  writeLines(
+    c(
+      "#!/bin/sh",
+      "echo 'CV error (K=2): 0.5'"
+    ),
+    executable
+  )
+  Sys.chmod(executable, mode = "0755")
+  output_dir <- file.path(root, "output")
+  original_bim <- readLines(paste0(prefix, ".bim"))
+
+  cv <- popgenVCF::run_admixture_cv(
+    executable = executable,
+    plink_prefix = prefix,
+    k_values = 2L,
+    output_dir = output_dir
+  )
+  expect_equal(cv$K, 2L)
+
+  # The shared bundle's own .bim must be byte-for-byte unchanged -- another
+  # ancestry backend (e.g. fastStructure) reuses the identical canonical
+  # PLINK bundle by default, and must never see ADMIXTURE's own chromosome
+  # normalization regardless of which backend happens to run first.
+  expect_identical(readLines(paste0(prefix, ".bim")), original_bim)
+  expect_false(file.exists(paste0(prefix, ".admixture_chromosome_map.tsv")))
+
+  # ADMIXTURE's own private, normalized copy lives in output_dir instead.
+  private_bim <- data.table::fread(file.path(output_dir, "cohort.bim"), header = FALSE)
+  expect_equal(as.character(private_bim[[1L]]), c("0", "2"))
+  expect_true(file.exists(file.path(output_dir, "cohort.admixture_chromosome_map.tsv")))
+})

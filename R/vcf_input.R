@@ -84,15 +84,22 @@ prepare_vcf_input <- function(vcf, cache_dir, force = FALSE) {
 
   normalized <- file.path(cache_dir, "input.normalized.vcf.gz")
   index <- paste0(normalized, ".tbi")
-  source_info <- file.info(vcf)
-  normalized_info <- if (file.exists(normalized)) file.info(normalized) else NULL
-  cache_current <- !is.null(normalized_info) &&
-    !is.na(normalized_info$mtime) &&
-    normalized_info$mtime >= source_info$mtime &&
+  # Cache validity is decided by the source file's *content*, not its mtime:
+  # mtime alone is unreliable (e.g. restoring an updated source from backup
+  # or via `git checkout` can leave a newer-content file with an
+  # equal-or-older mtime than the existing cache), and would otherwise
+  # silently serve stale cached genotypes for a source that has genuinely
+  # changed. Hashing the whole source file costs far less than the sort/index
+  # this cache exists to avoid, so there is no fast-path short-circuit here.
+  fingerprint <- paste0(normalized, ".source-sha256")
+  source_hash <- digest::digest(vcf, algo = "sha256", file = TRUE)
+  cached_hash <- if (file.exists(fingerprint)) trimws(readLines(fingerprint, warn = FALSE)) else character()
+  cache_current <- file.exists(normalized) &&
+    length(cached_hash) == 1L && identical(cached_hash, source_hash) &&
     vcf_index_is_valid(normalized, bcftools)
 
   if (isTRUE(force) || !cache_current) {
-    unlink(c(normalized, index, paste0(normalized, ".csi")), force = TRUE)
+    unlink(c(normalized, index, paste0(normalized, ".csi"), fingerprint), force = TRUE)
     sorted <- vcf_command_status(
       bcftools,
       c("sort", "--output-type", "z", "--output", shQuote(normalized), shQuote(vcf))
@@ -115,6 +122,7 @@ prepare_vcf_input <- function(vcf, cache_dir, force = FALSE) {
         call. = FALSE
       )
     }
+    writeLines(source_hash, fingerprint)
   }
 
   if (!vcf_index_is_valid(normalized, bcftools)) {

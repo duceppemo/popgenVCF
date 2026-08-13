@@ -61,6 +61,20 @@ evaluate_release_candidate_dossier <- function(policy_path, index_path, evidence
     data.frame(gate_id = character(), artifact_index = integer(), path = character(),
                size_bytes = numeric(), sha256 = character(), stringsAsFactors = FALSE)
   if (anyDuplicated(artifacts$path)) stop("Evidence artifact paths must be unique", call. = FALSE)
+  # Distinct declared paths are not enough: a symlink, hard link, or a
+  # literal duplicate copy can make two different declared paths resolve to
+  # byte-identical content, letting one physical file be checksummed and
+  # counted as two independent pieces of evidence. sha256 equality is a
+  # content-based, filesystem-mechanism-agnostic way to catch all three
+  # cases (normalizePath()-based symlink resolution alone would miss hard
+  # links and literal copies).
+  dup_content <- duplicated(artifacts$sha256) | duplicated(artifacts$sha256, fromLast = TRUE)
+  if (any(dup_content)) {
+    by_hash <- split(artifacts$path[dup_content], artifacts$sha256[dup_content])
+    detail <- vapply(by_hash, paste, character(1L), collapse = " == ")
+    stop("Evidence artifacts must not alias the same underlying content (identical sha256): ",
+         paste(detail, collapse = "; "), call. = FALSE)
+  }
   artifacts <- artifacts[order(match(artifacts$gate_id, expected), artifacts$artifact_index), , drop = FALSE]
   rownames(artifacts) <- NULL
   blockers <- gates[gates$required & !gates$passed,

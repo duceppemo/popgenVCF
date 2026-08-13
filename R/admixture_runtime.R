@@ -151,7 +151,6 @@ run_admixture_cv <- function(executable, plink_prefix, k_values, threads = 1L,
       call. = FALSE
     )
   }
-  normalize_admixture_bim_chromosomes(plink_prefix)
 
   executable <- as.character(executable)[1L]
   exe <- unname(Sys.which(executable))
@@ -166,7 +165,31 @@ run_admixture_cv <- function(executable, plink_prefix, k_values, threads = 1L,
 
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   output_dir <- normalizePath(output_dir, mustWork = TRUE)
-  bed <- normalizePath(paths[["bed"]], mustWork = TRUE)
+
+  # ADMIXTURE's requirement of integer BIM chromosome codes is specific to
+  # ADMIXTURE; plink_prefix may be the same canonical PLINK bundle another
+  # ancestry backend (e.g. fastStructure) reuses by default -- see
+  # prepare_structure_plink_input()'s caching, which both
+  # run_module_admixture() and run_module_faststructure() share when neither
+  # configures its own plink_prefix. Normalizing that shared bundle's .bim
+  # file in place would leak an ADMIXTURE-only requirement into another
+  # backend's input and make its result depend on execution order (whichever
+  # backend happened to run first). Working from a private copy scoped to
+  # output_dir instead keeps the shared bundle untouched regardless of order.
+  private_prefix <- file.path(output_dir, basename(plink_prefix))
+  private_paths <- plink_bundle_paths(private_prefix)
+  for (ext in names(paths)) {
+    source_real <- normalizePath(paths[[ext]], mustWork = TRUE)
+    dest_real <- suppressWarnings(normalizePath(private_paths[[ext]], mustWork = FALSE))
+    if (!identical(source_real, dest_real)) {
+      if (!file.copy(paths[[ext]], private_paths[[ext]], overwrite = TRUE)) {
+        stop("Unable to stage a private PLINK bundle copy for ADMIXTURE: ",
+             private_paths[[ext]], call. = FALSE)
+      }
+    }
+  }
+  normalize_admixture_bim_chromosomes(private_prefix)
+  bed <- normalizePath(private_paths[["bed"]], mustWork = TRUE)
 
   results <- vector("list", length(k_values))
   names(results) <- as.character(k_values)

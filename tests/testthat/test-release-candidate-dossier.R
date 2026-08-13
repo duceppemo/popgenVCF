@@ -66,3 +66,39 @@ test_that("approval, inventory, and artifact defects fail closed", {
   )
 })
 
+test_that("evidence artifacts must not alias the same underlying content", {
+  env <- rc_env()
+  fixture <- rc_fixture(env)
+  idx <- jsonlite::read_json(fixture$index_path, simplifyVector = FALSE)
+  passed <- Filter(
+    function(r) identical(r$status, "passed") && length(r$artifacts) == 1L,
+    idx$records
+  )
+  expect_gte(length(passed), 2L)
+  first <- passed[[1L]]
+  second <- passed[[2L]]
+  first_abs <- file.path(fixture$evidence, first$artifacts[[1L]]$path)
+  second_abs <- file.path(fixture$evidence, second$artifacts[[1L]]$path)
+
+  # Make the second gate's evidence file byte-identical to the first's (as a
+  # symlink, hard link, or duplicate copy would in practice), and update only
+  # its declared checksum/size to match -- so each artifact still passes its
+  # own individual integrity check, isolating the new cross-artifact
+  # content-duplication check as the one that must fail.
+  file.copy(first_abs, second_abs, overwrite = TRUE)
+  for (i in seq_along(idx$records)) {
+    if (identical(idx$records[[i]]$gate_id, second$gate_id)) {
+      idx$records[[i]]$artifacts[[1L]]$sha256 <- digest::digest(second_abs, algo = "sha256", file = TRUE)
+      idx$records[[i]]$artifacts[[1L]]$size_bytes <- as.numeric(file.info(second_abs)$size)
+    }
+  }
+  jsonlite::write_json(idx, fixture$index_path, auto_unbox = TRUE, pretty = TRUE, null = "null", na = "null")
+
+  expect_error(
+    env$evaluate_release_candidate_dossier(
+      fixture$policy_path, fixture$index_path, fixture$evidence
+    ),
+    "must not alias the same underlying content"
+  )
+})
+

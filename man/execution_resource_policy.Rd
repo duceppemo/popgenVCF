@@ -21,7 +21,8 @@ new_module_resource_requirements(
 
 admit_execution_resources(
   requirements,
-  policy = new_execution_resource_policy()
+  policy = new_execution_resource_policy(),
+  in_use = c(threads = 0, memory_mb = 0, temp_mb = 0, processes = 0)
 )
 }
 \arguments{
@@ -38,6 +39,11 @@ admit_execution_resources(
 \item{requirements}{A validated named numeric vector created by \code{new_module_resource_requirements()}.}
 
 \item{policy}{A \code{PopgenVCFExecutionResourcePolicy} object.}
+
+\item{in_use}{Resources already committed against \code{policy} by other
+still-running admissions, as a named vector with the same names as
+\code{requirements} (default: none). Subtracted from \code{policy}'s capacity
+before checking \code{requirements}.}
 }
 \value{
 \code{new_execution_resource_policy()} returns a validated
@@ -55,7 +61,13 @@ requirements and capacities.
 Creates deterministic execution resource policies and module requirements, then
 evaluates requirements against available capacity before execution begins.
 Resource policies govern admission only; operating-system enforcement belongs
-to supervised external-process execution.
+to supervised external-process execution. Each \code{admit_execution_resources()}
+call is itself stateless: it only checks \code{requirements} against
+\code{policy}'s fixed capacity, minus whatever \code{in_use} the caller passes.
+Callers that admit multiple overlapping (not-yet-finalized) requests against
+the same policy -- as \code{start_supervised_external_command()} does -- must
+supply \code{in_use} themselves for those already-admitted requests to
+actually count against capacity.
 }
 \examples{
 policy <- new_execution_resource_policy(

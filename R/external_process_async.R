@@ -30,15 +30,28 @@ start_supervised_external_command <- function(
     stop("termination_grace_seconds must be non-negative", call. = FALSE)
   }
 
-  admission <- admit_execution_resources(requirements, supervision_policy$resource_policy)
+  # Two or more overlapping (not-yet-finalized) handles created against the
+  # same policy must actually compete for its capacity -- otherwise each is
+  # independently checked against the *full* capacity and admission provides
+  # no real protection against oversubscription once more than one handle is
+  # genuinely in flight at once. admission_ledger_in_use()/_commit()/
+  # _release() track that in-flight total per policy label for the lifetime
+  # of this R session; see set_async_terminal() for the matching release.
+  policy_label <- supervision_policy$resource_policy$label
+  admission <- admit_execution_resources(
+    requirements, supervision_policy$resource_policy,
+    in_use = admission_ledger_in_use(policy_label)
+  )
   started <- Sys.time()
   handle <- new.env(parent = emptyenv())
   handle$command <- command
   handle$requirements <- requirements
   handle$policy <- supervision_policy
+  handle$policy_label <- policy_label
   handle$cancellation_token <- cancellation_token
   handle$termination_grace_seconds <- termination_grace_seconds
   handle$admission <- admission
+  handle$admission_committed <- FALSE
   handle$started_at <- started
   handle$finished_at <- NULL
   handle$process <- NULL
@@ -62,6 +75,20 @@ start_supervised_external_command <- function(
     ))
     return(handle)
   }
+  admission_ledger_commit(policy_label, requirements)
+  handle$admission_committed <- TRUE
+  # Safety net for a caller that never calls finalize_supervised_external_command()
+  # (e.g. an error before it, or a handle simply discarded): release this
+  # handle's ledger commitment once the handle itself is unreachable, rather
+  # than leaking it against policy_label for the rest of the R session.
+  # set_async_terminal()'s own release (the normal path) makes this a no-op
+  # in the common case, since admission_committed is already FALSE by then.
+  reg.finalizer(handle, function(h) {
+    if (isTRUE(h$admission_committed)) {
+      admission_ledger_release(h$policy_label, h$requirements)
+      h$admission_committed <- FALSE
+    }
+  }, onexit = TRUE)
   if (!is.null(cancellation_token) && isTRUE(cancellation_token$requested)) {
     set_async_terminal(handle, "cancelled", NA_integer_, cancellation_token$reason)
     return(handle)
@@ -205,6 +232,39 @@ finalize_supervised_external_command <- function(
   result
 }
 
+# In-flight resource ledger keyed by resource-policy label, tracking
+# requirements committed by admitted-but-not-yet-terminal async handles for
+# the lifetime of this R session. Scoped to .pg_env (R/utils.R) alongside
+# this package's other session-lifetime internal state. Note this ledger is
+# only visible within a single R process: it does not, and cannot, coordinate
+# admission across separate forked/parallel worker processes (e.g.
+# parallel::mclapply()), since each fork gets its own independent copy of R's
+# memory at fork time.
+admission_zero_usage <- function() c(threads = 0, memory_mb = 0, temp_mb = 0, processes = 0)
+
+admission_ledger_in_use <- function(label) {
+  ledger <- .pg_env$admission_ledger
+  if (is.null(ledger) || !exists(label, envir = ledger, inherits = FALSE)) {
+    return(admission_zero_usage())
+  }
+  get(label, envir = ledger, inherits = FALSE)
+}
+
+admission_ledger_commit <- function(label, requirements) {
+  if (is.null(.pg_env$admission_ledger)) {
+    .pg_env$admission_ledger <- new.env(parent = emptyenv())
+  }
+  assign(label, admission_ledger_in_use(label) + requirements, envir = .pg_env$admission_ledger)
+  invisible(NULL)
+}
+
+admission_ledger_release <- function(label, requirements) {
+  ledger <- .pg_env$admission_ledger
+  if (is.null(ledger) || !exists(label, envir = ledger, inherits = FALSE)) return(invisible(NULL))
+  assign(label, pmax(admission_ledger_in_use(label) - requirements, 0), envir = ledger)
+  invisible(NULL)
+}
+
 #' Validate an asynchronous external-process handle
 #' @param handle Object to validate.
 #' @return `handle`, invisibly.
@@ -240,6 +300,10 @@ append_async_event <- function(handle, event, detail = "") {
 }
 
 set_async_terminal <- function(handle, status, exit_status, error_message) {
+  if (isTRUE(handle$admission_committed)) {
+    admission_ledger_release(handle$policy_label, handle$requirements)
+    handle$admission_committed <- FALSE
+  }
   handle$terminal_status <- status
   handle$exit_status <- as.integer(exit_status)
   handle$error_message <- error_message
