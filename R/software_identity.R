@@ -5,7 +5,7 @@ software_identity_scalar <- function(x, label) {
   x[[1L]]
 }
 
-popgenvcf_software_identity_path <- function() {
+popgenvcf_software_identity_path <- function(system_file = system.file) {
   # Prefer the checked-out source tree over a possibly-stale system.file()
   # install: a real end-user installed copy has no source tree reachable
   # here at all (these candidates simply won't exist), so this only changes
@@ -14,6 +14,25 @@ popgenvcf_software_identity_path <- function() {
   # current checkout) would otherwise silently shadow the current commit's
   # actual inst/metadata/software-identity.json. See the identical rationale
   # on rc_policy_path() in tests/testthat/helper-release-candidate-dossier.R.
+  #
+  # `system_file` is injectable purely for testability:
+  # testthat::local_mocked_bindings() can only mock a function that is
+  # genuinely bound within the target package's own namespace, which
+  # base::system.file is not -- that mock silently no-ops under
+  # pkgload::load_all()'s more permissive dev-mode namespace simulation (so
+  # it can appear to work locally) but throws "Can't find binding" under a
+  # real installed package (R CMD check, covr), where namespaces are
+  # properly locked. Dependency injection sidesteps this entirely.
+  #
+  # The default is the *unqualified* `system.file` symbol, not
+  # `base::system.file`: pkgload::load_all() shims `system.file` by
+  # inserting a patched binding into each dev-loaded package's own imports
+  # environment, which an unqualified lookup from within this namespace
+  # picks up automatically (correctly resolving to this checkout's own
+  # files while under active development) but an explicit `base::` lookup
+  # bypasses entirely, since `::` reads directly from the real, unshimmed
+  # base namespace. A real installed package has no such shim, so this
+  # default resolves to genuine base::system.file there regardless.
   source_root <- Sys.getenv("POPGENVCF_SOURCE_ROOT", unset = "")
   candidates <- unique(c(
     if (nzchar(source_root)) file.path(source_root, "inst", "metadata", "software-identity.json"),
@@ -23,7 +42,7 @@ popgenvcf_software_identity_path <- function() {
   matches <- candidates[file.exists(candidates)]
   if (length(matches)) return(normalizePath(matches[[1L]], winslash = "/", mustWork = TRUE))
 
-  installed <- system.file("metadata", "software-identity.json", package = "popgenVCF")
+  installed <- system_file("metadata", "software-identity.json", package = "popgenVCF")
   if (nzchar(installed) && file.exists(installed)) return(installed)
 
   stop("canonical software identity metadata is unavailable", call. = FALSE)

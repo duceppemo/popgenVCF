@@ -6,6 +6,32 @@
 # (e.g. under R CMD check's isolated install) cannot reach a copy living
 # there.
 
+# This file is always sys.source()d, never invoked as a top-level Rscript,
+# so it cannot resolve its own path via commandArgs()'s --file= trick the
+# way scripts/*.R files do. Its own sibling inst/scripts/ modules are
+# resolved by checking the checked-out source tree first (reachable in every
+# realistic invocation -- this always runs from within a popgenVCF checkout)
+# and system.file() only as a fallback: this is *more* robust than
+# system.file()-only resolution, since it guarantees testing the exact
+# commit being benchmarked rather than whatever happens to be separately
+# installed, while remaining exactly as correct under R CMD check's isolated
+# install (no source tree reachable there, so it falls through unchanged).
+resolve_benchmark_helper_script <- function(module) {
+  source_root <- Sys.getenv("POPGENVCF_SOURCE_ROOT", unset = "")
+  candidates <- unique(c(
+    if (nzchar(source_root)) file.path(source_root, "inst", "scripts", module),
+    file.path(getwd(), "inst", "scripts", module),
+    file.path(dirname(getwd()), "inst", "scripts", module)
+  ))
+  matches <- candidates[file.exists(candidates)]
+  if (length(matches)) return(normalizePath(matches[[1L]], winslash = "/", mustWork = TRUE))
+
+  installed <- system.file("scripts", module, package = "popgenVCF")
+  if (nzchar(installed) && file.exists(installed)) return(installed)
+
+  stop("Missing helper script: ", module, call. = FALSE)
+}
+
 # Real, already-approved chromosome 22 acquisition for the "canonical" tier,
 # reusing the exact source, acquisition path, and bounded 1Mb region
 # (22:20000000-21000000) the production_baseline/external_concordance/
@@ -23,9 +49,7 @@ canonical_benchmark_dataset <- function(git_sha) {
     "canonical_production_execution.R", "canonical_production_bcftools.R",
     "canonical_production_checksum.R", "canonical_autosomal_baseline.R"
   )) {
-    path <- system.file("scripts", module, package = "popgenVCF")
-    if (!nzchar(path)) stop("Missing installed helper script: ", module, call. = FALSE)
-    sys.source(path, envir = environment())
+    sys.source(resolve_benchmark_helper_script(module), envir = environment())
   }
 
   work_root <- tempfile("popgenvcf-canonical-benchmark-")

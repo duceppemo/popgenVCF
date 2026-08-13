@@ -44,11 +44,20 @@ structure_validation <- run_population_structure_validation(integration = FALSE)
 
 # canonical_benchmark_dataset()/benchmark_tier_dataset()/benchmark_tier_spec()
 # live in inst/scripts/ (not here) so they are bundled into the installed
-# package and reachable via system.file() -- this top-level scripts/
-# directory is never part of the built/installed package.
-tier_module <- system.file("scripts", "continuous_benchmark_tiers.R", package = "popgenVCF")
-if (!nzchar(tier_module)) stop("Missing installed helper script: continuous_benchmark_tiers.R", call. = FALSE)
-source(tier_module)
+# package for tests that need them under R CMD check's isolated install --
+# but this script itself always runs as a real top-level Rscript from within
+# a popgenVCF checkout, so it resolves its sibling inst/scripts/ directory
+# relative to its own file location (matching every other scripts/*.R
+# wrapper's convention, e.g. build_release_candidate_evidence_index.R)
+# rather than through system.file(), which could otherwise silently resolve
+# to an unrelated, differently-versioned installed popgenVCF instead of the
+# exact commit this benchmark is actually running against.
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (!length(script_arg)) stop("Unable to resolve script location", call. = FALSE)
+script_path <- normalizePath(sub("^--file=", "", script_arg[[1L]]), mustWork = TRUE)
+tier_module <- file.path(dirname(script_path), "..", "inst", "scripts", "continuous_benchmark_tiers.R")
+if (!file.exists(tier_module)) stop("Missing helper script: continuous_benchmark_tiers.R", call. = FALSE)
+source(normalizePath(tier_module, mustWork = TRUE))
 
 performance_by_tier <- stats::setNames(lapply(requested_tiers, function(tier) {
   message("Running '", tier, "' performance benchmark tier")
