@@ -32,6 +32,33 @@ tree_module_spec <- function() {
   )
 }
 
+#' Construct the maximum-likelihood tree module descriptor
+#'
+#' A genuine maximum-likelihood alternative to the "tree" module's
+#' neighbour-joining tree, distinct from it (not a replacement): GTR+Gamma
+#' with Lewis (2001) ascertainment-bias correction, via the optional
+#' `phangorn` package. Individual-level only -- ML substitution models
+#' operate on per-taxon sequence characters, which have no standard,
+#' defensible analogue at the population-allele-frequency level the
+#' "population_tree" module operates at. Off by default: heavier than the
+#' NJ tree and depends on an optional package.
+#'
+#' @return A `PopgenVCFModuleSpec` object.
+#' @export
+ml_tree_module_spec <- function() {
+  new_analysis_module_spec(
+    name = "ml_tree",
+    run = run_module_ml_tree,
+    enabled = function(cfg) isTRUE(cfg$analyses$ml_tree$enabled),
+    description = "Maximum-likelihood tree (GTR+Gamma, ascertainment-bias corrected)",
+    validate = validate_ml_tree_result,
+    outputs = "ml_tree",
+    references = c("Felsenstein 1981", "Lewis 2001", "Stamatakis 2014"),
+    resource_class = "heavy",
+    contract_version = "1.0"
+  )
+}
+
 #' Construct the ADMIXTURE module descriptor
 #' @return A `PopgenVCFModuleSpec` object.
 #' @export

@@ -62,6 +62,7 @@ Suggests:
     LEA,
     knitr,
     patchwork,
+    phangorn,
     pkgdown,
     pkgload,
     plotly,

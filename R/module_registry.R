@@ -116,6 +116,51 @@ run_module_tree <- function(analysis, context) {
   module_result(analysis, context)
 }
 
+run_module_ml_tree <- function(analysis, context) {
+  cfg <- context$cfg; dirs <- context$dirs
+  genotype <- SNPRelate::snpgdsGetGeno(
+    context$gds, sample.id = context$sample_ids, snp.id = context$final_snps, verbose = FALSE
+  )
+  alleles <- context$ids$allele[match(context$final_snps, context$ids$snp)]
+  ref <- sub("/.*", "", alleles); alt <- sub(".*/", "", alleles)
+  result <- run_ml_tree(
+    genotype, ref, alt, public_sample_ids(context$metadata, context$sample_ids),
+    seed = cfg$compute$seed, threads = cfg$compute$threads,
+    bootstrap_replicates = cfg$analyses$ml_tree$bootstrap_replicates
+  )
+  ape::write.tree(result$tree, file.path(dirs$trees, "ML_GTR_gamma_ASC.nwk"))
+  write_tsv(
+    data.table::data.table(
+      model = result$model, log_likelihood = result$log_likelihood,
+      n_snps_used = result$n_snps_used, n_snps_dropped = result$n_snps_dropped,
+      bootstrap_replicates = attr(result$tree, "bootstrap_replicates")
+    ),
+    file.path(dirs$tables, "54_ML_tree_summary.tsv")
+  )
+  analysis <- set_analysis_result(analysis, "ml_tree", result)
+  plot_nj_tree(
+    result$tree, context$metadata, cfg, dirs, "55_ML_tree",
+    "Maximum-likelihood tree (GTR+Gamma, ascertainment-bias corrected)"
+  )
+  if (result$n_snps_dropped > 0L) {
+    analysis <- record_analysis_message(
+      analysis, "WARNING", "ml_tree",
+      paste0(
+        result$n_snps_dropped, " of ", result$n_snps_dropped + result$n_snps_used,
+        " retained SNP(s) were excluded from the maximum-likelihood tree ",
+        "(non-single-base or non-distinct reference/alternate alleles)"
+      )
+    )
+  }
+  if (isTRUE(result$bootstrap_failed)) {
+    analysis <- record_analysis_message(
+      analysis, "WARNING", "ml_tree",
+      "Bootstrap support could not be computed for the maximum-likelihood tree (a resampled locus set was too uninformative to fit); the tree itself is unaffected"
+    )
+  }
+  module_result(analysis, context)
+}
+
 run_module_fst <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
   fst <- run_fst(context$gds, context$qc_snps, context$metadata)

@@ -403,6 +403,25 @@ validate_tree_result <- function(result, analysis, context) {
                     metrics = list(tips = if (inherits(result, "phylo")) length(result$tip.label) else NA_integer_))
 }
 
+validate_ml_tree_result <- function(result, analysis, context) {
+  errors <- character()
+  required <- c("tree", "log_likelihood", "model", "n_snps_used", "n_snps_dropped")
+  if (!is.list(result) || !all(required %in% names(result))) {
+    errors <- c(errors, "ML tree result requires tree, log_likelihood, model, n_snps_used, and n_snps_dropped")
+    return(validation_result(!length(errors), errors, metrics = list(tips = NA_integer_)))
+  }
+  if (!inherits(result$tree, "phylo")) errors <- c(errors, "ML tree result$tree is not an ape phylo object")
+  if (inherits(result$tree, "phylo") && length(result$tree$tip.label) != length(analysis$samples$ids)) {
+    errors <- c(errors, "ML tree tip count does not match retained samples")
+  }
+  if (!is.finite(result$log_likelihood)) errors <- c(errors, "ML tree log_likelihood must be finite")
+  if (!is.finite(result$n_snps_used) || result$n_snps_used < 4L) errors <- c(errors, "ML tree n_snps_used must be at least 4")
+  if (!is.finite(result$n_snps_dropped) || result$n_snps_dropped < 0L) errors <- c(errors, "ML tree n_snps_dropped cannot be negative")
+  if (inherits(result$tree, "phylo")) errors <- c(errors, tree_bootstrap_support_errors(result$tree))
+  validation_result(!length(errors), errors,
+                    metrics = list(tips = if (inherits(result$tree, "phylo")) length(result$tree$tip.label) else NA_integer_))
+}
+
 # Shared by both tree validators: when bootstrap support was computed,
 # node.label must be one percentage (a non-negative-integer-valued string,
 # 0-100) per internal node -- ape::write.tree()/plot.phylo() both trust

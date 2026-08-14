@@ -33,6 +33,7 @@ default_config <- function() {
                     roh_length_class_long_min_bp = 2000000L,
                     tree = TRUE, population_tree = TRUE,
                     tree_bootstrap = list(enabled = TRUE, replicates = 100L),
+                    ml_tree = list(enabled = FALSE, bootstrap_replicates = 100L),
                     population_assignment = TRUE, fst = TRUE,
                     genome_scan = TRUE, genome_scan_window_bp = 50000L,
                     genome_scan_step_bp = 50000L, genome_scan_min_snps = 5L,
@@ -166,6 +167,7 @@ validate_config <- function(cfg) {
   cfg$analyses$dapc_loading_top_n <- as.integer(cfg$analyses$dapc_loading_top_n)
   cfg$analyses$bootstrap$replicates <- as.integer(cfg$analyses$bootstrap$replicates)
   cfg$analyses$tree_bootstrap$replicates <- as.integer(cfg$analyses$tree_bootstrap$replicates)
+  cfg$analyses$ml_tree$bootstrap_replicates <- as.integer(cfg$analyses$ml_tree$bootstrap_replicates)
   cfg$analyses$structure$replicates <- as.integer(cfg$analyses$structure$replicates)
   cfg$analyses$snmf$repetitions <- as.integer(cfg$analyses$snmf$repetitions)
   if (!is.finite(cfg$compute$threads) || cfg$compute$threads < 1L) stop("compute.threads must be >= 1", call. = FALSE)
@@ -207,6 +209,7 @@ validate_config <- function(cfg) {
   if (!is.finite(cfg$analyses$dapc_loading_top_n) || cfg$analyses$dapc_loading_top_n < 1L) stop("analyses.dapc_loading_top_n must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$bootstrap$replicates) || cfg$analyses$bootstrap$replicates < 0L) stop("bootstrap.replicates must be >= 0", call. = FALSE)
   if (!is.finite(cfg$analyses$tree_bootstrap$replicates) || cfg$analyses$tree_bootstrap$replicates < 0L) stop("tree_bootstrap.replicates must be >= 0", call. = FALSE)
+  if (!is.finite(cfg$analyses$ml_tree$bootstrap_replicates) || cfg$analyses$ml_tree$bootstrap_replicates < 0L) stop("ml_tree.bootstrap_replicates must be >= 0", call. = FALSE)
 
   allowed_formats <- c("pdf", "png", "svg")
   cfg$output$figure_formats <- unique(tolower(as.character(cfg$output$figure_formats)))

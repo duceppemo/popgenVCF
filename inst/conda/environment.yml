@@ -30,6 +30,7 @@ dependencies:
   - r-hierfstat
   - r-knitr
   - r-patchwork
+  - r-phangorn
   - r-pkgdown
   - r-ragg
   - r-remotes

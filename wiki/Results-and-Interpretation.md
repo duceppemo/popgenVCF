@@ -152,6 +152,43 @@ its well-supported deep structure, not for fine-scale terminal groupings,
 which this marker panel genuinely cannot resolve with confidence; a
 whole-genome VCF would show substantially higher support throughout.
 
+### Maximum-likelihood tree (optional)
+
+`analyses.ml_tree` (off by default; needs the optional `phangorn` package)
+builds a genuine maximum-likelihood alternative to the NJ tree above: GTR
+substitution rates, gamma-distributed among-site rate variation, and Lewis
+(2001) ascertainment-bias correction, jointly optimized together with the
+topology. The correction matters specifically because this is SNP-only data
+-- a VCF records no invariant sites at all, and an uncorrected substitution
+model implicitly (and wrongly) assumes some were observed and simply happened
+not to vary. Applies only to this individual-level tree: ML substitution
+models describe per-sample sequence evolution, and there is no standard,
+defensible way to apply them to the population-level tree below, which is
+built from allele-*frequency* distances, not per-sample sequences.
+Genotypes are encoded as IUPAC nucleotide codes (homozygous calls become the
+plain reference/alternate base, heterozygous calls become the standard
+ambiguity code) so the existing biallelic ref/alt alleles double as a
+sequence alignment; bootstrap support (100 replicates by default, same
+Felsenstein 1985 procedure and interpretation as the NJ tree above) is shown
+at each node the same way.
+
+![Maximum-likelihood tree from the quickstart example, GTR+Gamma with ascertainment-bias correction, tips coloured by population, bootstrap support at internal nodes](figures/55_ML_tree.png)
+
+On the quickstart example, ML bootstrap support is even sparser than the NJ
+tree's own (median 1%; 68% of nodes below 10%) -- expected, not a
+regression: a proper likelihood-based method with an explicit substitution
+model is honestly more conservative than a simple distance method about
+what a modest, 357-SNP marker panel can actually resolve. Reassuringly, the
+one split both methods recover with full confidence is the *same* split:
+the tree's root, separating the African (LWK, YRI) samples from everyone
+else, at 100% bootstrap support in both the NJ and ML trees -- the same
+continental signal already found by PCA, MDS, and FST, now independently
+confirmed a fourth way, by a genuinely different statistical framework
+(explicit likelihood under a substitution model, not a distance
+transformation). As with the NJ tree, read this for its well-supported deep
+structure; a whole-genome VCF's much larger marker panel would resolve
+substantially more of the tree with confidence.
+
 ## Kinship
 
 Kinship (`SNPRelate::snpgdsIBDKING()`, KING-robust, Manichaikul et al. 2010)
