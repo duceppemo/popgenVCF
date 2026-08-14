@@ -69,15 +69,26 @@ plot_nj_tree <- function(tree, metadata, cfg, dirs, stem, title) {
   has_support <- n_replicates > 0L && !is.null(tree$node.label) && length(tree$node.label) == tree$Nnode
 
   tip_colour <- "#1A1A1A"
+  legend_palette <- NULL
   if (!is.null(metadata) && "population" %in% names(metadata) && "sample" %in% names(metadata)) {
     tip_population <- metadata$population[match(tree$tip.label, public_sample_ids(metadata, metadata$sample))]
     if (!anyNA(tip_population)) {
       palette <- population_palette(tip_population, style)
       tip_colour <- unname(palette[tip_population])
+      if (length(palette) > 1L) legend_palette <- palette
     }
   }
 
+  # A population legend is drawn in its own dedicated panel (graphics::layout(),
+  # not an inset legend() call inside the tree panel) so it never overlaps tree
+  # structure regardless of tip count -- an inset placement (e.g. "topleft")
+  # that looks fine on a small population tree can land on real branches for a
+  # tall, 100+ tip individual tree.
   draw <- function() {
+    if (!is.null(legend_palette)) {
+      graphics::layout(matrix(c(1, 2), nrow = 1), widths = c(5, 1))
+      on.exit(graphics::layout(1), add = TRUE)
+    }
     op <- graphics::par(mar = c(2, 0.5, 2.5, 7), xpd = NA)
     on.exit(graphics::par(op), add = TRUE)
     ape::plot.phylo(
@@ -97,7 +108,19 @@ plot_nj_tree <- function(tree, metadata, cfg, dirs, stem, title) {
       "Bootstrap support was not computed for this run"
     }
     graphics::mtext(caption, side = 1, line = 0.8, cex = 0.68, col = "#666666", adj = 0)
+
+    if (!is.null(legend_palette)) {
+      op2 <- graphics::par(mar = c(2, 0, 2.5, 0.5))
+      on.exit(graphics::par(op2), add = TRUE)
+      graphics::plot.new()
+      graphics::legend(
+        "left", legend = names(legend_palette), fill = unname(legend_palette),
+        border = NA, bty = "n", cex = 0.7, title = "Population", title.adj = 0,
+        xpd = NA
+      )
+    }
   }
   height <- max(4, min(24, n_tips * 0.16 + 1.5))
-  save_base_plot(draw, stem, dirs, fmts, 8, height, dpi)
+  width <- if (!is.null(legend_palette)) 9.5 else 8
+  save_base_plot(draw, stem, dirs, fmts, width, height, dpi)
 }
