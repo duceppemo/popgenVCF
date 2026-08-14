@@ -31,7 +31,9 @@ default_config <- function() {
                     roh = TRUE, roh_gt_error_phred = 30,
                     roh_length_class_short_max_bp = 500000L,
                     roh_length_class_long_min_bp = 2000000L,
-                    tree = TRUE, population_tree = TRUE, population_assignment = TRUE, fst = TRUE,
+                    tree = TRUE, population_tree = TRUE,
+                    tree_bootstrap = list(enabled = TRUE, replicates = 100L),
+                    population_assignment = TRUE, fst = TRUE,
                     genome_scan = TRUE, genome_scan_window_bp = 50000L,
                     genome_scan_step_bp = 50000L, genome_scan_min_snps = 5L,
                     ld_decay = TRUE, ld_decay_max_distance_bp = 500000L,
@@ -163,6 +165,7 @@ validate_config <- function(cfg) {
   cfg$analyses$chromosome_min_snps <- as.integer(cfg$analyses$chromosome_min_snps)
   cfg$analyses$dapc_loading_top_n <- as.integer(cfg$analyses$dapc_loading_top_n)
   cfg$analyses$bootstrap$replicates <- as.integer(cfg$analyses$bootstrap$replicates)
+  cfg$analyses$tree_bootstrap$replicates <- as.integer(cfg$analyses$tree_bootstrap$replicates)
   cfg$analyses$structure$replicates <- as.integer(cfg$analyses$structure$replicates)
   cfg$analyses$snmf$repetitions <- as.integer(cfg$analyses$snmf$repetitions)
   if (!is.finite(cfg$compute$threads) || cfg$compute$threads < 1L) stop("compute.threads must be >= 1", call. = FALSE)
@@ -203,6 +206,7 @@ validate_config <- function(cfg) {
   if (!is.finite(cfg$analyses$chromosome_min_snps) || cfg$analyses$chromosome_min_snps < 2L) stop("analyses.chromosome_min_snps must be >= 2", call. = FALSE)
   if (!is.finite(cfg$analyses$dapc_loading_top_n) || cfg$analyses$dapc_loading_top_n < 1L) stop("analyses.dapc_loading_top_n must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$bootstrap$replicates) || cfg$analyses$bootstrap$replicates < 0L) stop("bootstrap.replicates must be >= 0", call. = FALSE)
+  if (!is.finite(cfg$analyses$tree_bootstrap$replicates) || cfg$analyses$tree_bootstrap$replicates < 0L) stop("tree_bootstrap.replicates must be >= 0", call. = FALSE)
 
   allowed_formats <- c("pdf", "png", "svg")
   cfg$output$figure_formats <- unique(tolower(as.character(cfg$output$figure_formats)))

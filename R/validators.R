@@ -257,6 +257,7 @@ validate_population_tree_result <- function(result, analysis, context) {
     if (any(abs(diag(result$distance)) > 1e-8)) errors <- c(errors, "population distance diagonal must be zero")
     if (any(result$distance < -1e-8, na.rm = TRUE)) errors <- c(errors, "population genetic distance cannot be negative")
   }
+  if (is.list(result) && inherits(result$tree, "phylo")) errors <- c(errors, tree_bootstrap_support_errors(result$tree))
   validation_result(!length(errors), errors,
                     metrics = list(populations = if (is.list(result)) length(result$populations) else NA_integer_))
 }
@@ -397,8 +398,27 @@ validate_tree_result <- function(result, analysis, context) {
   if (inherits(result, "phylo") && length(result$tip.label) != length(analysis$samples$ids)) {
     errors <- c(errors, "tree tip count does not match retained samples")
   }
+  if (inherits(result, "phylo")) errors <- c(errors, tree_bootstrap_support_errors(result))
   validation_result(!length(errors), errors,
                     metrics = list(tips = if (inherits(result, "phylo")) length(result$tip.label) else NA_integer_))
+}
+
+# Shared by both tree validators: when bootstrap support was computed,
+# node.label must be one percentage (a non-negative-integer-valued string,
+# 0-100) per internal node -- ape::write.tree()/plot.phylo() both trust
+# node.label as-is with no validation of their own.
+tree_bootstrap_support_errors <- function(tree) {
+  if (is.null(attr(tree, "bootstrap_replicates")) || identical(attr(tree, "bootstrap_replicates"), 0L)) {
+    return(character())
+  }
+  if (is.null(tree$node.label) || length(tree$node.label) != tree$Nnode) {
+    return("tree bootstrap support labels do not match the internal node count")
+  }
+  values <- suppressWarnings(as.numeric(tree$node.label))
+  if (anyNA(values) || any(values < 0 | values > 100)) {
+    return("tree bootstrap support values must be percentages between 0 and 100")
+  }
+  character()
 }
 
 validate_admixture_result <- function(result, analysis, context) {

@@ -7,7 +7,7 @@ test_that("remaining module descriptors preserve their registry contracts", {
     ),
     tree = list(
       spec = tree_module_spec(), requires = "ibs", outputs = "tree",
-      references = "Saitou and Nei 1987", resource = "standard"
+      references = c("Saitou and Nei 1987", "Felsenstein 1985"), resource = "standard"
     ),
     admixture = list(
       spec = admixture_module_spec(), requires = character(),

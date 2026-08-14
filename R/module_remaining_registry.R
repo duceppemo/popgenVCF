@@ -27,7 +27,7 @@ tree_module_spec <- function() {
     description = "Neighbour-joining tree from IBS distance",
     validate = validate_tree_result,
     outputs = "tree",
-    references = "Saitou and Nei 1987",
+    references = c("Saitou and Nei 1987", "Felsenstein 1985"),
     contract_version = "1.0"
   )
 }

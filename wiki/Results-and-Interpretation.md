@@ -126,6 +126,32 @@ pair the next section flags as a kinship "duplicate/MZ twin" call that
 turns out, on corroborating sex-check evidence, not actually to be one;
 worth keeping in mind while reading that section.
 
+The same IBS distance matrix also builds a neighbour-joining tree (Saitou
+and Nei 1987), a third view of the same pairwise relationships alongside
+the heatmap and MDS above -- useful for reading off which *specific*
+samples group together, not just how much variance separates them.
+Bootstrap support (Felsenstein 1985; `analyses.tree_bootstrap`, on by
+default, 100 replicates) is shown at each internal node: loci are resampled
+with replacement, the tree rebuilt from each resampled set, and the
+percentage of replicates agreeing with each split in the original tree
+reported -- interpret it exactly like PCA's percent-variance-explained: a
+measure of how much confidence *this specific dataset* supports *this
+specific split*, not a universal truth about the populations involved.
+
+![Individual-level neighbour-joining tree from IBS distance, quickstart example, tips coloured by population, bootstrap support at internal nodes](figures/52_IBS_tree.png)
+
+On the quickstart example (357 LD-pruned SNPs), most internal nodes show
+low bootstrap support (median 13%; 44% of nodes below 10%) -- an honest,
+expected consequence of resolving fine-scale, individual-level
+relationships from a modest, LD-pruned marker panel, not a defect in the
+tree or the bootstrap procedure. The one split that matters most, though,
+is rock solid: the deepest split in the tree -- separating the African
+(LWK, YRI) samples from everyone else, the same continental signal MDS and
+PCA both already found -- has 100% bootstrap support. Read this tree for
+its well-supported deep structure, not for fine-scale terminal groupings,
+which this marker panel genuinely cannot resolve with confidence; a
+whole-genome VCF would show substantially higher support throughout.
+
 ## Kinship
 
 Kinship (`SNPRelate::snpgdsIBDKING()`, KING-robust, Manichaikul et al. 2010)
@@ -402,16 +428,24 @@ different deliverable from the "Runs of homozygosity"/kinship/individual
 tree sections above: those describe relationships among **samples**, this
 describes relationships among **populations**. A neighbour-joining tree
 built from this distance matrix is written to
-`trees/population_Nei_neighbor_joining.nwk` (Newick format, no bundled
-figure -- open it in any tree viewer, e.g. `ape::plot.phylo()` in R,
-FigTree, or an online viewer) whenever at least three populations are
-present.
+`trees/population_Nei_neighbor_joining.nwk` and rendered as a figure
+whenever at least three populations are present, with the same
+locus-resampling bootstrap support (Felsenstein 1985; see the individual
+IBS tree above for the full explanation of what the percentages mean)
+shown at each internal node.
+
+![Population-level neighbour-joining tree from Nei's genetic distance, quickstart example, bootstrap support at internal nodes](figures/53_population_tree.png)
 
 On the quickstart example, LWK-YRI (Luhya, Kenya and Yoruba, Nigeria, both
 African) is the single closest pair (D=0.0112), while the largest
 distances are all African-vs-non-African population pairs (up to
 D=0.091) -- the expected continental-population-structure pattern, a real
-result from real chr22 data, not a fabricated demonstration.
+result from real chr22 data, not a fabricated demonstration. Unlike the
+individual-level tree above, support here is uniformly high (96-100% at
+every internal node): population-level allele-frequency distances average
+over many individuals per population, making the resulting topology far
+more robust to which specific loci were sampled than any single
+individual-level split can be.
 
 ## Population assignment test
 

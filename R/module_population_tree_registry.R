@@ -18,7 +18,7 @@ population_tree_module_spec <- function() {
     description = "Nei's standard genetic distance and NJ tree between populations",
     validate = validate_population_tree_result,
     outputs = "population_tree",
-    references = "Nei 1972",
+    references = c("Nei 1972", "Felsenstein 1985"),
     resource_class = "standard",
     contract_version = "1.0"
   )

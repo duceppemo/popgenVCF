@@ -138,7 +138,7 @@ if (!is.null(r$population_tree$distance) && nrow(r$population_tree$distance)) {
   rownames(population_distance_table) <- NULL
 }
 report_table_section(
-  "Nei's standard genetic distance between populations (see 46_population_genetic_distance.tsv; a neighbour-joining tree is written alongside the individual-level tree when at least three populations are present)",
+  "Nei's standard genetic distance between populations (see 46_population_genetic_distance.tsv; a neighbour-joining tree with bootstrap support at each node, alongside the individual-level IBS tree, is written and rendered as a figure when at least three populations are present -- see 52_IBS_tree and 53_population_tree)",
   population_distance_table, digits = 4
 )
 report_table_section(

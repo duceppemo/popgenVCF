@@ -310,6 +310,41 @@ save_plot <- function(p, stem, dirs, formats = c("pdf", "png"), width = 8, heigh
   invisible(TRUE)
 }
 
+# Base-graphics counterpart to save_plot(), for figures built with a plotting
+# package (ape's tree plotting, here) that draws directly to a graphics
+# device rather than returning a ggplot object ggsave() can render. `draw` is
+# a zero-argument function that issues the plotting calls; called once per
+# requested format inside that format's own device. Mirrors save_plot()'s
+# format/dpi handling and optional-dependency device preferences (ragg for
+# PNG, Cairo PDF when available) so both figure families look the same.
+save_base_plot <- function(draw, stem, dirs, formats = c("pdf", "png"), width = 8, height = 6, dpi = 600) {
+  for (fmt in formats) {
+    path <- file.path(dirs$figures, paste0(stem, ".", fmt))
+    if (fmt == "svg" && !requireNamespace("svglite", quietly = TRUE)) {
+      log_msg("Skipping SVG output because svglite is unavailable", level = "WARNING")
+      next
+    }
+    open_device <- switch(
+      fmt,
+      pdf = function() if (isTRUE(capabilities("cairo"))) {
+        grDevices::cairo_pdf(path, width = width, height = height, bg = "white")
+      } else {
+        grDevices::pdf(path, width = width, height = height, bg = "white")
+      },
+      png = function() if (requireNamespace("ragg", quietly = TRUE)) {
+        ragg::agg_png(path, width = width, height = height, units = "in", res = dpi, background = "white")
+      } else {
+        grDevices::png(path, width = width, height = height, units = "in", res = dpi, bg = "white")
+      },
+      svg = function() svglite::svglite(path, width = width, height = height, bg = "white"),
+      stop("Unsupported base-graphics figure format: ", fmt, call. = FALSE)
+    )
+    open_device()
+    tryCatch(draw(), finally = grDevices::dev.off())
+  }
+  invisible(TRUE)
+}
+
 # hierfstat's own genotype convention: each allele occupies one digit, so a
 # 0/1/2 dosage becomes 11 (homozygous reference), 12 (heterozygous), or 22
 # (homozygous alternate); missing dosage stays NA. Shared by the FST

@@ -107,8 +107,12 @@ run_module_roh <- function(analysis, context) {
 }
 
 run_module_tree <- function(analysis, context) {
-  tree <- build_nj_tree(context$ibs, context$metadata, context$cfg, context$dirs)
+  tree <- build_nj_tree(
+    context$ibs, context$metadata, context$cfg, context$dirs,
+    gds = context$gds, sample_ids = context$sample_ids, snp_ids = context$final_snps
+  )
   analysis <- set_analysis_result(analysis, "tree", tree)
+  plot_nj_tree(tree, context$metadata, context$cfg, context$dirs, "52_IBS_tree", "Neighbor-joining tree (identity-by-state)")
   module_result(analysis, context)
 }
 
@@ -382,11 +386,14 @@ run_module_ne_ld <- function(analysis, context) {
 }
 
 run_module_population_tree <- function(analysis, context) {
-  dirs <- context$dirs
+  dirs <- context$dirs; cfg <- context$cfg
   result <- compute_population_genetic_distance(context$diversity_full$locus)
   if (nrow(result$distance)) {
     write_matrix_tsv(result$distance, file.path(dirs$tables, "46_population_genetic_distance.tsv"), "population")
-    result$tree <- build_population_tree(result$distance, dirs)
+    result$tree <- build_population_tree(result$distance, dirs, cfg, context$diversity_full$locus)
+    if (!is.null(result$tree)) {
+      plot_nj_tree(result$tree, NULL, cfg, dirs, "53_population_tree", "Neighbor-joining tree (Nei's genetic distance)")
+    }
   }
   analysis <- set_analysis_result(analysis, "population_tree", result)
   module_result(analysis, context)

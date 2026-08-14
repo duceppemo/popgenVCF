@@ -67,7 +67,7 @@ Every canonical family has one narrative owner, a methods statement, a caption/l
 |---|---|
 | PCA | Ordination axes summarize genotype variation; they do not prove discrete populations or causality. |
 | IBS/MDS | Sample similarity is not population-level FST. |
-| Neighbour joining | Branch lengths follow the recorded distance and are not a time-calibrated phylogeny. |
+| Neighbour joining | Branch lengths follow the recorded distance and are not a time-calibrated phylogeny; node-label percentages are locus-resampling bootstrap support for that specific split in that specific dataset, not a universal confidence statement. |
 | Diversity | Estimates depend on filtering, sample size, missingness, and population assignment. |
 | FST | Population differentiation is estimator- and sampling-dependent. |
 | AMOVA | Variance partitioning follows the supplied hierarchy and distance definition. |

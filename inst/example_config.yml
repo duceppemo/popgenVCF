@@ -82,6 +82,14 @@ analyses:
   # tree from it -- distinct from "tree" above, which is an individual-level
   # tree from IBS distance, not population allele frequencies.
   population_tree: false
+  tree_bootstrap:
+    enabled: true
+    # Locus-resampling bootstrap (Felsenstein 1985) applied to both NJ trees
+    # above: 100 replicates is the standard fast-but-informative default
+    # (ape::boot.phylo()'s own default) -- large enough that support values
+    # are meaningful, small enough to stay fast even sequentially. Runs in
+    # parallel across compute.threads workers.
+    replicates: 100
   # Frequency-based self-assignment test (Paetkau et al. 1995, 2004): does
   # each sample's genotype fit its own recorded population's allele
   # frequencies best, or a different one (a candidate migrant or metadata

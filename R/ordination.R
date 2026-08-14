@@ -633,8 +633,55 @@ plot_ibs <- function(ibs, cfg, dirs) {
   }
 }
 
-build_nj_tree <- function(ibs, metadata, cfg, dirs) {
+# Mean-imputes missing genotypes per resampled locus column before computing
+# the Manhattan distance -- an approximation specific to bootstrap replicates
+# (which resample loci with replacement and so cannot use
+# SNPRelate::snpgdsIBS()'s own pairwise-complete C computation: it rejects
+# duplicate SNP ids outright, "Some of snp.id do not exist!", confirmed
+# directly). The main, displayed tree is unaffected and continues to use
+# SNPRelate::snpgdsIBS()'s exact result. On complete data (no missing
+# genotypes) this reduces to SNPRelate's own documented IBS formula exactly
+# -- verified directly: max absolute difference ~5e-17 (floating-point
+# noise) against snpgdsIBS()'s `1 - ibs` on a real quickstart subset.
+ibs_bootstrap_distance <- function(geno_subset) {
+  if (anyNA(geno_subset)) {
+    locus_means <- colMeans(geno_subset, na.rm = TRUE)
+    locus_means[is.nan(locus_means)] <- 0
+    missing <- which(is.na(geno_subset), arr.ind = TRUE)
+    geno_subset[missing] <- locus_means[missing[, 2L]]
+  }
+  stats::dist(geno_subset, method = "manhattan") / (2 * ncol(geno_subset))
+}
+
+bootstrap_nj_ibs_tree <- function(reference_tree, gds, sample_ids, snp_ids, metadata,
+                                  replicates, workers, seed) {
+  if (replicates <= 0L || length(snp_ids) < 2L) return(NULL)
+  geno <- SNPRelate::snpgdsGetGeno(gds, sample.id = sample_ids, snp.id = snp_ids, verbose = FALSE)
+  rownames(geno) <- public_sample_ids(metadata, sample_ids)
+  n_snps <- ncol(geno)
+  seeds <- tree_bootstrap_replicate_seeds(seed, replicates)
+  build_one <- function(i) {
+    set.seed(seeds[[i]])
+    idx <- sample.int(n_snps, n_snps, replace = TRUE)
+    tryCatch(ape::nj(ibs_bootstrap_distance(geno[, idx, drop = FALSE])), error = function(e) e)
+  }
+  trees <- run_tree_bootstrap_replicates(replicates, workers, build_one)
+  support <- bootstrap_tree_support(reference_tree, trees)
+  if (is.null(support)) return(NULL)
+  list(support = support, replicates = length(trees))
+}
+
+build_nj_tree <- function(ibs, metadata, cfg, dirs, gds = NULL, sample_ids = NULL, snp_ids = NULL) {
   tree <- ape::nj(stats::as.dist(ibs$distance))
+  bootstrap <- NULL
+  if (isTRUE(cfg$analyses$tree_bootstrap$enabled) && !is.null(gds)) {
+    bootstrap <- bootstrap_nj_ibs_tree(
+      tree, gds, sample_ids, snp_ids, metadata,
+      cfg$analyses$tree_bootstrap$replicates, cfg$compute$threads, cfg$compute$seed
+    )
+    if (!is.null(bootstrap)) tree$node.label <- as.character(bootstrap$support)
+  }
   ape::write.tree(tree, file.path(dirs$trees, "IBS_neighbor_joining.nwk"))
+  attr(tree, "bootstrap_replicates") <- if (is.null(bootstrap)) 0L else bootstrap$replicates
   tree
 }
