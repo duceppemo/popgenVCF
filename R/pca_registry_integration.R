@@ -67,6 +67,7 @@ default_analysis_registry <- function() {
     ne_ld_module_spec(),
     dapc_module_spec(),
     amova_module_spec(),
+    clonality_module_spec(),
     ibd_module_spec(),
     spatial_autocorrelation_module_spec(),
     admixture_module_spec(),

@@ -75,6 +75,29 @@ test_that("dapc_loading_top_n is coerced and validated", {
   expect_error(popgenVCF::validate_config(cfg), "dapc_loading_top_n")
 })
 
+test_that("clonality_genotype_curve_replicates and clonality_ia_permutations are coerced and validated", {
+  cfg <- popgenVCF::default_config()
+  cfg$input$vcf <- tempfile(fileext = ".vcf")
+  cfg$output$directory <- tempfile("popgenvcf-output-")
+  file.create(cfg$input$vcf)
+
+  expect_identical(cfg$analyses$clonality_genotype_curve_replicates, 100L)
+  expect_identical(cfg$analyses$clonality_ia_permutations, 0L)
+
+  cfg$analyses$clonality_genotype_curve_replicates <- "50"
+  cfg$analyses$clonality_ia_permutations <- "99"
+  validated <- popgenVCF::validate_config(cfg)
+  expect_identical(validated$analyses$clonality_genotype_curve_replicates, 50L)
+  expect_identical(validated$analyses$clonality_ia_permutations, 99L)
+
+  cfg$analyses$clonality_genotype_curve_replicates <- -1L
+  expect_error(popgenVCF::validate_config(cfg), "clonality_genotype_curve_replicates")
+
+  cfg$analyses$clonality_genotype_curve_replicates <- 50L
+  cfg$analyses$clonality_ia_permutations <- -1L
+  expect_error(popgenVCF::validate_config(cfg), "clonality_ia_permutations")
+})
+
 test_that("pca_loading_top_n is coerced and validated", {
   cfg <- popgenVCF::default_config()
   cfg$input$vcf <- tempfile(fileext = ".vcf")

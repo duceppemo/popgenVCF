@@ -217,6 +217,18 @@ if (!is.null(r$amova)) {
   }
 }
 report_table_section(
+  "Multilocus genotype (MLG) and clonal diversity",
+  r$clonality$summary, digits = 4
+)
+clonality_groups <- NULL
+if (!is.null(r$clonality$groups) && nrow(r$clonality$groups)) {
+  clonality_groups <- head(r$clonality$groups, 20)
+}
+report_table_section(
+  "Samples sharing an identical multilocus genotype (up to 20 groups shown; see 57_MLG_groups.tsv for the complete list)",
+  clonality_groups
+)
+report_table_section(
   "Mantel test and isolation by distance", r$ibd$summary, digits = 4
 )
 report_table_section(

@@ -367,6 +367,31 @@ validate_amova_result <- function(result, analysis, context) {
   validation_result(!length(errors), errors)
 }
 
+validate_clonality_result <- function(result, analysis, context) {
+  errors <- character(); warnings <- character()
+  required <- c("summary", "groups", "curve", "n_mlg_total")
+  if (!is.list(result) || !all(required %in% names(result))) {
+    errors <- c(errors, "clonality result requires summary, groups, curve, and n_mlg_total")
+    return(validation_result(!length(errors), errors))
+  }
+  if (!all(c("population", "n", "mlg") %in% names(result$summary))) {
+    errors <- c(errors, "clonality summary table is missing required columns")
+  } else if (any(result$summary$mlg > result$summary$n, na.rm = TRUE)) {
+    errors <- c(errors, "clonality summary has more MLGs than samples in at least one population")
+  }
+  if (!all(c("mlg_id", "n_members", "samples", "cross_population") %in% names(result$groups))) {
+    errors <- c(errors, "clonality groups table is missing required columns")
+  } else if (nrow(result$groups) && any(result$groups$n_members < 2L)) {
+    errors <- c(errors, "clonality groups table contains a group with fewer than two members")
+  } else if (nrow(result$groups)) {
+    warnings <- c(warnings, sprintf(
+      "%d sample(s) share an identical multilocus genotype with at least one other sample",
+      sum(result$groups$n_members)
+    ))
+  }
+  validation_result(!length(errors), errors, warnings)
+}
+
 validate_ibd_result <- function(result, analysis, context) {
   if (is.null(result)) return(validation_result(TRUE, warnings = "IBD was skipped because geographic data were unavailable"))
   errors <- character()

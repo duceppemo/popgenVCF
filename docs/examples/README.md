@@ -63,14 +63,21 @@ cfg$analyses$snmf$repetitions <- 5L
 cfg$analyses$snmf$entropy <- TRUE
 cfg$analyses$snmf$threads <- "auto"
 
+# Also a one-off enablement: ml_tree defaults to disabled (it is
+# computationally heavier than the always-on NJ tree, and not every user
+# needs both). Enabled here purely to source the real 55_ML_tree figure
+# shown in the wiki and interpreting-results vignette.
+cfg$analyses$ml_tree$enabled <- TRUE
+
 analysis <- popgenVCF::run_pipeline(cfg)
 # report/population_genomics_report.pdf and .html land in cfg$output$directory
 ```
 
 Every other module used its documented default configuration -- the three
-ancestry backends above are the deliberate exception, added for this
-reference run only. `dapc_k`'s default `"2:10"` range with cross-validation
-is the slowest default-on step (a few minutes on a multi-core machine);
+ancestry backends and `ml_tree` above are the deliberate exception, added
+for this reference run only. `dapc_k`'s default `"2:10"` range with
+cross-validation is the slowest default-on step (a few minutes on a
+multi-core machine);
 ADMIXTURE, fastStructure, and sNMF's `K = 2:9` sweeps each add under a
 minute on this small (357-SNP) marker set; everything else completes in
 well under a minute.

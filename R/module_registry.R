@@ -287,6 +287,30 @@ run_module_amova <- function(analysis, context) {
   module_result(analysis, context)
 }
 
+run_module_clonality <- function(analysis, context) {
+  cfg <- context$cfg; dirs <- context$dirs; div <- context$diversity_full
+  result <- run_clonality(
+    div$genotype, context$sample_ids, context$metadata, cfg$compute$seed,
+    curve_replicates = cfg$analyses$clonality_genotype_curve_replicates,
+    ia_permutations = cfg$analyses$clonality_ia_permutations
+  )
+  analysis <- set_analysis_result(analysis, "clonality", result)
+  write_tsv(result$summary, file.path(dirs$tables, "56_MLG_diversity_summary.tsv"))
+  write_tsv(result$groups, file.path(dirs$tables, "57_MLG_groups.tsv"))
+  if (nrow(result$curve)) write_tsv(result$curve, file.path(dirs$tables, "58_genotype_accumulation_curve.tsv"))
+  plot_clonality(result, cfg, dirs)
+  if (nrow(result$groups)) {
+    n_cross <- sum(result$groups$cross_population)
+    msg <- sprintf(
+      "%d sample(s) share an identical multilocus genotype with at least one other sample (%d group(s)%s)",
+      sum(result$groups$n_members), nrow(result$groups),
+      if (n_cross > 0L) sprintf(", %d spanning more than one recorded population", n_cross) else ""
+    )
+    analysis <- record_analysis_message(analysis, "WARNING", "clonality", msg)
+  }
+  module_result(analysis, context)
+}
+
 run_module_ibd <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
   ibd <- run_mantel_ibd(context$ibs$distance, context$metadata,

@@ -739,6 +739,53 @@ global FST (0.0915) and Weir and Goudet's (2017) population-specific FST
 on the same real value from the same real population structure, not three
 unrelated numbers that happen to look similar.
 
+## Multilocus genotype (MLG) and clonal diversity
+
+`poppr::poppr()`/`poppr::mlg.id()`/`poppr::genotype_curve()` (Kamvar, Tabima,
+and Grunwald 2014) ask a question distinct from kinship above: not "how
+related are these two samples," but "do these two samples have *exactly*
+the same genotype at every analyzed locus." That's the standard signal for
+clonal replicates, accidental resampling, or duplicate sample submissions --
+relevant for any population-genetic dataset, not only strictly outbreeding
+ones. `56_MLG_diversity_summary.tsv` reports per-population (and overall)
+genotypic diversity: the number of distinct multilocus genotypes (MLG)
+recovered, rarefied expected MLG (eMLG), Shannon's H, Stoddart-Taylor's G,
+Simpson's lambda, evenness (E.5), and the index of association (Ia/rbarD), a
+measure of non-random association among loci. `57_MLG_groups.tsv` lists any
+group of samples sharing an identical genotype, flagging groups that span
+more than one recorded population -- a stronger, discrete corroboration of
+the kind of cross-population duplicate or mislabeling issue kinship's
+continuous score can only suggest.
+
+![Genotype accumulation curve from the quickstart example: mean and 95% envelope of distinct multilocus genotypes resolved as loci are subsampled, with a dashed line at the full marker set's MLG count](figures/58_genotype_accumulation_curve.png)
+
+On the quickstart example, all 160 samples have a unique multilocus genotype
+across the 1,969 QC-passing loci this module reuses from the diversity
+module (not the 357-SNP LD-pruned set kinship/PCA/tree use above) --
+`57_MLG_groups.tsv` is empty. Notably, this includes the one pair kinship
+above confidently classifies as `duplicate/MZ twin` (`NA19331`/`NA19334`,
+kinship = 0.4459): on this larger marker panel their genotypes are *not*
+bit-identical. That is not a contradiction, it is the expected difference
+between the two signals. Kinship's continuous estimator assigns a
+relatedness class from partial genetic similarity (even a genuine duplicate
+can show some genotyping noise or missing-data differences); exact
+multilocus-genotype matching requires literal identity, and with almost
+2,000 markers even a very close pair is unlikely to match at every one. The
+genotype accumulation curve shows just how little data this distinction
+needs in practice: a mean of 150 of the 160 possible MLGs are already
+resolved with only 14 of the ~1,969 available loci, and every resampled
+replicate deterministically resolves all 160 by 174 loci.
+
+Ia and rbarD are positive in every population and overall (Total Ia = 35.40,
+rbarD = 0.0185) -- read this cautiously, not as evidence of clonal
+reproduction in this outbreeding species. Ia/rbarD is designed to detect
+non-random association among loci assuming approximately independent
+markers; this module deliberately reuses diversity's full QC-passing locus
+set (not the LD-pruned set) for consistency with AMOVA, so a positive value
+here largely reflects ordinary physical linkage among nearby SNPs, not
+clonality. The MLG counts, diversity indices, and duplicate-detection table
+above are unaffected by that choice.
+
 ## Mantel and isolation by distance
 
 Report geographic and genetic distance definitions, transformations,
