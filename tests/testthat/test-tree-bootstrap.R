@@ -100,6 +100,13 @@ test_that("build_nj_tree computes bootstrap support end to end and is determinis
   cfg$analyses$tree_bootstrap$enabled <- TRUE
   cfg$analyses$tree_bootstrap$replicates <- 30L
   cfg$compute$seed <- 7L
+  # R CMD check enforces CRAN's 2-core policy on parallel::mclapply();
+  # cfg$compute$threads defaults to the machine's full auto-detected count
+  # (unrelated to this test's own purpose), which throws "N simultaneous
+  # processes spawned" under that check -- confirmed directly in CI, not a
+  # theoretical concern. Every test that reaches run_tree_bootstrap_replicates()
+  # must cap threads at or below 2 for exactly this reason.
+  cfg$compute$threads <- 2L
   td <- tempfile("trees-"); dir.create(td)
 
   tree <- popgenVCF:::build_nj_tree(ibs, fx$metadata, cfg, list(trees = td),
@@ -197,6 +204,7 @@ test_that("build_population_tree computes bootstrap support end to end when enab
   cfg$analyses$tree_bootstrap$enabled <- TRUE
   cfg$analyses$tree_bootstrap$replicates <- 25L
   cfg$compute$seed <- 3L
+  cfg$compute$threads <- 2L # see the identical rationale above this function's sibling test
   td <- tempfile("trees-"); dir.create(td)
   tree <- popgenVCF:::build_population_tree(res$distance, list(trees = td), cfg, div$locus)
   expect_s3_class(tree, "phylo")
