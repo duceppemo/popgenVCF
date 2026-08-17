@@ -130,6 +130,7 @@ plot_genome_scan <- function(fst_windows, diversity_windows, cfg, dirs) {
   tested_fst <- fst_windows[is.finite(global_fst)]
   if (nrow(tested_fst)) {
     layout <- manhattan_layout(tested_fst$chromosome, tested_fst$window_start)
+    bp_breaks <- manhattan_bp_breaks(tested_fst$chromosome, tested_fst$window_start, layout$offset)
     tested_fst <- data.table::copy(tested_fst)
     tested_fst[, x := layout$x]
     tested_fst[, chrom_group := factor(match(chromosome, layout$ticks$chromosome) %% 2L)]
@@ -138,47 +139,52 @@ plot_genome_scan <- function(fst_windows, diversity_windows, cfg, dirs) {
       ggplot2::geom_hline(yintercept = 0, colour = "#D9D9D9", linewidth = 0.35) +
       ggplot2::geom_point(size = 1.3, alpha = .8, show.legend = FALSE) +
       ggplot2::scale_colour_manual(values = colours) +
-      ggplot2::scale_x_continuous(breaks = layout$ticks$center, labels = layout$ticks$chromosome) +
+      ggplot2::scale_x_continuous(breaks = bp_breaks$x, labels = bp_breaks$label) +
       ggplot2::labs(
         title = "Sliding-window FST scan",
         subtitle = "Weir-Cockerham global FST per window; exploratory outlier flagging, not a significance test",
-        x = "Chromosome (window start)", y = expression(italic(F)[ST])
-      ) + theme_publication(figure_base_size(cfg))
+        x = "Chromosome position", y = expression(italic(F)[ST])
+      ) + theme_publication(figure_base_size(cfg)) +
+      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1))
     save_plot(p1, "25_genome_scan_FST_manhattan", dirs, fmts, 10, 4.5, dpi)
   }
 
   tested_div <- diversity_windows[is.finite(mean_expected_heterozygosity)]
   if (nrow(tested_div)) {
     layout <- manhattan_layout(tested_div$chromosome, tested_div$window_start)
+    bp_breaks <- manhattan_bp_breaks(tested_div$chromosome, tested_div$window_start, layout$offset)
     tested_div <- data.table::copy(tested_div)
     tested_div[, x := layout$x]
     p2 <- ggplot2::ggplot(tested_div, ggplot2::aes(x = x, y = mean_expected_heterozygosity, colour = population)) +
       ggplot2::geom_point(size = 1.1, alpha = .75) +
       ggplot2::scale_colour_manual(values = population_palette(tested_div$population, style)) +
-      ggplot2::scale_x_continuous(breaks = layout$ticks$center, labels = layout$ticks$chromosome) +
+      ggplot2::scale_x_continuous(breaks = bp_breaks$x, labels = bp_breaks$label) +
       ggplot2::labs(
         title = "Sliding-window diversity scan",
         subtitle = "Mean expected heterozygosity per window per population",
-        x = "Chromosome (window start)", y = expression(italic(H)[E]), colour = "Population"
-      ) + theme_publication(figure_base_size(cfg))
+        x = "Chromosome position", y = expression(italic(H)[E]), colour = "Population"
+      ) + theme_publication(figure_base_size(cfg)) +
+      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1))
     save_plot(p2, "26_genome_scan_diversity_manhattan", dirs, fmts, 10, 5, dpi)
   }
 
   tested_tajima <- diversity_windows[is.finite(tajima_d)]
   if (nrow(tested_tajima)) {
     layout <- manhattan_layout(tested_tajima$chromosome, tested_tajima$window_start)
+    bp_breaks <- manhattan_bp_breaks(tested_tajima$chromosome, tested_tajima$window_start, layout$offset)
     tested_tajima <- data.table::copy(tested_tajima)
     tested_tajima[, x := layout$x]
     p3 <- ggplot2::ggplot(tested_tajima, ggplot2::aes(x = x, y = tajima_d, colour = population)) +
       ggplot2::geom_hline(yintercept = 0, colour = "#D9D9D9", linewidth = 0.35) +
       ggplot2::geom_point(size = 1.1, alpha = .75) +
       ggplot2::scale_colour_manual(values = population_palette(tested_tajima$population, style)) +
-      ggplot2::scale_x_continuous(breaks = layout$ticks$center, labels = layout$ticks$chromosome) +
+      ggplot2::scale_x_continuous(breaks = bp_breaks$x, labels = bp_breaks$label) +
       ggplot2::labs(
         title = "Sliding-window Tajima's D scan",
         subtitle = "Per window per population; a neutrality-test statistic, not itself an outlier-significance test",
-        x = "Chromosome (window start)", y = "Tajima's D", colour = "Population"
-      ) + theme_publication(figure_base_size(cfg))
+        x = "Chromosome position", y = "Tajima's D", colour = "Population"
+      ) + theme_publication(figure_base_size(cfg)) +
+      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1))
     save_plot(p3, "26b_genome_scan_tajima_d_manhattan", dirs, fmts, 10, 5, dpi)
   }
 }
