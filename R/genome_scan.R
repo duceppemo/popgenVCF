@@ -127,6 +127,8 @@ plot_genome_scan <- function(fst_windows, diversity_windows, cfg, dirs) {
   style <- figure_style_name(cfg)
   profile <- figure_style_profile(style)
 
+  base_size <- figure_base_size(cfg)
+
   tested_fst <- fst_windows[is.finite(global_fst)]
   if (nrow(tested_fst)) {
     layout <- manhattan_layout(tested_fst$chromosome, tested_fst$window_start)
@@ -144,8 +146,8 @@ plot_genome_scan <- function(fst_windows, diversity_windows, cfg, dirs) {
         title = "Sliding-window FST scan",
         subtitle = "Weir-Cockerham global FST per window; exploratory outlier flagging, not a significance test",
         x = "Chromosome position", y = expression(italic(F)[ST])
-      ) + theme_publication(figure_base_size(cfg)) +
-      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1))
+      ) + theme_publication(base_size)
+    p1 <- manhattan_chromosome_row(p1, layout$ticks, range(tested_fst$global_fst, na.rm = TRUE), base_size)
     save_plot(p1, "25_genome_scan_FST_manhattan", dirs, fmts, 10, 4.5, dpi)
   }
 
@@ -163,8 +165,8 @@ plot_genome_scan <- function(fst_windows, diversity_windows, cfg, dirs) {
         title = "Sliding-window diversity scan",
         subtitle = "Mean expected heterozygosity per window per population",
         x = "Chromosome position", y = expression(italic(H)[E]), colour = "Population"
-      ) + theme_publication(figure_base_size(cfg)) +
-      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1))
+      ) + theme_publication(base_size)
+    p2 <- manhattan_chromosome_row(p2, layout$ticks, range(tested_div$mean_expected_heterozygosity, na.rm = TRUE), base_size)
     save_plot(p2, "26_genome_scan_diversity_manhattan", dirs, fmts, 10, 5, dpi)
   }
 
@@ -183,8 +185,8 @@ plot_genome_scan <- function(fst_windows, diversity_windows, cfg, dirs) {
         title = "Sliding-window Tajima's D scan",
         subtitle = "Per window per population; a neutrality-test statistic, not itself an outlier-significance test",
         x = "Chromosome position", y = "Tajima's D", colour = "Population"
-      ) + theme_publication(figure_base_size(cfg)) +
-      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1))
+      ) + theme_publication(base_size)
+    p3 <- manhattan_chromosome_row(p3, layout$ticks, range(tested_tajima$tajima_d, na.rm = TRUE), base_size)
     save_plot(p3, "26b_genome_scan_tajima_d_manhattan", dirs, fmts, 10, 5, dpi)
   }
 }

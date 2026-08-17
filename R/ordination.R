@@ -246,6 +246,7 @@ plot_pca_loading_manhattan <- function(loadings, cfg, dirs, profile) {
   loadings[, chrom_group := factor(match(chromosome, layout$ticks$chromosome) %% 2L)]
   loadings[, axis := factor(axis, levels = natural_sort_levels(axis))]
   colours <- expand_figure_palette(profile, 2L, "colours")
+  base_size <- figure_base_size(cfg)
   p <- ggplot2::ggplot(loadings, ggplot2::aes(x = x, y = contribution, colour = chrom_group)) +
     ggplot2::geom_hline(yintercept = 0, colour = "#D9D9D9", linewidth = 0.35) +
     ggplot2::geom_point(size = 1, alpha = .75, show.legend = FALSE) +
@@ -255,11 +256,13 @@ plot_pca_loading_manhattan <- function(loadings, cfg, dirs, profile) {
     ggplot2::labs(
       title = "Principal component analysis SNP loadings",
       x = "Chromosome position", y = "SNP loading (correlation with component)"
-    ) + theme_publication(figure_base_size(cfg)) +
-    ggplot2::theme(
-      panel.spacing = ggplot2::unit(1, "lines"),
-      axis.text.x = ggplot2::element_text(angle = 30, hjust = 1)
-    )
+    ) + theme_publication(base_size) +
+    ggplot2::theme(panel.spacing = ggplot2::unit(1, "lines"))
+  last_axis <- levels(loadings$axis)[length(levels(loadings$axis))]
+  p <- manhattan_chromosome_row(
+    p, layout$ticks, range(loadings$contribution[loadings$axis == last_axis], na.rm = TRUE),
+    base_size, facet_var = "axis", facet_last_level = last_axis, facet_levels = levels(loadings$axis)
+  )
   n_axes <- data.table::uniqueN(loadings$axis)
   save_plot(
     p, "17_PCA_loadings_manhattan", dirs,

@@ -43,15 +43,19 @@ test_that("manhattan_layout orders non-numeric chromosome names (X, Y) after num
   expect_identical(layout$ticks$chromosome, c("2", "10", "X", "Y"))
 })
 
-test_that("manhattan_bp_breaks labels the first break per chromosome with its name and Mb-scales the rest", {
+test_that("manhattan_bp_breaks Mb-scales all labels with no chromosome prefix, inset from the chromosome's own span", {
+  # Chromosome identity is shown separately (manhattan_chromosome_row()), so
+  # labels here must never repeat it; ticks are placed strictly inside
+  # (min, max), never touching either boundary, so adjacent chromosomes'
+  # edge ticks cannot collide when many are packed tightly.
   chromosome <- rep("22", 5)
   position <- c(20000000, 20200000, 20500000, 20800000, 21000000)
   layout <- popgenVCF:::manhattan_layout(chromosome, position)
   breaks <- popgenVCF:::manhattan_bp_breaks(chromosome, position, layout$offset)
 
-  expect_true(all(breaks$x >= min(position) & breaks$x <= max(position)))
-  expect_match(breaks$label[[1L]], "^chr22: ")
-  expect_false(any(grepl("^chr22: ", breaks$label[-1L])))
+  expect_identical(nrow(breaks), 6L)
+  expect_true(all(breaks$x > min(position) & breaks$x < max(position)))
+  expect_false(any(grepl("^chr", breaks$label)))
   expect_true(all(grepl("Mb$", breaks$label)))
 })
 
@@ -61,10 +65,57 @@ test_that("manhattan_bp_breaks divides the tick budget across multiple chromosom
   layout <- popgenVCF:::manhattan_layout(chromosome, position)
   breaks <- popgenVCF:::manhattan_bp_breaks(chromosome, position, layout$offset)
 
-  expect_lte(nrow(breaks), 18L)
-  chrom_labelled <- grepl("^chr", breaks$label)
-  expect_identical(sum(chrom_labelled), 3L)
-  expect_identical(sub("^chr([0-9]+):.*$", "\\1", breaks$label[chrom_labelled]), c("1", "2", "10"))
+  expect_identical(nrow(breaks), 15L) # 5 ticks/chromosome (round(14/3)) x 3 chromosomes
+  expect_false(any(grepl("^chr", breaks$label)))
+  expect_true(all(grepl("Mb$", breaks$label)))
+})
+
+test_that("manhattan_bp_breaks emits no ticks at all when the shared per-chromosome budget rounds to <= 1", {
+  # A real genome-wide (many-chromosome) scan: the tick budget collapses,
+  # so no Mb ticks are shown -- a single midpoint tick would only
+  # duplicate the chromosome-name row already centered at the same spot.
+  chromosome <- as.character(1:23)
+  position <- rep(1e6, 23)
+  layout <- popgenVCF:::manhattan_layout(chromosome, position)
+  breaks <- popgenVCF:::manhattan_bp_breaks(chromosome, position, layout$offset)
+  expect_identical(nrow(breaks), 0L)
+})
+
+test_that("manhattan_bp_breaks emits no tick for a chromosome with only a single distinct position", {
+  chromosome <- c("1", "1", "1", "2")
+  position <- c(1e6, 2e6, 3e6, 5e6)
+  layout <- popgenVCF:::manhattan_layout(chromosome, position)
+  breaks <- popgenVCF:::manhattan_bp_breaks(chromosome, position, layout$offset)
+  # All 6 ticks (round(14/2), capped at 6) come from chromosome "1"; "2"
+  # (a single distinct position, zero span) contributes none.
+  expect_identical(nrow(breaks), 6L)
+  expect_true(all(breaks$x < layout$offset[["2"]]))
+})
+
+test_that("manhattan_chromosome_row's label layer carries a real factor sharing the main data's levels, not a plain character", {
+  # A plain-character facet column on this added layer is exactly what
+  # broke facet_wrap()'s panel order in the first shipped version (see the
+  # dedicated ggplot_build()-based regression tests in
+  # test-pca-loadings.R/test-dapc-loadings.R) -- this test pins the
+  # underlying cause directly.
+  chromosome <- c("1", "1", "2", "2")
+  position <- c(100, 200, 100, 200)
+  data <- data.frame(x = c(100, 200, 100, 200), y = c(1, 2, 3, 4), axis = factor(
+    c("LD2", "LD2", "LD10", "LD10"), levels = c("LD2", "LD10")
+  ))
+  layout <- popgenVCF:::manhattan_layout(chromosome, position)
+  p <- ggplot2::ggplot(data, ggplot2::aes(x, y)) + ggplot2::geom_point() +
+    ggplot2::facet_wrap(~axis, ncol = 1)
+  p <- popgenVCF:::manhattan_chromosome_row(
+    p, layout$ticks, range(data$y), base_size = 11,
+    facet_var = "axis", facet_last_level = "LD10", facet_levels = levels(data$axis)
+  )
+  label_layer_data <- p$layers[[length(p$layers)]]$data
+  expect_s3_class(label_layer_data$axis, "factor")
+  expect_identical(levels(label_layer_data$axis), c("LD2", "LD10"))
+  # One label row per chromosome tick (two chromosomes here), all tagged
+  # with the last facet level.
+  expect_true(all(as.character(label_layer_data$axis) == "LD10"))
 })
 
 test_that("dapc_loading_table joins var.contr to chromosome/position and sorts by contribution", {
@@ -124,6 +175,26 @@ test_that("plot_dapc_loading_manhattan and plot_dapc_loading_ranked facet axes n
 
   p2 <- popgenVCF:::plot_dapc_loading_ranked(loadings, "10", cfg, dirs, profile)
   expect_identical(levels(p2$data$axis), c("LD2", "LD9", "LD10"))
+})
+
+test_that("plot_dapc_loading_manhattan renders facet panels in natural-sort order, not alphabetical (real regression: adding manhattan_chromosome_row()'s label layer with a plain-character facet column silently reset panel order to alphabetical, e.g. LD10 second instead of last)", {
+  loadings <- data.table::data.table(
+    axis = rep(c("LD10", "LD2", "LD9"), each = 2L),
+    snp_id = rep(c("snp_a", "snp_b"), 3L),
+    chromosome = "1",
+    position = c(100, 200, 100, 200, 100, 200),
+    contribution = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6)
+  )
+  root <- withr::local_tempdir()
+  dirs <- list(figures = root)
+  dir.create(dirs$figures, showWarnings = FALSE)
+  profile <- popgenVCF:::figure_style_profile("accessibility-first")
+  cfg <- list(output = list(figure_formats = "png", dpi = 100))
+
+  p <- popgenVCF:::plot_dapc_loading_manhattan(loadings, "10", cfg, dirs, profile)
+  built <- ggplot2::ggplot_build(p)
+  panel_axis_order <- as.character(built$layout$layout$axis[order(built$layout$layout$PANEL)])
+  expect_identical(panel_axis_order, c("LD2", "LD9", "LD10"))
 })
 
 test_that("run_dapc_analysis produces per-K loadings only when snp_ids/chromosome/position are supplied", {

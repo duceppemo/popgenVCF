@@ -153,28 +153,86 @@ manhattan_layout <- function(chromosome, position) {
 # Mb-formatted labels (not raw bp digits) keep the axis readable; the total
 # tick count is capped and divided across chromosomes so a genome-wide,
 # many-chromosome plot doesn't get one tick's worth of density per
-# chromosome. The first break of each chromosome is prefixed with its name
-# (e.g. "chr22: 20 Mb") so chromosome identity is preserved even when only
-# one tick per chromosome fits; later breaks in the same chromosome are
-# unprefixed ("20.5 Mb") to avoid repeating it.
-manhattan_bp_breaks <- function(chromosome, position, offset, target_total = 14L) {
+# chromosome. Unlike an earlier version of this helper, labels never carry a
+# "chrNN: " prefix -- chromosome identity is now shown on its own row below
+# the Mb ticks (manhattan_chromosome_row()), so the two would otherwise be
+# redundant. Ticks are placed *inset* from each chromosome's own start/end
+# (evenly within the open interval, never touching either boundary) so that
+# adjacent chromosomes' edge ticks cannot land on top of each other when
+# many chromosomes are packed tightly. When the shared per-chromosome tick
+# budget rounds down to <= 1, or a chromosome has only a single distinct
+# position, no Mb ticks are emitted for it at all: a single tick would only
+# duplicate the chromosome-name row already centered at the same spot, and
+# real genome-wide (many-chromosome) scans are exactly the case where that
+# budget collapses -- matching this helper's original, pre-Mb-tick
+# behavior of showing chromosome identity alone for that case, found to
+# look cleanest empirically rather than assumed.
+manhattan_bp_breaks <- function(chromosome, position, offset, target_total = 14L, max_per_chr = 6L) {
   chromosome <- as.character(chromosome)
   position <- as.numeric(position)
   chrs <- names(offset)
-  n_per_chr <- max(1L, min(6L, round(target_total / max(1L, length(chrs)))))
+  n_per_chr <- max(1L, min(max_per_chr, round(target_total / max(1L, length(chrs)))))
+  empty <- data.frame(x = numeric(), label = character(), stringsAsFactors = FALSE)
+  if (n_per_chr <= 1L) return(empty)
   rows <- lapply(chrs, function(chr) {
     p <- position[chromosome == chr]
     if (!length(p)) return(NULL)
     span <- diff(range(p))
-    breaks <- if (span <= 0) mean(p) else pretty(range(p), n = n_per_chr)
-    breaks <- breaks[breaks >= min(p) & breaks <= max(p)]
-    if (!length(breaks)) breaks <- mean(range(p))
+    if (span <= 0) return(NULL)
+    breaks <- min(p) + span * seq_len(n_per_chr) / (n_per_chr + 1)
     accuracy <- if (span < 2e6) 0.1 else 1
     label <- scales::label_number(scale = 1e-6, suffix = " Mb", accuracy = accuracy)(breaks)
-    label[[1L]] <- paste0("chr", chr, ": ", label[[1L]])
     data.frame(x = breaks + offset[[chr]], label = label, stringsAsFactors = FALSE)
   })
-  do.call(rbind, rows)
+  result <- do.call(rbind, rows)
+  if (is.null(result)) empty else result
+}
+
+# Adds the chromosome-name row below a Manhattan-style figure's Mb-tick
+# x-axis, centered on each chromosome's own span. Implemented as a text
+# layer positioned below the plot's own data range plus
+# coord_cartesian(clip = "off") to draw it in the margin, rather than a
+# second, separately-built panel: this keeps everything in one coordinate
+# system, so horizontal alignment with the Mb ticks above is exact by
+# construction (a stacked second panel would need its own independently
+# matched x-scale/expansion, a real source of subtle misalignment).
+#
+# For faceted plots (one panel per PC/discriminant axis, `scales =
+# "free_y"`, e.g. the PCA/DAPC SNP-loading figures), pass `facet_var`/
+# `facet_last_level` so the row is drawn only once, in the last (bottom)
+# facet, positioned at that facet's own y-range -- an ordinary annotation
+# layer would otherwise repeat the same y-position label in every facet,
+# since annotate()/geom_text() with no facet-matching data replicates
+# across all panels by default.
+#
+# `facet_levels` matters, not just `facet_last_level`: adding a layer whose
+# facet column is a plain character (even a single value) alongside the
+# main layer's properly-ordered factor makes ggplot2 fall back to
+# alphabetical panel order when it combines both layers' data to resolve
+# the facet variable -- confirmed directly (PC10 rendered second, right
+# after PC1, instead of last) before this was fixed by constructing the
+# label layer's facet column as a real factor sharing the exact same
+# levels as the main data, not a bare string.
+manhattan_chromosome_row <- function(p, ticks, y_range, base_size = 11,
+                                     facet_var = NULL, facet_last_level = NULL,
+                                     facet_levels = NULL) {
+  pad <- diff(y_range) * 0.14
+  if (!is.finite(pad) || pad <= 0) pad <- max(abs(y_range), 1, na.rm = TRUE) * 0.14
+  label_df <- data.frame(x = ticks$center, y = y_range[1] - pad, label = ticks$chromosome)
+  if (!is.null(facet_var)) {
+    label_df[[facet_var]] <- factor(facet_last_level, levels = facet_levels %||% facet_last_level)
+  }
+
+  p +
+    ggplot2::geom_text(
+      data = label_df, ggplot2::aes(x = x, y = y, label = label),
+      inherit.aes = FALSE, size = base_size * 0.32, vjust = 1, fontface = "bold"
+    ) +
+    ggplot2::coord_cartesian(clip = "off") +
+    ggplot2::theme(
+      axis.text.x = ggplot2::element_text(angle = 0, hjust = 0.5),
+      plot.margin = ggplot2::unit(c(5.5, 5.5, 5.5 + base_size * 2, 5.5), "pt")
+    )
 }
 
 figure_style_profile <- function(style = "accessibility-first") {

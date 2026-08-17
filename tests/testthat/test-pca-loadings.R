@@ -130,6 +130,16 @@ test_that("PCA loading plots facet axes naturally (PC2 before PC10, not lexicogr
   ranked <- plots[["18_PCA_loadings_ranked"]]
   expect_identical(levels(manhattan$data$axis), c("PC1", "PC2", "PC10"))
   expect_identical(levels(ranked$data$axis), c("PC1", "PC2", "PC10"))
+
+  # Real regression: manhattan_chromosome_row()'s label layer previously
+  # carried its facet column as a plain character rather than a factor
+  # sharing the main data's levels, which silently reset facet_wrap()'s
+  # rendered panel order to alphabetical (PC1, PC10, PC2) once that layer
+  # was added -- the levels()-only checks above would not have caught this,
+  # since they inspect the *source* data, not the actually rendered panels.
+  built <- ggplot2::ggplot_build(manhattan)
+  panel_axis_order <- as.character(built$layout$layout$axis[order(built$layout$layout$PANEL)])
+  expect_identical(panel_axis_order, c("PC1", "PC2", "PC10"))
 })
 
 test_that("PCA loading plots are absent when no loadings table is supplied", {
