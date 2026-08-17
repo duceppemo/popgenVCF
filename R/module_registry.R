@@ -296,6 +296,55 @@ run_module_amova <- function(analysis, context) {
   module_result(analysis, context)
 }
 
+run_module_pcadapt <- function(analysis, context) {
+  cfg <- context$cfg; dirs <- context$dirs
+  # Deliberately extracted directly, not reused from context$diversity_full:
+  # unlike AMOVA/clonality (which need diversity's population-summarized
+  # output), pcadapt only ever needs the raw genotype matrix, and does not
+  # require population metadata at all (see R/pcadapt_scan.R) -- depending
+  # on the "diversity" module here would incorrectly force it to run (and
+  # fail) even when population metadata is unavailable and diversity itself
+  # is excluded by the capability gate, a real dependency-graph pitfall
+  # caught by a real end-to-end no-metadata pipeline run.
+  geno <- SNPRelate::snpgdsGetGeno(
+    context$gds, sample.id = context$sample_ids, snp.id = context$qc_snps,
+    snpfirstdim = FALSE, verbose = FALSE
+  )
+  snp_chromosome <- context$ids$chromosome[match(context$qc_snps, context$ids$snp)]
+  snp_position <- context$ids$position[match(context$qc_snps, context$ids$snp)]
+  n_populations <- if ("population" %in% names(context$metadata) && !anyNA(context$metadata$population)) {
+    data.table::uniqueN(context$metadata$population)
+  } else NA_integer_
+  result <- run_pcadapt_scan(
+    geno, context$qc_snps, snp_chromosome, snp_position,
+    k = cfg$analyses$pcadapt_k, n_populations = n_populations,
+    min_maf = cfg$analyses$pcadapt_min_maf, fdr_alpha = cfg$analyses$pcadapt_fdr_alpha
+  )
+  analysis <- set_analysis_result(analysis, "pcadapt", result)
+  write_tsv(result$table, file.path(dirs$tables, "59_pcadapt_outliers.tsv"))
+  significant <- result$table[outlier == TRUE]
+  if (nrow(significant)) {
+    data.table::setorder(significant, q_value)
+    write_tsv(significant, file.path(dirs$tables, "59b_pcadapt_significant_outliers.tsv"))
+  }
+  plot_pcadapt(result, cfg, dirs)
+  if (isTRUE(result$failed)) {
+    analysis <- record_analysis_message(
+      analysis, "WARNING", "pcadapt",
+      "pcadapt outlier scan could not be fit (a numerical-stability failure with too little data relative to the number of retained components); skipped"
+    )
+  } else if (result$n_outliers > 0L) {
+    analysis <- record_analysis_message(
+      analysis, "WARNING", "pcadapt",
+      sprintf(
+        "%d of %d tested loci are significant outliers at q < %s (Benjamini-Hochberg FDR)",
+        result$n_outliers, result$n_tested, format(cfg$analyses$pcadapt_fdr_alpha)
+      )
+    )
+  }
+  module_result(analysis, context)
+}
+
 run_module_clonality <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs; div <- context$diversity_full
   result <- run_clonality(

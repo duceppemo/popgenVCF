@@ -209,6 +209,39 @@ validate_fst_result <- function(result, analysis, context) {
                     list(comparisons = if (is.list(result)) nrow(result$long) else NA_integer_))
 }
 
+validate_pcadapt_result <- function(result, analysis, context) {
+  errors <- character(); warnings <- character()
+  required <- c("table", "k", "gif", "n_tested", "n_outliers")
+  if (!is.list(result) || !all(required %in% names(result))) {
+    errors <- c(errors, "pcadapt result requires table, k, gif, n_tested, and n_outliers")
+    return(validation_result(!length(errors), errors))
+  }
+  tab <- result$table
+  required_cols <- c("snp_id", "p_value", "q_value", "outlier")
+  if (!is.data.frame(tab) || !all(required_cols %in% names(tab))) {
+    errors <- c(errors, "pcadapt table is missing required columns")
+  } else {
+    if (any(tab$p_value < -1e-8 | tab$p_value > 1 + 1e-8, na.rm = TRUE)) {
+      errors <- c(errors, "pcadapt p_value must be between zero and one")
+    }
+    if (any(tab$q_value < -1e-8 | tab$q_value > 1 + 1e-8, na.rm = TRUE)) {
+      errors <- c(errors, "pcadapt q_value must be between zero and one")
+    }
+    # Benjamini-Hochberg q-values are, by construction, always >= their
+    # corresponding raw p-value -- a real correctness invariant, not just a
+    # style preference, worth enforcing directly.
+    if (any(tab$q_value < tab$p_value - 1e-8, na.rm = TRUE)) {
+      errors <- c(errors, "pcadapt q_value cannot be smaller than its p_value")
+    }
+    if (any(tab$outlier & is.na(tab$q_value))) {
+      errors <- c(errors, "pcadapt flags a locus as an outlier with an undefined q_value")
+    }
+  }
+  if (!is.finite(result$k) || result$k < 1L) errors <- c(errors, "pcadapt k must be >= 1")
+  validation_result(!length(errors), errors, warnings,
+                    metrics = list(n_tested = result$n_tested, n_outliers = result$n_outliers))
+}
+
 validate_genome_scan_result <- function(result, analysis, context) {
   errors <- character(); warnings <- character()
   required <- c("fst_windows", "diversity_windows", "outliers")

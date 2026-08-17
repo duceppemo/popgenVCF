@@ -37,6 +37,8 @@ default_config <- function() {
                     population_assignment = TRUE, fst = TRUE,
                     genome_scan = TRUE, genome_scan_window_bp = 50000L,
                     genome_scan_step_bp = 50000L, genome_scan_min_snps = 5L,
+                    pcadapt = TRUE, pcadapt_k = NULL, pcadapt_min_maf = 0.05,
+                    pcadapt_fdr_alpha = 0.05,
                     ld_decay = TRUE, ld_decay_max_distance_bp = 500000L,
                     ld_decay_bin_bp = 5000L, ld_decay_slide = 100L,
                     ne_ld = TRUE, ne_ld_max_snps = 2000L,
@@ -160,6 +162,9 @@ validate_config <- function(cfg) {
   cfg$analyses$genome_scan_window_bp <- as.integer(cfg$analyses$genome_scan_window_bp)
   cfg$analyses$genome_scan_step_bp <- as.integer(cfg$analyses$genome_scan_step_bp)
   cfg$analyses$genome_scan_min_snps <- as.integer(cfg$analyses$genome_scan_min_snps)
+  if (!is.null(cfg$analyses$pcadapt_k)) cfg$analyses$pcadapt_k <- as.integer(cfg$analyses$pcadapt_k)
+  cfg$analyses$pcadapt_min_maf <- as.numeric(cfg$analyses$pcadapt_min_maf)
+  cfg$analyses$pcadapt_fdr_alpha <- as.numeric(cfg$analyses$pcadapt_fdr_alpha)
   cfg$analyses$ld_decay_max_distance_bp <- as.integer(cfg$analyses$ld_decay_max_distance_bp)
   cfg$analyses$ld_decay_bin_bp <- as.integer(cfg$analyses$ld_decay_bin_bp)
   cfg$analyses$ld_decay_slide <- as.integer(cfg$analyses$ld_decay_slide)
@@ -204,6 +209,9 @@ validate_config <- function(cfg) {
   if (!is.finite(cfg$analyses$genome_scan_window_bp) || cfg$analyses$genome_scan_window_bp < 1L) stop("analyses.genome_scan_window_bp must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$genome_scan_step_bp) || cfg$analyses$genome_scan_step_bp < 1L) stop("analyses.genome_scan_step_bp must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$genome_scan_min_snps) || cfg$analyses$genome_scan_min_snps < 2L) stop("analyses.genome_scan_min_snps must be >= 2", call. = FALSE)
+  if (!is.null(cfg$analyses$pcadapt_k) && (!is.finite(cfg$analyses$pcadapt_k) || cfg$analyses$pcadapt_k < 1L)) stop("analyses.pcadapt_k must be NULL or >= 1", call. = FALSE)
+  if (!is.finite(cfg$analyses$pcadapt_min_maf) || cfg$analyses$pcadapt_min_maf < 0 || cfg$analyses$pcadapt_min_maf >= 0.5) stop("analyses.pcadapt_min_maf must be between zero (inclusive) and 0.5 (exclusive)", call. = FALSE)
+  if (!is.finite(cfg$analyses$pcadapt_fdr_alpha) || cfg$analyses$pcadapt_fdr_alpha <= 0 || cfg$analyses$pcadapt_fdr_alpha >= 1) stop("analyses.pcadapt_fdr_alpha must be between zero and one", call. = FALSE)
   if (!is.finite(cfg$analyses$ld_decay_max_distance_bp) || cfg$analyses$ld_decay_max_distance_bp < 1L) stop("analyses.ld_decay_max_distance_bp must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$ld_decay_bin_bp) || cfg$analyses$ld_decay_bin_bp < 1L) stop("analyses.ld_decay_bin_bp must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$ld_decay_slide) || cfg$analyses$ld_decay_slide < 1L) stop("analyses.ld_decay_slide must be >= 1", call. = FALSE)

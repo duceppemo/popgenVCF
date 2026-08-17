@@ -145,6 +145,15 @@ report_table_section(
   "Genome scan FST outliers (top 20 windows by FST; see 39_genome_scan_fst.tsv for the complete list)",
   r$genome_scan$outliers, digits = 4
 )
+pcadapt_top <- NULL
+if (!is.null(r$pcadapt$table)) {
+  sig <- r$pcadapt$table[!is.na(r$pcadapt$table$q_value) & r$pcadapt$table$q_value < 0.05, ]
+  if (nrow(sig)) pcadapt_top <- head(sig[order(sig$q_value), ], 20)
+}
+report_table_section(
+  "pcadapt outlier scan (top 20 significant loci by q-value; see 59_pcadapt_outliers.tsv for the complete results and 59b_pcadapt_significant_outliers.tsv for the complete significant list)",
+  pcadapt_top, digits = 4
+)
 report_table_section(
   "Linkage disequilibrium decay (mean r-squared by physical distance bin; see 43_LD_decay.tsv for the complete list)",
   r$ld_decay$binned, digits = 4

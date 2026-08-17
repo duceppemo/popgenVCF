@@ -98,6 +98,36 @@ test_that("clonality_genotype_curve_replicates and clonality_ia_permutations are
   expect_error(popgenVCF::validate_config(cfg), "clonality_ia_permutations")
 })
 
+test_that("pcadapt_k, pcadapt_min_maf, and pcadapt_fdr_alpha are coerced and validated", {
+  cfg <- popgenVCF::default_config()
+  cfg$input$vcf <- tempfile(fileext = ".vcf")
+  cfg$output$directory <- tempfile("popgenvcf-output-")
+  file.create(cfg$input$vcf)
+
+  expect_null(cfg$analyses$pcadapt_k)
+  expect_identical(cfg$analyses$pcadapt_min_maf, 0.05)
+  expect_identical(cfg$analyses$pcadapt_fdr_alpha, 0.05)
+
+  cfg$analyses$pcadapt_k <- "4"
+  cfg$analyses$pcadapt_min_maf <- "0.1"
+  cfg$analyses$pcadapt_fdr_alpha <- "0.01"
+  validated <- popgenVCF::validate_config(cfg)
+  expect_identical(validated$analyses$pcadapt_k, 4L)
+  expect_identical(validated$analyses$pcadapt_min_maf, 0.1)
+  expect_identical(validated$analyses$pcadapt_fdr_alpha, 0.01)
+
+  cfg$analyses$pcadapt_k <- 0L
+  expect_error(popgenVCF::validate_config(cfg), "pcadapt_k")
+
+  cfg$analyses$pcadapt_k <- NULL
+  cfg$analyses$pcadapt_min_maf <- 0.5
+  expect_error(popgenVCF::validate_config(cfg), "pcadapt_min_maf")
+
+  cfg$analyses$pcadapt_min_maf <- 0.05
+  cfg$analyses$pcadapt_fdr_alpha <- 1
+  expect_error(popgenVCF::validate_config(cfg), "pcadapt_fdr_alpha")
+})
+
 test_that("pca_loading_top_n is coerced and validated", {
   cfg <- popgenVCF::default_config()
   cfg$input$vcf <- tempfile(fileext = ".vcf")
@@ -443,5 +473,5 @@ test_that("template analysis toggles drive registry enablement", {
   enabled <- names(registry$modules)[vapply(
     registry$modules, popgenVCF:::module_is_enabled, logical(1L), config = cfg
   )]
-  expect_identical(enabled, c("pca", "ibs", "kinship", "sex_check", "roh", "tree", "ld_decay"))
+  expect_identical(enabled, c("pca", "ibs", "kinship", "sex_check", "roh", "tree", "pcadapt", "ld_decay"))
 })

@@ -564,6 +564,58 @@ Mean expected heterozygosity per window per population ranges from 0.099 to 0.39
 
 Real values are almost entirely positive (median 1.34, range -1.71 to 3.60 across the 152 windows with a defined estimate). This is an expected artifact of this pipeline's own QC, not necessarily a real signal of balancing selection or population contraction: the default minor-allele-frequency filter (`qc.maf`, default 0.05) removes rare variants *before* this scan runs, and removing rare variants is well known to bias Tajima's D upward (it reduces the segregating-sites count much more than it reduces pairwise diversity). Interpreting Tajima's D values from any MAF-filtered marker set -- the norm for SNP-array/exome-chip data, including this one -- needs this caveat kept in mind.
 
+## pcadapt outlier scan
+
+`59_pcadapt_outliers.tsv` is a genuine per-locus statistical outlier test
+for local adaptation/selection (Luu et al. 2016; Privé et al. 2020), via
+the `pcadapt` package -- distinct from the genome-scan FST-outlier table
+above, which the previous section already flags as descriptive, not a
+significance test. PCA is fit on the retained genotype matrix; each
+locus's genotypes are regressed on the K retained PC scores to get a
+vector of z-scores, and a robust, genomic-control-corrected Mahalanobis
+distance of that vector is tested against a chi-squared distribution with
+K degrees of freedom, giving a real p-value per locus. Benjamini-Hochberg
+FDR correction (`stats::p.adjust`, the base-R equivalent of Storey's
+q-value) controls the false-discovery rate across all tested loci;
+`59b_pcadapt_significant_outliers.tsv` lists loci significant at
+`analyses.pcadapt_fdr_alpha` (default q < 0.05). Unlike almost every other
+module in this report, **pcadapt does not require population metadata at
+all** -- it is unsupervised. K defaults to (number of populations - 1)
+when population metadata is available, matching the standard heuristic
+that the number of structure-describing PCs tracks group count minus one;
+without population metadata it falls back to pcadapt's own default of 2.
+Computed on the full QC-passing, **unpruned** marker set (like the genome
+scans above), not the LD-pruned set PCA/kinship/DAPC use -- LD-pruning
+could remove the very loci a selection scan is looking for.
+
+![pcadapt outlier scan across the quickstart example's analyzed chr22 region, K=7, significant loci highlighted](figures/59_pcadapt_manhattan.png)
+
+On the quickstart example (K=7, one less than the 8 populations), 708 of
+1,969 tested loci (36%) are significant at q < 0.05 -- a genuine
+Benjamini-Hochberg-adjusted result, not a screening threshold, but read
+this fraction honestly rather than as "708 independent selection targets."
+Two things explain it. First, the genomic inflation factor is 1.60,
+meaningfully above the no-inflation value of 1 -- with 8 continental-scale
+populations this divergent (the same real population structure PCA, FST,
+and the population tree already establish throughout this report) spread
+across a comparatively modest, un-genome-wide marker panel, a large
+fraction of loci can show real elevated differentiation from ordinary
+genome-wide drift alone, not necessarily localized selection; this is a
+known, general limitation of PCA-based outlier scans applied to strongly
+structured samples, not specific to this dataset. Second, the significant
+loci are not spread uniformly but cluster into a handful of genomic
+windows -- consistent with local linkage disequilibrium in this
+deliberately unpruned marker set producing one effective signal repeated
+across several physically adjacent, highly correlated SNPs, not many
+independent discoveries. Reassuringly, several of the strongest clusters
+land in exactly the same genomic windows the cruder, purely descriptive
+genome-scan FST-outlier table above already flagged -- most notably
+20.86-20.95 Mb, overlapping the single highest-FST window in the entire
+scan (20.80-20.85 Mb, FST=0.172) -- an independent corroboration from two
+different statistical approaches, though still not proof of a specific
+selection target given the strong overall population-structure inflation
+already noted.
+
 ## Linkage disequilibrium decay
 
 `43_LD_decay.tsv` bins pairwise genotypic correlation (r-squared) between

@@ -83,7 +83,7 @@ test_that("the default registry is fully descriptor-driven", {
   registry <- default_analysis_registry()
   expected <- c(
     "diversity", "bottleneck", "pca", "ibs", "kinship", "sex_check", "roh", "tree", "ml_tree", "population_tree",
-    "population_assignment", "fst", "genome_scan", "ld_decay", "ne_ld",
+    "population_assignment", "fst", "genome_scan", "pcadapt", "ld_decay", "ne_ld",
     "dapc", "amova", "clonality", "ibd", "spatial_autocorrelation", "admixture", "faststructure", "snmf", "chromosome"
   )
 

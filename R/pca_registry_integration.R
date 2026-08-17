@@ -63,6 +63,7 @@ default_analysis_registry <- function() {
     population_assignment_module_spec(),
     fst_module_spec(),
     genome_scan_module_spec(),
+    pcadapt_module_spec(),
     ld_decay_module_spec(),
     ne_ld_module_spec(),
     dapc_module_spec(),
