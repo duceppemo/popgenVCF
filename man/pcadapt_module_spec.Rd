@@ -12,9 +12,10 @@ A `PopgenVCFModuleSpec` object.
 \description{
 The descriptor owns the complete pcadapt registry contract: a genome-wide,
 PCA-based statistical outlier scan for local adaptation/selection (Luu et
-al. 2016; Privé et al. 2020), computed by `run_module_pcadapt()` from
-`compute_diversity()`'s already-computed genotype matrix
-(`requires = "diversity"`). Unlike most modules in this registry, no
-population metadata is required -- pcadapt is an unsupervised, PCA-based
-method.
+al. 2016; Prive et al. 2020), computed by `run_module_pcadapt()` directly
+from the retained genotype matrix. Deliberately declares no `requires`:
+unlike most modules in this registry, no population metadata is needed --
+pcadapt is an unsupervised, PCA-based method -- so it must not depend on
+the population-gated `diversity` module, which would otherwise be forced
+to run (and fail) even when population metadata is unavailable.
 }
