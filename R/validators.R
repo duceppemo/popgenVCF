@@ -195,6 +195,15 @@ validate_fst_result <- function(result, analysis, context) {
     }
     if (is.matrix(result$matrix) && any(abs(diag(result$matrix)) > 1e-10, na.rm = TRUE)) errors <- c(errors, "FST diagonal is not zero")
     if ("fst" %in% names(result$long) && any(result$long$fst > 1, na.rm = TRUE)) warnings <- c(warnings, "pairwise FST values exceed one")
+    # Unlike FST (an estimator that can exceed 1 under small-sample noise --
+    # the existing, deliberately lenient policy just above), Dxy = p1*(1-p2)
+    # + p2*(1-p1) with p1, p2 in [0, 1] is bounded in [0, 1] exactly, with no
+    # estimator noise of its own; a violation indicates a real defect, not
+    # floating-point overshoot, so this is an error, not a warning.
+    if ("dxy" %in% names(result$long) &&
+        any(result$long$dxy < -1e-8 | result$long$dxy > 1 + 1e-8, na.rm = TRUE)) {
+      errors <- c(errors, "pairwise Dxy values must be between zero and one")
+    }
   }
   validation_result(!length(errors), errors, warnings,
                     list(comparisons = if (is.list(result)) nrow(result$long) else NA_integer_))

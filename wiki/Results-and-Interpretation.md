@@ -440,6 +440,26 @@ ITU-STU with LWK-YRI a close second, while Jost's D reverses that order --
 both pairs are near-ties on both measures, illustrating that the two
 statistics agree overall without being interchangeable in fine detail.
 
+The same tables also carry Nei's (1987) Dxy, absolute nucleotide divergence
+(`global_dxy`, `dxy` on `18_pairwise_FST.tsv`, and a
+`19c_pairwise_dxy_matrix.tsv`) -- a third differentiation measure, and the
+one genuinely unnormalized member of the group. FST, Nm, and Jost's D are
+all scaled by within-population diversity, so identical low values can mask
+two different demographic histories: recent divergence with ongoing gene
+flow (low Dxy) versus an older split that still shares a lot of ancestral
+polymorphism (high Dxy) -- a distinction FST alone cannot make (Cruickshank
+and Hahn 2014). On the quickstart example, global Dxy = 0.3056; pairwise Dxy
+correlates positively with FST (r = 0.90) but noticeably less tightly than
+Jost's D does (r = 0.998) -- expected, since Dxy is the one measure here not
+scaled by within-population heterozygosity, so it is genuinely picking up
+different information. Read honestly rather than forced into a dramatic
+storyline: in this dataset the two lowest-FST pairs (ITU-STU and LWK-YRI)
+are also the two lowest-Dxy pairs, i.e. no FST/Dxy decoupling shows up here
+-- consistent with these 8 populations sharing a broadly similar,
+relatively recent divergence history (real human demographic history at
+this timescale) rather than the highly variable species-level divergence
+times where FST/Dxy decoupling is most often reported in the literature.
+
 Global and pairwise FST both describe the whole dataset or a pair of
 populations; neither directly answers "how distinct is this one population
 from the panel as a whole." Population-specific FST / beta (Weir and Goudet

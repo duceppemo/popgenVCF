@@ -6,7 +6,7 @@ test_that("FST module descriptor owns the complete registry contract", {
   expect_identical(spec$run, popgenVCF:::run_module_fst)
   expect_identical(spec$validate, popgenVCF:::validate_fst_result)
   expect_identical(spec$outputs, c("fst", "fst_ci"))
-  expect_identical(spec$references, c("Weir and Cockerham 1984", "Wright 1931", "Jost 2008", "Weir and Goudet 2017"))
+  expect_identical(spec$references, c("Weir and Cockerham 1984", "Wright 1931", "Jost 2008", "Weir and Goudet 2017", "Nei 1987"))
   expect_identical(spec$resource_class, "heavy")
   expect_identical(spec$contract_version, "1.0")
   expect_identical(spec$requires, "diversity")

@@ -172,6 +172,14 @@ run_module_fst <- function(analysis, context) {
     fst$long[jost$long, `:=`(jost_d = i.jost_d, jost_d_n_snps = i.jost_d_n_snps),
              on = c("population_1", "population_2")]
   }
+  dxy_result <- compute_dxy(context$diversity_full$locus)
+  fst$global_dxy <- dxy_result$global
+  fst$dxy_matrix <- dxy_result$matrix
+  fst$long[, `:=`(dxy = NA_real_, dxy_n_snps = NA_integer_)]
+  if (nrow(dxy_result$long)) {
+    fst$long[dxy_result$long, `:=`(dxy = i.dxy, dxy_n_snps = i.dxy_n_snps),
+             on = c("population_1", "population_2")]
+  }
   beta <- compute_population_specific_fst(
     context$diversity_full$genotype, context$diversity_full$sample$population, context$qc_snps
   )
@@ -185,11 +193,12 @@ run_module_fst <- function(analysis, context) {
   analysis <- set_analysis_result(analysis, "fst_ci", fst_ci)
   write_tsv(data.table::data.table(
     global_fst = fst$global, global_nm = fst$global_nm, global_jost_d = fst$global_jost_d,
-    global_beta_fst = fst$global_beta_fst
+    global_beta_fst = fst$global_beta_fst, global_dxy = fst$global_dxy
   ), file.path(dirs$tables, "17_global_FST.tsv"))
   write_tsv(fst$long, file.path(dirs$tables, "18_pairwise_FST.tsv"))
   write_matrix_tsv(fst$matrix, file.path(dirs$tables, "19_pairwise_FST_matrix.tsv"), "population")
   if (nrow(jost$matrix)) write_matrix_tsv(jost$matrix, file.path(dirs$tables, "19b_pairwise_jost_d_matrix.tsv"), "population")
+  if (nrow(dxy_result$matrix)) write_matrix_tsv(dxy_result$matrix, file.path(dirs$tables, "19c_pairwise_dxy_matrix.tsv"), "population")
   if (nrow(fst_ci)) write_tsv(fst_ci, file.path(dirs$tables, "20_pairwise_FST_bootstrap_CI.tsv"))
   if (beta$available) {
     write_tsv(beta$table, file.path(dirs$tables, "51_population_specific_fst.tsv"))
