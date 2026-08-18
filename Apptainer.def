@@ -38,17 +38,23 @@ From: condaforge/miniforge3:25.3.0-3
     export LC_ALL=C.UTF-8
     export LANG=C.UTF-8
     cd /opt/popgenVCF
-    # Diagnostic only (see NEWS.md / ROADMAP.md): a 2026-08-18 apptainer.yml
-    # run failed here linking gdsfmt's vendored liblzma with no captured
-    # error text -- a signature consistent with the runner running out of
-    # disk mid-build (texlive-xetex + the conda env + Apptainer's own SIF
-    # materialization all compete for one runner's finite disk), not a
-    # toolchain or dependency-version regression (the identical gdsfmt
-    # version built cleanly against the identical GCC/binutils versions
-    # outside the Apptainer sandbox). df here turns a repeat into real
-    # evidence instead of another silent Error 1.
+    # See NEWS.md / ROADMAP.md: a 2026-08-18 apptainer.yml run failed here
+    # linking gdsfmt's vendored liblzma with no captured error text, twice
+    # in a row. Disk exhaustion and a toolchain/C-standard mismatch were
+    # both ruled out with real evidence (df showed 83-86GB free throughout;
+    # an identical local rebuild used the identical -std=gnu23 toolchain
+    # and succeeded with byte-identical compiler command lines). The
+    # remaining, unruled-out difference is build parallelism: the local
+    # repro ran without an explicit -j, while this runner's default make
+    # concurrency can race against xz-5.2.9's own bundled (old, vendored)
+    # Makefile if it is missing an explicit dependency edge -- a
+    # well-documented failure class for exactly this signature (every
+    # individual compile reports success; only the final link fails,
+    # silently). MAKEFLAGS=-j1 forces serial compilation for just this
+    # step as the standard mitigation; df stays in place so a recurrence
+    # is still real evidence, not another silent Error 1.
     df -h / || true
-    Rscript inst/scripts/install-bioconductor.R
+    MAKEFLAGS=-j1 Rscript inst/scripts/install-bioconductor.R
     df -h / || true
     R CMD INSTALL .
     Rscript -e 'stopifnot(as.character(packageVersion("popgenVCF")) == read.dcf("DESCRIPTION")[1, "Version"])'
