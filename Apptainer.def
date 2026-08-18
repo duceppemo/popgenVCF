@@ -21,12 +21,16 @@ From: condaforge/miniforge3:25.3.0-3
 
 %post
     set -eu
+    df -h / || true
     apt-get update
     apt-get install -y --no-install-recommends texlive-xetex lmodern
+    apt-get clean
     rm -rf /var/lib/apt/lists/*
+    df -h / || true
 
     mamba env create --file /opt/popgenVCF/inst/conda/environment.yml
     mamba clean --all --yes
+    df -h / || true
     export PATH=/opt/conda/envs/popgenvcf/bin:$PATH
     export CONDA_DEFAULT_ENV=popgenvcf
     export R_ENVIRON_USER=/dev/null
@@ -34,7 +38,18 @@ From: condaforge/miniforge3:25.3.0-3
     export LC_ALL=C.UTF-8
     export LANG=C.UTF-8
     cd /opt/popgenVCF
+    # Diagnostic only (see NEWS.md / ROADMAP.md): a 2026-08-18 apptainer.yml
+    # run failed here linking gdsfmt's vendored liblzma with no captured
+    # error text -- a signature consistent with the runner running out of
+    # disk mid-build (texlive-xetex + the conda env + Apptainer's own SIF
+    # materialization all compete for one runner's finite disk), not a
+    # toolchain or dependency-version regression (the identical gdsfmt
+    # version built cleanly against the identical GCC/binutils versions
+    # outside the Apptainer sandbox). df here turns a repeat into real
+    # evidence instead of another silent Error 1.
+    df -h / || true
     Rscript inst/scripts/install-bioconductor.R
+    df -h / || true
     R CMD INSTALL .
     Rscript -e 'stopifnot(as.character(packageVersion("popgenVCF")) == read.dcf("DESCRIPTION")[1, "Version"])'
     Rscript -e 'x <- popgenVCF::run_scientific_validation(integration = TRUE, threads = 4); stopifnot(x$passed)'
