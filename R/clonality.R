@@ -158,8 +158,9 @@ plot_clonality <- function(result, cfg, dirs) {
     ggplot2::scale_y_continuous(labels = scales::label_comma()) +
     ggplot2::labs(
       title = "Genotype accumulation curve",
-      subtitle = sprintf(
-        "Distinct multilocus genotypes resolved when subsampling loci (mean and 95%% envelope, %s replicates); dashed line: %s MLGs with the full marker set",
+      subtitle = "Distinct multilocus genotypes resolved when subsampling loci",
+      caption = sprintf(
+        "Mean and 95%% envelope across %s replicates; dashed line: %s MLGs with the full marker set",
         scales::comma(result$curve_replicates), scales::comma(result$n_mlg_total)
       ),
       x = "Number of loci sampled", y = "Multilocus genotypes (MLG)"
