@@ -369,6 +369,34 @@ run_module_clonality <- function(analysis, context) {
   module_result(analysis, context)
 }
 
+run_module_sexbias <- function(analysis, context) {
+  cfg <- context$cfg; dirs <- context$dirs; div <- context$diversity_full
+  result <- run_sexbias(
+    div$genotype, context$sample_ids, context$metadata,
+    test = cfg$analyses$sexbias_test, permutations = cfg$analyses$sexbias_permutations,
+    seed = cfg$compute$seed
+  )
+  analysis <- set_analysis_result(analysis, "sexbias", result)
+  if (!is.null(result)) {
+    write_tsv(result$table, file.path(dirs$tables, "60_sexbias_AIc_by_sample.tsv"))
+    write_tsv(
+      data.table::data.table(
+        test = result$test, statistic = result$statistic, p_value = result$p_value,
+        permutations = result$permutations, n_female = result$n_female, n_male = result$n_male
+      ),
+      file.path(dirs$tables, "60b_sexbias_test_summary.tsv")
+    )
+    plot_sexbias(result, cfg, dirs)
+  } else {
+    log_msg(
+      "Skipping sex-biased dispersal test: hierfstat is not installed, or the metadata's sex column ",
+      "is absent or does not resolve to at least two samples per recorded sex",
+      level = "WARNING"
+    )
+  }
+  module_result(analysis, context)
+}
+
 run_module_ibd <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
   ibd <- run_mantel_ibd(context$ibs$distance, context$metadata,

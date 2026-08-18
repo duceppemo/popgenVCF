@@ -237,6 +237,15 @@ report_table_section(
   "Samples sharing an identical multilocus genotype (up to 20 groups shown; see 57_MLG_groups.tsv for the complete list)",
   clonality_groups
 )
+if (!is.null(r$sexbias)) {
+  cat("# Sex-biased dispersal test\n\n")
+  cat(sprintf(
+    "%s test: statistic = %.3f, p = %.4f (n = %d female, %d male%s). See 60_sexbias_AIc_by_sample.tsv for per-sample assignment indices.\n\n",
+    r$sexbias$test, r$sexbias$statistic, r$sexbias$p_value,
+    r$sexbias$n_female, r$sexbias$n_male,
+    if (r$sexbias$permutations > 0) sprintf(", %d permutations", r$sexbias$permutations) else ""
+  ))
+}
 report_table_section(
   "Mantel test and isolation by distance", r$ibd$summary, digits = 4
 )

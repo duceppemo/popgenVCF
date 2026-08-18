@@ -46,6 +46,7 @@ default_config <- function() {
                     dapc_loading_top_n = 20L,
                     amova = TRUE, clonality = TRUE,
                     clonality_genotype_curve_replicates = 100L, clonality_ia_permutations = 0L,
+                    sexbias = TRUE, sexbias_test = "mAIc", sexbias_permutations = 0L,
                     mantel = TRUE, isolation_by_distance = TRUE,
                     spatial_autocorrelation = TRUE, spatial_autocorrelation_bins = 10L,
                     spatial_autocorrelation_permutations = 999L,
@@ -81,6 +82,7 @@ template_config <- function() {
   cfg$analyses$dapc <- FALSE
   cfg$analyses$amova <- FALSE
   cfg$analyses$clonality <- FALSE
+  cfg$analyses$sexbias <- FALSE
   cfg$analyses$mantel <- FALSE
   cfg$analyses$isolation_by_distance <- FALSE
   cfg$analyses$spatial_autocorrelation <- FALSE
@@ -175,6 +177,8 @@ validate_config <- function(cfg) {
   cfg$analyses$dapc_loading_top_n <- as.integer(cfg$analyses$dapc_loading_top_n)
   cfg$analyses$clonality_genotype_curve_replicates <- as.integer(cfg$analyses$clonality_genotype_curve_replicates)
   cfg$analyses$clonality_ia_permutations <- as.integer(cfg$analyses$clonality_ia_permutations)
+  cfg$analyses$sexbias_test <- as.character(cfg$analyses$sexbias_test)
+  cfg$analyses$sexbias_permutations <- as.integer(cfg$analyses$sexbias_permutations)
   cfg$analyses$bootstrap$replicates <- as.integer(cfg$analyses$bootstrap$replicates)
   cfg$analyses$tree_bootstrap$replicates <- as.integer(cfg$analyses$tree_bootstrap$replicates)
   cfg$analyses$ml_tree$bootstrap_replicates <- as.integer(cfg$analyses$ml_tree$bootstrap_replicates)
@@ -222,6 +226,9 @@ validate_config <- function(cfg) {
   if (!is.finite(cfg$analyses$dapc_loading_top_n) || cfg$analyses$dapc_loading_top_n < 1L) stop("analyses.dapc_loading_top_n must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$clonality_genotype_curve_replicates) || cfg$analyses$clonality_genotype_curve_replicates < 0L) stop("analyses.clonality_genotype_curve_replicates must be >= 0", call. = FALSE)
   if (!is.finite(cfg$analyses$clonality_ia_permutations) || cfg$analyses$clonality_ia_permutations < 0L) stop("analyses.clonality_ia_permutations must be >= 0", call. = FALSE)
+  if (!cfg$analyses$sexbias_test %in% c("mAIc", "vAIc", "FIS", "FST")) stop("analyses.sexbias_test must be one of \"mAIc\", \"vAIc\", \"FIS\", or \"FST\"", call. = FALSE)
+  if (!is.finite(cfg$analyses$sexbias_permutations) || cfg$analyses$sexbias_permutations < 0L) stop("analyses.sexbias_permutations must be >= 0", call. = FALSE)
+  if (cfg$analyses$sexbias_test %in% c("FIS", "FST") && cfg$analyses$sexbias_permutations <= 0L) stop("analyses.sexbias_permutations must be > 0 when analyses.sexbias_test is \"FIS\" or \"FST\"", call. = FALSE)
   if (!is.finite(cfg$analyses$bootstrap$replicates) || cfg$analyses$bootstrap$replicates < 0L) stop("bootstrap.replicates must be >= 0", call. = FALSE)
   if (!is.finite(cfg$analyses$tree_bootstrap$replicates) || cfg$analyses$tree_bootstrap$replicates < 0L) stop("tree_bootstrap.replicates must be >= 0", call. = FALSE)
   if (!is.finite(cfg$analyses$ml_tree$bootstrap_replicates) || cfg$analyses$ml_tree$bootstrap_replicates < 0L) stop("ml_tree.bootstrap_replicates must be >= 0", call. = FALSE)

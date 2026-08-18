@@ -858,6 +858,41 @@ here largely reflects ordinary physical linkage among nearby SNPs, not
 clonality. The MLG counts, diversity indices, and duplicate-detection table
 above are unaffected by that choice.
 
+## Sex-biased dispersal test
+
+`hierfstat::sexbias.test()` (Goudet, Perrin, and Waser 2002) asks a
+population-level question distinct from the individual-level tests above:
+does one recorded sex disperse more than the other? The signal comes from
+each individual's assignment index (AIc, Favre et al. 1997) -- how strongly
+their genotype matches their own recorded population's allele frequencies,
+corrected for sample size. The more-dispersing sex (recent immigrants, or
+their offspring genotyped before local allele frequencies "catch up") shows
+a systematically lower mean AIc than the more philopatric sex. The default
+`mAIc` test is a two-sample t-test (or, with a configured number of
+permutations, a within-population permutation test) comparing mean AIc
+between the two recorded sexes; `60_sexbias_AIc_by_sample.tsv` reports the
+per-sample assignment index, and `60b_sexbias_test_summary.tsv` the test
+statistic and p-value. This is a genuinely different question from
+sex-check above: sex-check asks whether one sample's own genotype is
+consistent with its recorded sex; this asks whether the two recorded sexes
+differ, as groups, in how strongly their genotypes match their recorded
+population -- so it deliberately uses the metadata `sex` column, not
+sex-check's genetically inferred sex.
+
+![Assignment index (AIc) by recorded sex from the quickstart example, with the mAIc t-test result](figures/60_sexbias_AIc_by_sex.png)
+
+On the quickstart example, mean AIc does not differ detectably by recorded
+sex (mAIc t-test statistic = -0.648, p = 0.5177, n = 83 female, 77 male).
+That null result is expected, not a modeling failure: the quickstart
+dataset pools eight geographically and ethnically distinct 1000 Genomes
+populations sampled cross-sectionally for genomic diversity, not a single
+species/site dispersal study with reproductive-age individuals genotyped at
+their natal versus breeding location -- the setting this test was designed
+for. A real, biologically meaningful sex-bias signal requires exactly that
+kind of dispersal-focused sampling design; report it as such rather than
+over-interpreting a null result from data this test was never designed to
+detect a signal in.
+
 ## Mantel and isolation by distance
 
 Report geographic and genetic distance definitions, transformations,

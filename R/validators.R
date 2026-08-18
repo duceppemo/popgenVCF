@@ -434,6 +434,29 @@ validate_clonality_result <- function(result, analysis, context) {
   validation_result(!length(errors), errors, warnings)
 }
 
+validate_sexbias_result <- function(result, analysis, context) {
+  if (is.null(result)) {
+    return(validation_result(
+      TRUE, warnings = "Sex-biased dispersal test was skipped: hierfstat is not installed, or the metadata's sex column is absent or does not resolve to at least two samples per recorded sex"
+    ))
+  }
+  errors <- character()
+  required <- c("table", "test", "statistic", "p_value")
+  if (!is.list(result) || !all(required %in% names(result))) {
+    errors <- c(errors, "sexbias result requires table, test, statistic, and p_value")
+    return(validation_result(!length(errors), errors))
+  }
+  if (!is.finite(result$p_value) || result$p_value < -1e-8 || result$p_value > 1 + 1e-8) {
+    errors <- c(errors, "sexbias p_value must be between zero and one")
+  }
+  if (!all(c("sample", "population", "sex", "aic") %in% names(result$table))) {
+    errors <- c(errors, "sexbias per-sample table is missing required columns")
+  } else if (data.table::uniqueN(result$table$sex) != 2L) {
+    errors <- c(errors, "sexbias per-sample table must contain exactly two recorded sexes")
+  }
+  validation_result(!length(errors), errors)
+}
+
 validate_ibd_result <- function(result, analysis, context) {
   if (is.null(result)) return(validation_result(TRUE, warnings = "IBD was skipped because geographic data were unavailable"))
   errors <- character()

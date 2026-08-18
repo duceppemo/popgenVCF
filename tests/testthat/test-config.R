@@ -98,6 +98,34 @@ test_that("clonality_genotype_curve_replicates and clonality_ia_permutations are
   expect_error(popgenVCF::validate_config(cfg), "clonality_ia_permutations")
 })
 
+test_that("sexbias_test and sexbias_permutations are coerced and validated", {
+  cfg <- popgenVCF::default_config()
+  cfg$input$vcf <- tempfile(fileext = ".vcf")
+  cfg$output$directory <- tempfile("popgenvcf-output-")
+  file.create(cfg$input$vcf)
+
+  expect_identical(cfg$analyses$sexbias_test, "mAIc")
+  expect_identical(cfg$analyses$sexbias_permutations, 0L)
+
+  cfg$analyses$sexbias_permutations <- "99"
+  validated <- popgenVCF::validate_config(cfg)
+  expect_identical(validated$analyses$sexbias_permutations, 99L)
+
+  cfg$analyses$sexbias_permutations <- -1L
+  expect_error(popgenVCF::validate_config(cfg), "sexbias_permutations")
+
+  cfg$analyses$sexbias_permutations <- 0L
+  cfg$analyses$sexbias_test <- "bogus"
+  expect_error(popgenVCF::validate_config(cfg), "sexbias_test")
+
+  cfg$analyses$sexbias_test <- "FST"
+  cfg$analyses$sexbias_permutations <- 0L
+  expect_error(popgenVCF::validate_config(cfg), "sexbias_permutations.*FIS.*FST|FIS.*FST.*sexbias_permutations")
+
+  cfg$analyses$sexbias_permutations <- 999L
+  expect_silent(popgenVCF::validate_config(cfg))
+})
+
 test_that("pcadapt_k, pcadapt_min_maf, and pcadapt_fdr_alpha are coerced and validated", {
   cfg <- popgenVCF::default_config()
   cfg$input$vcf <- tempfile(fileext = ".vcf")

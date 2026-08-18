@@ -333,6 +333,16 @@ knitr::include_graphics("figures/58_genotype_accumulation_curve.png")
 
 On the quickstart example, all 160 samples have a unique multilocus genotype across the 1,969 QC-passing loci this module reuses from the diversity module (not the 357-SNP LD-pruned set kinship/PCA/tree use). Notably, this includes the one pair kinship classifies as `duplicate/MZ twin` (`NA19331`/`NA19334`, kinship = 0.4459): on this larger marker panel their genotypes are not bit-identical -- the expected difference between a continuous relatedness estimator and exact genotype matching, not a contradiction. The accumulation curve saturates almost immediately: a mean of 150 of the 160 possible MLGs are already resolved with only 14 of the ~1,969 available loci, deterministically saturating at 174. Ia/rbarD are positive throughout (Total Ia = 35.40, rbarD = 0.0185); read this cautiously, not as clonality evidence in this outbreeding species -- the module reuses diversity's unpruned locus set for consistency with AMOVA, so a positive value here largely reflects ordinary physical linkage among nearby SNPs.
 
+## Sex-biased dispersal test
+
+`hierfstat::sexbias.test()` (Goudet, Perrin, and Waser 2002) asks a population-level question distinct from the individual-level tests above: does one recorded sex disperse more than the other? The signal comes from each individual's assignment index (AIc, Favre et al. 1997) -- how strongly their genotype matches their own recorded population's allele frequencies, corrected for sample size. The default `mAIc` test is a two-sample t-test comparing mean AIc between the two recorded sexes; `60_sexbias_AIc_by_sample.tsv` reports the per-sample assignment index. This deliberately uses the metadata `sex` column, not sex-check's genetically inferred sex: sex-check asks whether one sample's genotype is consistent with its own recorded sex, while this asks whether the two recorded sexes differ, as groups, in how strongly their genotypes match their recorded population.
+
+```{r sexbias-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/60_sexbias_AIc_by_sex.png")
+```
+
+On the quickstart example, mean AIc does not differ detectably by recorded sex (mAIc t-test statistic = -0.648, p = 0.5177, n = 83 female, 77 male). That null result is expected, not a modeling failure: the quickstart dataset pools eight geographically distinct 1000 Genomes populations sampled cross-sectionally for genomic diversity, not a single species/site dispersal study with individuals genotyped at their natal versus breeding location -- the setting this test was designed for.
+
 ## Ancestry models
 
 **ADMIXTURE, fastStructure, and sNMF are not run by default** (`analyses.admixture`, `analyses.faststructure`, and `analyses.snmf` all default to `enabled: false`). Each is an external, optional dependency -- ADMIXTURE and fastStructure are separate command-line programs, not R packages -- and none is required for the rest of popgenVCF to work. See the [ancestry backend guide](https://github.com/duceppemo/popgenVCF/blob/main/docs/user/ancestry-backends.md) to enable one.
