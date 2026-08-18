@@ -13,6 +13,12 @@ on:
       - "inst/scripts/install-bioconductor.R"
       - ".github/workflows/apptainer.yml"
   workflow_dispatch:
+    inputs:
+      debug:
+        description: Open an interactive tmate SSH session before the build step (for diagnosing a real build failure -- see NEWS.md/ROADMAP.md)
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -38,6 +44,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y apptainer
           apptainer version
+
+      - name: Debug session (tmate)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug == true }}
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: false
+        timeout-minutes: 25
 
       - name: Build SIF image
         env:
