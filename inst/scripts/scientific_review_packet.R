@@ -161,6 +161,38 @@ build_scientific_review_packet <- function(
     if (!length(links)) "No symbolic links found." else "Evidence must contain regular files only."
   )
 
+  # release-candidate-collector.yml's own evidence (see
+  # scripts/build_release_candidate_evidence_index.R) flattens every gate's
+  # artifacts into "<gate_id>--<original-relative-path>" filenames, because
+  # GitHub Release assets cannot preserve directory structure. When one of
+  # those flattened artifacts is itself a *SHA256SUMS.txt manifest (e.g.
+  # source_distribution's release-SHA256SUMS.txt, or
+  # apptainer_distribution's apptainer-metadata-SHA256SUMS.txt), its
+  # contents still list files by their pre-flatten relative path -- and
+  # that original directory routinely spans more than one gate_id (source
+  # distribution, source package check, and scientific validation all come
+  # from one tagged-source-release.yml run and share one manifest). Those
+  # listed filenames are never expected to resolve as siblings in the
+  # flattened evidence directory, so verifying them here would always fail
+  # for a reason that has nothing to do with real evidence integrity. The
+  # manifest file's own integrity is still verified below via the
+  # "indexed_artifact:" checks against the evidence index's recorded
+  # checksum for the manifest itself.
+  collector_flattened_paths <- character()
+  early_index_matches <- scientific_review_find_one(evidence_dir, "release-candidate-evidence-index.json")
+  if (length(early_index_matches) == 1L) {
+    early_index <- tryCatch(jsonlite::read_json(early_index_matches[[1L]], simplifyVector = FALSE), error = function(e) NULL)
+    if (!is.null(early_index)) {
+      records <- early_index$records
+      if (is.null(records)) records <- list()
+      collector_flattened_paths <- unlist(lapply(records, function(record) {
+        artifacts <- record$artifacts
+        if (is.null(artifacts)) artifacts <- list()
+        vapply(artifacts, function(artifact) artifact$path, character(1L))
+      }), use.names = FALSE)
+    }
+  }
+
   checksum_manifests <- sort(all_paths[
     !file.info(all_paths)$isdir & grepl("SHA256SUMS\\.txt$", basename(all_paths))
   ])
@@ -177,6 +209,14 @@ build_scientific_review_packet <- function(
       if (valid) paste(length(lines), "entries") else "Malformed or empty SHA-256 manifest."
     )
     if (!valid) next
+    if (relative_manifest %in% collector_flattened_paths) {
+      add_check(
+        "integrity", paste0("checksum:", relative_manifest),
+        "not_available", relative_manifest,
+        "Pre-flatten provenance manifest from release-candidate-collector.yml; not verified against the flattened evidence layout (see indexed_artifact checks)."
+      )
+      next
+    }
     expected <- tolower(substr(lines, 1L, 64L))
     relative <- substring(lines, 67L)
     safe <- vapply(relative, scientific_review_is_safe_relative, logical(1L))

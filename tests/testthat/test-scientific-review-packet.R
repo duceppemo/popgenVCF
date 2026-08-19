@@ -85,6 +85,77 @@ test_that("review packet reports checksum failures and strict mode blocks", {
   )
 })
 
+test_that("a collector-flattened SHA256SUMS manifest does not trigger a false integrity failure", {
+  # release-candidate-collector.yml flattens every gate's artifacts into
+  # "<gate_id>--<original-relative-path>" filenames (GitHub Release assets
+  # cannot preserve directory structure -- see
+  # scripts/build_release_candidate_evidence_index.R). When one of those
+  # flattened artifacts is itself a *SHA256SUMS.txt manifest, its contents
+  # still list files by their pre-flatten relative path, which is never
+  # expected to resolve as a literal sibling in the flattened directory (a
+  # real scenario found assembling v1.0 review evidence: source_distribution's
+  # release-SHA256SUMS.txt lists files that ended up flattened under other
+  # gate_ids, like source_package_check). The generic manifest scan must
+  # recognize this and defer to the separate indexed_artifact check instead
+  # of reporting a false "fail".
+  env <- scientific_review_packet_environment()
+  evidence <- tempfile("scientific-review-flattened-")
+  dir.create(evidence)
+
+  manifest_name <- "source-distribution--release-SHA256SUMS.txt"
+  flattened_artifact <- file.path(evidence, manifest_name)
+  writeLines(
+    paste0(
+      digest::digest("nope", algo = "sha256"), "  ",
+      "some-file-that-was-flattened-under-a-different-gate-id.log"
+    ),
+    flattened_artifact, useBytes = TRUE
+  )
+  artifact_sha256 <- digest::digest(flattened_artifact, algo = "sha256", file = TRUE)
+
+  index <- list(
+    schema_version = "1.0", candidate_id = "test-candidate",
+    target_release = "v0.0.0", package_version = "0.0.0.9000",
+    git_commit = paste(rep("a", 40L), collapse = ""),
+    evaluated_at = "2026-01-01T00:00:00Z",
+    records = c(
+      list(list(
+        gate_id = "source_distribution", status = "passed", summary = "test",
+        artifacts = list(list(
+          path = manifest_name, size_bytes = file.info(flattened_artifact)$size,
+          sha256 = artifact_sha256
+        )),
+        approval = NULL
+      )),
+      # The reviewer's own assigned gates must still have a (honestly not_run)
+      # record, matching the real collector's index -- otherwise the
+      # gate_record: checks below fail for reasons unrelated to this test.
+      lapply(c(
+        "production_baseline", "external_concordance", "ancestry_three_backend",
+        "benchmark_history", "scientific_approval"
+      ), function(gate_id) {
+        list(gate_id = gate_id, status = "not_run", summary = "not run", artifacts = list(), approval = NULL)
+      })
+    )
+  )
+  jsonlite::write_json(
+    index, file.path(evidence, "release-candidate-evidence-index.json"),
+    auto_unbox = TRUE, null = "null", pretty = TRUE
+  )
+  output <- tempfile("scientific-review-flattened-packet-")
+
+  result <- env$build_scientific_review_packet(
+    evidence, output,
+    scientific_review_metadata_path("scientific-review-assignment.json"),
+    scientific_review_metadata_path("release-candidate-policy.json")
+  )
+
+  expect_false(any(result$checks$status == "fail"))
+  manifest_check <- result$checks[result$checks$check_id == paste0("checksum:", manifest_name), ]
+  expect_identical(nrow(manifest_check), 1L)
+  expect_identical(manifest_check$status, "not_available")
+})
+
 test_that("review packet checks all six baseline proposal values", {
   env <- scientific_review_packet_environment()
   evidence <- scientific_review_fixture()
