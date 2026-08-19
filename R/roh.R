@@ -18,6 +18,21 @@ roh_length_class <- function(length_bp, short_max_bp, long_min_bp) {
 # bcftools roh's region rows are unambiguously prefixed "RG\t", distinct from
 # its "#"-comment header and informational log lines that share stdout/stderr
 # once captured through system2(stdout=TRUE, stderr=TRUE).
+#
+# A real production run (2026-08-19, chr22 external-concordance evidence
+# generation, 2504 samples, bcftools roh --threads 64) crashed here with
+# "subscript out of bounds": at least one captured "RG\t"-prefixed line had
+# fewer than the expected 8 tab-separated fields. Not reliably reproducible
+# in isolation (manual re-runs of the identical bcftools invocation, at both
+# low and matching high thread counts, never produced a malformed line), so
+# the exact mechanism is unconfirmed -- the leading hypothesis is a torn/
+# interleaved stdout write under heavy concurrent system load (this ran
+# alongside another multi-hour, many-threaded production job), a known risk
+# when capturing a highly parallel external tool's stdout via system2(). But
+# a shelled-out tool's captured output should never be assumed well-formed
+# regardless of cause: malformed lines are now dropped with a WARNING
+# (matching this codebase's established graceful-degradation convention)
+# instead of crashing the whole module on a single truncated line.
 roh_parse_regions <- function(lines) {
   hits <- lines[startsWith(lines, "RG\t")]
   if (!length(hits)) {
@@ -28,6 +43,22 @@ roh_parse_regions <- function(lines) {
     ))
   }
   fields <- strsplit(hits, "\t", fixed = TRUE)
+  well_formed <- lengths(fields) >= 8L
+  if (!all(well_formed)) {
+    log_msg(
+      "ROH: discarding ", sum(!well_formed), " malformed 'RG' line(s) from bcftools roh output ",
+      "(fewer than 8 expected tab-separated fields; a truncated or interleaved captured write)",
+      level = "WARNING"
+    )
+    fields <- fields[well_formed]
+  }
+  if (!length(fields)) {
+    return(data.table::data.table(
+      sample = character(), chromosome = character(),
+      start = integer(), end = integer(), length_bp = integer(),
+      n_markers = integer(), quality = numeric()
+    ))
+  }
   data.table::data.table(
     sample = vapply(fields, `[[`, character(1), 2L),
     chromosome = vapply(fields, `[[`, character(1), 3L),
@@ -47,10 +78,24 @@ roh_analyzed_footprint_bp <- function(bcftools, vcf_path) {
   lines <- positions$output[nzchar(positions$output)]
   if (!length(lines)) return(list(footprint_bp = 0, n_sites = 0L))
   fields <- strsplit(lines, "\t", fixed = TRUE)
+  # Same defensive filtering as roh_parse_regions() above, and for the same
+  # reason: a captured line here (bare "CHROM\tPOS") is expected to have
+  # exactly 2 fields, but a shelled-out tool's captured stdout should never
+  # be trusted to be perfectly well-formed on every line.
+  well_formed <- lengths(fields) >= 2L
+  if (!all(well_formed)) {
+    log_msg(
+      "ROH: discarding ", sum(!well_formed), " malformed site line(s) from bcftools query output ",
+      "(fewer than 2 expected tab-separated fields)",
+      level = "WARNING"
+    )
+    fields <- fields[well_formed]
+  }
+  if (!length(fields)) return(list(footprint_bp = 0, n_sites = 0L))
   chromosome <- vapply(fields, `[[`, character(1), 1L)
   position <- as.numeric(vapply(fields, `[[`, character(1), 2L))
   span <- vapply(split(position, chromosome), function(p) max(p) - min(p) + 1, numeric(1))
-  list(footprint_bp = sum(span), n_sites = length(lines))
+  list(footprint_bp = sum(span), n_sites = length(fields))
 }
 
 run_roh <- function(vcf_path, sample_ids, metadata, missing_rate, gt_error_phred, threads,

@@ -51,6 +51,43 @@ test_that("roh_parse_regions returns a correctly-typed empty table when no runs 
   expect_setequal(names(out), c("sample", "chromosome", "start", "end", "length_bp", "n_markers", "quality"))
 })
 
+test_that("roh_parse_regions drops a malformed (truncated) RG line with a warning instead of crashing", {
+  lines <- c(
+    "RG\tS1\t1\t100\t4000\t3901\t40\t83.2",
+    "RG\tS2\t2\t500\t900", # truncated: only 5 fields, real bcftools roh always emits 8
+    "RG\tS3\t1\t200\t500\t301\t3\t9.9"
+  )
+  expect_warning(
+    out <- popgenVCF:::roh_parse_regions(lines),
+    NA # popgenVCF logs via log_msg(), not a base R warning; this asserts no unexpected base warning is raised either
+  )
+  expect_identical(nrow(out), 2L)
+  expect_identical(out$sample, c("S1", "S3"))
+})
+
+test_that("roh_parse_regions returns a correctly-typed empty table when every RG line is malformed", {
+  out <- popgenVCF:::roh_parse_regions(c("RG\tonly\ttwo"))
+  expect_identical(nrow(out), 0L)
+  expect_setequal(names(out), c("sample", "chromosome", "start", "end", "length_bp", "n_markers", "quality"))
+})
+
+test_that("roh_analyzed_footprint_bp drops a malformed site line instead of crashing", {
+  skip_if(Sys.which("bcftools") == "", "bcftools is not available")
+  bcftools <- unname(Sys.which("bcftools"))
+  fake_bcftools <- tempfile(fileext = ".sh")
+  writeLines(c(
+    "#!/usr/bin/env bash",
+    "echo '1\t100'",
+    "echo '1'", # malformed: missing the POS field entirely
+    "echo '1\t400'"
+  ), fake_bcftools)
+  Sys.chmod(fake_bcftools, "0755")
+
+  out <- popgenVCF:::roh_analyzed_footprint_bp(fake_bcftools, "unused.vcf.gz")
+  expect_identical(out$n_sites, 2L)
+  expect_identical(out$footprint_bp, 301)
+})
+
 test_that("run_roh recovers a known full-length homozygous run and a known absence of one", {
   skip_if(Sys.which("bcftools") == "", "bcftools is not available")
   vcf <- roh_fixture_vcf()
