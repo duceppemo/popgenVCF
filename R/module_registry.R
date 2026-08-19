@@ -357,6 +357,12 @@ run_module_clonality <- function(analysis, context) {
   write_tsv(result$groups, file.path(dirs$tables, "57_MLG_groups.tsv"))
   if (nrow(result$curve)) write_tsv(result$curve, file.path(dirs$tables, "58_genotype_accumulation_curve.tsv"))
   plot_clonality(result, cfg, dirs)
+  if (isTRUE(result$poppr_failed)) {
+    analysis <- record_analysis_message(
+      analysis, "WARNING", "clonality",
+      "poppr::poppr()'s Ia/rbarD diversity summary crashed (a known 32-bit overflow in poppr's compiled pairdiffs routine at large sample x locus counts) and was skipped; MLG duplicate-group detection and the genotype accumulation curve, which do not depend on that call, are unaffected"
+    )
+  }
   if (nrow(result$groups)) {
     n_cross <- sum(result$groups$cross_population)
     msg <- sprintf(

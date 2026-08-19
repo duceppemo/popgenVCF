@@ -108,6 +108,48 @@ clonality_curve_summary <- function(gc, replicates) {
           q975_mlg = stats::quantile(n_mlg, 0.975)), by = n_loci][order(n_loci)]
 }
 
+# poppr::poppr()'s Ia/rbarD computation (pair_diffs() -> pairdiffs(), a
+# compiled C routine) has a real, empirically-confirmed 32-bit integer
+# overflow: found via a real production run generating release-candidate
+# evidence against the full, real chr22 1000 Genomes dataset (2504 samples,
+# 26 populations, 2028 QC-passing loci). It segfaulted computing poppr's
+# automatic pooled-"Total" Ia value -- the flattened pairs-by-locus index
+# space for that group, 2504*2503/2 pairs * 2028 loci =~ 6.35 billion,
+# overflows a signed 32-bit index (max ~2.15 billion); bisecting the 26
+# populations into two independent 13-population/~1250-sample halves (each
+# comfortably under the overflow threshold at ~1.56 billion) reproduced
+# cleanly with no crash, confirming the mechanism. This is a real bug in
+# poppr's own C code, not something this package can correct.
+#
+# A segfault cannot be caught by R's own tryCatch (it terminates the whole
+# process), so poppr::poppr() is run in a forked child process
+# (parallel::mcparallel(), Unix-only -- matching this codebase's existing
+# use of fork-based parallelism elsewhere, e.g. mclapply()) specifically so
+# a crash there costs only this module's summary table, not every
+# already-completed result in the entire pipeline run. Verified directly
+# against the real crashing dataset: the forked child segfaults exactly as
+# before, but the parent process survives and mccollect() reports the
+# failure as NULL rather than terminating.
+clonality_empty_summary <- function() {
+  data.table::data.table(
+    population = character(), n = integer(), mlg = integer(), emlg = numeric(),
+    emlg_se = numeric(), shannon_h = numeric(), stoddart_taylor_g = numeric(),
+    simpson_lambda = numeric(), evenness_e5 = numeric(),
+    expected_heterozygosity = numeric(), ia = numeric(), rbard = numeric(),
+    ia_p_value = numeric(), rbard_p_value = numeric()
+  )
+}
+
+clonality_run_poppr_isolated <- function(gc, ia_permutations) {
+  call_poppr <- function() poppr::poppr(gc, plot = FALSE, sample = as.integer(ia_permutations))
+  if (!identical(.Platform$OS.type, "unix")) {
+    return(tryCatch(call_poppr(), error = function(e) NULL))
+  }
+  job <- parallel::mcparallel(call_poppr())
+  result <- suppressWarnings(parallel::mccollect(job, wait = TRUE))[[1L]]
+  if (is.null(result) || inherits(result, "try-error")) NULL else result
+}
+
 run_clonality <- function(genotype, sample_ids, metadata, seed,
                           curve_replicates = 100L, ia_permutations = 0L) {
   matched <- match(sample_ids, metadata$sample)
@@ -124,8 +166,9 @@ run_clonality <- function(genotype, sample_ids, metadata, seed,
   gc <- poppr::as.genclone(gid)
 
   set.seed(as.integer(seed))
-  summary_raw <- poppr::poppr(gc, plot = FALSE, sample = as.integer(ia_permutations))
-  summary_dt <- clonality_rename_summary(summary_raw)
+  summary_raw <- clonality_run_poppr_isolated(gc, ia_permutations)
+  poppr_failed <- is.null(summary_raw)
+  summary_dt <- if (poppr_failed) clonality_empty_summary() else clonality_rename_summary(summary_raw)
 
   mlg_groups <- poppr::mlg.id(gc)
   groups <- clonality_group_table(mlg_groups, population, public_ids)
@@ -136,7 +179,8 @@ run_clonality <- function(genotype, sample_ids, metadata, seed,
   if (!length(n_mlg_total)) n_mlg_total <- NA_integer_
 
   list(summary = summary_dt, groups = groups, curve = curve,
-      n_mlg_total = n_mlg_total, curve_replicates = as.integer(curve_replicates))
+      n_mlg_total = n_mlg_total, curve_replicates = as.integer(curve_replicates),
+      poppr_failed = poppr_failed)
 }
 
 plot_clonality <- function(result, cfg, dirs) {

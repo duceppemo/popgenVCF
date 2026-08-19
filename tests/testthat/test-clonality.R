@@ -151,6 +151,68 @@ test_that("validate_clonality_result accepts a well-formed result and flags real
   expect_false(popgenVCF:::validate_clonality_result(incomplete, NULL, NULL)$valid)
 })
 
+test_that("clonality_empty_summary has the same columns clonality_rename_summary produces, so downstream code sees a consistent schema", {
+  empty <- popgenVCF:::clonality_empty_summary()
+  expect_identical(nrow(empty), 0L)
+  expect_true(all(c(
+    "population", "n", "mlg", "emlg", "emlg_se", "shannon_h", "stoddart_taylor_g",
+    "simpson_lambda", "evenness_e5", "expected_heterozygosity", "ia", "rbard",
+    "ia_p_value", "rbard_p_value"
+  ) %in% names(empty)))
+})
+
+test_that("clonality_run_poppr_isolated returns the real result on ordinary success", {
+  geno <- clonality_fixture_genotype()
+  metadata <- data.table::data.table(
+    sample = rownames(geno), population = rep(c("A", "B"), each = 10)
+  )
+  gid <- popgenVCF:::clonality_encode_genind(geno, rownames(geno), metadata$population)
+  gc <- poppr::as.genclone(gid)
+  out <- popgenVCF:::clonality_run_poppr_isolated(gc, 0L)
+  expect_s3_class(out, "data.frame")
+  expect_true("Total" %in% out$Pop)
+})
+
+test_that("clonality_run_poppr_isolated returns NULL, not an error, when the wrapped call itself errors", {
+  # A crash (segfault) can't be simulated safely inside the test suite (see
+  # R/clonality.R's header comment on the real reproduction), so this exercises
+  # the same NULL-on-failure contract via an ordinary R-level error instead --
+  # the isolation wrapper must degrade gracefully either way.
+  fake_gc <- structure(list(), class = "not_a_genclone")
+  out <- popgenVCF:::clonality_run_poppr_isolated(fake_gc, 0L)
+  expect_null(out)
+})
+
+test_that("run_clonality falls back to an empty, well-typed summary and sets poppr_failed when poppr::poppr() cannot be run", {
+  geno <- clonality_fixture_genotype()
+  metadata <- data.table::data.table(
+    sample = rownames(geno), population = rep(c("A", "B"), each = 10)
+  )
+  testthat::local_mocked_bindings(
+    clonality_run_poppr_isolated = function(gc, ia_permutations) NULL
+  )
+  res <- popgenVCF:::run_clonality(geno, rownames(geno), metadata, seed = 42, curve_replicates = 5)
+  expect_true(res$poppr_failed)
+  expect_identical(nrow(res$summary), 0L)
+  expect_identical(names(res$summary), names(popgenVCF:::clonality_empty_summary()))
+  expect_true(is.na(res$n_mlg_total))
+  # groups/curve don't depend on poppr::poppr() and should be unaffected
+  expect_true(is.data.frame(res$groups))
+})
+
+test_that("validate_clonality_result accepts the poppr-failed empty-summary fallback without error", {
+  geno <- clonality_fixture_genotype()
+  metadata <- data.table::data.table(
+    sample = rownames(geno), population = rep(c("A", "B"), each = 10)
+  )
+  testthat::local_mocked_bindings(
+    clonality_run_poppr_isolated = function(gc, ia_permutations) NULL
+  )
+  res <- popgenVCF:::run_clonality(geno, rownames(geno), metadata, seed = 42, curve_replicates = 5)
+  ok <- popgenVCF:::validate_clonality_result(res, NULL, NULL)
+  expect_true(ok$valid)
+})
+
 test_that("clonality_module_spec is registered, requires diversity, and is enabled by default", {
   registry <- popgenVCF::default_analysis_registry()
   expect_true("clonality" %in% names(registry$modules))
