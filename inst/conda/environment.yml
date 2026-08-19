@@ -54,8 +54,25 @@ dependencies:
   - tidy-html5
 
   # Build/runtime utilities for R packages installed from source.
+  #
+  # gcc/g++/gfortran pinned to the 13.x series (rather than the unpinned
+  # `compilers` meta-package, which now resolves to GCC 15.3.0): a
+  # 2026-08-18 apptainer.yml build failed compiling gdsfmt's vendored,
+  # years-old xz-5.2.9 source with a silent, uninformative linker error
+  # (see NEWS.md/ROADMAP.md) -- disk exhaustion, C-standard flags, make -j
+  # and install.packages() parallelism, and an OOM kill were all ruled out
+  # with direct evidence from a live debug session on the actual failing
+  # runner. GCC 15 (released 2025) is far newer than this bundled xz
+  # release; pinning to a longer-established compiler series is the
+  # standard mitigation for an old vendored build breaking under a very
+  # new toolchain, tried here as the next concrete hypothesis.
   - make
-  - compilers
+  - gcc_linux-64=13
+  - gxx_linux-64=13
+  - gfortran_linux-64=13
+  - c-compiler
+  - cxx-compiler
+  - fortran-compiler
   - pkg-config
   - git
   - curl
