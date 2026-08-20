@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "record_type": "popgenvcf_scientific_review_assignment",
-  "target_release": "v0.10.0",
+  "target_release": "v1.0.0",
   "assigned_at": "2026-07-24",
   "reviewer": {
     "name": "Marc-Olivier Duceppe",
