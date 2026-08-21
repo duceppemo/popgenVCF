@@ -3,7 +3,8 @@ module_result <- function(analysis, context) list(analysis = analysis, context =
 run_module_diversity <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
   div <- compute_diversity(context$gds, context$sample_ids, context$qc_snps,
-                           context$metadata, context$ids, cfg$analyses$hwe_alpha)
+                           context$metadata, context$ids, cfg$analyses$hwe_alpha,
+                           compute_allelic_richness = isTRUE(cfg$analyses$diversity_allelic_richness))
   ci <- if (isTRUE(cfg$analyses$bootstrap$enabled)) {
     bootstrap_diversity(div$locus, cfg$analyses$bootstrap$replicates,
                         cfg$compute$seed, cfg$analyses$bootstrap$unit)
@@ -562,9 +563,12 @@ run_module_population_tree <- function(analysis, context) {
 
 run_module_population_assignment <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
+  # compute_allelic_richness = FALSE: this call only needs $genotype/$sample/
+  # $locus for population assignment; the allelic richness column is never
+  # read here, so computing it would be pure wasted cost.
   div <- compute_diversity(
     context$gds, context$sample_ids, context$final_snps, context$metadata,
-    context$ids, cfg$analyses$hwe_alpha
+    context$ids, cfg$analyses$hwe_alpha, compute_allelic_richness = FALSE
   )
   result <- run_population_assignment(div$genotype, div$sample, div$locus, context$final_snps)
   analysis <- set_analysis_result(analysis, "population_assignment", result)

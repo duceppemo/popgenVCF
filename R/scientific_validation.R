@@ -450,7 +450,8 @@ run_scientific_validation <- function(integration = FALSE, threads = 1L) {
     qc_names <- exp_variant[pass_combined == TRUE, variant_id]
     qc_key <- expected_key[exp_variant$pass_combined == TRUE]
     qc_ids <- ids$snp[match(qc_key, paste(ids$chromosome, ids$position, sep = ":"))]
-    div <- compute_diversity(gds, metadata$sample, qc_ids, metadata, ids)
+    div <- compute_diversity(gds, metadata$sample, qc_ids, metadata, ids,
+                             compute_allelic_richness = FALSE)
     manual_div <- manual_population_diversity(genotype[, match(qc_names, colnames(genotype)), drop = FALSE], metadata$population)
     div_order <- match(div$population$population, manual_div$population)
     checks <- data.table::rbindlist(list(checks,

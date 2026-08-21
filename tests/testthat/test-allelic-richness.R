@@ -52,6 +52,21 @@ test_that("compute_diversity computes rarefied allelic richness when hierfstat i
   expect_equal(div$population[population == "PopB", mean_allelic_richness], 1.25)
 })
 
+test_that("compute_allelic_richness = FALSE skips allelic richness even when hierfstat is installed", {
+  skip_if_not_installed("hierfstat")
+  fx <- allelic_richness_fixture()
+  on.exit(SNPRelate::snpgdsClose(fx$gds), add = TRUE)
+  div <- popgenVCF:::compute_diversity(
+    fx$gds, fx$sample_id, fx$ids$snp, fx$metadata, fx$ids,
+    compute_allelic_richness = FALSE
+  )
+
+  expect_false(div$allelic_richness_available)
+  expect_true(is.na(div$allelic_richness_min_alleles))
+  expect_true(all(is.na(div$locus$allelic_richness)))
+  expect_true(all(is.na(div$population$mean_allelic_richness)))
+})
+
 test_that("compute_diversity skips allelic richness transparently when hierfstat is unavailable", {
   fx <- allelic_richness_fixture()
   on.exit(SNPRelate::snpgdsClose(fx$gds), add = TRUE)

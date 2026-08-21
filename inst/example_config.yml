@@ -36,6 +36,11 @@ qc:
 analyses:
   diversity: false
   hwe_alpha: 0.05
+  # Rarefaction-corrected allelic richness (hierfstat::allelic.richness()).
+  # A real, measured cost: on a tiny 60-sample/2000-SNP benchmark this alone
+  # took ~3 seconds. Set to false to skip it and keep every other diversity
+  # metric (heterozygosity, effective alleles, private alleles, HWE).
+  diversity_allelic_richness: true
   bottleneck: false
   # Folded site frequency spectrum and the mode-shift bottleneck screen
   # (Luikart and Cornuet 1998): a mode away from the lowest allele-frequency

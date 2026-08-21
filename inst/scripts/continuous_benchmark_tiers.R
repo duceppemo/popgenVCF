@@ -162,7 +162,18 @@ benchmark_tier_spec <- function(tier, dataset) {
       ids <- list(chromosome = dataset$chromosome, position = dataset$position, snp = dataset$snp_ids)
       popgenVCF:::run_pca(gds, dataset$sample_ids, dataset$snp_ids, dataset$metadata, n_pcs = 5L, threads = threads)
       popgenVCF:::run_ibs(gds, dataset$sample_ids, dataset$snp_ids, dataset$metadata, threads = threads)
-      popgenVCF:::compute_diversity(gds, dataset$sample_ids, dataset$snp_ids, dataset$metadata, ids)
+      # compute_allelic_richness = FALSE: this benchmark tracks the same core
+      # PCA/IBS/diversity/FST cost it always has (see the "Sizes for..."
+      # comment above); hierfstat::allelic.richness() is a real, separately
+      # measured cost (bisected to a ~3s addition on the tiny synthetic
+      # tier alone -- see analyses.diversity_allelic_richness in R/config.R)
+      # that would otherwise silently swamp the historical benchmark trend
+      # rather than reflect a genuine regression in the functions this
+      # benchmark actually names.
+      popgenVCF:::compute_diversity(
+        gds, dataset$sample_ids, dataset$snp_ids, dataset$metadata, ids,
+        compute_allelic_richness = FALSE
+      )
       popgenVCF:::run_fst(gds, dataset$snp_ids, dataset$metadata)
       invisible(NULL)
     },

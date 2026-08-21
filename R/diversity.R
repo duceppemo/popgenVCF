@@ -1,4 +1,5 @@
-compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha = 0.05) {
+compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha = 0.05,
+                               compute_allelic_richness = TRUE) {
   # SNPRelate::snpgdsGetGeno() silently returns rows/columns in the GDS's own
   # native storage order (verified empirically, same behavior class as
   # snpgdsSampMissRate()'s with.id ordering found for sex_check), not the
@@ -89,9 +90,21 @@ compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha
   # verified empirically), never positionally, matching this codebase's
   # established discipline for every SNPRelate/hierfstat function whose
   # return order is not guaranteed to match the request.
+  #
+  # A real, measured cost, not a theoretical one: hierfstat::allelic.richness()
+  # alone took 3.08s on a tiny 60-sample/2000-SNP synthetic benchmark fixture
+  # (bisected as the sole cause of a 9-12x runtime / ~4x memory regression in
+  # the pipeline-core-analyses continuous benchmark after this was added
+  # unconditionally). compute_allelic_richness lets callers that don't need
+  # this column (population_assignment's reuse of compute_diversity(),
+  # scientific_validation's internal reference check, and the continuous
+  # benchmark harness, which must keep measuring the same core PCA/IBS/
+  # diversity/FST cost it always has for the historical trend to stay
+  # meaningful) skip it; run_module_diversity, the only caller that writes
+  # allelic richness to output tables/figures, still defaults it on.
   locus[, allelic_richness := NA_real_]
   allelic_richness_available <- FALSE
-  if (requireNamespace("hierfstat", quietly = TRUE)) {
+  if (isTRUE(compute_allelic_richness) && requireNamespace("hierfstat", quietly = TRUE)) {
     population_factor <- metadata[match(sample_ids, sample), population]
     encoded <- hierfstat_encode_genotype(geno)
     colnames(encoded) <- as.character(snp_ids)

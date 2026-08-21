@@ -3,6 +3,10 @@ test_that("integer ranges parse", {
   expect_equal(popgenVCF:::parse_int_range("4,2,4"), c(2L,4L))
 })
 
+test_that("diversity_allelic_richness defaults to TRUE and preserves current pipeline behavior", {
+  expect_true(popgenVCF::default_config()$analyses$diversity_allelic_richness)
+})
+
 test_that("fixed LD configuration is enforced", {
   cfg <- popgenVCF::default_config(); cfg$input$vcf <- tempfile(); cfg$input$metadata <- tempfile(); cfg$output$directory <- tempdir()
   file.create(cfg$input$vcf, cfg$input$metadata)
