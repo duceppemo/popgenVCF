@@ -149,7 +149,6 @@ write_regression_report(archive, report_dir, comparison = comparison, render = T
 continuous_status <- "not-run"
 git_sha_valid <- grepl("^[0-9a-f]{40}$", git_sha)
 if (git_sha_valid) {
-  budget <- new_release_performance_budget(id = "pipeline-core-analyses-budget")
   prior_continuous_path <- if (!is.na(baseline_dir) && dir.exists(baseline_dir)) {
     file.path(baseline_dir, "continuous_benchmarks.json")
   } else NA_character_
@@ -163,6 +162,7 @@ if (git_sha_valid) {
   for (tier in names(performance_by_tier)) {
     performance <- performance_by_tier[[tier]]
     continuous_summary <- performance$summary[1L]
+    budget <- release_performance_budget_for_tier(tier)
     observation <- new_continuous_benchmark_observation(
       benchmark_id = "pipeline-core-analyses", module = "pca_ibs_diversity_fst",
       dataset_tier = tier, release = release_id, git_sha = git_sha,

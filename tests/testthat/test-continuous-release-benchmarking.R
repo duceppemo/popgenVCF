@@ -149,6 +149,55 @@ test_that("environment_compatible tolerates a routine kernel ABI build bump but 
   )$environment_compatible)
 })
 
+test_that("release_performance_budget_for_tier widens synthetic and keeps canonical strict", {
+  synthetic_budget <- release_performance_budget_for_tier("synthetic")
+  expect_invisible(validate_release_performance_budget(synthetic_budget))
+  expect_gt(synthetic_budget$max_runtime_ratio, 1.10)
+  expect_gt(synthetic_budget$max_memory_ratio, 1.10)
+  expect_lt(synthetic_budget$min_throughput_ratio, 0.90)
+
+  for (tier in c("canonical", "medium", "large", "something-unrecognized")) {
+    budget <- release_performance_budget_for_tier(tier)
+    expect_invisible(validate_release_performance_budget(budget))
+    expect_identical(budget$max_runtime_ratio, 1.10)
+    expect_identical(budget$max_memory_ratio, 1.10)
+    expect_identical(budget$min_throughput_ratio, 0.90)
+  }
+})
+
+test_that("real synthetic-tier measurement noise passes under the widened budget but a genuine regression still fails", {
+  sha <- paste(rep("f", 40), collapse = "")
+  environment <- list(cpu = "test")
+  # The exact real numbers that hard-failed CI: baseline runtime 0.114s,
+  # rerun landed just over the old 1.1x cutoff.
+  baseline <- new_continuous_benchmark_observation(
+    "pipeline-core-analyses", "pca_ibs_diversity_fst", "synthetic", "baseline", sha,
+    runtime_seconds = 0.114, peak_memory_mb = 42.8, throughput = 1 / 0.114,
+    scaling_efficiency = 1, repetitions = 5, environment = environment
+  )
+  noisy_rerun <- new_continuous_benchmark_observation(
+    "pipeline-core-analyses", "pca_ibs_diversity_fst", "synthetic", "current", sha,
+    runtime_seconds = 0.146, peak_memory_mb = 43.8, throughput = 1 / 0.146,
+    scaling_efficiency = 1, repetitions = 5, environment = environment
+  )
+  synthetic_budget <- release_performance_budget_for_tier("synthetic")
+  noisy_comparison <- compare_continuous_release_benchmark(noisy_rerun, baseline, synthetic_budget)
+  expect_identical(noisy_comparison$status, "passed")
+
+  # A genuine, large regression (the real magnitude of the allelic-richness
+  # bug this whole investigation started from) must still fail even under
+  # the widened synthetic budget.
+  real_regression <- new_continuous_benchmark_observation(
+    "pipeline-core-analyses", "pca_ibs_diversity_fst", "synthetic", "current", sha,
+    runtime_seconds = 1.442, peak_memory_mb = 180.3, throughput = 1 / 1.442,
+    scaling_efficiency = 1, repetitions = 5, environment = environment
+  )
+  regressed_comparison <- compare_continuous_release_benchmark(
+    real_regression, baseline, synthetic_budget
+  )
+  expect_identical(regressed_comparison$status, "failed")
+})
+
 test_that("both current and baseline require adequate repetitions", {
   sha <- paste(rep("d", 40), collapse = "")
   baseline <- new_continuous_benchmark_observation(
