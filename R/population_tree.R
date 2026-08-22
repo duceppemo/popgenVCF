@@ -49,7 +49,21 @@ population_allele_count_matrix <- function(locus_table) {
 }
 
 population_genpop_distance <- function(tab) {
-  gp <- methods::new("genpop", tab = tab, ploidy = 2L)
+  # adegenet::genpop(...) -- adegenet's own exported constructor, itself just
+  # new("genpop", ...) called from inside adegenet's namespace, where the
+  # class is always resolvable -- rather than methods::new("genpop", ...)
+  # here, which needed a NAMESPACE-level importClassesFrom(adegenet, genpop)
+  # to resolve under a real installed-package load. That declaration is a
+  # real, measured cost: it forces R to eagerly load adegenet's entire
+  # namespace (and adegenet's own heavy transitive dependencies) at
+  # `library(popgenVCF)` time, for every session, not only when
+  # population_tree actually runs -- bisected as the sole cause of a
+  # separate ~7x library(popgenVCF)-load-time memory regression (23.8MB ->
+  # 165MB) found alongside the diversity_allelic_richness runtime
+  # regression. This constructor gives the identical object and identical
+  # correctness under a real installed-package load (verified directly),
+  # with adegenet now loading lazily on first actual use instead.
+  gp <- adegenet::genpop(tab = tab, ploidy = 2L)
   as.matrix(adegenet::dist.genpop(gp, method = 1L))
 }
 

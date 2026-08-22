@@ -113,6 +113,48 @@ test_that("validate_population_tree_result accepts a well-formed result and flag
   expect_false(popgenVCF:::validate_population_tree_result(incomplete, NULL, NULL)$valid)
 })
 
+test_that("library(popgenVCF) does not eagerly load adegenet", {
+  # Real, measured regression: an importClassesFrom(adegenet, genpop)
+  # NAMESPACE directive (needed at the time for methods::new("genpop", ...)
+  # to resolve under a real installed-package load) forced R to eagerly load
+  # adegenet's entire namespace -- and adegenet's own heavy transitive
+  # dependencies -- at library(popgenVCF) time, for every session, not only
+  # when population_tree actually runs. Bisected to a ~7x library()-load
+  # memory increase (23.8MB -> 165MB on the gc()-based measurement
+  # inst/scripts/continuous_benchmark_tiers.R's benchmark harness uses).
+  # Fixed by calling adegenet::genpop(...) (adegenet's own exported
+  # constructor, itself just new("genpop", ...) called from inside
+  # adegenet's own namespace) instead of methods::new("genpop", ...)
+  # directly -- same correctness, no NAMESPACE-level class import needed.
+  # Deliberately tests a real `library(popgenVCF)` on an actually installed
+  # copy, not pkgload::load_all() dev-mode -- pkgload's own dev-mode loading
+  # eagerly attaches every declared Import regardless of NAMESPACE-level
+  # lazy-loading (confirmed directly: adegenet loads under
+  # pkgload::load_all() even with the importClassesFrom fix in place), so it
+  # cannot exercise what this regression and fix are actually about: real
+  # installed-package behavior, matching CI's own `R CMD INSTALL .` step.
+  # Must run in a fresh subprocess: this test session has almost certainly
+  # already loaded adegenet via some earlier test.
+  skip_if_not_installed("processx")
+  installed_path <- tryCatch(
+    find.package("popgenVCF", lib.loc = .libPaths(), quiet = TRUE),
+    error = function(e) character()
+  )
+  if (!length(installed_path) || !file.exists(file.path(installed_path, "Meta", "package.rds"))) {
+    skip("No real installed copy of popgenVCF found (only dev-loaded)")
+  }
+  res <- processx::run(
+    command = file.path(R.home("bin"), "Rscript"),
+    args = c("-e", paste0(
+      "suppressPackageStartupMessages(library(popgenVCF)); ",
+      "cat(\"adegenet\" %in% loadedNamespaces())"
+    )),
+    env = c(Sys.getenv(), R_LIBS = paste(.libPaths(), collapse = .Platform$path.sep)),
+    error_on_status = FALSE
+  )
+  expect_identical(res$stdout, "FALSE")
+})
+
 test_that("population_tree_module_spec is registered, requires diversity, and is enabled by default", {
   registry <- popgenVCF::default_analysis_registry()
   expect_true("population_tree" %in% names(registry$modules))

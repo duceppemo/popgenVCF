@@ -8,7 +8,6 @@
 #' @importFrom methods new
 #' @importFrom stats aggregate setNames
 #' @importFrom utils capture.output head modifyList object.size str tail
-#' @importClassesFrom adegenet genpop
 NULL
 
 utils::globalVariables(c(
