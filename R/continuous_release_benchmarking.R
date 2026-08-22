@@ -14,6 +14,33 @@ continuous_benchmark_positive_integer <- function(x, label) {
   as.integer(x)
 }
 
+# GitHub-hosted runner kernel packages (e.g. "6.17.0-1020-azure") bump their
+# trailing ABI build number roughly monthly with routine OS patching -- a
+# real, observed cause of environment_compatible spuriously going FALSE
+# (found comparing a v0.10.0-era baseline, "...-1020-azure", against a
+# 1.0.0-rc2 rerun three weeks later on "...-1022-azure", forcing every
+# comparison to "insufficient-evidence" even after two genuine performance
+# regressions were already fixed and re-verified as fully resolved). The
+# kernel major.minor.patch version and flavor (the parts that could
+# plausibly affect measured performance) are unchanged across an ABI bump;
+# only the middle build number differs. Normalizing that one segment away
+# keeps the check meaningful for what it is actually meant to catch (a
+# genuinely different OS/kernel/architecture) without it silently expiring
+# on every routine runner image update. Any string not matching this exact
+# Ubuntu-style pattern (a different OS's release string, an unexpected
+# format) is left untouched and still compared exactly -- fail-safe, not a
+# blanket relaxation.
+normalize_kernel_release <- function(x) {
+  if (!is.character(x) || length(x) != 1L || is.na(x)) return(x)
+  sub("^([0-9]+\\.[0-9]+\\.[0-9]+)-[0-9]+-(.+)$", "\\1-\\2", x)
+}
+
+normalize_performance_environment <- function(env) {
+  if (!is.list(env)) return(env)
+  if (!is.null(env$release)) env$release <- normalize_kernel_release(env$release)
+  env
+}
+
 continuous_benchmark_observation_key <- function(observation) {
   paste(
     observation$benchmark_id,
@@ -225,7 +252,10 @@ compare_continuous_release_benchmark <- function(current, baseline, budget) {
 
   repetitions_complete <- current$repetitions >= budget$minimum_repetitions &&
     baseline$repetitions >= budget$minimum_repetitions
-  environment_compatible <- identical(current$environment, baseline$environment)
+  environment_compatible <- identical(
+    normalize_performance_environment(current$environment),
+    normalize_performance_environment(baseline$environment)
+  )
   metrics_comparable <- all(is.finite(ratios))
   evidence_complete <- repetitions_complete && environment_compatible && metrics_comparable
   status <- if (!evidence_complete) {

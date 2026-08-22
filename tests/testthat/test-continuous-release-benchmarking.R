@@ -71,6 +71,84 @@ test_that("identity and environment mismatches cannot become release evidence", 
   expect_false(comparison$release_ready)
 })
 
+test_that("environment_compatible tolerates a routine kernel ABI build bump but still catches a real OS/kernel difference", {
+  sha <- paste(rep("e", 40), collapse = "")
+  budget <- new_release_performance_budget("default")
+  base_env <- list(
+    os = "Linux", release = "6.17.0-1020-azure", machine = "x86_64",
+    r_version = "4.6.1", platform = "x86_64-pc-linux-gnu",
+    physical_cores = 4L, logical_cores = 4L, blas = "openblas"
+  )
+  baseline <- new_continuous_benchmark_observation(
+    "pca-canonical", "pca", "canonical", "baseline", sha,
+    10, 100, 100, 0.8, repetitions = 5, environment = base_env
+  )
+
+  # Same kernel major.minor.patch and flavor, only the ABI build number
+  # (routine monthly runner patching) differs -- must be treated compatible.
+  bumped_env <- base_env
+  bumped_env$release <- "6.17.0-1022-azure"
+  bumped <- new_continuous_benchmark_observation(
+    "pca-canonical", "pca", "canonical", "current", sha,
+    10, 100, 100, 0.8, repetitions = 5, environment = bumped_env
+  )
+  bumped_comparison <- compare_continuous_release_benchmark(bumped, baseline, budget)
+  expect_true(bumped_comparison$environment_compatible)
+  expect_identical(bumped_comparison$status, "passed")
+
+  # A genuinely different kernel major version must still be caught.
+  different_kernel_env <- base_env
+  different_kernel_env$release <- "5.15.0-1020-azure"
+  different_kernel <- new_continuous_benchmark_observation(
+    "pca-canonical", "pca", "canonical", "current", sha,
+    10, 100, 100, 0.8, repetitions = 5, environment = different_kernel_env
+  )
+  expect_false(compare_continuous_release_benchmark(
+    different_kernel, baseline, budget
+  )$environment_compatible)
+
+  # A genuinely different kernel flavor must still be caught.
+  different_flavor_env <- base_env
+  different_flavor_env$release <- "6.17.0-1022-generic"
+  different_flavor <- new_continuous_benchmark_observation(
+    "pca-canonical", "pca", "canonical", "current", sha,
+    10, 100, 100, 0.8, repetitions = 5, environment = different_flavor_env
+  )
+  expect_false(compare_continuous_release_benchmark(
+    different_flavor, baseline, budget
+  )$environment_compatible)
+
+  # A different R version must still be caught -- normalization only ever
+  # touches the release field, nothing else.
+  different_r_env <- bumped_env
+  different_r_env$r_version <- "4.5.0"
+  different_r <- new_continuous_benchmark_observation(
+    "pca-canonical", "pca", "canonical", "current", sha,
+    10, 100, 100, 0.8, repetitions = 5, environment = different_r_env
+  )
+  expect_false(compare_continuous_release_benchmark(
+    different_r, baseline, budget
+  )$environment_compatible)
+
+  # An unrecognized release-string format (not Ubuntu's
+  # version-build-flavor pattern) is left untouched, not silently relaxed.
+  unrecognized_env <- base_env
+  unrecognized_env$release <- "23.6.0"
+  unrecognized_baseline <- new_continuous_benchmark_observation(
+    "pca-canonical", "pca", "canonical", "baseline", sha,
+    10, 100, 100, 0.8, repetitions = 5, environment = unrecognized_env
+  )
+  unrecognized_env2 <- unrecognized_env
+  unrecognized_env2$release <- "23.6.1"
+  unrecognized_current <- new_continuous_benchmark_observation(
+    "pca-canonical", "pca", "canonical", "current", sha,
+    10, 100, 100, 0.8, repetitions = 5, environment = unrecognized_env2
+  )
+  expect_false(compare_continuous_release_benchmark(
+    unrecognized_current, unrecognized_baseline, budget
+  )$environment_compatible)
+})
+
 test_that("both current and baseline require adequate repetitions", {
   sha <- paste(rep("d", 40), collapse = "")
   baseline <- new_continuous_benchmark_observation(
