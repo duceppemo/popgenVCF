@@ -150,14 +150,14 @@ test_that("environment_compatible tolerates a routine kernel ABI build bump but 
 })
 
 test_that("release_performance_budget_for_tier widens synthetic and keeps canonical strict", {
-  synthetic_budget <- release_performance_budget_for_tier("synthetic")
+  synthetic_budget <- popgenVCF:::release_performance_budget_for_tier("synthetic")
   expect_invisible(validate_release_performance_budget(synthetic_budget))
   expect_gt(synthetic_budget$max_runtime_ratio, 1.10)
   expect_gt(synthetic_budget$max_memory_ratio, 1.10)
   expect_lt(synthetic_budget$min_throughput_ratio, 0.90)
 
   for (tier in c("canonical", "medium", "large", "something-unrecognized")) {
-    budget <- release_performance_budget_for_tier(tier)
+    budget <- popgenVCF:::release_performance_budget_for_tier(tier)
     expect_invisible(validate_release_performance_budget(budget))
     expect_identical(budget$max_runtime_ratio, 1.10)
     expect_identical(budget$max_memory_ratio, 1.10)
@@ -180,7 +180,7 @@ test_that("real synthetic-tier measurement noise passes under the widened budget
     runtime_seconds = 0.146, peak_memory_mb = 43.8, throughput = 1 / 0.146,
     scaling_efficiency = 1, repetitions = 5, environment = environment
   )
-  synthetic_budget <- release_performance_budget_for_tier("synthetic")
+  synthetic_budget <- popgenVCF:::release_performance_budget_for_tier("synthetic")
   noisy_comparison <- compare_continuous_release_benchmark(noisy_rerun, baseline, synthetic_budget)
   expect_identical(noisy_comparison$status, "passed")
 

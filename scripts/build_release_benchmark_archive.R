@@ -162,7 +162,7 @@ if (git_sha_valid) {
   for (tier in names(performance_by_tier)) {
     performance <- performance_by_tier[[tier]]
     continuous_summary <- performance$summary[1L]
-    budget <- release_performance_budget_for_tier(tier)
+    budget <- popgenVCF:::release_performance_budget_for_tier(tier)
     observation <- new_continuous_benchmark_observation(
       benchmark_id = "pipeline-core-analyses", module = "pca_ibs_diversity_fst",
       dataset_tier = tier, release = release_id, git_sha = git_sha,
