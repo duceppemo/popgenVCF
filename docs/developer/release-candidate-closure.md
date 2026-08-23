@@ -226,6 +226,14 @@ The review-spec is a small declarative JSON the reviewer (or whoever is recordin
 
 This was run against the real, retained `v0.10.0` Release evidence for all 4 gates (downloaded via `gh release download v0.10.0`), using the exact review determinations already recorded in `docs/developer/canonical-autosomal-baseline-proposal.md`, `docs/SCIENTIFIC_CONCORDANCE.md`, `docs/user/ancestry-backends.md`, and `docs/CONTINUOUS_RELEASE_BENCHMARKING.md`. Merging the 4 resulting fragments with the 8 CI-auto-collected fragments from a real `release-candidate-collector.yml` run through `build_release_candidate_evidence_index.R` reproduced `12 / 15` gates `passed`, with the 3 blocking gates correctly limited to `scientific_approval`, `release_authorization`, and `archival_assets` -- matching what was independently proven true for the real `v0.10.0` release, now demonstrated end to end with the generic fragment tooling instead of a hand-authored, release-specific script.
 
+## `release_authorization` recorded for candidate `1.0.0-rc2` (2026-08-22)
+
+Following the 4 recurring scientific-review gates and `scientific_approval` all being genuinely reviewed and approved for the first time (see `docs/SCIENTIFIC_REVIEW_ASSIGNMENT.md`), the release owner authorized commit `e7ee188abe21ec345c6fa429f350c59798452471` (candidate `1.0.0-rc2`, target `v1.0.0`) for tagging, publication, deposition, and DOI assignment. All 8 CI-provable gates were freshly re-verified passing at this exact commit (all 6 auto-triggered workflows succeeded) before authorization was recorded, rather than relying on an earlier commit's evidence.
+
+`release_authorization-gate-record.json` materialized via `scripts/write_scientific_review_gate_record.R`, referencing `scientific_approval-gate-record.json` as its artifact (which itself checksum-binds the four underlying scientific gate records) -- kept as release evidence, not committed to the repository.
+
+This authorization is a recorded decision only. It does not itself create a git tag, push it, or trigger the real publish workflows (`tagged-source-release.yml` with `publish=true`, `container.yml` on a release event, Apptainer/Zenodo deposition) -- those remain separate, deliberate, subsequent actions per `docs/developer/release-archival-readiness.md`'s documented sequence. `archival_assets` stays `not_run` until the actual tagged release and Zenodo deposition exist.
+
 ## Current scientific boundary
 
 The closure mechanism does not complete the production work tracked by #22, #24, #43, and #1. Until those real-data, external-tool, ancestry, benchmark, distribution, and approval records exist and are reviewed, the 0.10.0 release candidate must remain blocked.
