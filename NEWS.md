@@ -1,3 +1,7 @@
+# popgenVCF 1.0.0.9000 development
+
+- **Added `oldrel` to the `R-CMD-check` matrix, closing a real coverage gap.** The matrix had only ever tested `release`/`devel` R in this repository's history, despite issue #4's Definition of Done (and the general R package convention) calling for `release`/`oldrel`/`devel`. Found auditing the repository immediately after closing #4. `DESCRIPTION` requires R (>= 4.3), well under any current `oldrel`, so no compatibility work was expected -- verified via a real CI run rather than assumed: all three matrix jobs (`release`, `oldrel`, `devel`) passed.
+
 # popgenVCF 1.0.0
 
 popgenVCF 1.0.0 is released. DOI [10.5281/zenodo.22069452](https://doi.org/10.5281/zenodo.22069452) (concept DOI [10.5281/zenodo.21747067](https://doi.org/10.5281/zenodo.21747067)), 2026-08-23. Deposited automatically by Zenodo's GitHub integration when the `v1.0.0` release was published; verified independently via the raw record API JSON and a real `doi.org` resolution (302 redirect to Zenodo) for both the version DOI and the concept DOI before reconciling. Reconciled the real DOI, concept DOI, and publication date across `inst/metadata/software-identity.json`, `CITATION.cff`, `codemeta.json`, `.zenodo.json`, `README.md`, and `docs/reproducibility.md`; `release_status` transitions from `development` to `released`.
