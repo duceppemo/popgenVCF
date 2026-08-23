@@ -9,13 +9,23 @@ test_that("packaged software identity is complete and release-consistent", {
   # development build following a release) is reconciled against its
   # released X.Y.Z prefix -- identity.json keeps truthfully describing the
   # real archived release (see scripts/validate_release_metadata.R for the
-  # same rule applied to DESCRIPTION/CITATION.cff).
+  # same rule applied to DESCRIPTION/CITATION.cff). Between a release-cut
+  # (no `.9NNN` suffix) and its actual Zenodo deposit, identity.json still
+  # correctly reports the *next* release's clean version but has not yet
+  # claimed release_status/date_released/doi -- so those three are only
+  # checked against the real archived record once release_status is
+  # "released".
   installed_version <- as.character(utils::packageVersion("popgenVCF"))
   released_prefix <- sub("^([0-9]+\\.[0-9]+\\.[0-9]+)\\.9[0-9]{3}$", "\\1", installed_version)
   expect_identical(identity$version, released_prefix)
-  expect_identical(identity$release_status, "released")
-  expect_identical(identity$date_released, "2026-08-01")
-  expect_identical(identity$doi, "10.5281/zenodo.21747548")
+  if (identical(identity$release_status, "released")) {
+    expect_identical(identity$date_released, "2026-08-01")
+    expect_identical(identity$doi, "10.5281/zenodo.21747548")
+  } else {
+    expect_identical(identity$release_status, "development")
+    expect_null(identity$date_released)
+    expect_null(identity$doi)
+  }
   expect_identical(identity$license$spdx, "MIT")
   expect_identical(identity$author$email, "marc-olivier.duceppe@inspection.gc.ca")
   expect_identical(identity$author$orcid, "0000-0003-2130-0427")

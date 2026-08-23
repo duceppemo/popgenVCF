@@ -55,7 +55,10 @@ test_that("release-facing metadata and public API remain reconciled", {
   root <- release_reconciliation_test_root()
   audit <- release_api_reconciliation(root)
 
-  expect_identical(audit$version, "0.10.0.9000")
+  expected_version <- sub(
+    "^Version:\\s*", "", grep("^Version:", readLines(file.path(root, "DESCRIPTION")), value = TRUE)
+  )
+  expect_identical(audit$version, expected_version)
   expect_true(all(audit$version_signals$present), info = paste(
     audit$version_signals$file[!audit$version_signals$present],
     collapse = ", "

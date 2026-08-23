@@ -1,4 +1,4 @@
-# popgenVCF 0.10.0.9000 development
+# popgenVCF 1.0.0 development
 
 - **Fixed a real budget-design gap that hard-failed the `Scientific release archive` CI workflow (`stop()`, no artifacts uploaded) after the `environment_compatible` fix below stopped masking it: the flat 10% runtime/memory ratio budget is appropriate for the multi-second `canonical`/`large` benchmark tiers but not the sub-second `synthetic` tier, where ~10ms of ordinary CI-runner scheduling jitter is the entire allowed margin.** Found live: rerunning the continuous benchmark to bind fresh evidence to a commit produced a real, hard workflow failure -- the synthetic tier's comparison, previously masked as `insufficient-evidence` by the now-fixed environment check, genuinely tripped the 1.1x runtime cutoff (a prior successful comparison had already measured 1.0965x, a hair under the line). Reproduced the underlying noise locally: five consecutive synthetic-tier runs on the same unchanged commit measured 0.456-0.641s wall-clock, a >40% spread from pure OS/process scheduling variance at this timescale, nothing to do with popgenVCF's own code.
 

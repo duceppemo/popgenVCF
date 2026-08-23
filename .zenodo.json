@@ -10,10 +10,7 @@
   ],
   "access_right": "open",
   "license": "mit",
-  "version": "0.10.0",
-  "publication_date": "2026-08-01",
-  "doi": "10.5281/zenodo.21747548",
-  "conceptdoi": "10.5281/zenodo.21747067",
+  "version": "1.0.0",
   "keywords": [
     "population genomics",
     "population genetics",
