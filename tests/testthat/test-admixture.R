@@ -27,6 +27,30 @@ test_that("ADMIXTURE Q matrices join retained metadata explicitly", {
   )
 })
 
+test_that("ADMIXTURE Q matrices are produced without a population column when metadata has none", {
+  # A real production incident: a real 50-sample cohort with no population
+  # metadata crashed the whole pipeline here with "ADMIXTURE metadata
+  # requires sample and population columns", even though ADMIXTURE itself
+  # (an unsupervised method) had already computed successfully.
+  root <- tempfile("admixture-q-no-population-")
+  dir.create(root)
+  q_file <- file.path(root, "cohort.2.Q")
+  sample_file <- file.path(root, "samples.txt")
+
+  writeLines(c("0.8 0.2", "0.1 0.9"), q_file)
+  writeLines(c("sample_2", "sample_1"), sample_file)
+  metadata <- data.table::data.table(sample = c("sample_1", "sample_2"))
+
+  q <- popgenVCF:::read_admixture_q(q_file, sample_file, metadata)
+
+  expect_false("population" %in% names(q))
+  expect_equal(q$sample, c("sample_2", "sample_1"))
+  expect_equal(
+    rowSums(as.matrix(q[, c("cluster_1", "cluster_2"), with = FALSE])),
+    c(1, 1)
+  )
+})
+
 test_that("ADMIXTURE Q metadata joins reject duplicate identities", {
   root <- tempfile("admixture-q-duplicate-")
   dir.create(root)

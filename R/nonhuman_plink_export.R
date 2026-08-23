@@ -216,15 +216,10 @@ run_module_faststructure <- function(analysis, context) {
     }
     qdt <- data.table::as.data.table(q)
     qdt[, sample := ids]
-    qdt[, population := context$metadata$population[
-      match(sample, context$metadata$sample)
-    ]]
-    if (anyNA(qdt$population)) {
-      stop("Some fastStructure samples are absent from retained metadata", call. = FALSE)
-    }
+    qdt <- attach_q_population(qdt, context$metadata)
     data.table::setcolorder(
       qdt,
-      c("sample", "population", grep("^cluster_", names(qdt), value = TRUE))
+      c("sample", intersect("population", names(qdt)), grep("^cluster_", names(qdt), value = TRUE))
     )
     result$q[[k]] <- qdt
     write_tsv(qdt, file.path(dirs$tables, sprintf("29_fastStructure_Q_K%s.tsv", k)))

@@ -487,9 +487,10 @@ run_module_snmf <- function(analysis, context) {
       stop("sNMF Q rows do not match sample-order file", call. = FALSE)
     }
     qdt <- data.table::as.data.table(q); qdt[, sample := sample_order]
-    qdt[, population := context$metadata$population[match(sample, context$metadata$sample)]]
-    if (anyNA(qdt$population)) stop("Some sNMF samples are absent from retained metadata", call. = FALSE)
-    data.table::setcolorder(qdt, c("sample", "population", grep("^cluster_", names(qdt), value = TRUE)))
+    qdt <- attach_q_population(qdt, context$metadata)
+    data.table::setcolorder(
+      qdt, c("sample", intersect("population", names(qdt)), grep("^cluster_", names(qdt), value = TRUE))
+    )
     result$q[[k]] <- qdt
     write_tsv(qdt, file.path(dirs$tables, sprintf("30_sNMF_Q_K%s.tsv", k)))
     plot_q_matrix_views(

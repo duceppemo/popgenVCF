@@ -11,9 +11,8 @@ read_admixture_q <- function(path, sample_file, metadata) {
   if (is.null(sample_file) || !file.exists(sample_file)) {
     stop("An explicit Q sample-order file is required", call. = FALSE)
   }
-  required_metadata <- c("sample", "population")
-  if (!all(required_metadata %in% names(metadata))) {
-    stop("ADMIXTURE metadata requires sample and population columns", call. = FALSE)
+  if (!"sample" %in% names(metadata)) {
+    stop("ADMIXTURE metadata requires a sample column", call. = FALSE)
   }
 
   ids <- data.table::fread(sample_file, header = FALSE)[[1L]] |> as.character()
@@ -26,17 +25,11 @@ read_admixture_q <- function(path, sample_file, metadata) {
   q <- q / rs
   data.table::setnames(q, paste0("cluster_", seq_len(ncol(q))))
 
-  metadata_samples <- as.character(metadata[["sample"]])
-  metadata_populations <- as.character(metadata[["population"]])
-  if (anyDuplicated(metadata_samples)) {
-    stop("ADMIXTURE metadata contains duplicate sample identifiers", call. = FALSE)
-  }
   q[["sample"]] <- ids
-  q[["population"]] <- metadata_populations[match(ids, metadata_samples)]
-  if (anyNA(q[["population"]])) {
-    stop("Some ADMIXTURE samples are absent from metadata", call. = FALSE)
-  }
-  data.table::setcolorder(q, c("sample", "population", grep("^cluster_", names(q), value = TRUE)))
+  q <- attach_q_population(q, metadata)
+  data.table::setcolorder(
+    q, c("sample", intersect("population", names(q)), grep("^cluster_", names(q), value = TRUE))
+  )
   q
 }
 
