@@ -332,3 +332,33 @@ decision are explicit human workflow steps. Final `READY` calculation is then
 automatic and fail closed. Tagging, publication, deposition, DOI assignment,
 and release authorization occur only afterward and are outside this scientific
 review assignment.
+
+## `scientific_approval` recorded for the v1.0.0 candidate (2026-08-22)
+
+**2026-08-22 -- Marc-Olivier Duceppe:** reviewed and approved all four assigned
+gates for candidate `1.0.0-rc2` -- `production_baseline`, `external_concordance`,
+and `ancestry_three_backend` bound to commit `50fb45a3ee53bccaa55336228ceceb9e12cfa8c5`,
+`benchmark_history` bound to commit `85fc4f6dfc1644eca389e773b18c0264a7480a0f`
+(every intervening commit verified documentation-only, so accepted as
+scientifically identical for the exact candidate). Full per-item review notes,
+including the two substantive judgment calls made along the way (accepting the
+corrected PCA variance proportions in `production_baseline` as superseding the
+prior proposal's approval, and framing the ancestry K-selection backend
+disagreement as an honest limitation rather than a settled result), are
+recorded in each gate's own developer doc:
+
+- `docs/developer/canonical-autosomal-baseline-proposal.md`
+- `docs/developer/canonical-external-concordance-proposal.md`
+- `docs/developer/canonical-ancestry-three-backend-proposal.md`
+- `docs/CONTINUOUS_RELEASE_BENCHMARKING.md`
+
+Then approved the 5 `scientific_approval`-specific checklist items
+(`all_gates_complete`, `failures_resolved`, `claims_supported`,
+`decision_notes`, `approval_record`) covering the review as a whole.
+`scientific_approval-gate-record.json` materialized via
+`scripts/write_scientific_review_gate_record.R`, checksum-bound to the four
+underlying gate-record fragments -- kept as release evidence, not committed to
+the repository, matching every other gate record in this chain.
+
+`archival_assets` and `release_authorization` remain outside this scientific
+review assignment, as noted above.
