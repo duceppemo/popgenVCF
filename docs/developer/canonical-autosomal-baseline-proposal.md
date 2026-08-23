@@ -192,3 +192,7 @@ Not a completed human review — an assistant-prepared cross-check against the r
 Same unaddressed gap as proposal-4: `ld_pruned_variant_count` still has no per-SNP identity list in this bundle to cross-check the *set*, only the *count*.
 
 This candidate does not need to re-litigate `source_identity`/`sample_inventory`/`analysis_contract`/`qc_evidence`/`tolerance_rationale` from scratch -- they are byte-for-byte reproductions of already-approved reasoning. The one substantive decision for the named reviewer is whether to accept the corrected PCA proportions as the new baseline values, given the fix is independently traceable to a real, already-shipped, already-tested bug fix rather than a new unexplained discrepancy. As with proposal-4, this record does not itself change `approval` or `production_baseline_gate` -- promotion still requires the reviewer's own confirmation and a formal, signed review packet.
+
+## Rebound to commit `50fb45a` (2026-08-22)
+
+Rerun (workflow run [32581191109](https://github.com/duceppemo/popgenVCF/actions/runs/32581191109)) purely to bind evidence to the current candidate commit after the `benchmark_history` performance-regression fixes -- none of which touch `production_baseline`'s own code path. All six metrics reproduced exactly, as expected. No change to the draft checklist above.

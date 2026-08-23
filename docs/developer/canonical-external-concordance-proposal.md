@@ -69,3 +69,7 @@ Not a completed human review -- an assistant-prepared cross-check against the ra
 | `diagnostic_interpretation` | proposed approved | Every diagnostic record carries a specific, non-generic `interpretation` string naming *why* it's diagnostic (e.g. "KING kinship and IBS-derived similarity are related but not identical estimands"), and every message is explicitly `"diagnostic difference recorded; comparison is non-gating"` -- no diagnostic result is presented as if it were an equivalence pass. |
 
 **Recommendation for the real review note**: the evidence is genuine, reproducible, and self-consistent with the July review. The one substantive open item is the `amova`/`poppr` self-comparison wording/role nuance above -- a documentation clarity fix, not a scientific concern, and not blocking approval of the other items.
+
+## Rebound to commit `50fb45a` (2026-08-22)
+
+Rerun purely to bind evidence to the current candidate commit after the `benchmark_history` performance-regression fixes -- none of which touch this module's code path. Every numeric value reproduced exactly (same FST/AMOVA divergences, same three machine-precision equivalence passes), as expected. No change to the draft checklist above.

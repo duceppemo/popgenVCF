@@ -73,3 +73,7 @@ Not a completed human review — an assistant-prepared cross-check against the r
 | `biological_limits` | proposed approved | The record itself is already explicit and correctly hedged: every cross-backend comparison's `interpretation` field states that agreement is evidence of numerical/structural consistency, not proof of biological correctness of K or the inferred ancestry components. |
 
 **Recommendation for the real review note**: five of six items are straightforward given the evidence is genuine and independently reproducible. The two decisions that actually need the reviewer's judgment: (1) whether the sNMF raw-file retention gap (K10-only) is acceptable as-is or needs a rerun with full retention, and (2) how to phrase the K-selection disagreement in eventual release-facing documentation so it reads as an honest limitation rather than a settled result.
+
+## Rebound to commit `50fb45a` (2026-08-22)
+
+Full sweep rerun (all 135 backend runs) purely to bind evidence to the current candidate commit after the `benchmark_history` performance-regression fixes -- none of which touch ancestry-backend code. Reproduced exactly: same per-backend K recommendations (ADMIXTURE=10, fastStructure=5, sNMF=6), same consensus K=5, same cross-backend alignment scores (0.995/0.993/0.983), and the `sample_order_sha256` independently recomputed and matched again. No change to the draft checklist above.
