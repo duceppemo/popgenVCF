@@ -192,8 +192,9 @@ v0.10.0 is published: DOI [10.5281/zenodo.21747548](https://doi.org/10.5281/zeno
 
 ## Open tracking issues and deferred enhancements
 
-- **#4 — Publication-quality platform:** the only remaining open tracker; umbrella issue for the explicit 1.0 decision (see below). Its 0.10.0 checklist is fully satisfied by the released state.
+- **#4 — Publication-quality platform:** closed 2026-08-23 once `v1.0.0` was tagged, released, and Zenodo-archived -- the explicit 1.0 decision this issue tracked has now actually been made and executed, not just decided in the abstract.
 - **#22, #24, #43, #1:** closed 2026-08-02 against the real, checksum-verified v0.10.0 evidence and the `READY` 15 / 15 production dossier. #43 was closed with a note that the `canonical`/`medium`/`large` benchmark tiers and a trend dashboard remain deferred, unimplemented follow-up work, not a release blocker.
+- **#332 — Wire the existing checkpoint/resume engine into `run_pipeline()` and the CLI:** open. A real user lost ~45 minutes of completed work to the `pcadapt` container-image gap fixed in `d6f96de` (see below); a full checkpoint engine already exists from Phase 8.3 but was never wired into the top-level pipeline or CLI. Not a release blocker -- see the issue for the real remaining gap (per-module config-value fingerprinting, not just wiring).
 
 ## 1.0: stable scientific release
 
