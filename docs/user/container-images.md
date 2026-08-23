@@ -27,6 +27,47 @@ docker image inspect "$POPGENVCF_IMAGE"
 
 Record the resolved digest together with the analysis configuration and input checksums.
 
+## Understanding container paths (`/data`)
+
+Every command below mounts `-v "$PWD:/data"` -- a Docker bind mount that maps whatever
+directory you run `docker run` *from* onto `/data` inside the container. The container
+cannot see any other part of your filesystem. This is the most common source of
+confusion when getting started: paths written inside `analysis.yml` are container-side
+paths, not your real host paths, and they must start with `/data`.
+
+`cd` into the directory holding your input files first, so it becomes `$PWD`:
+
+```bash
+cd ~/analyses/my_project
+ls
+# cohort.vcf.gz  pop_map.tsv
+```
+
+Everything under that directory is visible inside the container at the matching `/data`
+path, including files and directories created by the pipeline itself:
+
+```
+my_project/                         (this is $PWD -- where you ran `docker run`)
+├── cohort.vcf.gz  <-->  /data/cohort.vcf.gz
+├── pop_map.tsv    <-->  /data/pop_map.tsv
+├── analysis.yml   <-->  /data/analysis.yml
+└── output/        <-->  /data/output/          (created here by the pipeline)
+```
+
+`analysis.yml` must reference the right-hand, `/data`-prefixed side:
+
+```yaml
+input:
+  vcf: /data/cohort.vcf.gz
+  metadata: /data/pop_map.tsv
+output:
+  directory: /data/output
+```
+
+If an input file lives outside the directory you `cd`'d into, either move or symlink it
+under that directory first, or add another `-v /absolute/host/path:/data/<name>` mount
+for it specifically.
+
 ## Generate a configuration
 
 ```bash
@@ -49,7 +90,7 @@ docker run --rm \
   --config /data/analysis.yml
 ```
 
-Paths in the configuration must refer to container-visible paths under `/data`. Running as the host user prevents root-owned result files on Linux.
+See "Understanding container paths (`/data`)" above if `analysis.yml`'s paths are unclear. Running as the host user prevents root-owned result files on Linux.
 
 ## Release tags
 

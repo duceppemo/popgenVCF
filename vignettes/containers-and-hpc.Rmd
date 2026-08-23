@@ -31,6 +31,12 @@ Record the digest in the analysis archive. A tag can move; a digest cannot.
 
 ## Docker or Podman
 
+`-v "$PWD:/data"` maps whatever directory you run the command from onto `/data`
+inside the container -- every path written into `analysis.yml` must therefore start
+with `/data`, not your real host path. See "Understanding container paths (`/data`)"
+in `docs/user/container-images.md` for a worked example with a file-tree diagram if
+this is unclear.
+
 Generate a configuration from the current directory:
 
 ```bash

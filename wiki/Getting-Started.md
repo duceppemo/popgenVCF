@@ -100,6 +100,19 @@ For a local installation:
 Rscript -e 'popgenVCF::cli_main(c("--write-config", "analysis.yml"))'
 ```
 
+`-v "$PWD:/data"` is a Docker bind mount: it maps whatever directory you ran `docker
+run` from onto `/data` *inside* the container. The container cannot see any other part
+of your filesystem, so every path in `analysis.yml` must start with `/data`, not your
+real host path:
+
+```
+my_project/                         (this is $PWD -- where you ran `docker run`)
+├── cohort.vcf.gz  <-->  /data/cohort.vcf.gz
+├── metadata.tsv   <-->  /data/metadata.tsv
+├── analysis.yml   <-->  /data/analysis.yml
+└── results/       <-->  /data/results/         (created here by the pipeline)
+```
+
 Use container paths in a Docker configuration:
 
 ```yaml
