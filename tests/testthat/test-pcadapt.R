@@ -184,6 +184,44 @@ test_that("run_pcadapt_scan degrades gracefully on a real, directly-observed num
     k = NULL, n_populations = NA_integer_, min_maf = 0.05, fdr_alpha = 0.05
   ))
   expect_true(res$failed)
+  expect_identical(res$reason, "numerical_instability")
+  expect_identical(res$n_tested, 0L)
+  expect_identical(res$n_outliers, 0L)
+  expect_identical(nrow(res$table), length(snp_ids))
+  expect_true(all(is.na(res$table$p_value)))
+  expect_false(any(res$table$outlier))
+
+  ok <- popgenVCF:::validate_pcadapt_result(res, NULL, NULL)
+  expect_true(ok$valid)
+})
+
+test_that("run_pcadapt_scan degrades gracefully, not fatally, when the optional pcadapt package is not installed", {
+  # A real production incident: a v1.0.0 container image that omitted the
+  # optional pcadapt conda package turned this into a hard stop() that
+  # killed an entire real run's ~45 minutes of completed upstream results.
+  # pcadapt defaults on for every user (unlike opt-in ml_tree), so a
+  # missing package must degrade the same way the numerical-instability
+  # failure above does. requireNamespace() is a base function called
+  # unqualified from inside popgenVCF's own namespace, which
+  # testthat::local_mocked_bindings() cannot shadow (it only mocks bindings
+  # a package defines or explicitly imports) -- so this exercises the real
+  # absence directly instead: it runs for real wherever pcadapt genuinely
+  # is not installed (as in a container image missing it, or this
+  # environment) and is skipped only where it happens to be present.
+  testthat::skip_if(
+    requireNamespace("pcadapt", quietly = TRUE),
+    "pcadapt is installed in this environment; cannot exercise the missing-package path"
+  )
+  set.seed(1)
+  n <- 10L; l <- 5L
+  geno <- matrix(sample(0:2, n * l, replace = TRUE), n, l)
+  snp_ids <- paste0("snp", seq_len(l))
+  res <- popgenVCF:::run_pcadapt_scan(
+    geno, snp_ids, rep("22", l), seq_len(l) * 1000L,
+    k = NULL, n_populations = 2L, min_maf = 0.05, fdr_alpha = 0.05
+  )
+  expect_true(res$failed)
+  expect_identical(res$reason, "package_missing")
   expect_identical(res$n_tested, 0L)
   expect_identical(res$n_outliers, 0L)
   expect_identical(nrow(res$table), length(snp_ids))

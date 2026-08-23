@@ -330,10 +330,12 @@ run_module_pcadapt <- function(analysis, context) {
   }
   plot_pcadapt(result, cfg, dirs)
   if (isTRUE(result$failed)) {
-    analysis <- record_analysis_message(
-      analysis, "WARNING", "pcadapt",
+    message <- if (identical(result$reason, "package_missing")) {
+      "pcadapt outlier scan skipped: the optional 'pcadapt' package is not installed"
+    } else {
       "pcadapt outlier scan could not be fit (a numerical-stability failure with too little data relative to the number of retained components); skipped"
-    )
+    }
+    analysis <- record_analysis_message(analysis, "WARNING", "pcadapt", message)
   } else if (result$n_outliers > 0L) {
     analysis <- record_analysis_message(
       analysis, "WARNING", "pcadapt",

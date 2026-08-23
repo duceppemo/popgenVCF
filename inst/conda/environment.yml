@@ -18,7 +18,10 @@ dependencies:
   - r-digest
   - r-ggplot2
   - r-ggrepel
+  - r-jsonlite
+  - r-openssl
   - r-poppr
+  - r-processx
   - r-rmarkdown
   - r-scales
   - r-vegan
@@ -30,6 +33,7 @@ dependencies:
   - r-hierfstat
   - r-knitr
   - r-patchwork
+  - r-pcadapt
   - r-phangorn
   - r-pkgdown
   - r-ragg

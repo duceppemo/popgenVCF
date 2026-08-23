@@ -57,13 +57,29 @@ resolve_pcadapt_k <- function(configured_k, n_populations, n_samples, n_snps) {
 run_pcadapt_scan <- function(genotype, snp_ids, chromosome, position, k = NULL,
                              n_populations = NA_integer_, min_maf = 0.05,
                              fdr_alpha = 0.05) {
-  if (!requireNamespace("pcadapt", quietly = TRUE)) {
-    stop("The pcadapt outlier scan requires the optional 'pcadapt' package", call. = FALSE)
-  }
   if (ncol(genotype) < 2L) {
     stop("pcadapt outlier scan requires at least two loci; ", ncol(genotype), " available", call. = FALSE)
   }
   k_used <- resolve_pcadapt_k(k, n_populations, nrow(genotype), ncol(genotype))
+  # pcadapt defaults on for every user and needs no population metadata --
+  # unlike ml_tree (opt-in, where a hard failure is the right, loud
+  # outcome), a missing optional package here must degrade the same way the
+  # numerical-stability failure below already does, not stop() and take the
+  # whole pipeline down with it (a real production incident: a v1.0.0
+  # container image that omitted the optional pcadapt conda package lost an
+  # entire real run's ~45 minutes of completed upstream results to this
+  # module's stop() alone).
+  if (!requireNamespace("pcadapt", quietly = TRUE)) {
+    empty <- data.table::data.table(
+      snp_id = snp_ids, chromosome = chromosome, position = position,
+      maf = NA_real_, mahalanobis_stat = NA_real_, chi2_stat = NA_real_,
+      p_value = NA_real_, q_value = NA_real_, outlier = FALSE
+    )
+    return(list(
+      table = empty, k = k_used, gif = NA_real_, n_tested = 0L, n_outliers = 0L,
+      failed = TRUE, reason = "package_missing"
+    ))
+  }
 
   # pcadapt expects loci (rows) x samples (columns); compute_diversity()'s
   # genotype matrix is samples (rows) x loci (columns) like everywhere else
@@ -91,7 +107,10 @@ run_pcadapt_scan <- function(genotype, snp_ids, chromosome, position, k = NULL,
       maf = NA_real_, mahalanobis_stat = NA_real_, chi2_stat = NA_real_,
       p_value = NA_real_, q_value = NA_real_, outlier = FALSE
     )
-    return(list(table = empty, k = k_used, gif = NA_real_, n_tested = 0L, n_outliers = 0L, failed = TRUE))
+    return(list(
+      table = empty, k = k_used, gif = NA_real_, n_tested = 0L, n_outliers = 0L,
+      failed = TRUE, reason = "numerical_instability"
+    ))
   }
 
   # fit$pvalues/$maf/$stat/$chi2.stat are all returned in the same order and
