@@ -1,10 +1,52 @@
-read_metadata <- function(path, header = "auto") {
+# Header/column-name normalization used throughout metadata parsing: lowercase
+# first, THEN collapse non-alphanumeric runs to "_". Applying gsub() before
+# tolower() (as this line originally did, and as a copy elsewhere in this
+# file did too) is a real, previously-undiscovered bug: the character class
+# below is deliberately lowercase-only, so under the wrong order any
+# uppercase letter -- not just ones next to punctuation -- fails to match,
+# gets replaced with "_" on its own, and silently breaks auto-detection for
+# any ordinarily-capitalized header ("Population", "SampleID", ...).
+normalize_metadata_name <- function(x) {
+  gsub("[^a-z0-9]+", "_", tolower(x))
+}
+
+# Renames the column matching `requested` (normalized the same way headers
+# are, so "Pathotype"/"pathotype"/"patho-type" all match a header literally
+# spelled any of those ways) to `target` ("sample" or "population"),
+# bypassing the fixed built-in synonym list entirely -- an explicit
+# input.sample_column/population_column always wins over auto-detection.
+resolve_named_column <- function(x, requested, target) {
+  wanted <- normalize_metadata_name(requested)
+  hit <- which(names(x) == wanted)
+  if (!length(hit)) {
+    stopf(
+      "input.%s_column = \"%s\" not found in metadata columns: %s",
+      target, requested, paste(names(x), collapse = ", ")
+    )
+  }
+  if (!identical(names(x)[hit], target) && target %in% names(x)) {
+    stopf(
+      "input.%s_column = \"%s\" conflicts with an existing \"%s\" column already present in the metadata",
+      target, requested, target
+    )
+  }
+  data.table::setnames(x, hit, target)
+  invisible(NULL)
+}
+
+read_metadata <- function(path, header = "auto", sample_column = NULL, population_column = NULL) {
   first <- readLines(path, n = 1L, warn = FALSE)
   sep <- if (grepl("\t", first)) "\t" else if (grepl(",", first)) "," else ""
   tokens <- strsplit(trimws(first), if (sep == "") "[[:space:]]+" else sep)[[1]]
   detected <- any(tolower(tokens) %in% c("sample", "sample_id", "id", "individual", "population", "pop"))
   use_header <- switch(tolower(as.character(header)), auto = detected, yes = TRUE, true = TRUE,
                        no = FALSE, false = FALSE, stopf("Invalid metadata_header: %s", header))
+  if (!use_header && (!is.null(sample_column) || !is.null(population_column))) {
+    stop(
+      "input.sample_column/population_column require headered metadata (input.metadata_header must not be \"no\")",
+      call. = FALSE
+    )
+  }
   x <- data.table::fread(
     path, sep = sep, header = use_header, fill = TRUE,
     data.table = TRUE, showProgress = FALSE
@@ -20,13 +62,21 @@ read_metadata <- function(path, header = "auto") {
     data.table::setnames(x, 1L, "sample")
     if (ncol(x) >= 2L) data.table::setnames(x, 2L, "population")
   } else {
-    nm <- tolower(gsub("[^a-z0-9]+", "_", names(x)))
+    nm <- normalize_metadata_name(names(x))
     data.table::setnames(x, nm)
-    sc <- intersect(c("sample", "sample_id", "id", "individual", "individual_id"), names(x))[1]
-    if (is.na(sc)) stop("Metadata must contain a sample column", call. = FALSE)
-    data.table::setnames(x, sc, "sample")
-    pc <- intersect(c("population", "pop"), names(x))[1]
-    if (!is.na(pc) && !identical(pc, "population")) data.table::setnames(x, pc, "population")
+    if (!is.null(sample_column)) {
+      resolve_named_column(x, sample_column, "sample")
+    } else {
+      sc <- intersect(c("sample", "sample_id", "id", "individual", "individual_id"), names(x))[1]
+      if (is.na(sc)) stop("Metadata must contain a sample column", call. = FALSE)
+      data.table::setnames(x, sc, "sample")
+    }
+    if (!is.null(population_column)) {
+      resolve_named_column(x, population_column, "population")
+    } else {
+      pc <- intersect(c("population", "pop"), names(x))[1]
+      if (!is.na(pc) && !identical(pc, "population")) data.table::setnames(x, pc, "population")
+    }
   }
   x[, sample := as.character(sample)]
   x <- x[nzchar(sample)]

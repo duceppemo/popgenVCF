@@ -1,6 +1,6 @@
 publication_result_id <- function(x, fallback = "analysis") {
   value <- x$analysis_id %||% x$id %||% x$module %||% fallback
-  tolower(gsub("[^a-z0-9]+", "_", as.character(value)[1L]))
+  normalize_metadata_name(as.character(value)[1L])
 }
 
 publication_result_parameters <- function(x) {

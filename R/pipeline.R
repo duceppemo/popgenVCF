@@ -26,7 +26,10 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
 
   metadata_supplied <- !is.null(cfg$input$metadata)
   metadata <- if (metadata_supplied) {
-    stage("metadata import", read_metadata(cfg$input$metadata, cfg$input$metadata_header))
+    stage("metadata import", read_metadata(
+      cfg$input$metadata, cfg$input$metadata_header,
+      sample_column = cfg$input$sample_column, population_column = cfg$input$population_column
+    ))
   } else NULL
 
   prepared_vcf <- stage("VCF preparation", prepare_vcf_input(cfg$input$vcf, file.path(dirs$cache, "vcf")))

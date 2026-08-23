@@ -386,7 +386,13 @@ test_that("system resource helpers understand container limits", {
   expect_true(is.infinite(resources$memory_mb) || resources$memory_mb >= 1)
 })
 
-test_that("generated configuration lists every analysis with safe metadata defaults", {
+test_that("generated configuration lists every analysis, metadata-dependent ones enabled since the capability gate skips them safely", {
+  # template_config() no longer force-disables population/geography-gated
+  # analyses (see its own definition in R/config.R): the capability gate
+  # already skips each one automatically, with a WARNING, whenever the
+  # metadata it needs is actually absent, so there is nothing unsafe about
+  # shipping them enabled in the generated template. Ancestry backends stay
+  # off by default for unrelated reasons (external tool, not metadata).
   path <- tempfile(fileext = ".yml")
   popgenVCF:::write_default_config(path)
   cfg <- yaml::read_yaml(path)
@@ -400,8 +406,8 @@ test_that("generated configuration lists every analysis with safe metadata defau
     "diversity", "fst", "dapc", "amova", "mantel",
     "isolation_by_distance", "chromosome_specific"
   )
-  expect_true(all(!unlist(cfg$analyses[metadata_dependent], use.names = FALSE)))
-  expect_false(cfg$analyses$bootstrap$enabled)
+  expect_true(all(unlist(cfg$analyses[metadata_dependent], use.names = FALSE)))
+  expect_true(cfg$analyses$bootstrap$enabled)
   expect_true(all(unlist(cfg$analyses[c("pca", "ibs", "tree")], use.names = FALSE)))
   expect_false(cfg$analyses$admixture$enabled)
   expect_false(cfg$analyses$faststructure$enabled)
@@ -499,11 +505,51 @@ test_that("sNMF diagnostic summaries ignore non-finite replicate values", {
   )
 })
 
+test_that("input.sample_column/population_column default to NULL and validate as single non-empty strings", {
+  cfg <- popgenVCF::default_config()
+  expect_null(cfg$input$sample_column)
+  expect_null(cfg$input$population_column)
+
+  cfg$input$vcf <- tempfile(fileext = ".vcf")
+  cfg$output$directory <- tempfile("popgenvcf-output-")
+  file.create(cfg$input$vcf)
+
+  cfg$input$population_column <- "pathotype"
+  validated <- popgenVCF::validate_config(cfg)
+  expect_identical(validated$input$population_column, "pathotype")
+
+  cfg$input$population_column <- ""
+  expect_error(popgenVCF::validate_config(cfg), "input.population_column")
+  cfg$input$population_column <- c("a", "b")
+  expect_error(popgenVCF::validate_config(cfg), "input.population_column")
+
+  cfg$input$population_column <- NULL
+  cfg$input$sample_column <- ""
+  expect_error(popgenVCF::validate_config(cfg), "input.sample_column")
+})
+
 test_that("template analysis toggles drive registry enablement", {
+  # template_config() now matches default_config() exactly: population/
+  # geography-gated analyses stay enabled in the generated template since
+  # the capability gate (analysis_capability_table()) already skips each one
+  # automatically -- with a WARNING and an analysis_capabilities.tsv record
+  # -- whenever the metadata it actually needs is absent. Only ml_tree and
+  # the ancestry backends (admixture/faststructure/snmf) stay off by
+  # default, for reasons unrelated to metadata (see template_config()).
   registry <- popgenVCF::default_analysis_registry()
   cfg <- popgenVCF:::template_config()
   enabled <- names(registry$modules)[vapply(
     registry$modules, popgenVCF:::module_is_enabled, logical(1L), config = cfg
   )]
-  expect_identical(enabled, c("pca", "ibs", "kinship", "sex_check", "roh", "tree", "pcadapt", "ld_decay"))
+  expect_identical(cfg, popgenVCF::default_config())
+  expect_identical(enabled, c(
+    "diversity", "bottleneck", "pca", "ibs", "kinship", "sex_check", "roh", "tree",
+    "population_tree", "population_assignment", "fst", "genome_scan", "pcadapt",
+    "ld_decay", "ne_ld", "dapc", "amova", "clonality", "sexbias", "ibd",
+    "spatial_autocorrelation", "chromosome"
+  ))
+  expect_false(popgenVCF:::module_is_enabled(registry$modules$ml_tree, cfg))
+  expect_false(popgenVCF:::module_is_enabled(registry$modules$admixture, cfg))
+  expect_false(popgenVCF:::module_is_enabled(registry$modules$faststructure, cfg))
+  expect_false(popgenVCF:::module_is_enabled(registry$modules$snmf, cfg))
 })

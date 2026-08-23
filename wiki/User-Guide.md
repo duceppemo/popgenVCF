@@ -89,6 +89,18 @@ Header names are normalized to lowercase with underscores. Common sample-key
 synonyms and `pop` are recognized, but new files should use `sample` and
 `population` explicitly to avoid ambiguity with the `individual` grouping.
 
+If an existing column already holds population-equivalent data under a name
+that is not auto-detected (`pathotype`, `lineage`, `clade`, ...), set
+`input.population_column` (and, if needed, `input.sample_column`) in
+`analysis.yml` instead of renaming the column:
+
+```yaml
+input:
+  population_column: pathotype
+```
+
+This always wins over auto-detection, even if a literal `population` column
+is also present, and requires a headered metadata file.
 
 ## Worked example
 

@@ -7,6 +7,7 @@ default_config <- function() {
   list(
     schema_version = "1.0",
     input = list(vcf = NULL, metadata = NULL, metadata_header = "auto",
+                 sample_column = NULL, population_column = NULL,
                  geographic_columns = c("latitude", "longitude")),
     output = list(directory = NULL, figure_formats = c("pdf", "png"), dpi = 600L,
                   figure_style = "accessibility-first", base_font_size = 11,
@@ -69,27 +70,22 @@ default_config <- function() {
 }
 
 template_config <- function() {
-  cfg <- default_config()
-  # Analyses requiring population or geographic metadata are visible but off in
-  # the generated template. Existing partial configurations retain the historic
-  # defaults supplied by default_config().
-  cfg$analyses$diversity <- FALSE
-  cfg$analyses$bottleneck <- FALSE
-  cfg$analyses$fst <- FALSE
-  cfg$analyses$genome_scan <- FALSE
-  cfg$analyses$ne_ld <- FALSE
-  cfg$analyses$population_tree <- FALSE
-  cfg$analyses$population_assignment <- FALSE
-  cfg$analyses$dapc <- FALSE
-  cfg$analyses$amova <- FALSE
-  cfg$analyses$clonality <- FALSE
-  cfg$analyses$sexbias <- FALSE
-  cfg$analyses$mantel <- FALSE
-  cfg$analyses$isolation_by_distance <- FALSE
-  cfg$analyses$spatial_autocorrelation <- FALSE
-  cfg$analyses$chromosome_specific <- FALSE
-  cfg$analyses$bootstrap$enabled <- FALSE
-  cfg
+  # Population/geography-gated analyses (everything analysis_capability_table()
+  # classifies as a population_module or coordinate_module) used to be forced
+  # off here specifically for the generated --write-config template, even
+  # though default_config() already enables them. That was redundant: the
+  # capability gate already skips each one automatically, with a WARNING and
+  # an analysis_capabilities.tsv record, whenever the required metadata is
+  # actually absent -- so leaving them "enabled: true" in the template is
+  # never unsafe, and lets a user who *does* have complete metadata get the
+  # full analysis without having to find and flip each flag on individually.
+  # ml_tree and the ancestry backends (admixture/faststructure/snmf) are
+  # unrelated to this and stay off by default in default_config() itself:
+  # they are not metadata-gated (ancestry backends are unsupervised and run
+  # fine with no population metadata at all), they need an external
+  # tool/executable that may not be installed, and/or are deliberately
+  # opt-in for cost or hard-failure-on-purpose reasons.
+  default_config()
 }
 
 merge_lists <- function(x, y) {
@@ -241,6 +237,12 @@ validate_config <- function(cfg) {
   cfg$output$figure_style <- figure_style_name(cfg)
   cfg$input$metadata_header <- tolower(as.character(cfg$input$metadata_header))
   if (!cfg$input$metadata_header %in% c("auto", "yes", "no", "true", "false")) stop("input.metadata_header must be auto, yes, or no", call. = FALSE)
+  for (field in c("sample_column", "population_column")) {
+    value <- cfg$input[[field]]
+    if (!is.null(value) && (!is.character(value) || length(value) != 1L || !nzchar(trimws(value)))) {
+      stopf("input.%s must be NULL or a single non-empty column name", field)
+    }
+  }
   if (!is.finite(cfg$analyses$structure$replicates) || cfg$analyses$structure$replicates < 1L) stop("analyses.structure.replicates must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$structure$reproducibility_rmse) || cfg$analyses$structure$reproducibility_rmse < 0) stop("analyses.structure.reproducibility_rmse must be non-negative", call. = FALSE)
   if (!is.finite(cfg$analyses$structure$minimum_cluster_correlation) || cfg$analyses$structure$minimum_cluster_correlation < -1 || cfg$analyses$structure$minimum_cluster_correlation > 1) stop("analyses.structure.minimum_cluster_correlation must be between -1 and 1", call. = FALSE)

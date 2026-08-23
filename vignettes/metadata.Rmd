@@ -75,6 +75,27 @@ sample-key headers (`sample_id`, `id`, `individual`, `individual_id`) and `pop`
 as a population header, but explicit `sample` and `population` names avoid
 ambiguity when an `individual` grouping column is also present.
 
+### Using a differently named column
+
+If a metadata column already holds population-equivalent information under a
+name the built-in detection does not recognize (a `pathotype`, `lineage`, or
+`clade` column, for example), point `input.population_column` (and, if
+needed, `input.sample_column`) at it instead of renaming the column in the
+file itself:
+
+```yaml
+input:
+  sample_column: null
+  population_column: pathotype
+```
+
+An explicit `sample_column`/`population_column` always wins over the
+built-in auto-detection, even if a column already named `sample` or
+`population` is also present. The name is matched case-insensitively after
+the same normalization applied to every header (non-alphanumeric runs become
+underscores), so `Pathotype`, `pathotype`, and `patho-type` all match. Both
+require a headered metadata file (`input.metadata_header` not `no`).
+
 ## Complete example
 
 ```text

@@ -16,6 +16,8 @@ input:
   vcf: /data/cohort.vcf.gz
   metadata: /data/metadata.tsv
   metadata_header: auto
+  sample_column: null
+  population_column: null
   geographic_columns: [latitude, longitude]
 ```
 
@@ -27,6 +29,12 @@ tab-separated file is recommended. `geographic_columns` is ordered latitude
 first and longitude second; the canonical column names shown above support
 capability discovery.
 Coordinates must be signed decimal degrees, not DMS, UTM, or projected units.
+
+`sample_column`/`population_column` (default `null`) name a metadata column
+to treat as `sample`/`population` when it is not already one of the
+recognized synonyms, without renaming it in the file. An explicit value
+always wins over auto-detection, even over an existing literal `sample`/
+`population` column, and requires a headered metadata file.
 
 See the [User Guide metadata contract](User-Guide#metadata-file-contract) for
 aliases, identity fields, population completeness, coordinate ranges, and

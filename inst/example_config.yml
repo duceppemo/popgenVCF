@@ -4,6 +4,12 @@ input:
   # Optional headered TSV: sample must match VCF; alias is display-only.
   metadata: /path/to/pop_map.tsv
   metadata_header: auto
+  # Override the built-in sample/population column-name detection (sample,
+  # sample_id, id, individual; population, pop) to treat a differently
+  # named metadata column as one of those, without renaming it in the file.
+  # Set to null (the default) to use the built-in detection unchanged.
+  sample_column: null
+  population_column: pathotype
   # Signed decimal degrees, latitude first; use NA for missing pairs.
   geographic_columns: [latitude, longitude]
 output:
@@ -34,14 +40,14 @@ qc:
   autosome_only: true
   non_autosomal_chromosome_names: [X, "Y", MT, M, chrX, chrY, chrM, chrMT]
 analyses:
-  diversity: false
+  diversity: true
   hwe_alpha: 0.05
   # Rarefaction-corrected allelic richness (hierfstat::allelic.richness()).
   # A real, measured cost: on a tiny 60-sample/2000-SNP benchmark this alone
   # took ~3 seconds. Set to false to skip it and keep every other diversity
   # metric (heterozygosity, effective alleles, private alleles, HWE).
   diversity_allelic_richness: true
-  bottleneck: false
+  bottleneck: true
   # Folded site frequency spectrum and the mode-shift bottleneck screen
   # (Luikart and Cornuet 1998): a mode away from the lowest allele-frequency
   # class is a possible recent-bottleneck signature. Bin count for the
@@ -86,7 +92,7 @@ analyses:
   # Nei's (1972) standard genetic distance between populations and an NJ
   # tree from it -- distinct from "tree" above, which is an individual-level
   # tree from IBS distance, not population allele frequencies.
-  population_tree: false
+  population_tree: true
   tree_bootstrap:
     enabled: true
     # Locus-resampling bootstrap (Felsenstein 1985) applied to both NJ trees
@@ -99,9 +105,9 @@ analyses:
   # each sample's genotype fit its own recorded population's allele
   # frequencies best, or a different one (a candidate migrant or metadata
   # error)? Leave-one-out corrected (Rannala and Mountain 1997).
-  population_assignment: false
-  fst: false
-  genome_scan: false
+  population_assignment: true
+  fst: true
+  genome_scan: true
   # Non-overlapping by default (step = window); set step below window for a
   # real overlapping/sliding scan.
   genome_scan_window_bp: 50000
@@ -114,27 +120,27 @@ analyses:
   ld_decay_max_distance_bp: 500000
   ld_decay_bin_bp: 5000
   ld_decay_slide: 100
-  ne_ld: false
+  ne_ld: true
   # LD-based effective population size (Waples 2006; Waples and Do 2008),
   # per population, from cross-chromosome (unlinked) marker pairs. Subsampled
   # to this many SNPs per population when the marker set is larger, bounding
   # the O(n^2) pairwise LD computation.
   ne_ld_max_snps: 2000
-  dapc: false
+  dapc: true
   dapc_k: 2:10
   dapc_cross_validation: true
   dapc_loading_top_n: 20
-  amova: false
-  mantel: false
-  isolation_by_distance: false
-  spatial_autocorrelation: false
+  amova: true
+  mantel: true
+  isolation_by_distance: true
+  spatial_autocorrelation: true
   # Distance-class correlogram (Smouse and Peakall 1999): a genetic
   # autocorrelation coefficient r per geographic-distance class, with a
   # permutation-based null envelope and p-value -- a distance-resolved
   # complement to the single overall Mantel r above.
   spatial_autocorrelation_bins: 10
   spatial_autocorrelation_permutations: 999
-  chromosome_specific: false
+  chromosome_specific: true
   chromosome_min_snps: 100
   bootstrap:
     enabled: false
