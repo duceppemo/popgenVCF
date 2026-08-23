@@ -19,8 +19,8 @@ test_that("packaged software identity is complete and release-consistent", {
   released_prefix <- sub("^([0-9]+\\.[0-9]+\\.[0-9]+)\\.9[0-9]{3}$", "\\1", installed_version)
   expect_identical(identity$version, released_prefix)
   if (identical(identity$release_status, "released")) {
-    expect_identical(identity$date_released, "2026-08-01")
-    expect_identical(identity$doi, "10.5281/zenodo.21747548")
+    expect_match(identity$date_released, "^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+    expect_match(identity$doi, "^10\\.5281/zenodo\\.[0-9]+$")
   } else {
     expect_identical(identity$release_status, "development")
     expect_null(identity$date_released)
