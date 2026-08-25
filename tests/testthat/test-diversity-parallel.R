@@ -40,9 +40,14 @@ test_that("parallel diversity (per-population fork, independent GDS connections)
     gds, fx$sample_id, ids$snp, fx$metadata, ids,
     gds_path = NULL, threads = 1L
   )
+  # threads = 2, not 3: R CMD check's --as-cran policy (CRAN's real
+  # no-more-than-2-simultaneous-cores rule for tests) errors via
+  # parallel:::.check_ncores() above 2 -- confirmed the hard way when this
+  # first shipped with threads = 3 and broke CI (see NEWS.md). 2 workers for
+  # 3 populations still exercises real multi-process dispatch.
   parallel_result <- popgenVCF:::compute_diversity(
     gds, fx$sample_id, ids$snp, fx$metadata, ids,
-    gds_path = fx$path, threads = 3L
+    gds_path = fx$path, threads = 2L
   )
 
   expect_identical(nrow(parallel_result$locus), nrow(serial$locus))
@@ -90,7 +95,7 @@ test_that("a real per-worker failure surfaces as a clear, non-silent error rathe
   expect_error(
     popgenVCF:::compute_diversity(
       gds, fx$sample_id, ids$snp, fx$metadata, ids,
-      gds_path = tempfile(fileext = ".gds"), threads = 3L
+      gds_path = tempfile(fileext = ".gds"), threads = 2L
     ),
     "Parallel diversity computation failed"
   )

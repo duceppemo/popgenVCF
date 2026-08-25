@@ -20,8 +20,10 @@ genome_scan_fst_parallel_fixture_gds <- function() {
   )
   metadata <- data.table::data.table(sample = sample_id, population = populations)
   # window_bp = step_bp = 1000 over a 100-1000bp*2-chromosome span gives ~20
-  # non-overlapping windows -- enough to exercise real multi-chunk dispatch
-  # (fork_worker_count(20, 3) = 3 workers, each getting a contiguous slice).
+  # non-overlapping windows -- enough to exercise real multi-chunk dispatch.
+  # Tests below use threads = 2, not 3: R CMD check's --as-cran policy
+  # (CRAN's real no-more-than-2-simultaneous-cores rule for tests) errors
+  # via parallel:::.check_ncores() above 2.
   list(path = gds_path, snp_ids = seq_len(n_snp), metadata = metadata)
 }
 
@@ -37,7 +39,7 @@ test_that("parallel run_genome_scan_fst (chunked fork, independent GDS connectio
   )
   parallel_result <- popgenVCF:::run_genome_scan_fst(
     gds, fx$snp_ids, ids, fx$metadata, window_bp = 1000, step_bp = 1000, min_snps = 2L,
-    gds_path = fx$path, threads = 3L
+    gds_path = fx$path, threads = 2L
   )
 
   expect_gt(nrow(serial), 10L)
@@ -68,7 +70,7 @@ test_that("a real per-chunk failure surfaces as a clear, non-silent error rather
   expect_error(
     popgenVCF:::run_genome_scan_fst(
       gds, fx$snp_ids, ids, fx$metadata, window_bp = 1000, step_bp = 1000, min_snps = 2L,
-      gds_path = tempfile(fileext = ".gds"), threads = 3L
+      gds_path = tempfile(fileext = ".gds"), threads = 2L
     ),
     "Parallel genome-scan FST computation failed"
   )
@@ -95,7 +97,7 @@ test_that("parallel run_genome_scan_diversity (per-population fork, no GDS invol
     locus, window_bp = 1000, step_bp = 1000, min_snps = 1L, population_n = population_n, threads = 1L
   )
   parallel_result <- popgenVCF:::run_genome_scan_diversity(
-    locus, window_bp = 1000, step_bp = 1000, min_snps = 1L, population_n = population_n, threads = 3L
+    locus, window_bp = 1000, step_bp = 1000, min_snps = 1L, population_n = population_n, threads = 2L
   )
 
   expect_identical(nrow(parallel_result), nrow(serial))
@@ -119,7 +121,7 @@ test_that("a real per-population failure surfaces as a clear, non-silent error r
   expect_error(
     popgenVCF:::run_genome_scan_diversity(
       locus, window_bp = 1000, step_bp = 1000, min_snps = 1L,
-      population_n = bad_population_n, threads = 3L
+      population_n = bad_population_n, threads = 2L
     ),
     "Parallel genome-scan diversity computation failed"
   )

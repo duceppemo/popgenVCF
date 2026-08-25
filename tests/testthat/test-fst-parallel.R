@@ -26,7 +26,11 @@ test_that("parallel run_fst (per-pair fork, independent GDS connections) matches
   on.exit(SNPRelate::snpgdsClose(gds), add = TRUE)
 
   serial <- popgenVCF:::run_fst(gds, fx$snp_ids, fx$metadata, gds_path = NULL, threads = 1L)
-  parallel_result <- popgenVCF:::run_fst(gds, fx$snp_ids, fx$metadata, gds_path = fx$path, threads = 3L)
+  # threads = 2, not 3: R CMD check's --as-cran policy (CRAN's real
+  # no-more-than-2-simultaneous-cores rule for tests) errors via
+  # parallel:::.check_ncores() above 2. 2 workers for 6 pairs still
+  # exercises real multi-process dispatch.
+  parallel_result <- popgenVCF:::run_fst(gds, fx$snp_ids, fx$metadata, gds_path = fx$path, threads = 2L)
 
   expect_identical(nrow(parallel_result$long), nrow(serial$long))
   expect_identical(nrow(parallel_result$long), 6L) # choose(4, 2)
@@ -63,7 +67,7 @@ test_that("a real per-pair failure surfaces as a clear, non-silent error rather 
   # failure mode, proving mclapply's per-worker errors are actually caught
   # and surfaced, not silently dropped or left as corrupted rows.
   expect_error(
-    popgenVCF:::run_fst(gds, fx$snp_ids, fx$metadata, gds_path = tempfile(fileext = ".gds"), threads = 3L),
+    popgenVCF:::run_fst(gds, fx$snp_ids, fx$metadata, gds_path = tempfile(fileext = ".gds"), threads = 2L),
     "Parallel FST computation failed"
   )
 })
