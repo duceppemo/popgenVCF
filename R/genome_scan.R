@@ -49,7 +49,8 @@ genome_scan_windows <- function(chromosome, position, window_bp, step_bp) {
   windows[]
 }
 
-run_genome_scan_fst <- function(gds, snp_ids, ids, metadata, window_bp, step_bp, min_snps) {
+run_genome_scan_fst <- function(gds, snp_ids, ids, metadata, window_bp, step_bp, min_snps,
+                                 gds_path = NULL, threads = 1L) {
   # Named snp_* to avoid colliding with the `windows` table's own
   # chromosome/window_start/window_end columns once inside the per-row `j`
   # expression below -- a bare `chromosome` there resolves to windows' own
@@ -64,26 +65,63 @@ run_genome_scan_fst <- function(gds, snp_ids, ids, metadata, window_bp, step_bp,
   # snpgdsFst() with an undefined (NA) population, which it rejects outright.
   sample_ids <- metadata$sample
   population <- factor(metadata$population)
-  windows[, c("n_snps", "global_fst") := {
+  n_windows <- nrow(windows)
+
+  window_fst_stat <- function(i, gds_conn) {
+    chromosome <- windows$chromosome[[i]]
+    window_start <- windows$window_start[[i]]
+    window_end <- windows$window_end[[i]]
     w <- snp_ids[snp_chromosome == chromosome & snp_position >= window_start & snp_position <= window_end]
-    if (length(w) < min_snps) {
-      list(length(w), NA_real_)
-    } else {
-      z <- SNPRelate::snpgdsFst(
-        gds, sample.id = sample_ids, snp.id = w, population = population,
-        method = "W&C84", autosome.only = FALSE, remove.monosnp = TRUE,
-        maf = NaN, missing.rate = NaN, verbose = FALSE
+    if (length(w) < min_snps) return(list(n_snps = length(w), global_fst = NA_real_))
+    z <- SNPRelate::snpgdsFst(
+      gds_conn, sample.id = sample_ids, snp.id = w, population = population,
+      method = "W&C84", autosome.only = FALSE, remove.monosnp = TRUE,
+      maf = NaN, missing.rate = NaN, verbose = FALSE
+    )
+    list(n_snps = length(w), global_fst = as.numeric(z$Fst))
+  }
+
+  # A genome-wide scan has far more windows (thousands+) than a per-population
+  # task, each individually cheap (one snpgdsFst() call over that window's
+  # handful of SNPs) -- forking one process per window (as diversity/fst do
+  # per population/pair, where each task is genuinely heavy) would pay fork
+  # overhead thousands of times over. Instead windows are split into exactly
+  # `workers` contiguous chunks (parallel::splitIndices(), the same
+  # balanced-partitioning helper parallel::mclapply() uses internally), and
+  # each forked worker opens one independent GDS connection (sharing the
+  # parent's is unsafe, see diversity.R) and processes its whole chunk.
+  workers <- if (is.null(gds_path)) 1L else fork_worker_count(n_windows, threads)
+  results <- if (workers <= 1L) {
+    lapply(seq_len(n_windows), window_fst_stat, gds_conn = gds)
+  } else {
+    chunks <- parallel::splitIndices(n_windows, workers)
+    chunk_results <- parallel::mclapply(chunks, function(idx) {
+      worker_gds <- SNPRelate::snpgdsOpen(
+        gds_path, readonly = TRUE, allow.duplicate = TRUE, allow.fork = TRUE
       )
-      list(length(w), as.numeric(z$Fst))
+      on.exit(SNPRelate::snpgdsClose(worker_gds), add = TRUE)
+      lapply(idx, window_fst_stat, gds_conn = worker_gds)
+    }, mc.cores = workers, mc.preschedule = FALSE, mc.set.seed = FALSE)
+    failed <- vapply(chunk_results, inherits, logical(1L), what = "try-error")
+    if (any(failed)) {
+      stop(
+        "Parallel genome-scan FST computation failed for ", sum(failed),
+        " window chunk(s)", call. = FALSE
+      )
     }
-  }, by = seq_len(nrow(windows))]
+    unlist(chunk_results, recursive = FALSE)
+  }
+  windows[, n_snps := vapply(results, `[[`, integer(1L), "n_snps")]
+  windows[, global_fst := vapply(results, `[[`, numeric(1L), "global_fst")]
   windows[]
 }
 
-run_genome_scan_diversity <- function(locus_table, window_bp, step_bp, min_snps, population_n = NULL) {
+run_genome_scan_diversity <- function(locus_table, window_bp, step_bp, min_snps, population_n = NULL,
+                                       threads = 1L) {
   windows <- genome_scan_windows(locus_table$chromosome, locus_table$position, window_bp, step_bp)
   populations <- sort(unique(locus_table$population))
-  out <- data.table::rbindlist(lapply(populations, function(pop) {
+
+  diversity_scan_windows <- function(pop) {
     pop_locus <- locus_table[population == pop]
     # Plain vectors, not a second data.table with its own chromosome column
     # -- the same naming-collision hazard as run_genome_scan_fst() above.
@@ -114,7 +152,32 @@ run_genome_scan_diversity <- function(locus_table, window_bp, step_bp, min_snps,
       }
     }, by = seq_len(nrow(grid))]
     grid
-  }))
+  }
+
+  # Pure R/data.table computation over an already-materialized locus subset
+  # -- no GDS handle involved, unlike run_genome_scan_fst() above, so this
+  # can fork directly with no per-worker connection dance. Each population's
+  # full windowed scan is a genuinely heavy, independent task (same profile
+  # as diversity's own per-population parallelization), so forking per
+  # population (not per window) is the right granularity here.
+  workers <- fork_worker_count(length(populations), threads)
+  grids <- if (workers <= 1L) {
+    lapply(populations, diversity_scan_windows)
+  } else {
+    results <- parallel::mclapply(
+      populations, diversity_scan_windows,
+      mc.cores = workers, mc.preschedule = FALSE, mc.set.seed = FALSE
+    )
+    failed <- vapply(results, inherits, logical(1L), what = "try-error")
+    if (any(failed)) {
+      stop(
+        "Parallel genome-scan diversity computation failed for population(s): ",
+        paste(populations[failed], collapse = ", "), call. = FALSE
+      )
+    }
+    results
+  }
+  out <- data.table::rbindlist(grids)
   data.table::setcolorder(out, c("chromosome", "window_start", "window_end", "population", "n_snps"))
   out[, .chr_sort_key := natural_sort_key(chromosome)]
   data.table::setorder(out, .chr_sort_key, window_start, population)

@@ -165,7 +165,10 @@ run_module_ml_tree <- function(analysis, context) {
 
 run_module_fst <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
-  fst <- run_fst(context$gds, context$qc_snps, context$metadata)
+  fst <- run_fst(
+    context$gds, context$qc_snps, context$metadata,
+    gds_path = context$gds_path, threads = cfg$compute$threads
+  )
   jost <- compute_jost_d(context$diversity_full$locus)
   fst$global_jost_d <- jost$global
   fst$jost_d_matrix <- jost$matrix
@@ -269,11 +272,13 @@ run_module_genome_scan <- function(analysis, context) {
   min_snps <- cfg$analyses$genome_scan_min_snps
   fst_windows <- run_genome_scan_fst(
     context$gds, context$qc_snps, context$ids, context$metadata,
-    window_bp, step_bp, min_snps
+    window_bp, step_bp, min_snps,
+    gds_path = context$gds_path, threads = cfg$compute$threads
   )
   population_n <- context$metadata[, .N, by = population][, stats::setNames(N, population)]
   diversity_windows <- run_genome_scan_diversity(
-    context$diversity_full$locus, window_bp, step_bp, min_snps, population_n
+    context$diversity_full$locus, window_bp, step_bp, min_snps, population_n,
+    threads = cfg$compute$threads
   )
   outliers <- fst_windows[is.finite(global_fst)]
   data.table::setorder(outliers, -global_fst)
