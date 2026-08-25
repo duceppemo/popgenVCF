@@ -4,7 +4,8 @@ run_module_diversity <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
   div <- compute_diversity(context$gds, context$sample_ids, context$qc_snps,
                            context$metadata, context$ids, cfg$analyses$hwe_alpha,
-                           compute_allelic_richness = isTRUE(cfg$analyses$diversity_allelic_richness))
+                           compute_allelic_richness = isTRUE(cfg$analyses$diversity_allelic_richness),
+                           gds_path = context$gds_path, threads = cfg$compute$threads)
   ci <- if (isTRUE(cfg$analyses$bootstrap$enabled)) {
     bootstrap_diversity(div$locus, cfg$analyses$bootstrap$replicates,
                         cfg$compute$seed, cfg$analyses$bootstrap$unit)

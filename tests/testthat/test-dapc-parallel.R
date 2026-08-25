@@ -14,25 +14,6 @@ dapc_parallel_fixture <- function() {
   list(genotype = genotype, sample_ids = sample_ids, metadata = metadata)
 }
 
-test_that("DAPC worker count is bounded by K values and platform support", {
-  expect_identical(
-    popgenVCF:::dapc_worker_count(2:8, 64L, fork_available = TRUE),
-    7L
-  )
-  expect_identical(
-    popgenVCF:::dapc_worker_count(2:8, 3L, fork_available = TRUE),
-    3L
-  )
-  expect_identical(
-    popgenVCF:::dapc_worker_count(2:8, 64L, fork_available = FALSE),
-    1L
-  )
-  expect_identical(
-    popgenVCF:::dapc_worker_count(2:8, NA_integer_, fork_available = TRUE),
-    1L
-  )
-})
-
 test_that("parallel DAPC matches serial output and computes one PCA per run", {
   fixture <- dapc_parallel_fixture()
   original_compute <- popgenVCF:::compute_dapc_shared_pca

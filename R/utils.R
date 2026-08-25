@@ -38,6 +38,21 @@ call_supported <- function(fun, args, function_name = deparse(substitute(fun))) 
   do.call(fun, args[supported])
 }
 
+# Bounds a fork-based worker count by the number of independent tasks, the
+# configured thread budget, and platform fork support (parallel::mcparallel()/
+# mclapply() are Unix-only). Shared by every module that forks independent
+# per-task work -- originally DAPC-specific (per-K model fitting), generalized
+# here once diversity's per-population statistics needed the identical
+# bounding logic, to avoid a second copy drifting from the first.
+fork_worker_count <- function(n_tasks, threads, fork_available = .Platform$OS.type != "windows") {
+  threads <- suppressWarnings(as.integer(threads)[1L])
+  n_tasks <- suppressWarnings(as.integer(n_tasks)[1L])
+  if (is.na(threads) || threads < 1L || is.na(n_tasks) || n_tasks < 1L || !isTRUE(fork_available)) {
+    return(1L)
+  }
+  max(1L, min(threads, n_tasks))
+}
+
 run_stage <- function(name, expr, timings = NULL) {
   log_msg("Starting ", name)
   t0 <- proc.time()[["elapsed"]]

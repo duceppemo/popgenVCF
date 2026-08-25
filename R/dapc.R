@@ -56,12 +56,6 @@ compute_dapc_shared_pca <- function(gl, max_pca) {
   )
 }
 
-dapc_worker_count <- function(k_values, threads,
-                              fork_available = .Platform$OS.type != "windows") {
-  threads <- suppressWarnings(as.integer(threads)[1L])
-  if (is.na(threads) || threads < 1L || !isTRUE(fork_available)) return(1L)
-  max(1L, min(threads, length(k_values)))
-}
 
 run_dapc_k_task <- function(k, gl, shared_pca, max_pca, sample_ids,
                             public_ids, metadata, truth, cross_validate,
@@ -194,7 +188,7 @@ run_dapc_analysis <- function(geno, sample_ids, metadata, k_values, seed,
   max_pca <- max(2L, min(nrow(geno) - 1L, 100L))
   shared_pca <- compute_dapc_shared_pca(gl, max_pca)
   truth <- metadata$population[match(sample_ids, metadata$sample)]
-  workers <- dapc_worker_count(valid_k, threads)
+  workers <- fork_worker_count(length(valid_k), threads)
   log_msg(
     "DAPC fitting ", length(valid_k), " K value(s) with ", workers,
     " worker(s) and one shared genotype PCA"

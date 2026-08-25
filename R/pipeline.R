@@ -129,7 +129,7 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
   selected_available <- resolve_pipeline_modules(registry, capabilities, cfg, selected)
 
   context <- list(
-    cfg = cfg, dirs = dirs, gds = gds, ids = ids, sample_ids = sample_ids,
+    cfg = cfg, dirs = dirs, gds = gds, gds_path = gds_path, ids = ids, sample_ids = sample_ids,
     metadata = metadata, hs = hs, vq = vq, qc_snps = qc_snps,
     qc_snps_all = qc_snps_all, final_snps = final_snps, capabilities = capabilities,
     vcf_path = prepared_vcf$path
