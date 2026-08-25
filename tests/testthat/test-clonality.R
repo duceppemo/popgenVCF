@@ -23,7 +23,7 @@ test_that("run_clonality detects an exact duplicate pair as a shared multilocus 
   metadata <- data.table::data.table(
     sample = rownames(geno), population = rep(c("A", "B"), each = 10)
   )
-  res <- popgenVCF:::run_clonality(geno, rownames(geno), metadata, seed = 42, curve_replicates = 10)
+  res <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 10)
 
   expect_true(nrow(res$groups) >= 1L)
   dup_group <- res$groups[grepl("VCF_S1", samples) & grepl("VCF_S2", samples)]
@@ -38,7 +38,7 @@ test_that("run_clonality flags a cross-population shared genotype", {
   metadata <- data.table::data.table(
     sample = rownames(geno), population = rep(c("A", "B"), each = 10)
   )
-  res <- popgenVCF:::run_clonality(geno, rownames(geno), metadata, seed = 42, curve_replicates = 0)
+  res <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 0)
   dup_group <- res$groups[grepl("VCF_S1(,|$)", samples) & grepl("VCF_S11", samples)]
   expect_identical(nrow(dup_group), 1L)
   expect_true(dup_group$cross_population)
@@ -49,7 +49,7 @@ test_that("run_clonality's summary table has one row per population plus Total, 
   metadata <- data.table::data.table(
     sample = rownames(geno), population = rep(c("A", "B"), each = 10)
   )
-  res <- popgenVCF:::run_clonality(geno, rownames(geno), metadata, seed = 42, curve_replicates = 0)
+  res <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 0)
   expect_setequal(res$summary$population, c("A", "B", "Total"))
   expect_true(all(res$summary$mlg <= res$summary$n))
   expect_true(all(res$summary$mlg >= 1L))
@@ -62,7 +62,7 @@ test_that("run_clonality's genotype accumulation curve is non-decreasing on aver
   metadata <- data.table::data.table(
     sample = rownames(geno), population = rep(c("A", "B"), each = 10)
   )
-  res <- popgenVCF:::run_clonality(geno, rownames(geno), metadata, seed = 42, curve_replicates = 30)
+  res <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 30)
   expect_true(nrow(res$curve) > 0L)
   expect_true(all(diff(res$curve$mean_mlg) >= -1e-8))
   expect_true(all(res$curve$mean_mlg <= res$n_mlg_total + 1e-8))
@@ -72,7 +72,7 @@ test_that("run_clonality errors clearly with a non-missing-population requiremen
   geno <- clonality_fixture_genotype(n = 6L, l = 10L)
   metadata <- data.table::data.table(sample = rownames(geno), population = c(rep("A", 5L), NA))
   expect_error(
-    popgenVCF:::run_clonality(geno, rownames(geno), metadata, seed = 42),
+    popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42),
     "non-missing population"
   )
 })
@@ -81,7 +81,7 @@ test_that("run_clonality errors clearly with fewer than two loci", {
   geno <- clonality_fixture_genotype(n = 6L, l = 1L)
   metadata <- data.table::data.table(sample = rownames(geno), population = "A")
   expect_error(
-    popgenVCF:::run_clonality(geno, rownames(geno), metadata, seed = 42),
+    popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42),
     "at least two polymorphic loci"
   )
 })
@@ -91,8 +91,8 @@ test_that("run_clonality is deterministic given the same seed", {
   metadata <- data.table::data.table(
     sample = rownames(geno), population = rep(c("A", "B"), each = 8)
   )
-  res1 <- popgenVCF:::run_clonality(geno, rownames(geno), metadata, seed = 7, curve_replicates = 15)
-  res2 <- popgenVCF:::run_clonality(geno, rownames(geno), metadata, seed = 7, curve_replicates = 15)
+  res1 <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 7, curve_replicates = 15)
+  res2 <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 7, curve_replicates = 15)
   expect_identical(res1$summary, res2$summary)
   expect_identical(res1$curve, res2$curve)
 })
@@ -102,7 +102,7 @@ test_that("plot_clonality writes a figure file when a curve was computed", {
   metadata <- data.table::data.table(
     sample = rownames(geno), population = rep(c("A", "B"), each = 10)
   )
-  res <- popgenVCF:::run_clonality(geno, rownames(geno), metadata, seed = 42, curve_replicates = 10)
+  res <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 10)
   cfg <- popgenVCF::default_config(); cfg$output$figure_formats <- "png"
   out <- tempfile("clonality-plot-"); dirs <- list(figures = file.path(out, "figures"))
   dir.create(dirs$figures, recursive = TRUE)
@@ -116,7 +116,7 @@ test_that("plot_clonality is a no-op when the curve is empty (curve_replicates =
   metadata <- data.table::data.table(
     sample = rownames(geno), population = rep(c("A", "B"), each = 10)
   )
-  res <- popgenVCF:::run_clonality(geno, rownames(geno), metadata, seed = 42, curve_replicates = 0)
+  res <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 0)
   cfg <- popgenVCF::default_config(); cfg$output$figure_formats <- "png"
   out <- tempfile("clonality-empty-"); dirs <- list(figures = file.path(out, "figures"))
   dir.create(dirs$figures, recursive = TRUE)
@@ -131,7 +131,7 @@ test_that("validate_clonality_result accepts a well-formed result and flags real
   metadata <- data.table::data.table(
     sample = rownames(geno), population = rep(c("A", "B"), each = 10)
   )
-  res <- popgenVCF:::run_clonality(geno, rownames(geno), metadata, seed = 42, curve_replicates = 10)
+  res <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 10)
 
   ok <- popgenVCF:::validate_clonality_result(res, NULL, NULL)
   expect_true(ok$valid)
@@ -191,7 +191,7 @@ test_that("run_clonality falls back to an empty, well-typed summary and sets pop
   testthat::local_mocked_bindings(
     clonality_run_poppr_isolated = function(gc, ia_permutations) NULL
   )
-  res <- popgenVCF:::run_clonality(geno, rownames(geno), metadata, seed = 42, curve_replicates = 5)
+  res <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 5)
   expect_true(res$poppr_failed)
   expect_identical(nrow(res$summary), 0L)
   expect_identical(names(res$summary), names(popgenVCF:::clonality_empty_summary()))
@@ -208,7 +208,7 @@ test_that("validate_clonality_result accepts the poppr-failed empty-summary fall
   testthat::local_mocked_bindings(
     clonality_run_poppr_isolated = function(gc, ia_permutations) NULL
   )
-  res <- popgenVCF:::run_clonality(geno, rownames(geno), metadata, seed = 42, curve_replicates = 5)
+  res <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 5)
   ok <- popgenVCF:::validate_clonality_result(res, NULL, NULL)
   expect_true(ok$valid)
 })
@@ -232,4 +232,51 @@ test_that("clonality_module_spec is registered, requires diversity, and is enabl
   expect_true(spec$enabled(cfg))
   cfg$analyses$clonality <- FALSE
   expect_false(spec$enabled(cfg))
+})
+
+test_that("run_clonality routes MLG duplicate detection to the full set and Ia/rbarD/curve to the LD-pruned set", {
+  set.seed(11)
+  n <- 6L; l <- 40L
+  geno <- matrix(sample(0:2, n * l, replace = TRUE), n, l)
+  dimnames(geno) <- list(paste0("S", seq_len(n)), paste0("snp", seq_len(l)))
+  geno["S2", ] <- geno["S1", ] # identical on every locus -- a real duplicate
+  geno["S4", 1:5] <- geno["S3", 1:5] # identical only on the first 5 loci
+  # Guarantee S3 and S4 differ somewhere beyond locus 5, so they are NOT a
+  # real duplicate on the full marker set -- the false-positive risk this
+  # test is checking for depends on that.
+  if (identical(geno["S3", 6:l], geno["S4", 6:l])) geno["S4", 6L] <- (geno["S3", 6L] + 1L) %% 3L
+  ld_geno <- geno[, 1:5, drop = FALSE]
+
+  metadata <- data.table::data.table(sample = rownames(geno), population = rep(c("A", "B"), each = 3))
+  res <- popgenVCF:::run_clonality(geno, ld_geno, rownames(geno), metadata, seed = 42, curve_replicates = 10)
+
+  # mlg.id() (the groups table) used the full, unpruned set: only the
+  # genuine S1/S2 duplicate is flagged, not the S3/S4 pair that only
+  # matches on the LD-pruned subset.
+  expect_true(any(grepl("S1", res$groups$samples) & grepl("S2", res$groups$samples)))
+  expect_false(any(grepl("S3", res$groups$samples) & grepl("S4", res$groups$samples)))
+
+  # poppr()'s Ia/rbarD summary and the genotype accumulation curve used the
+  # LD-pruned set: the pooled "Total" MLG count reflects the coarser
+  # 5-locus panel (4 distinct genotypes among 6 samples: {S1,S2}, {S3,S4},
+  # S5, S6), not the full 40-locus panel's 5 distinct genotypes.
+  expect_identical(res$n_mlg_total, 4L)
+  expect_true(max(res$curve$n_loci) <= ncol(ld_geno))
+})
+
+test_that("run_clonality degrades gracefully when the LD-pruned set has fewer than two usable loci", {
+  geno <- clonality_fixture_genotype(n = 6L, l = 10L, seed = 9L)
+  metadata <- data.table::data.table(sample = rownames(geno), population = rep(c("A", "B"), each = 3))
+  ld_geno <- geno[, 1, drop = FALSE] # only one LD-pruned locus
+
+  res <- popgenVCF:::run_clonality(geno, ld_geno, rownames(geno), metadata, seed = 42, curve_replicates = 10)
+
+  expect_false(res$ld_pruned_usable)
+  expect_true(res$poppr_failed)
+  expect_identical(nrow(res$summary), 0L)
+  expect_identical(nrow(res$curve), 0L)
+  expect_true(is.na(res$n_mlg_total))
+  # groups (from the full, unpruned set) are unaffected by the LD-pruned set
+  # being too small to support Ia/rbarD.
+  expect_true(is.data.frame(res$groups))
 })

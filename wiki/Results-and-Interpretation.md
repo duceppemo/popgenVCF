@@ -819,44 +819,56 @@ related are these two samples," but "do these two samples have *exactly*
 the same genotype at every analyzed locus." That's the standard signal for
 clonal replicates, accidental resampling, or duplicate sample submissions --
 relevant for any population-genetic dataset, not only strictly outbreeding
-ones. `56_MLG_diversity_summary.tsv` reports per-population (and overall)
-genotypic diversity: the number of distinct multilocus genotypes (MLG)
-recovered, rarefied expected MLG (eMLG), Shannon's H, Stoddart-Taylor's G,
-Simpson's lambda, evenness (E.5), and the index of association (Ia/rbarD), a
-measure of non-random association among loci. `57_MLG_groups.tsv` lists any
-group of samples sharing an identical genotype, flagging groups that span
-more than one recorded population -- a stronger, discrete corroboration of
-the kind of cross-population duplicate or mislabeling issue kinship's
-continuous score can only suggest.
+ones.
 
-![Genotype accumulation curve from the quickstart example: mean and 95% envelope of distinct multilocus genotypes resolved as loci are subsampled, with a dashed line at the full marker set's MLG count](figures/58_genotype_accumulation_curve.png)
+Two genuinely different marker sets feed this module, deliberately.
+`57_MLG_groups.tsv` (exact duplicate-genotype detection, via `mlg.id()`)
+uses the full, unpruned QC-passing locus set -- fewer markers would make it
+*more* likely that two genuinely different individuals coincidentally match
+at every retained locus, so exact identity needs maximum discriminating
+power. `56_MLG_diversity_summary.tsv` (MLG/eMLG/Shannon's H/Stoddart-
+Taylor's G/Simpson's lambda/evenness/Ia/rbarD, via `poppr()`) and the
+genotype accumulation curve below instead use the LD-pruned locus set. Both
+originally reused the full unpruned set "for consistency with AMOVA," but a
+real production run found that choice was wrong on two counts at once: a
+50-sample, 561,767-locus unpruned cohort took 29+ hours in `poppr()`'s
+Ia/rbarD computation alone (confirmed superlinear in locus count by direct
+scaling measurement, not merely slow); and Ia/rbarD's own null-model
+interpretation assumes approximately independent input loci, so feeding it
+hundreds of thousands of physically linked SNPs mechanically inflates the
+appearance of non-random multilocus association through ordinary linkage,
+not real clonal signal. Running it on the LD-pruned set instead -- the same
+set already used for kinship/PCA/DAPC elsewhere in this pipeline -- fixes
+both problems together; see `R/clonality.R`'s top-of-file comment for the
+full measurement and reasoning.
+
+![Genotype accumulation curve from the quickstart example: mean and 95% envelope of distinct multilocus genotypes resolved as LD-pruned loci are subsampled, with a dashed line at the full LD-pruned marker set's MLG count](figures/58_genotype_accumulation_curve.png)
 
 On the quickstart example, all 160 samples have a unique multilocus genotype
-across the 1,969 QC-passing loci this module reuses from the diversity
-module (not the 357-SNP LD-pruned set kinship/PCA/tree use above) --
-`57_MLG_groups.tsv` is empty. Notably, this includes the one pair kinship
-above confidently classifies as `duplicate/MZ twin` (`NA19331`/`NA19334`,
-kinship = 0.4459): on this larger marker panel their genotypes are *not*
-bit-identical. That is not a contradiction, it is the expected difference
-between the two signals. Kinship's continuous estimator assigns a
-relatedness class from partial genetic similarity (even a genuine duplicate
-can show some genotyping noise or missing-data differences); exact
+-- `57_MLG_groups.tsv` is empty. This is computed on the full 1,969
+QC-passing loci this module reuses from the diversity module (not the
+357-SNP LD-pruned set kinship/PCA/tree use above), and includes the one pair
+kinship above confidently classifies as `duplicate/MZ twin`
+(`NA19331`/`NA19334`, kinship = 0.4459): on this larger marker panel their
+genotypes are *not* bit-identical. That is not a contradiction, it is the
+expected difference between the two signals. Kinship's continuous estimator
+assigns a relatedness class from partial genetic similarity (even a genuine
+duplicate can show some genotyping noise or missing-data differences); exact
 multilocus-genotype matching requires literal identity, and with almost
-2,000 markers even a very close pair is unlikely to match at every one. The
-genotype accumulation curve shows just how little data this distinction
-needs in practice: a mean of 150 of the 160 possible MLGs are already
-resolved with only 14 of the ~1,969 available loci, and every resampled
-replicate deterministically resolves all 160 by 174 loci.
+2,000 markers even a very close pair is unlikely to match at every one.
 
-Ia and rbarD are positive in every population and overall (Total Ia = 35.40,
-rbarD = 0.0185) -- read this cautiously, not as evidence of clonal
-reproduction in this outbreeding species. Ia/rbarD is designed to detect
-non-random association among loci assuming approximately independent
-markers; this module deliberately reuses diversity's full QC-passing locus
-set (not the LD-pruned set) for consistency with AMOVA, so a positive value
-here largely reflects ordinary physical linkage among nearby SNPs, not
-clonality. The MLG counts, diversity indices, and duplicate-detection table
-above are unaffected by that choice.
+The genotype accumulation curve and Ia/rbarD summary run on the 357-SNP
+LD-pruned set instead, and show just how little data the MLG distinction
+needs in practice: a mean of 150 of the 160 possible MLGs are already
+resolved with only 14 of the 357 available LD-pruned loci, and every
+resampled replicate deterministically resolves all 160 by 71 loci. Ia and
+rbarD are still positive overall (Total Ia = 2.28, rbarD = 0.0066) but far
+smaller than the full-unpruned-set values this module reported before this
+change (Ia = 35.40, rbarD = 0.0185) -- concrete confirmation that most of
+that earlier signal was ordinary physical linkage among nearby SNPs, not
+clonal structure, in this genuinely outbreeding human dataset. Read any
+remaining positive value cautiously either way, not as direct evidence of
+clonal reproduction.
 
 ## Sex-biased dispersal test
 

@@ -356,8 +356,14 @@ run_module_pcadapt <- function(analysis, context) {
 
 run_module_clonality <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs; div <- context$diversity_full
+  # div$genotype's columns correspond positionally to context$qc_snps (see
+  # run_module_diversity()'s compute_diversity() call), and final_snps is
+  # always a subset of qc_snps (ld_prune_exact() only ever removes ids), so
+  # this match() is a safe positional lookup, never NA.
+  ld_idx <- match(context$final_snps, context$qc_snps)
+  ld_genotype <- div$genotype[, ld_idx, drop = FALSE]
   result <- run_clonality(
-    div$genotype, context$sample_ids, context$metadata, cfg$compute$seed,
+    div$genotype, ld_genotype, context$sample_ids, context$metadata, cfg$compute$seed,
     curve_replicates = cfg$analyses$clonality_genotype_curve_replicates,
     ia_permutations = cfg$analyses$clonality_ia_permutations
   )
@@ -366,7 +372,12 @@ run_module_clonality <- function(analysis, context) {
   write_tsv(result$groups, file.path(dirs$tables, "57_MLG_groups.tsv"))
   if (nrow(result$curve)) write_tsv(result$curve, file.path(dirs$tables, "58_genotype_accumulation_curve.tsv"))
   plot_clonality(result, cfg, dirs)
-  if (isTRUE(result$poppr_failed)) {
+  if (!isTRUE(result$ld_pruned_usable)) {
+    analysis <- record_analysis_message(
+      analysis, "WARNING", "clonality",
+      "The LD-pruned marker set has fewer than two usable loci; poppr::poppr()'s Ia/rbarD diversity summary and the genotype accumulation curve were skipped. MLG duplicate-group detection, which uses the full unpruned marker set, is unaffected"
+    )
+  } else if (isTRUE(result$poppr_failed)) {
     analysis <- record_analysis_message(
       analysis, "WARNING", "clonality",
       "poppr::poppr()'s Ia/rbarD diversity summary crashed (a known 32-bit overflow in poppr's compiled pairdiffs routine at large sample x locus counts) and was skipped; MLG duplicate-group detection and the genotype accumulation curve, which do not depend on that call, are unaffected"
