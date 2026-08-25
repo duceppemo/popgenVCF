@@ -1,5 +1,5 @@
 Package: popgenVCF
-Version: 1.0.2
+Version: 1.0.3
 Contract-Format: 1
 Entries: 642
 Snapshot-Encoding: gzip+base64
