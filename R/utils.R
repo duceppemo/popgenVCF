@@ -289,16 +289,28 @@ manhattan_chromosome_row <- function(p, ticks, y_range, base_size = 11,
   keep <- rep(TRUE, nrow(ticks))
   margin_bottom_pt <- 5.5 + base_size * 2
 
+  # The panel that actually plots `total_width` worth of data is narrower
+  # than the figure's full saved width: the y-axis number/title column eats
+  # into it, and ggplot2's default continuous-scale expansion (5% padding
+  # on each side) stretches the data range across a still-smaller fraction
+  # of even that. Confirmed against a real production figure where a pair
+  # of contigs measured as fitting by ~20% margin under a naive
+  # plot_width_in-based estimate still rendered fully overlapping -- this
+  # constant is a deliberately conservative stand-in for that real,
+  # version/theme-dependent geometry rather than an attempt to model it
+  # exactly, so it always errs toward more rotation/thinning, never less.
+  usable_width_in <- (plot_width_in %||% NA_real_) * 0.7
+
   total_width <- sum(ticks$width)
   if (!is.null(plot_width_in) && nrow(ticks) > 0L && is.finite(total_width) && total_width > 0) {
-    available_in <- (ticks$width / total_width) * plot_width_in
+    available_in <- (ticks$width / total_width) * usable_width_in
     label_width_in <- manhattan_label_width_in(ticks$chromosome, label_pt)
     if (any(label_width_in > available_in)) {
       vertical <- TRUE
       margin_bottom_pt <- margin_bottom_pt + max(label_width_in) * 72
 
       line_height_in <- (label_pt * 1.2) / 72
-      min_gap_x <- (line_height_in / plot_width_in) * total_width
+      min_gap_x <- (line_height_in / usable_width_in) * total_width
       last_kept <- -Inf
       for (i in seq_len(nrow(ticks))) {
         if (ticks$center[i] - last_kept < min_gap_x) {
