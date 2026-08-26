@@ -143,13 +143,22 @@ qc_reports <- function(vq, final_snps) {
   vq[, retained_ld := snp_id %in% final_snps]
   bad <- vq[retained_ld & !pass_combined]
   if (nrow(bad)) stop("SNPRelate LD set disagrees with independent MAF/missingness audit", call. = FALSE)
+  # criterion/step are ordered factors, not plain character: every consumer
+  # (the sequential-retention bar plot, kable()'s report table, a future
+  # dashboard) must show these rows in the real filtering sequence, not
+  # whatever a discrete character axis/column defaults to (alphabetical --
+  # "Final LD-pruned"/"After LD pruning" would sort before "Input
+  # biallelic"). Fixed here at construction so it holds everywhere these
+  # tables are used, not patched separately in each consumer.
+  independent_criteria <- c("Input biallelic", "Pass MAF", "Pass missingness", "Pass both", "Final LD-pruned")
   independent <- data.table::data.table(
-    criterion = c("Input biallelic", "Pass MAF", "Pass missingness", "Pass both", "Final LD-pruned"),
+    criterion = factor(independent_criteria, levels = independent_criteria),
     variants = c(nrow(vq), sum(vq$pass_maf), sum(vq$pass_missing), sum(vq$pass_combined), length(final_snps))
   )
   independent[, retained_percent := 100 * variants / variants[1]]
+  sequential_steps <- c("Input biallelic", "After MAF", "After missingness", "After LD pruning")
   sequential <- data.table::data.table(
-    step = c("Input biallelic", "After MAF", "After missingness", "After LD pruning"),
+    step = factor(sequential_steps, levels = sequential_steps),
     variants = c(nrow(vq), sum(vq$pass_maf), sum(vq$pass_combined), length(final_snps))
   )
   sequential[, `:=`(removed_at_step = c(0L, utils::head(variants, -1) - utils::tail(variants, -1)),
@@ -222,7 +231,13 @@ plot_qc_reports <- function(reports, sample_qc, cfg, dirs) {
       x = NULL, y = "Missing genotype rate", fill = "Population"
     ) + theme_publication(figure_base_size(cfg))
   save_plot(p3, "03_sample_missingness", dirs, fmts, 8, max(5, nrow(sample_qc) * 0.12), dpi)
-  p4 <- ggplot2::ggplot(reports$sequential, ggplot2::aes(step, variants)) +
+  # step is plain character in reports$sequential; ggplot2 would otherwise
+  # sort a discrete character axis alphabetically ("After LD pruning" before
+  # "Input biallelic"), scrambling the actual filtering order qc_reports()
+  # built it in. Factor levels fixed to first-appearance order instead.
+  sequential <- data.table::copy(reports$sequential)
+  sequential[, step := factor(step, levels = step)]
+  p4 <- ggplot2::ggplot(sequential, ggplot2::aes(step, variants)) +
     ggplot2::geom_col(fill = accent, width = 0.72) +
     ggplot2::geom_text(ggplot2::aes(label = scales::comma(variants)), vjust = -0.4) +
     ggplot2::scale_y_continuous(
