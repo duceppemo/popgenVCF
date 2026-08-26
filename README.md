@@ -20,8 +20,7 @@ validation evidence.
 
 > Development series: **1.0.4.9000** — active development on `main` toward
 > the next release, past the current stable release **1.0.4** (released
-> 2026-08-26; Zenodo DOI reconciliation for this and the prior **1.0.3**
-> release are both still pending).
+> 2026-08-26; Zenodo DOI reconciliation still pending, as is 1.0.3's).
 > No development build should be treated as release-approved unless its own
 > production dossier reports `READY`.
 
