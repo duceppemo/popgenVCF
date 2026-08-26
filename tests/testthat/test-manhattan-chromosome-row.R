@@ -236,3 +236,28 @@ test_that("manhattan_chromosome_row's vertical-clearance fix does not change hor
   expect_identical(layer$aes_params$angle, 0)
   expect_equal(layer$data$y[1], -1 - diff(c(-1, 1)) * 0.14)
 })
+
+test_that("manhattan_chromosome_row pushes a plot.caption below vertical labels instead of leaving it to collide", {
+  # Real regression: pcadapt_scan.R's genomic-inflation-factor caption
+  # rendered on top of the rotated contig-name row instead of below it --
+  # ggplot2's plot.caption sits in its own layout row close to the panel,
+  # unrelated to how far this function's own data-space annotation extends
+  # into the margin below.
+  names60 <- sprintf("JAEVLN01%07d.1", seq_len(60))
+  ticks <- data.frame(
+    chromosome = names60, center = seq(50, by = 100, length.out = 60), width = rep(100, 60)
+  )
+  p_with_caption <- ggplot2::ggplot(data.frame(x = c(1, 6000), y = c(-1, 1)), ggplot2::aes(x, y)) +
+    ggplot2::geom_point() +
+    ggplot2::labs(caption = "Genomic inflation factor (gif) = 1.000")
+  p_without_caption <- ggplot2::ggplot(data.frame(x = c(1, 6000), y = c(-1, 1)), ggplot2::aes(x, y)) +
+    ggplot2::geom_point()
+
+  p1 <- popgenVCF:::manhattan_chromosome_row(p_with_caption, ticks, c(-1, 1), 11, plot_width_in = 10)
+  p2 <- popgenVCF:::manhattan_chromosome_row(p_without_caption, ticks, c(-1, 1), 11, plot_width_in = 10)
+
+  expect_true(as.numeric(p1$theme$plot.caption$margin)[1] > 0)
+  # A plot with no caption at all must not gain a caption theme override
+  # it doesn't need.
+  expect_null(p2$theme$plot.caption)
+})

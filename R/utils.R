@@ -373,6 +373,20 @@ manhattan_chromosome_row <- function(p, ticks, y_range, base_size = 11,
     # now-redundant title is dropped rather than fighting to recompute its
     # position to clear a per-plot-varying label height.
     p <- p + ggplot2::theme(axis.title.x = ggplot2::element_blank())
+    # A plot.caption (e.g. pcadapt's genomic-inflation-factor note) sits in
+    # its own gtable row placed close to the panel, unrelated to how much
+    # this function's own data-space annotation extends into the margin
+    # below it -- confirmed directly: it rendered on top of the rotated
+    # contig names rather than below them. Pushed down by the same real
+    # clearance the labels themselves needed, so it lands below them
+    # instead of colliding, without touching plots that have no caption.
+    if (!is.null(p$labels$caption)) {
+      p <- p + ggplot2::theme(
+        plot.caption = ggplot2::element_text(
+          margin = ggplot2::margin(t = max(label_width_in) * 72 + 5.5)
+        )
+      )
+    }
   }
   p
 }
