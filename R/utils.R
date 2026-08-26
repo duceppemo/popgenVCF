@@ -7,7 +7,16 @@ log_msg <- function(..., level = "INFO") {
   line <- sprintf("[%s] [%-7s] %s", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), level,
                   paste(..., collapse = ""))
   cat(line, "\n")
-  if (!is.null(.pg_env$log_file)) cat(line, "\n", file = .pg_env$log_file, append = TRUE)
+  # A log line is diagnostic, not load-bearing: an unwritable log destination
+  # (a deleted output directory, a full disk, a stale path left over from an
+  # unrelated earlier run in the same session) must never abort real
+  # analysis work just because it couldn't also be recorded to file.
+  if (!is.null(.pg_env$log_file)) {
+    tryCatch(
+      cat(line, "\n", file = .pg_env$log_file, append = TRUE),
+      error = function(e) NULL
+    )
+  }
   invisible(line)
 }
 
@@ -159,9 +168,30 @@ manhattan_layout <- function(chromosome, position) {
     center = vapply(order_chr, function(chr) {
       mean(range(position[chromosome == chr])) + offset[[chr]]
     }, numeric(1L)),
+    # Each chromosome/contig's own laid-out span, in the same x-units as
+    # `x` -- manhattan_chromosome_row() needs this to know how much physical
+    # page width is actually available for that chromosome's own name label,
+    # which for a many-small-contig assembly can differ hugely between
+    # entries and isn't recoverable from chromosome count alone.
+    width = vapply(order_chr, function(chr) {
+      diff(range(position[chromosome == chr]))
+    }, numeric(1L)),
     stringsAsFactors = FALSE
   )
   list(x = x, ticks = ticks, offset = offset)
+}
+
+# Real, font-metric-based label width (not a guessed characters-per-inch
+# constant): renders into a discarded null device so graphics::strwidth()
+# reflects the actual font used, at the actual point size, including bold
+# weight -- exact enough to compare against the physical space a label
+# will actually have, rather than a rule of thumb that could be wrong in
+# either direction depending on the label alphabet (accession-style contig
+# names skew towards wide digits/uppercase, unlike ordinary prose).
+manhattan_label_width_in <- function(labels, font_pt, family = "sans") {
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off())
+  graphics::strwidth(labels, units = "inches", cex = font_pt / 12, font = 2, family = family)
 }
 
 # Basepair-position axis breaks for a manhattan_layout()'d x-axis. Compact
@@ -228,26 +258,90 @@ manhattan_bp_breaks <- function(chromosome, position, offset, target_total = 14L
 # after PC1, instead of last) before this was fixed by constructing the
 # label layer's facet column as a real factor sharing the exact same
 # levels as the main data, not a bare string.
+#
+# A model genome with a handful of chromosomes leaves plenty of horizontal
+# room per label at angle = 0 (this function's original, and still default,
+# behavior). A non-model reference assembled into dozens or hundreds of
+# short contigs with long accession-style names (e.g. "JAEVLN010000001.1")
+# does not: horizontal labels centered on narrow contigs collide into an
+# unreadable smear regardless of font size, since the fix has to be
+# geometric (each contig's own physical width vs. its own label's real
+# width), not a fixed threshold on chromosome count alone. When
+# `plot_width_in` (the figure's actual saved width) is supplied and any
+# label would not fit horizontally in its own contig's physical share of
+# that width, every label switches to vertical (angle = 90) text instead --
+# whose footprint is one line's height, not the full label string length,
+# which comfortably fits far more labels side by side. If even that is not
+# enough room for every contig (real assemblies can have hundreds of tiny
+# scaffolds), labels are thinned by minimum physical spacing, keeping the
+# first of any two candidates that would still collide -- the same
+# "simplify once the per-item budget collapses" idiom already used by
+# manhattan_bp_breaks() for the Mb ticks above this row, rather than
+# rendering an unreadable jumble.
 manhattan_chromosome_row <- function(p, ticks, y_range, base_size = 11,
                                      facet_var = NULL, facet_last_level = NULL,
-                                     facet_levels = NULL) {
+                                     facet_levels = NULL, plot_width_in = NULL) {
   pad <- diff(y_range) * 0.14
   if (!is.finite(pad) || pad <= 0) pad <- max(abs(y_range), 1, na.rm = TRUE) * 0.14
-  label_df <- data.frame(x = ticks$center, y = y_range[1] - pad, label = ticks$chromosome)
+
+  label_pt <- base_size * 0.32 * 2.845276 # geom_text `size` (mm) -> points
+  vertical <- FALSE
+  keep <- rep(TRUE, nrow(ticks))
+  margin_bottom_pt <- 5.5 + base_size * 2
+
+  total_width <- sum(ticks$width)
+  if (!is.null(plot_width_in) && nrow(ticks) > 0L && is.finite(total_width) && total_width > 0) {
+    available_in <- (ticks$width / total_width) * plot_width_in
+    label_width_in <- manhattan_label_width_in(ticks$chromosome, label_pt)
+    if (any(label_width_in > available_in)) {
+      vertical <- TRUE
+      margin_bottom_pt <- margin_bottom_pt + max(label_width_in) * 72
+
+      line_height_in <- (label_pt * 1.2) / 72
+      min_gap_x <- (line_height_in / plot_width_in) * total_width
+      last_kept <- -Inf
+      for (i in seq_len(nrow(ticks))) {
+        if (ticks$center[i] - last_kept < min_gap_x) {
+          keep[i] <- FALSE
+        } else {
+          last_kept <- ticks$center[i]
+        }
+      }
+    }
+  }
+
+  label_df <- data.frame(
+    x = ticks$center[keep], y = y_range[1] - pad, label = ticks$chromosome[keep]
+  )
   if (!is.null(facet_var)) {
     label_df[[facet_var]] <- factor(facet_last_level, levels = facet_levels %||% facet_last_level)
   }
 
-  p +
+  p <- p +
     ggplot2::geom_text(
       data = label_df, ggplot2::aes(x = x, y = y, label = label),
-      inherit.aes = FALSE, size = base_size * 0.32, vjust = 1, fontface = "bold"
+      inherit.aes = FALSE, size = base_size * 0.32, fontface = "bold",
+      angle = if (vertical) 90 else 0,
+      hjust = if (vertical) 1 else 0.5,
+      vjust = if (vertical) 0.5 else 1
     ) +
     ggplot2::coord_cartesian(clip = "off") +
     ggplot2::theme(
       axis.text.x = ggplot2::element_text(angle = 0, hjust = 0.5),
-      plot.margin = ggplot2::unit(c(5.5, 5.5, 5.5 + base_size * 2, 5.5), "pt")
+      plot.margin = ggplot2::unit(c(5.5, 5.5, margin_bottom_pt, 5.5), "pt")
     )
+  if (vertical) {
+    # The plot's own "Chromosome position" x-axis title sits directly below
+    # the Mb-tick text at a fixed offset unrelated to this function's own
+    # data-space annotation -- fine when the chromosome names are one short
+    # horizontal line, but a column of much taller vertical names now
+    # reaches down into that same space. The contig names are
+    # self-explanatory as an x-axis identity on their own, so the
+    # now-redundant title is dropped rather than fighting to recompute its
+    # position to clear a per-plot-varying label height.
+    p <- p + ggplot2::theme(axis.title.x = ggplot2::element_blank())
+  }
+  p
 }
 
 figure_style_profile <- function(style = "accessibility-first") {

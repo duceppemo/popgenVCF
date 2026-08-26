@@ -261,7 +261,8 @@ plot_pca_loading_manhattan <- function(loadings, cfg, dirs, profile) {
   last_axis <- levels(loadings$axis)[length(levels(loadings$axis))]
   p <- manhattan_chromosome_row(
     p, layout$ticks, range(loadings$contribution[loadings$axis == last_axis], na.rm = TRUE),
-    base_size, facet_var = "axis", facet_last_level = last_axis, facet_levels = levels(loadings$axis)
+    base_size, facet_var = "axis", facet_last_level = last_axis, facet_levels = levels(loadings$axis),
+    plot_width_in = 10
   )
   n_axes <- data.table::uniqueN(loadings$axis)
   save_plot(

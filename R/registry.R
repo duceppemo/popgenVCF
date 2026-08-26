@@ -136,11 +136,14 @@ resolve_analysis_order <- function(registry, config, selected = NULL) {
 #' @param selected Optional module names.
 #' @param engine Optional [new_execution_engine()] configuration. When omitted,
 #'   a deterministic single-worker engine preserves historical behavior.
+#' @param checkpoint_path Optional `.rds` path forwarded to
+#'   [execute_analysis_plan()] for unconditional per-batch checkpointing.
 #' @return A list containing updated `analysis`, `context`, execution `order`,
 #'   the compiled execution `plan`, and the combined `artifacts` manifest.
 #' @export
 execute_analysis_registry <- function(analysis, context, registry, selected = NULL,
-                                      engine = new_execution_engine()) {
+                                      engine = new_execution_engine(),
+                                      checkpoint_path = NULL) {
   plan <- plan_analysis_execution(registry, analysis$config, selected)
-  execute_analysis_plan(analysis, context, registry, plan, engine)
+  execute_analysis_plan(analysis, context, registry, plan, engine, checkpoint_path)
 }

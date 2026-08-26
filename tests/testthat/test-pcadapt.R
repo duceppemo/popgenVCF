@@ -235,6 +235,8 @@ test_that("run_pcadapt_scan degrades gracefully, not fatally, when the optional 
 test_that("run_module_pcadapt does not depend on the population-gated diversity module (real no-metadata pipeline run)", {
   skip_if_not_installed("pcadapt")
   skip_if(Sys.which("bcftools") == "", "bcftools is not available")
+  pg_env <- popgenVCF:::.pg_env
+  on.exit(pg_env$log_file <- NULL, add = TRUE)
   paths <- popgenVCF:::validation_fixture_paths()
   root <- withr::local_tempdir()
   cfg <- popgenVCF::default_config()

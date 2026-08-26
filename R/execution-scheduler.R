@@ -150,10 +150,20 @@ ensure_scheduler_ledger <- function(ledger) {
 #' @param registry A `PopgenVCFRegistry` object.
 #' @param plan A plan returned by [plan_analysis_execution()].
 #' @param engine A `PopgenVCFExecutionEngine` object.
+#' @param checkpoint_path Optional `.rds` path. When supplied, an execution
+#'   checkpoint is written (overwriting any prior one) after every batch
+#'   completes, unconditionally -- not tied to any cancellation or failure --
+#'   so a later [run_pipeline_resume()] can pick up after the last completed
+#'   batch regardless of how the process ended (a crash, an out-of-memory
+#'   kill, `docker stop`, or anything else that a cooperative check between
+#'   modules cannot observe). A checkpoint-write failure (e.g. a full disk)
+#'   is logged as a warning, not fatal: it must never cost already-completed
+#'   analysis results.
 #' @return A deterministic execution result with scheduler provenance.
 #' @export
 execute_analysis_plan <- function(analysis, context, registry, plan,
-                                  engine = new_execution_engine()) {
+                                  engine = new_execution_engine(),
+                                  checkpoint_path = NULL) {
   if (!inherits(engine, "PopgenVCFExecutionEngine")) {
     stop("engine must be a PopgenVCFExecutionEngine", call. = FALSE)
   }
@@ -248,6 +258,11 @@ execute_analysis_plan <- function(analysis, context, registry, plan,
         worker_pid = ledger$worker_pid[[row]],
         started_at = execution$started_at,
         finished_at = execution$finished_at
+      )
+    }
+    if (!is.null(checkpoint_path)) {
+      write_incremental_execution_checkpoint(
+        analysis, context, completed, plan, artifacts, ledger, registry, checkpoint_path
       )
     }
   }

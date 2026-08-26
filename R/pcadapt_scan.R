@@ -165,6 +165,8 @@ plot_pcadapt <- function(result, cfg, dirs) {
       caption = sprintf("Genomic inflation factor (gif) = %.3f", result$gif),
       x = "Chromosome position", y = expression(-log[10](italic(p)))
     ) + theme_publication(figure_base_size(cfg))
-  p <- manhattan_chromosome_row(p, layout$ticks, range(tested$neg_log10_p, na.rm = TRUE), figure_base_size(cfg))
+  p <- manhattan_chromosome_row(
+    p, layout$ticks, range(tested$neg_log10_p, na.rm = TRUE), figure_base_size(cfg), plot_width_in = 10
+  )
   save_plot(p, "59_pcadapt_manhattan", dirs, fmts, 10, 4.5, dpi)
 }

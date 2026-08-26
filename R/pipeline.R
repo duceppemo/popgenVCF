@@ -139,9 +139,16 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
     registry_start <- proc.time()[["elapsed"]]
     backend <- if (cfg$compute$threads > 1L && .Platform$OS.type != "windows") "multicore" else "sequential"
     engine <- new_execution_engine(workers = cfg$compute$threads, backend = backend)
+    # Unconditional per-batch checkpointing: see execute_analysis_plan()'s
+    # own documentation for why this, not cooperative cancellation, is the
+    # resilience mechanism -- it survives any way the process might stop,
+    # not only a cooperative request between modules. A real 44-hour
+    # production run losing everything to a deliberate `docker stop` (see
+    # NEWS.md) is exactly the scenario this exists for.
+    checkpoint_path <- file.path(dirs$root, "execution_checkpoint.rds")
     executed <- execute_analysis_registry(
       analysis, context, registry, selected_available,
-      engine = engine
+      engine = engine, checkpoint_path = checkpoint_path
     )
     analysis <- executed$analysis
     context <- executed$context
@@ -177,6 +184,13 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
     log_msg("No compatible analysis modules enabled after QC", level = "INFO")
   }
 
+  finalize_pipeline_analysis(analysis, registry, cfg, dirs)
+}
+
+# Shared by run_pipeline() and run_pipeline_resume(): everything that runs
+# once the analysis registry has finished (successfully or not), regardless
+# of whether execution started fresh or picked up from a checkpoint.
+finalize_pipeline_analysis <- function(analysis, registry, cfg, dirs) {
   write_tsv(list_analyses(registry), file.path(dirs$root, "analysis_module_contracts.tsv"))
   validations <- analysis$results$validation %||% list()
   if (length(validations)) {
@@ -201,8 +215,98 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
   write_tsv(summary(analysis), file.path(dirs$root, "analysis_summary.tsv"))
   utils::capture.output(utils::sessionInfo(), file = file.path(dirs$root, "sessionInfo.txt"))
   if (isTRUE(cfg$report$enabled)) {
-    stage("manuscript report", render_report(results_rds, dirs$report, cfg$report$title, cfg$report$author))
+    t0 <- proc.time()[["elapsed"]]
+    run_stage("manuscript report", render_report(results_rds, dirs$report, cfg$report$title, cfg$report$author))
+    analysis <- record_analysis_timing(analysis, "manuscript report", proc.time()[["elapsed"]] - t0)
+    analysis <- record_analysis_message(analysis, "SUCCESS", "manuscript report", "completed")
   }
   log_msg("Analysis complete: ", dirs$root, level = "SUCCESS")
   invisible(analysis)
+}
+
+#' Resume a popgenVCF analysis pipeline from its last execution checkpoint
+#'
+#' `run_pipeline()` writes an execution checkpoint after every completed
+#' analysis-registry batch, unconditionally -- not only on a graceful,
+#' cooperative stop. If a run is interrupted by any means (a crash, an
+#' out-of-memory kill, `docker stop`, a host reboot), this resumes from the
+#' last batch recorded in that checkpoint: already-completed modules are not
+#' re-run, and every stage that precedes analysis-registry execution
+#' (metadata import, VCF/GDS preparation, sample and variant QC, LD pruning)
+#' is skipped entirely, since the checkpoint already carries their validated
+#' results.
+#'
+#' @param output_directory The `output.directory` of the interrupted run
+#'   (the same directory passed to, or configured for, the original
+#'   [run_pipeline()] call).
+#' @param registry Analysis module registry. Must match the registry the
+#'   original run used -- [read_execution_checkpoint()] rejects a checkpoint
+#'   whose recorded plan is incompatible with the current registry.
+#' @return The completed `PopgenVCFAnalysis` object.
+#' @export
+run_pipeline_resume <- function(output_directory, registry = default_analysis_registry()) {
+  checkpoint_path <- file.path(output_directory, "execution_checkpoint.rds")
+  if (!file.exists(checkpoint_path)) {
+    stop(
+      "No execution checkpoint found at ", checkpoint_path,
+      "; there is nothing to resume. Run without --resume to start a new analysis.",
+      call. = FALSE
+    )
+  }
+  checkpoint <- read_execution_checkpoint(checkpoint_path, registry = registry)
+  cfg <- checkpoint$analysis$config
+  dirs <- make_dirs(cfg$output$directory)
+  .pg_env$log_file <- file.path(dirs$root, "pipeline.log")
+  log_msg(
+    "Resuming popgenVCF v", popgenvcf_version(), " from checkpoint: ",
+    length(checkpoint$completed), "/", length(checkpoint$plan_order), " module(s) already complete"
+  )
+
+  # context$gds was stripped before the checkpoint was written (a gdsfmt
+  # connection is a live external pointer that cannot survive
+  # serialization -- see execution_checkpoint_safe_context()); every module
+  # still to run needs a real, valid connection, so one is opened fresh from
+  # the plain path string the checkpoint did carry. The checkpoint is then
+  # rebuilt from scratch via new_execution_checkpoint() rather than having
+  # its $context mutated in place: checkpoint_digest covers the whole
+  # payload, so directly assigning into checkpoint$context here would leave
+  # a digest computed for the old (gds-stripped) context, and
+  # resume_analysis_execution()'s own re-validation would reject it as
+  # tampered.
+  context <- checkpoint$context
+  context$gds <- SNPRelate::snpgdsOpen(
+    context$gds_path, readonly = TRUE, allow.duplicate = TRUE, allow.fork = TRUE
+  )
+  on.exit(try(SNPRelate::snpgdsClose(context$gds), silent = TRUE), add = TRUE)
+  full_plan <- plan_analysis_execution(registry, checkpoint$analysis$config, selected = checkpoint$plan_order)
+  checkpoint <- new_execution_checkpoint(
+    list(
+      analysis = checkpoint$analysis, context = context, order = checkpoint$completed,
+      plan = full_plan, artifacts = checkpoint$artifacts, execution = checkpoint$execution
+    ),
+    registry
+  )
+
+  backend <- if (cfg$compute$threads > 1L && .Platform$OS.type != "windows") "multicore" else "sequential"
+  engine <- new_execution_engine(workers = cfg$compute$threads, backend = backend)
+  executed <- resume_analysis_execution(checkpoint, registry, engine)
+
+  analysis <- executed$analysis
+  analysis$artifacts <- executed$artifacts
+  write_tsv(executed$plan$table, file.path(dirs$root, "analysis_execution_plan.tsv"))
+  write_tsv(executed$execution, file.path(dirs$root, "analysis_execution_ledger.tsv"))
+  artifact_table <- artifact_manifest_table(executed$artifacts)
+  if (nrow(artifact_table)) {
+    write_tsv(artifact_table, file.path(dirs$root, "analysis_artifacts.tsv"))
+  }
+  analysis <- record_analysis_message(
+    analysis, "SUCCESS", "analysis registry",
+    paste0(
+      "resumed from checkpoint: ", length(checkpoint$completed), " module(s) reused, ",
+      length(setdiff(executed$order, checkpoint$completed)), " module(s) executed"
+    )
+  )
+  analysis <- set_analysis_result(analysis, "execution_order", executed$order)
+
+  finalize_pipeline_analysis(analysis, registry, cfg, dirs)
 }

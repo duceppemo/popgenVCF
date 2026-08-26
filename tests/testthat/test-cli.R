@@ -24,9 +24,15 @@ test_that("CLI rejects unknown options", {
 test_that("parse_cli returns all documented defaults for an empty argument vector", {
   x <- popgenVCF:::parse_cli(character())
   expect_identical(x, list(
-    config = NULL, write_config = NULL,
+    config = NULL, write_config = NULL, resume = NULL,
     force_gds = FALSE, no_report = FALSE, version = FALSE
   ))
+})
+
+test_that("parse_cli recognizes --resume", {
+  x <- popgenVCF:::parse_cli(c("--resume", "results/dir"))
+  expect_equal(x$resume, "results/dir")
+  expect_null(x$config)
 })
 
 test_that("parse_cli recognizes --version and --write-config independently", {
@@ -85,6 +91,7 @@ test_that("cli_usage prints documented usage and exits with the requested status
     expect_equal(res$status, status)
     expect_match(res$stdout, "popgenVCF population genomics toolkit", fixed = TRUE)
     expect_match(res$stdout, "--write-config analysis.yml", fixed = TRUE)
+    expect_match(res$stdout, "--resume OUTPUT_DIR", fixed = TRUE)
   }
 })
 
@@ -191,6 +198,22 @@ test_that("cli_main applies every documented override to the loaded configuratio
   expect_equal(captured$qc$max_sample_missing, 0.3)
   expect_true(captured$compute$force_gds)
   expect_false(captured$report$enabled)
+})
+
+test_that("cli_main --resume dispatches to run_pipeline_resume with the given directory and skips the normal config flow", {
+  captured <- NULL
+  ran_normal <- FALSE
+  local_mocked_bindings(
+    run_pipeline_resume = function(output_directory, ...) { captured <<- output_directory; "resumed" },
+    run_pipeline = function(...) { ran_normal <<- TRUE },
+    .package = "popgenVCF"
+  )
+
+  result <- popgenVCF::cli_main(c("--resume", "some/output/dir"))
+
+  expect_equal(result, "resumed")
+  expect_equal(captured, "some/output/dir")
+  expect_false(ran_normal)
 })
 
 test_that("cli_main leaves unset optional overrides at their configured defaults", {
