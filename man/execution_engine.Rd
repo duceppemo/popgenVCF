@@ -31,7 +31,8 @@ execute_analysis_plan(
   context,
   registry,
   plan,
-  engine = new_execution_engine()
+  engine = new_execution_engine(),
+  checkpoint_path = NULL
 )
 }
 \arguments{

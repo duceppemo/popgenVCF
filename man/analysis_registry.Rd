@@ -35,7 +35,8 @@ execute_analysis_registry(
   context,
   registry,
   selected = NULL,
-  engine = new_execution_engine()
+  engine = new_execution_engine(),
+  checkpoint_path = NULL
 )
 
 default_analysis_registry()
