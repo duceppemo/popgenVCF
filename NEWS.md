@@ -1,4 +1,4 @@
-# popgenVCF 1.0.4.9000 development
+# popgenVCF 1.0.5 development
 
 - **Fixed a real regression in the just-shipped Manhattan chromosome-label fix: rotated contig-name labels could overlap the plotted panel itself (running back up through the axis and real data points) instead of clearing it.** Found regenerating the reporting user's own real PCA-loadings figure a second time as a verification step: the label's vertical anchor position (`pad`) was a fixed 14% of the panel's own y-range -- fine for one line of horizontal text, but for a panel with a genuinely narrow range (a PC with little variance across only its top-20 exported loadings, contribution values spanning barely 0.0035) that 14% is physically tiny, so a tall rotated label's anchor sat barely below the lowest real data point rather than below the whole panel.
 
