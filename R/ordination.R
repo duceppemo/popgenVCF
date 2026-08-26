@@ -259,12 +259,12 @@ plot_pca_loading_manhattan <- function(loadings, cfg, dirs, profile) {
     ) + theme_publication(base_size) +
     ggplot2::theme(panel.spacing = ggplot2::unit(1, "lines"))
   last_axis <- levels(loadings$axis)[length(levels(loadings$axis))]
+  n_axes <- data.table::uniqueN(loadings$axis)
   p <- manhattan_chromosome_row(
     p, layout$ticks, range(loadings$contribution[loadings$axis == last_axis], na.rm = TRUE),
     base_size, facet_var = "axis", facet_last_level = last_axis, facet_levels = levels(loadings$axis),
-    plot_width_in = 10
+    plot_width_in = 10, panel_height_in = max(4, 2.2 * n_axes) / n_axes
   )
-  n_axes <- data.table::uniqueN(loadings$axis)
   save_plot(
     p, "17_PCA_loadings_manhattan", dirs,
     cfg$output$figure_formats, 10, max(4, 2.2 * n_axes), cfg$output$dpi

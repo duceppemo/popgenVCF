@@ -279,12 +279,12 @@ plot_dapc_loading_manhattan <- function(loadings, k, cfg, dirs, profile) {
     ) + theme_publication(base_size) +
     ggplot2::theme(panel.spacing = ggplot2::unit(1, "lines"))
   last_axis <- levels(loadings$axis)[length(levels(loadings$axis))]
+  n_axes <- data.table::uniqueN(loadings$axis)
   p <- manhattan_chromosome_row(
     p, layout$ticks, range(loadings$contribution[loadings$axis == last_axis], na.rm = TRUE),
     base_size, facet_var = "axis", facet_last_level = last_axis, facet_levels = levels(loadings$axis),
-    plot_width_in = 10
+    plot_width_in = 10, panel_height_in = max(4, 2.2 * n_axes) / n_axes
   )
-  n_axes <- data.table::uniqueN(loadings$axis)
   save_plot(
     p, sprintf("15_DAPC_loadings_manhattan_K%s", k), dirs,
     cfg$output$figure_formats, 10, max(4, 2.2 * n_axes), cfg$output$dpi
@@ -310,6 +310,68 @@ plot_dapc_loading_ranked <- function(loadings, k, cfg, dirs, profile) {
   save_plot(
     p, sprintf("16_DAPC_loadings_ranked_K%s", k), dirs,
     cfg$output$figure_formats, 8, max(4, 2.2 * n_axes), cfg$output$dpi
+  )
+  invisible(p)
+}
+
+# adegenet::xvalDapc() (called once per K in run_dapc_k_task(), gated behind
+# cfg$analyses$dapc_cross_validation) already picks the number of retained
+# PCs by cross-validated assignment success -- the full per-n.pca curve
+# behind that choice was computed and kept on `cv` all along, just never
+# rendered (xvalDapc(..., xval.plot = FALSE)). This draws that curve
+# directly from the retained `cv` object rather than recomputing anything,
+# matching the standard adegenet DAPC cross-validation diagnostic (e.g.
+# https://grunwaldlab.github.io/Population_Genetics_in_R/DAPC.html#cross-validation):
+# mean assignment success against number of PCs retained, a dashed
+# reference line for the median random-chance rate, and the selected PC
+# count marked directly on the curve.
+plot_dapc_xval <- function(cv, k, cfg, dirs, profile) {
+  if (is.null(cv)) return(invisible(NULL))
+  success <- cv[["Mean Successful Assignment by Number of PCs of PCA"]]
+  if (is.null(success) || !length(success)) return(invisible(NULL))
+  df <- data.frame(
+    n_pca = suppressWarnings(as.integer(names(success))),
+    success = suppressWarnings(as.numeric(success))
+  )
+  df <- df[is.finite(df$n_pca) & is.finite(df$success), ]
+  if (!nrow(df)) return(invisible(NULL))
+  data.table::setorder(data.table::setDT(df), n_pca)
+
+  selected <- suppressWarnings(as.integer(
+    cv[["Number of PCs Achieving Highest Mean Success"]]
+  ))[1]
+  chance <- suppressWarnings(as.numeric(
+    cv[["Median and Confidence Interval for Random Chance"]][["50%"]]
+  ))
+
+  colour <- expand_figure_palette(profile, 1L, "colours")
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = n_pca, y = success)) +
+    ggplot2::geom_line(colour = colour) +
+    ggplot2::geom_point(colour = colour, size = 2)
+  if (is.finite(chance)) {
+    p <- p + ggplot2::geom_hline(
+      yintercept = chance, linetype = "dashed", colour = "#999999"
+    )
+  }
+  if (is.finite(selected)) {
+    p <- p + ggplot2::geom_vline(
+      xintercept = selected, linetype = "dotted", colour = "#B2182B"
+    )
+  }
+  p <- p +
+    ggplot2::scale_y_continuous(labels = scales::percent) +
+    ggplot2::labs(
+      title = sprintf("DAPC PC-count cross-validation (K = %s)", k),
+      subtitle = if (is.finite(selected)) {
+        sprintf("Selected %d PC(s) by highest mean assignment success", selected)
+      } else {
+        NULL
+      },
+      x = "Number of PCs retained", y = "Mean successful assignment"
+    ) + theme_publication(figure_base_size(cfg))
+  save_plot(
+    p, sprintf("12b_DAPC_xval_K%s", k), dirs,
+    cfg$output$figure_formats, 7, 5, cfg$output$dpi
   )
   invisible(p)
 }
@@ -350,6 +412,7 @@ plot_dapc <- function(dapc, cfg, dirs) {
       }
       save_plot(p, sprintf("11_DAPC_K%s", k), dirs, cfg$output$figure_formats, 8, 6, cfg$output$dpi)
     }
+    plot_dapc_xval(dapc$models[[k]]$cv, k, cfg, dirs, profile)
     membership <- dapc$models[[k]]$membership
     q <- data.table::as.data.table(membership)
     q[, sample := rownames(membership)]

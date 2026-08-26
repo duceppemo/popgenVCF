@@ -280,7 +280,8 @@ manhattan_bp_breaks <- function(chromosome, position, offset, target_total = 14L
 # rendering an unreadable jumble.
 manhattan_chromosome_row <- function(p, ticks, y_range, base_size = 11,
                                      facet_var = NULL, facet_last_level = NULL,
-                                     facet_levels = NULL, plot_width_in = NULL) {
+                                     facet_levels = NULL, plot_width_in = NULL,
+                                     panel_height_in = NULL) {
   pad <- diff(y_range) * 0.14
   if (!is.finite(pad) || pad <= 0) pad <- max(abs(y_range), 1, na.rm = TRUE) * 0.14
 
@@ -308,6 +309,26 @@ manhattan_chromosome_row <- function(p, ticks, y_range, base_size = 11,
     if (any(label_width_in > available_in)) {
       vertical <- TRUE
       margin_bottom_pt <- margin_bottom_pt + max(label_width_in) * 72
+
+      # `pad` (below) is a fraction of this panel's own y-range -- fine for
+      # one line of horizontal text, but a real bug for tall rotated text:
+      # a panel with a narrow y-range (e.g. a PC with little variance) makes
+      # that fraction physically tiny, so the label's anchor point can sit
+      # barely below the lowest real data point, and the rotated string
+      # then runs back up through the panel's own axis and data rather than
+      # clearing it -- confirmed directly against a real regenerated
+      # production figure. Converting the already-known physical clearance
+      # this label needs (max(label_width_in), the same value driving the
+      # bottom margin above) into this specific panel's own data units
+      # -- via the panel's real physical height, under the same
+      # conservative usable-fraction assumption as the width check --
+      # gives a `pad` guaranteed to clear the panel regardless of how
+      # little data-range that panel happens to have.
+      if (!is.null(panel_height_in) && is.finite(diff(y_range)) && diff(y_range) > 0) {
+        usable_height_in <- panel_height_in * 0.7
+        data_per_inch <- diff(y_range) / usable_height_in
+        pad <- max(pad, max(label_width_in) * data_per_inch)
+      }
 
       line_height_in <- (label_pt * 1.2) / 72
       min_gap_x <- (line_height_in / usable_width_in) * total_width

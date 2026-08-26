@@ -167,3 +167,72 @@ test_that("manhattan_chromosome_row renders without error against the exact real
   layer <- p$layers[[length(p$layers)]]
   expect_identical(layer$aes_params$angle, 90)
 })
+
+test_that("manhattan_chromosome_row keeps vertical labels clear of a facet panel with a narrow y-range", {
+  # Real regression: a real PCA-loadings figure had its rotated contig-name
+  # labels overlapping the plotted panel itself (running back up through the
+  # axis and data points) rather than clearing it. `pad` (the label anchor's
+  # offset below the panel's own data) was a fixed 14% of the panel's own
+  # y-range -- fine for one line of horizontal text, but for a panel with a
+  # genuinely narrow range (like this real PC10 facet, contribution values
+  # 0.0196-0.0231 in the reporting user's own truncated top-20-loadings
+  # table) that 14% is physically tiny, so a tall rotated label's anchor sat
+  # barely below the lowest real point instead of below the whole panel.
+  ticks <- structure(list(chromosome = c(
+    "JAEVLN010000001.1", "JAEVLN010000002.1", "JAEVLN010000003.1", "JAEVLN010000004.1",
+    "JAEVLN010000005.1", "JAEVLN010000006.1", "JAEVLN010000007.1", "JAEVLN010000008.1",
+    "JAEVLN010000009.1", "JAEVLN010000010.1", "JAEVLN010000011.1", "JAEVLN010000012.1",
+    "JAEVLN010000015.1", "JAEVLN010000016.1", "JAEVLN010000017.1", "JAEVLN010000018.1",
+    "JAEVLN010000019.1", "JAEVLN010000020.1", "JAEVLN010000021.1", "JAEVLN010000023.1",
+    "JAEVLN010000024.1", "JAEVLN010000025.1", "JAEVLN010000026.1", "JAEVLN010000027.1",
+    "JAEVLN010000028.1", "JAEVLN010000029.1", "JAEVLN010000030.1", "JAEVLN010000031.1",
+    "JAEVLN010000033.1", "JAEVLN010000034.1", "JAEVLN010000035.1", "JAEVLN010000036.1",
+    "JAEVLN010000037.1", "JAEVLN010000039.1", "JAEVLN010000043.1", "JAEVLN010000046.1",
+    "JAEVLN010000059.1", "JAEVLN010000065.1"
+  ), center = c(
+    3768255.5, 10033885.5, 14684435.5, 18379998, 20998054.5, 25643484, 30160053.5,
+    32045007, 33967015, 36577372, 38351206, 39844642.5, 41987351.5, 43877362.5,
+    44583040.5, 45878503, 46766438, 47472784.5, 48450575, 49318405, 49695490,
+    49989904, 50546502, 51288771, 51699556, 52365419, 53223826, 53385888, 53676095,
+    53919885.5, 54166435, 54283619.5, 54484134, 55006468, 55006576, 55073055,
+    55129032, 55147235
+  ), width = c(
+    5359323, 4311191, 3888225, 599942, 3982249, 3481042, 2505241, 56082, 695894,
+    1732450, 33948, 1560711, 1981195, 34633, 268319, 1007278, 0, 817457, 575472,
+    0, 0, 0, 0, 0, 696834, 460012, 13458, 0, 0, 1905, 0, 106969, 288226, 0, 0,
+    16502, 0, 0
+  )), class = "data.frame", row.names = c(NA, -38L))
+
+  y_range <- c(0.0195876, 0.02306113) # the real PC10 facet's own contribution range
+  panel_height_in <- 2.2 # max(4, 2.2 * n_axes) / n_axes for 10 stacked PC facets
+
+  p0 <- ggplot2::ggplot(data.frame(x = range(ticks$center), y = y_range), ggplot2::aes(x, y)) +
+    ggplot2::geom_point()
+  p <- popgenVCF:::manhattan_chromosome_row(
+    p0, ticks, y_range, 11, plot_width_in = 10, panel_height_in = panel_height_in
+  )
+  label_layer <- p$layers[[length(p$layers)]]
+  label_y <- label_layer$data$y[1]
+
+  label_pt <- 11 * 0.32 * 2.845276
+  label_width_in <- popgenVCF:::manhattan_label_width_in(label_layer$data$label, label_pt)
+  usable_height_in <- panel_height_in * 0.7
+  data_per_inch <- diff(y_range) / usable_height_in
+  clearance_in <- (y_range[1] - label_y) / data_per_inch
+
+  expect_true(clearance_in >= max(label_width_in) - 1e-9)
+})
+
+test_that("manhattan_chromosome_row's vertical-clearance fix does not change horizontal-mode behavior", {
+  ticks <- data.frame(chromosome = c("chr1", "chr2"), center = c(50, 150), width = c(100, 100))
+  p0 <- ggplot2::ggplot(data.frame(x = c(1, 190), y = c(-1, 1)), ggplot2::aes(x, y)) +
+    ggplot2::geom_point()
+
+  p <- popgenVCF:::manhattan_chromosome_row(
+    p0, ticks, c(-1, 1), 11, plot_width_in = 10, panel_height_in = 6
+  )
+  layer <- p$layers[[length(p$layers)]]
+
+  expect_identical(layer$aes_params$angle, 0)
+  expect_equal(layer$data$y[1], -1 - diff(c(-1, 1)) * 0.14)
+})
