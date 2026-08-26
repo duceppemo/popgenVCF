@@ -1,6 +1,6 @@
 Package: popgenVCF
-Version: 1.0.3
+Version: 1.0.4
 Contract-Format: 1
-Entries: 642
+Entries: 643
 Snapshot-Encoding: gzip+base64
-Snapshot-SHA256: 37f114691c53238ffb276198d2c82e6940ca12fb2d22de42d366f8808ff72cd2
+Snapshot-SHA256: 07eb6d228c74cbda2905f8db0e7578989dea8d6fe7e7c4e1a903f5b9def7f4a5

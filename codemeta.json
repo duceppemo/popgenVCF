@@ -3,7 +3,7 @@
   "@type": "SoftwareSourceCode",
   "identifier": "https://github.com/duceppemo/popgenVCF",
   "name": "popgenVCF",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A modular R package and command-line toolkit for reproducible population-genomic analysis of diploid, biallelic SNP data stored in VCF files.",
   "url": "https://duceppemo.github.io/popgenVCF/",
   "codeRepository": "https://github.com/duceppemo/popgenVCF",

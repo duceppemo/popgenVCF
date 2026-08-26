@@ -1,4 +1,4 @@
-# popgenVCF 1.0.3.9000 development
+# popgenVCF 1.0.4 development
 
 - **Fixed a real production report: every Manhattan-style figure (PCA/DAPC SNP-loading plots, genome-scan FST/diversity/Tajima's D scans, the pcadapt outlier scan) rendered completely unreadable on a non-model reference genome assembled into dozens of short contigs with long accession-style names.** Reported with real figures from a 160-sample nematode cohort assembled against an 88-contig WGS reference (contig names like `JAEVLN010000001.1`): the shared chromosome-name row all five figure types draw beneath their Mb-tick x-axis (`manhattan_chromosome_row()`, `R/utils.R`) centers each contig's name horizontally on its own narrow segment -- fine for a handful of large model-genome chromosomes, but with dozens of short contigs sharing a fixed page width, adjacent long names inevitably collided into an illegible smear regardless of font size, confirmed directly against the reporting user's own figures and the exact real contig names/lengths from their VCF header.
 
