@@ -303,6 +303,12 @@ knitr::include_graphics("figures/12_DAPC_cluster_number_selection.png")
 
 The full report (`22_DAPC_coordinates_K<k>.tsv`, `22f_DAPC_loadings_K<k>.tsv`, and figures) contains one complete set of DAPC results for **every** requested K (2 through 10 by default), not only the consensus K shown here. Before trusting any given K's clustering, check its `replicate_max_rmse` in `21_DAPC_diagnostics.tsv` against `analyses.structure.reproducibility_rmse` (default 0.05): a K at or below that threshold has reproducible replicate membership across independent `find.clusters()`/`dapc()` runs; a K above it does not, and its clusters and loadings should not be interpreted, only the consensus itself and the diagnostics that led to it. In the quickstart example, the consensus K=3 has `replicate_max_rmse` effectively 0 (fully reproducible); several other K values in the same run exceed the threshold and are not shown here for that reason.
 
+Retaining too many or too few PCs before the discriminant step is a separate risk from picking the wrong K: too few PCs discards real signal, too many starts to memorize individual samples rather than group structure. By default (`analyses.dapc_cross_validation: true`) each K's number of retained PCs is chosen automatically by `adegenet::xvalDapc()` cross-validated assignment success, not left at a fixed default -- the number reported as `n_pca` in `21_DAPC_diagnostics.tsv` for that K. This figure shows the full curve behind that choice: mean assignment success against number of PCs retained, a dashed line for the random-chance rate, and the selected count marked directly on the curve. A curve that plateaus well before the marked count is reassuring; one still climbing right up to it is a sign too few PCs were even offered to cross-validate over.
+
+```{r dapc-xval-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/12b_DAPC_xval_K3.png")
+```
+
 `22f_DAPC_loadings_K<k>.tsv`, plus a genomic Manhattan-style figure and a rank-ordered figure, report each SNP's contribution to every discriminant function at each K. A large contribution identifies a marker that helped separate that K's clusters; it does not by itself establish biological cause.
 
 ```{r dapc-figure, echo=FALSE, out.width="90%"}
