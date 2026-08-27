@@ -278,10 +278,31 @@ manhattan_bp_breaks <- function(chromosome, position, offset, target_total = 14L
 # "simplify once the per-item budget collapses" idiom already used by
 # manhattan_bp_breaks() for the Mb ticks above this row, rather than
 # rendering an unreadable jumble.
+#
+# Vertical mode also switches to a materially smaller, fixed font
+# (independent of the figure's own base_size): once forced vertical, exact
+# per-character legibility is secondary -- real contig/chromosome
+# identities belong in the accompanying TSVs, not this margin row -- and a
+# smaller font keeps the row's own physical footprint small regardless of
+# how many labels are packed in. An earlier version of this function instead
+# grew the *data-space* anchor offset (`pad`) to guarantee clearance on
+# narrow-y-range panels; that avoided the labels overlapping the panel, but
+# at a real cost found on a real regenerated production figure: `pad` is a
+# value in the plotted data's own units, so growing it to fit a whole
+# rotated label's length pulled that much of the y-scale's own range down
+# with it, visibly crushing the actual plotted data into a sliver at the
+# top of the panel. The correct place to reserve room for content outside
+# the panel is `plot.margin` (a physical-device quantity, entirely outside
+# the data coordinate system) combined with `coord_cartesian(clip = "off")`
+# to let the label extend down into that margin -- confirmed directly
+# against the exact real ticks/y-range that exposed both the original
+# overlap bug and this squeeze regression: a small, fixed pad (the same
+# 14%-of-range used in horizontal mode) plus a margin sized from the
+# smaller font's real label width keeps the labels fully clear of the
+# panel with the plotted data using its full, correct vertical extent.
 manhattan_chromosome_row <- function(p, ticks, y_range, base_size = 11,
                                      facet_var = NULL, facet_last_level = NULL,
-                                     facet_levels = NULL, plot_width_in = NULL,
-                                     panel_height_in = NULL) {
+                                     facet_levels = NULL, plot_width_in = NULL) {
   pad <- diff(y_range) * 0.14
   if (!is.finite(pad) || pad <= 0) pad <- max(abs(y_range), 1, na.rm = TRUE) * 0.14
 
@@ -289,6 +310,7 @@ manhattan_chromosome_row <- function(p, ticks, y_range, base_size = 11,
   vertical <- FALSE
   keep <- rep(TRUE, nrow(ticks))
   margin_bottom_pt <- 5.5 + base_size * 2
+  extra_height_in <- 0
 
   # The panel that actually plots `total_width` worth of data is narrower
   # than the figure's full saved width: the y-axis number/title column eats
@@ -308,27 +330,34 @@ manhattan_chromosome_row <- function(p, ticks, y_range, base_size = 11,
     label_width_in <- manhattan_label_width_in(ticks$chromosome, label_pt)
     if (any(label_width_in > available_in)) {
       vertical <- TRUE
-      margin_bottom_pt <- margin_bottom_pt + max(label_width_in) * 72
-
-      # `pad` (below) is a fraction of this panel's own y-range -- fine for
-      # one line of horizontal text, but a real bug for tall rotated text:
-      # a panel with a narrow y-range (e.g. a PC with little variance) makes
-      # that fraction physically tiny, so the label's anchor point can sit
-      # barely below the lowest real data point, and the rotated string
-      # then runs back up through the panel's own axis and data rather than
-      # clearing it -- confirmed directly against a real regenerated
-      # production figure. Converting the already-known physical clearance
-      # this label needs (max(label_width_in), the same value driving the
-      # bottom margin above) into this specific panel's own data units
-      # -- via the panel's real physical height, under the same
-      # conservative usable-fraction assumption as the width check --
-      # gives a `pad` guaranteed to clear the panel regardless of how
-      # little data-range that panel happens to have.
-      if (!is.null(panel_height_in) && is.finite(diff(y_range)) && diff(y_range) > 0) {
-        usable_height_in <- panel_height_in * 0.7
-        data_per_inch <- diff(y_range) / usable_height_in
-        pad <- max(pad, max(label_width_in) * data_per_inch)
-      }
+      label_pt <- 7 # fixed, independent of base_size -- see comment above
+      label_width_in <- manhattan_label_width_in(ticks$chromosome, label_pt)
+      # A rotated label anchored just below a *faceted* panel and left to
+      # bleed into plot.margin via coord_cartesian(clip = "off") needs
+      # meaningfully more margin than its own measured length to render in
+      # full -- confirmed empirically (not just theoretically) on the exact
+      # real faceted PCA-loadings figure this row is drawn on: a margin
+      # sized to exactly max(label_width_in) still truncated the label
+      # partway through, and bisecting real rendered output showed the
+      # true requirement is well over 1x, closer to 1.5x, that naive
+      # figure -- a real, separate contributor turned out to be
+      # geom_hline()'s own silent y-scale expansion at affected call sites
+      # (fixed at the call sites themselves, see ordination.R's
+      # plot_pca_loading_manhattan()), but confirmed on the exact real
+      # faceted PCA-loadings figure to not fully account for the shortfall
+      # on its own, so this factor stays deliberately conservative rather
+      # than exact, the same "always err toward more clearance" philosophy
+      # already used for the width-fit and thinning checks above.
+      # This clearance must come out of the canvas, not the panel: a fixed
+      # point margin was found (on the real pcadapt figure, a compact
+      # single-panel 10x4.5in save) to consume over half of a short
+      # canvas's total height, squeezing the panel down to a sliver and
+      # visually crushing the real plotted data -- exactly the squeeze
+      # regression this function exists to avoid. save_plot() reads this
+      # attribute and grows the saved height by it, so the panel keeps its
+      # caller-intended size and only the canvas grows to fit the labels.
+      extra_height_in <- max(label_width_in) * 2
+      margin_bottom_pt <- margin_bottom_pt + max(label_width_in) * 72 * 2
 
       line_height_in <- (label_pt * 1.2) / 72
       min_gap_x <- (line_height_in / usable_width_in) * total_width
@@ -353,7 +382,7 @@ manhattan_chromosome_row <- function(p, ticks, y_range, base_size = 11,
   p <- p +
     ggplot2::geom_text(
       data = label_df, ggplot2::aes(x = x, y = y, label = label),
-      inherit.aes = FALSE, size = base_size * 0.32, fontface = "bold",
+      inherit.aes = FALSE, size = label_pt / 2.845276, fontface = "bold",
       angle = if (vertical) 90 else 0,
       hjust = if (vertical) 1 else 0.5,
       vjust = if (vertical) 0.5 else 1
@@ -383,11 +412,15 @@ manhattan_chromosome_row <- function(p, ticks, y_range, base_size = 11,
     if (!is.null(p$labels$caption)) {
       p <- p + ggplot2::theme(
         plot.caption = ggplot2::element_text(
-          margin = ggplot2::margin(t = max(label_width_in) * 72 + 5.5)
+          # Same conservative x2 factor as margin_bottom_pt above -- the
+          # caption sits below the label row, so it needs to clear the
+          # label's real rendered footprint, not just its nominal length.
+          margin = ggplot2::margin(t = max(label_width_in) * 72 * 2 + 5.5)
         )
       )
     }
   }
+  attr(p, "manhattan_extra_height_in") <- extra_height_in
   p
 }
 
@@ -495,6 +528,18 @@ theme_publication <- function(base_size = 11, base_family = "sans") {
 }
 
 save_plot <- function(p, stem, dirs, formats = c("pdf", "png"), width = 8, height = 6, dpi = 600) {
+  # manhattan_chromosome_row() reserves clearance for rotated chromosome-name
+  # labels via plot.margin (a fixed point quantity that does not scale with
+  # the caller's chosen height) rather than by inflating the data-space pad
+  # that would otherwise squeeze the real plotted panel -- see that
+  # function's own comments. Growing the canvas here by exactly what it
+  # added keeps the panel at the caller's intended size on every call site,
+  # including short, single-panel figures (e.g. pcadapt's 10x4.5in save)
+  # where that margin would otherwise consume most of the canvas.
+  extra_height_in <- attr(p, "manhattan_extra_height_in", exact = TRUE)
+  if (!is.null(extra_height_in) && is.finite(extra_height_in) && extra_height_in > 0) {
+    height <- height + extra_height_in
+  }
   for (fmt in formats) {
     path <- file.path(dirs$figures, paste0(stem, ".", fmt))
     if (fmt == "svg" && !requireNamespace("svglite", quietly = TRUE)) {

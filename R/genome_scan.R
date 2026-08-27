@@ -210,9 +210,13 @@ plot_genome_scan <- function(fst_windows, diversity_windows, cfg, dirs) {
         subtitle = "Weir-Cockerham global FST per window; exploratory outlier flagging, not a significance test",
         x = "Chromosome position", y = expression(italic(F)[ST])
       ) + theme_publication(base_size)
+    # geom_hline(yintercept = 0) above expands this panel's rendered
+    # y-scale to include 0 whenever the real data doesn't naturally span
+    # it -- see the matching comment in ordination.R's
+    # plot_pca_loading_manhattan() for the full mechanism/consequence.
     p1 <- manhattan_chromosome_row(
-      p1, layout$ticks, range(tested_fst$global_fst, na.rm = TRUE), base_size,
-      plot_width_in = 10, panel_height_in = 4.5
+      p1, layout$ticks, range(c(tested_fst$global_fst, 0), na.rm = TRUE), base_size,
+      plot_width_in = 10
     )
     save_plot(p1, "25_genome_scan_FST_manhattan", dirs, fmts, 10, 4.5, dpi)
   }
@@ -234,7 +238,7 @@ plot_genome_scan <- function(fst_windows, diversity_windows, cfg, dirs) {
       ) + theme_publication(base_size)
     p2 <- manhattan_chromosome_row(
       p2, layout$ticks, range(tested_div$mean_expected_heterozygosity, na.rm = TRUE),
-      base_size, plot_width_in = 10, panel_height_in = 5
+      base_size, plot_width_in = 10
     )
     save_plot(p2, "26_genome_scan_diversity_manhattan", dirs, fmts, 10, 5, dpi)
   }
@@ -255,9 +259,13 @@ plot_genome_scan <- function(fst_windows, diversity_windows, cfg, dirs) {
         subtitle = "Per window per population; a neutrality-test statistic, not itself an outlier-significance test",
         x = "Chromosome position", y = "Tajima's D", colour = "Population"
       ) + theme_publication(base_size)
+    # geom_hline(yintercept = 0) above expands this panel's rendered
+    # y-scale to include 0 whenever the real data doesn't naturally span
+    # it -- see the matching comment in ordination.R's
+    # plot_pca_loading_manhattan() for the full mechanism/consequence.
     p3 <- manhattan_chromosome_row(
-      p3, layout$ticks, range(tested_tajima$tajima_d, na.rm = TRUE), base_size,
-      plot_width_in = 10, panel_height_in = 5
+      p3, layout$ticks, range(c(tested_tajima$tajima_d, 0), na.rm = TRUE), base_size,
+      plot_width_in = 10
     )
     save_plot(p3, "26b_genome_scan_tajima_d_manhattan", dirs, fmts, 10, 5, dpi)
   }

@@ -167,7 +167,7 @@ plot_pcadapt <- function(result, cfg, dirs) {
     ) + theme_publication(figure_base_size(cfg))
   p <- manhattan_chromosome_row(
     p, layout$ticks, range(tested$neg_log10_p, na.rm = TRUE), figure_base_size(cfg),
-    plot_width_in = 10, panel_height_in = 4.5
+    plot_width_in = 10
   )
   save_plot(p, "59_pcadapt_manhattan", dirs, fmts, 10, 4.5, dpi)
 }

@@ -48,13 +48,29 @@ test_that("manhattan_chromosome_row switches to vertical, non-overlapping labels
   expect_identical(layer$aes_params$angle, 90)
   expect_identical(layer$aes_params$hjust, 1)
   expect_identical(layer$aes_params$vjust, 0.5)
-  # Too many long labels for 10 inches of width at this font size: some are
-  # thinned rather than left to overlap, but at least one always survives.
-  expect_true(nrow(layer$data) < 60L)
+  # Vertical mode uses a materially smaller, fixed font (7pt) independent of
+  # base_size -- once forced vertical, exact legibility is secondary (real
+  # identities belong in the accompanying TSVs), and a smaller font keeps
+  # the row's own physical footprint small regardless of label count.
+  expect_equal(layer$aes_params$size, 7 / 2.845276)
+  # The smaller vertical-mode font needs less physical spacing per label,
+  # so this particular 60-label/100-unit-spacing scenario fits without any
+  # thinning at all -- a real, intended effect of shrinking the font (less
+  # data discarded, not a regression). test-manhattan-chromosome-row.R's
+  # "never drops every label, even under extreme crowding" test below
+  # covers a scenario tight enough to still require thinning.
   expect_true(nrow(layer$data) >= 1L)
+  expect_true(nrow(layer$data) <= 60L)
   # The redundant "Chromosome position" title is dropped once labels
   # themselves carry that meaning and would otherwise collide with it.
   expect_s3_class(p$theme$axis.title.x, "element_blank")
+  # Real regression: an earlier version of this function grew the label
+  # anchor's data-space offset (`pad`) to guarantee vertical clearance,
+  # which visibly crushed the plotted data into a sliver of the panel to
+  # make room. `pad` must stay exactly the same small, fixed 14%-of-range
+  # value used in horizontal mode -- all real clearance for the (now
+  # smaller) rotated labels belongs in plot.margin, not the data scale.
+  expect_equal(layer$data$y[1], -1 - diff(c(-1, 1)) * 0.14)
 })
 
 test_that("manhattan_chromosome_row never drops every label, even under extreme crowding", {
@@ -140,15 +156,18 @@ test_that("manhattan_chromosome_row leaves a real physical gap between every kep
   kept <- p$layers[[length(p$layers)]]$data
   kept <- kept[order(kept$x), ]
 
-  label_pt <- 11 * 0.32 * 2.845276
+  label_pt <- 7 # the fixed vertical-mode font size (see manhattan_chromosome_row())
   required_in <- (label_pt * 1.2) / 72
   usable_width_in <- 10 * 0.7
   gaps_in <- (diff(kept$x) / sum(ticks$width)) * usable_width_in
 
   expect_true(all(gaps_in >= required_in - 1e-9))
-  # The specific real pair that originally exposed the false positive must
-  # never both survive thinning.
-  expect_false(all(c("JAEVLN010000016.1", "JAEVLN010000017.1") %in% kept$label))
+  # The specific real pair that originally exposed the naive-fit false
+  # positive (horizontal mode) now comfortably survives together in
+  # vertical mode at the smaller, fixed 7pt font -- the general physical-
+  # spacing invariant above is what must hold, not this specific pair's
+  # fate, which is expected to change as the label font shrinks.
+  expect_true(all(c("JAEVLN010000016.1", "JAEVLN010000017.1") %in% kept$label))
 })
 
 test_that("manhattan_chromosome_row renders without error against the exact real contig names/lengths that motivated this fix", {
@@ -168,16 +187,22 @@ test_that("manhattan_chromosome_row renders without error against the exact real
   expect_identical(layer$aes_params$angle, 90)
 })
 
-test_that("manhattan_chromosome_row keeps vertical labels clear of a facet panel with a narrow y-range", {
-  # Real regression: a real PCA-loadings figure had its rotated contig-name
-  # labels overlapping the plotted panel itself (running back up through the
-  # axis and data points) rather than clearing it. `pad` (the label anchor's
-  # offset below the panel's own data) was a fixed 14% of the panel's own
-  # y-range -- fine for one line of horizontal text, but for a panel with a
-  # genuinely narrow range (like this real PC10 facet, contribution values
-  # 0.0196-0.0231 in the reporting user's own truncated top-20-loadings
-  # table) that 14% is physically tiny, so a tall rotated label's anchor sat
-  # barely below the lowest real point instead of below the whole panel.
+test_that("manhattan_chromosome_row does not squeeze a narrow-y-range panel to make room for vertical labels", {
+  # Real regression #1: a real PCA-loadings figure had its rotated
+  # contig-name labels overlapping the plotted panel itself (running back
+  # up through the axis and data points) rather than clearing it, on a
+  # panel with a genuinely narrow y-range (this real PC10 facet,
+  # contribution values 0.0196-0.0231 from the reporting user's own
+  # truncated top-20-loadings table). Fixed at first by growing `pad` (the
+  # label anchor's data-space offset) to guarantee clearance -- which
+  # created real regression #2: since `pad` is a value in the plotted
+  # data's own units, growing it to fit a whole rotated label's length
+  # pulled that much of the panel's own y-scale down with it, visibly
+  # crushing the actual plotted data into a sliver at the top of the
+  # figure (found regenerating the same real figure again). The correct
+  # fix keeps `pad` fixed at the same small 14%-of-range value always used,
+  # and reserves real clearance in `plot.margin` (a physical-device
+  # quantity, entirely outside the data coordinate system) instead.
   ticks <- structure(list(chromosome = c(
     "JAEVLN010000001.1", "JAEVLN010000002.1", "JAEVLN010000003.1", "JAEVLN010000004.1",
     "JAEVLN010000005.1", "JAEVLN010000006.1", "JAEVLN010000007.1", "JAEVLN010000008.1",
@@ -204,36 +229,93 @@ test_that("manhattan_chromosome_row keeps vertical labels clear of a facet panel
   )), class = "data.frame", row.names = c(NA, -38L))
 
   y_range <- c(0.0195876, 0.02306113) # the real PC10 facet's own contribution range
-  panel_height_in <- 2.2 # max(4, 2.2 * n_axes) / n_axes for 10 stacked PC facets
 
   p0 <- ggplot2::ggplot(data.frame(x = range(ticks$center), y = y_range), ggplot2::aes(x, y)) +
     ggplot2::geom_point()
-  p <- popgenVCF:::manhattan_chromosome_row(
-    p0, ticks, y_range, 11, plot_width_in = 10, panel_height_in = panel_height_in
-  )
+  p <- popgenVCF:::manhattan_chromosome_row(p0, ticks, y_range, 11, plot_width_in = 10)
   label_layer <- p$layers[[length(p$layers)]]
-  label_y <- label_layer$data$y[1]
 
-  label_pt <- 11 * 0.32 * 2.845276
-  label_width_in <- popgenVCF:::manhattan_label_width_in(label_layer$data$label, label_pt)
-  usable_height_in <- panel_height_in * 0.7
-  data_per_inch <- diff(y_range) / usable_height_in
-  clearance_in <- (y_range[1] - label_y) / data_per_inch
+  # No squeeze: pad is exactly the same fixed 14%-of-range value used in
+  # horizontal mode, regardless of how long the (now smaller-font) rotated
+  # labels are.
+  expect_equal(label_layer$data$y[1], y_range[1] - diff(y_range) * 0.14)
 
-  expect_true(clearance_in >= max(label_width_in) - 1e-9)
+  # Real clearance instead comes entirely from plot.margin (device space),
+  # sized from the smaller vertical-mode font's real label width.
+  label_width_in <- popgenVCF:::manhattan_label_width_in(label_layer$data$label, 7)
+  margin_bottom_pt <- as.numeric(p$theme$plot.margin)[3]
+  expect_true(margin_bottom_pt >= max(label_width_in) * 72)
 })
 
-test_that("manhattan_chromosome_row's vertical-clearance fix does not change horizontal-mode behavior", {
+test_that("manhattan_chromosome_row's vertical-mode margin grows the saved canvas instead of eating a short, single-panel plot's height", {
+  # Real regression #3 in the same family as the squeeze test above, found
+  # on the real pcadapt figure (a compact single-panel 10x4.5in save, unlike
+  # the tall multi-facet PCA/DAPC-loadings figures the margin factor was
+  # first tuned against): plot.margin is a fixed point quantity that does
+  # not scale with the caller's chosen plot height. On that 4.5in (324pt)
+  # canvas, the vertical-mode margin computed to ~164pt -- over half the
+  # entire canvas -- squeezing the panel itself down to a sliver and
+  # visually crushing all 560k real data points into a single-pixel-tall
+  # smear, the exact squeeze regression this function exists to avoid, just
+  # triggered by a short canvas instead of an inflated pad. The fix has
+  # manhattan_chromosome_row() report how much extra canvas height the
+  # label margin actually needs via an attribute, which save_plot() (tested
+  # separately below) adds to the caller's requested height so the panel
+  # keeps its intended size.
+  names60 <- sprintf("JAEVLN01%07d.1", seq_len(60))
+  ticks <- data.frame(
+    chromosome = names60, center = seq(50, by = 100, length.out = 60), width = rep(100, 60)
+  )
+  p0 <- ggplot2::ggplot(data.frame(x = c(1, 6000), y = c(0, 300)), ggplot2::aes(x, y)) +
+    ggplot2::geom_point()
+  p_vertical <- popgenVCF:::manhattan_chromosome_row(p0, ticks, c(0, 300), 11, plot_width_in = 10)
+
+  extra_in <- attr(p_vertical, "manhattan_extra_height_in", exact = TRUE)
+  label_width_in <- popgenVCF:::manhattan_label_width_in(names60, 7)
+  expect_equal(extra_in, max(label_width_in) * 2)
+  expect_gt(extra_in, 0)
+
+  # Horizontal mode (labels already fit) needs no extra canvas height.
+  narrow_ticks <- data.frame(chromosome = c("chr1", "chr2"), center = c(50, 150), width = c(100, 100))
+  p_horizontal <- popgenVCF:::manhattan_chromosome_row(p0, narrow_ticks, c(0, 300), 11, plot_width_in = 10)
+  expect_equal(attr(p_horizontal, "manhattan_extra_height_in", exact = TRUE), 0)
+})
+
+test_that("save_plot grows the saved height by manhattan_chromosome_row's reported extra canvas need", {
+  names60 <- sprintf("JAEVLN01%07d.1", seq_len(60))
+  ticks <- data.frame(
+    chromosome = names60, center = seq(50, by = 100, length.out = 60), width = rep(100, 60)
+  )
+  p0 <- ggplot2::ggplot(data.frame(x = c(1, 6000), y = c(0, 300)), ggplot2::aes(x, y)) +
+    ggplot2::geom_point()
+  p <- popgenVCF:::manhattan_chromosome_row(p0, ticks, c(0, 300), 11, plot_width_in = 10)
+  extra_in <- attr(p, "manhattan_extra_height_in", exact = TRUE)
+  expect_gt(extra_in, 0) # sanity: this fixture must actually trigger vertical mode
+
+  captured <- list()
+  local_mocked_bindings(
+    ggsave = function(filename, plot, width, height, ...) {
+      captured$height <<- height
+      invisible(NULL)
+    },
+    .package = "ggplot2"
+  )
+  dirs <- withr::local_tempdir()
+  popgenVCF:::save_plot(p, "stem", list(figures = dirs), formats = "pdf", width = 10, height = 4.5, dpi = 600)
+
+  expect_equal(captured$height, 4.5 + extra_in)
+})
+
+test_that("manhattan_chromosome_row's vertical-mode font/margin logic does not change horizontal-mode behavior", {
   ticks <- data.frame(chromosome = c("chr1", "chr2"), center = c(50, 150), width = c(100, 100))
   p0 <- ggplot2::ggplot(data.frame(x = c(1, 190), y = c(-1, 1)), ggplot2::aes(x, y)) +
     ggplot2::geom_point()
 
-  p <- popgenVCF:::manhattan_chromosome_row(
-    p0, ticks, c(-1, 1), 11, plot_width_in = 10, panel_height_in = 6
-  )
+  p <- popgenVCF:::manhattan_chromosome_row(p0, ticks, c(-1, 1), 11, plot_width_in = 10)
   layer <- p$layers[[length(p$layers)]]
 
   expect_identical(layer$aes_params$angle, 0)
+  expect_equal(layer$aes_params$size, 11 * 0.32) # base_size-derived, not the fixed vertical-mode 7pt
   expect_equal(layer$data$y[1], -1 - diff(c(-1, 1)) * 0.14)
 })
 

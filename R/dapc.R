@@ -283,7 +283,7 @@ plot_dapc_loading_manhattan <- function(loadings, k, cfg, dirs, profile) {
   p <- manhattan_chromosome_row(
     p, layout$ticks, range(loadings$contribution[loadings$axis == last_axis], na.rm = TRUE),
     base_size, facet_var = "axis", facet_last_level = last_axis, facet_levels = levels(loadings$axis),
-    plot_width_in = 10, panel_height_in = max(4, 2.2 * n_axes) / n_axes
+    plot_width_in = 10
   )
   save_plot(
     p, sprintf("15_DAPC_loadings_manhattan_K%s", k), dirs,
