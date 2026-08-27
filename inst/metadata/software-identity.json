@@ -3,7 +3,7 @@
   "name": "popgenVCF",
   "title": "Population Genomics Toolkit for VCF Data",
   "citation_title": "popgenVCF: Population Genomics Toolkit for VCF Data",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "citation_year": 2026,
   "release_status": "development",
   "date_released": null,

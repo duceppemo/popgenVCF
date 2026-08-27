@@ -11,7 +11,7 @@ repository-code: "https://github.com/duceppemo/popgenVCF"
 repository-artifact: "https://github.com/duceppemo/popgenVCF/releases"
 url: "https://duceppemo.github.io/popgenVCF/"
 license: MIT
-version: 1.0.5
+version: 1.0.6
 keywords:
   - population genomics
   - population genetics

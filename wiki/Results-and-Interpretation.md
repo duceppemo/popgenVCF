@@ -689,6 +689,38 @@ diagnostics that led to it. In the quickstart example, the consensus K=3 has
 values in the same run exceed the threshold and are not shown here for that
 reason.
 
+Retaining too many or too few PCs before the discriminant step is a separate
+risk from picking the wrong K: too few PCs discards real signal, too many
+starts to memorize individual samples rather than group structure (in the
+extreme, retaining so many PCs that samples nearly perfectly separate can
+make every K look artificially clean). By default
+(`analyses.dapc_cross_validation: true`) each K's number of retained PCs is
+chosen automatically by `adegenet::xvalDapc()` cross-validated assignment
+success, not left at a fixed default -- the number reported as `n_pca` in
+`21_DAPC_diagnostics.tsv` for that K. This figure shows the full diagnostic
+behind that choice, not just the summary: every individual bootstrap
+replicate's outcome (the semi-transparent points -- the same real
+per-replicate variability `adegenet::xvalDapc()` itself computes but
+normally discards after averaging), the mean curve connecting them, the full
+random-chance reference band (2.5/50/97.5%, not just its median), and the
+selected PC count marked directly on the curve. A tight cluster of replicate
+points at each candidate count is reassuring; a wide spread means the "best"
+count is closer to a coin flip among several similarly-plausible values than
+a clean, confident peak -- exactly the case where the automatic selection
+deserves a second look before trusting the resulting K=3 clustering below.
+
+![DAPC PC-count cross-validation at K=3 from the quickstart example: every individual bootstrap replicate's outcome, the mean success curve, the full random-chance reference band, and the selected PC count](figures/12b_DAPC_xval_K3.png)
+
+A second, independent check on the same question comes from the
+discriminant analysis itself rather than the PC-retention step that feeds
+it: `dapc$eig`, the between-group variance each retained discriminant axis
+explains. A steep drop after the first axis or two means later axes carry
+comparatively little real separating power; a flat, undifferentiated bar
+chart across many axes is a sign the discriminant step is not cleanly
+separating the data either.
+
+![DA eigenvalues at K=3 from the quickstart example](figures/12c_DAPC_eigenvalues_K3.png)
+
 `22f_DAPC_loadings_K<k>.tsv` and the per-K Manhattan/ranked loading figures
 report each SNP's contribution to every discriminant function (this
 repository's DAPC groups are the unsupervised `find.clusters()` partition at

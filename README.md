@@ -18,9 +18,9 @@ runs of homozygosity, sliding-window genome scans, DAPC, AMOVA, population
 structure, spatial genetics, publication outputs, and machine-readable
 validation evidence.
 
-> Development series: **1.0.5** — active development on `main` toward
-> the next release, past the current stable release **1.0.4** (released
-> 2026-08-26; Zenodo DOI reconciliation still pending, as is 1.0.3's).
+> Development series: **1.0.6** — active development on `main` toward
+> the next release, past the current stable release **1.0.5** (released
+> 2026-08-26; Zenodo DOI reconciliation still pending, as is 1.0.3's/1.0.4's).
 > No development build should be treated as release-approved unless its own
 > production dossier reports `READY`.
 
