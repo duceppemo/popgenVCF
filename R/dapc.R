@@ -74,6 +74,21 @@ run_dapc_k_task <- function(k, gl, shared_pca, max_pca, sample_ids,
     n_pca <- min(max_pca, max(2L, floor(length(sample_ids) * .8)))
     cv <- NULL
     if (cross_validate) {
+      # adegenet::xvalDapc() does forward `...` down into boot::boot()'s own
+      # native parallel = "multicore"/ncpus (via its internal .get.prop.pred()
+      # helper) -- the mechanism the widely-used "Population Genetics in R"
+      # DAPC tutorial demonstrates -- but deliberately NOT used here: this
+      # call resamples with sim = "parametric", which per boot::boot()'s own
+      # documentation resamples *inside* the worker processes, each choosing
+      # its own separate, non-reproducible seed. Confirmed directly on this
+      # package's real quickstart dataset: identical data/seed gave n.pca =
+      # 10 (replicate RMSE ~0) serial vs. n.pca = 40 (RMSE 0.076, exceeding
+      # the stability threshold) with parallel = "multicore" enabled -- a
+      # materially different, less reproducible result, not just a faster
+      # one. Every other parallel path in this codebase is verified
+      # byte-identical regardless of thread count; this one cannot be
+      # without reimplementing xvalDapc's own resampling loop, so it stays
+      # serial.
       cv <- tryCatch(adegenet::xvalDapc(
         gl, grp, n.pca.max = n_pca, training.set = .9,
         result = "groupMean", center = TRUE, scale = FALSE,
@@ -318,13 +333,18 @@ plot_dapc_loading_ranked <- function(loadings, k, cfg, dirs, profile) {
 # cfg$analyses$dapc_cross_validation) already picks the number of retained
 # PCs by cross-validated assignment success -- the full per-n.pca curve
 # behind that choice was computed and kept on `cv` all along, just never
-# rendered (xvalDapc(..., xval.plot = FALSE)). This draws that curve
-# directly from the retained `cv` object rather than recomputing anything,
-# matching the standard adegenet DAPC cross-validation diagnostic (e.g.
-# https://grunwaldlab.github.io/Population_Genetics_in_R/DAPC.html#cross-validation):
-# mean assignment success against number of PCs retained, a dashed
-# reference line for the median random-chance rate, and the selected PC
-# count marked directly on the curve.
+# rendered (xvalDapc(..., xval.plot = FALSE)). This draws the same
+# diagnostic as adegenet's own built-in xval.plot = TRUE scatter (its own
+# axis labels are literally "Number of PCA axes retained" and "Proportion
+# of successful outcome prediction"), reusing the exact retained `cv`
+# object rather than recomputing anything: every individual bootstrap
+# replicate's outcome (not just the per-n.pca mean, which alone can look
+# like a clean, confident peak even when the underlying replicates are
+# highly variable -- exactly the case a user needs to see to judge whether
+# the auto-selected PC count is trustworthy or an artifact of too few
+# replicates/too small a training set on a real dataset), the full
+# 2.5/50/97.5% random-chance reference band (not just the median), the
+# mean curve on top, and the selected PC count marked directly on it.
 plot_dapc_xval <- function(cv, k, cfg, dirs, profile) {
   if (is.null(cv)) return(invisible(NULL))
   success <- cv[["Mean Successful Assignment by Number of PCs of PCA"]]
@@ -337,22 +357,56 @@ plot_dapc_xval <- function(cv, k, cfg, dirs, profile) {
   if (!nrow(df)) return(invisible(NULL))
   data.table::setorder(data.table::setDT(df), n_pca)
 
+  raw <- cv[["Cross-Validation Results"]]
+  raw_df <- NULL
+  if (is.data.frame(raw) && all(c("n.pca", "success") %in% names(raw))) {
+    raw_df <- data.frame(
+      n_pca = suppressWarnings(as.numeric(raw$n.pca)),
+      success = suppressWarnings(as.numeric(raw$success))
+    )
+    raw_df <- raw_df[is.finite(raw_df$n_pca) & is.finite(raw_df$success), ]
+  }
+
   selected <- suppressWarnings(as.integer(
     cv[["Number of PCs Achieving Highest Mean Success"]]
   ))[1]
   chance <- suppressWarnings(as.numeric(
-    cv[["Median and Confidence Interval for Random Chance"]][["50%"]]
+    cv[["Median and Confidence Interval for Random Chance"]]
   ))
+  chance_names <- names(cv[["Median and Confidence Interval for Random Chance"]])
+  chance_lo <- chance[chance_names == "2.5%"][1]
+  chance_mid <- chance[chance_names == "50%"][1]
+  chance_hi <- chance[chance_names == "97.5%"][1]
 
   colour <- expand_figure_palette(profile, 1L, "colours")
-  p <- ggplot2::ggplot(df, ggplot2::aes(x = n_pca, y = success)) +
-    ggplot2::geom_line(colour = colour) +
-    ggplot2::geom_point(colour = colour, size = 2)
-  if (is.finite(chance)) {
-    p <- p + ggplot2::geom_hline(
-      yintercept = chance, linetype = "dashed", colour = "#999999"
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = n_pca, y = success))
+  if (!is.null(raw_df) && nrow(raw_df)) {
+    # Jittered so the discrete n.pca values a real n.rep = 30 replicates
+    # tightly stack on don't render as one solid vertical smear.
+    jitter_width <- max(diff(sort(unique(df$n_pca))), 1) * 0.12
+    p <- p + ggplot2::geom_jitter(
+      data = raw_df, colour = colour, alpha = 0.18, size = 1,
+      width = jitter_width, height = 0
     )
   }
+  if (length(chance_lo) && is.finite(chance_lo)) {
+    p <- p + ggplot2::geom_hline(
+      yintercept = chance_lo, linetype = "dashed", colour = "#999999"
+    )
+  }
+  if (length(chance_hi) && is.finite(chance_hi)) {
+    p <- p + ggplot2::geom_hline(
+      yintercept = chance_hi, linetype = "dashed", colour = "#999999"
+    )
+  }
+  if (length(chance_mid) && is.finite(chance_mid)) {
+    p <- p + ggplot2::geom_hline(
+      yintercept = chance_mid, linetype = "solid", colour = "#999999"
+    )
+  }
+  p <- p +
+    ggplot2::geom_line(colour = colour) +
+    ggplot2::geom_point(colour = colour, size = 2)
   if (is.finite(selected)) {
     p <- p + ggplot2::geom_vline(
       xintercept = selected, linetype = "dotted", colour = "#B2182B"
@@ -367,10 +421,36 @@ plot_dapc_xval <- function(cv, k, cfg, dirs, profile) {
       } else {
         NULL
       },
-      x = "Number of PCs retained", y = "Mean successful assignment"
+      x = "Number of PCA axes retained", y = "Proportion of successful outcome prediction"
     ) + theme_publication(figure_base_size(cfg))
   save_plot(
     p, sprintf("12b_DAPC_xval_K%s", k), dirs,
+    cfg$output$figure_formats, 7, 5, cfg$output$dpi
+  )
+  invisible(p)
+}
+
+# The standard base-R DAPC diagnostic (barplot(dapc$eig, ...)) as a proper
+# ggplot2 figure: how much between-group variance each retained
+# discriminant axis explains. A steep drop after the first one or two axes
+# is the usual signal that later axes (and the LD scatterplot panels built
+# from them) carry little real separating power -- a second, independent
+# way to sanity-check the retained axis count alongside plot_dapc_xval()'s
+# PC-count curve above (that one validates n.pca going into dapc(), this
+# one validates n.da coming out of it).
+plot_dapc_eigenvalues <- function(model, k, cfg, dirs, profile) {
+  eig <- model$eig
+  if (is.null(eig) || !length(eig)) return(invisible(NULL))
+  df <- data.frame(axis = factor(seq_along(eig)), eigenvalue = as.numeric(eig))
+  colour <- unname(expand_figure_palette(profile, 1L, "fills"))
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = axis, y = eigenvalue)) +
+    ggplot2::geom_col(fill = colour, width = 0.72) +
+    ggplot2::labs(
+      title = sprintf("DA eigenvalues (K = %s)", k),
+      x = "Discriminant axis", y = "Eigenvalue"
+    ) + theme_publication(figure_base_size(cfg))
+  save_plot(
+    p, sprintf("12c_DAPC_eigenvalues_K%s", k), dirs,
     cfg$output$figure_formats, 7, 5, cfg$output$dpi
   )
   invisible(p)
@@ -413,6 +493,7 @@ plot_dapc <- function(dapc, cfg, dirs) {
       save_plot(p, sprintf("11_DAPC_K%s", k), dirs, cfg$output$figure_formats, 8, 6, cfg$output$dpi)
     }
     plot_dapc_xval(dapc$models[[k]]$cv, k, cfg, dirs, profile)
+    plot_dapc_eigenvalues(dapc$models[[k]]$model, k, cfg, dirs, profile)
     membership <- dapc$models[[k]]$membership
     q <- data.table::as.data.table(membership)
     q[, sample := rownames(membership)]
