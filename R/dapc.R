@@ -382,11 +382,16 @@ plot_dapc_xval <- function(cv, k, cfg, dirs, profile) {
   p <- ggplot2::ggplot(df, ggplot2::aes(x = n_pca, y = success))
   if (!is.null(raw_df) && nrow(raw_df)) {
     # Jittered so the discrete n.pca values a real n.rep = 30 replicates
-    # tightly stack on don't render as one solid vertical smear.
+    # tightly stack on don't render as one solid vertical smear. A fixed
+    # seed keeps the figure itself reproducible across repeated report
+    # generations against unchanged data -- ggplot2::position_jitter()
+    # otherwise draws a fresh random offset every render (confirmed
+    # directly: two renders from the identical retained `cv` object
+    # produced visibly different point clouds without this).
     jitter_width <- max(diff(sort(unique(df$n_pca))), 1) * 0.12
     p <- p + ggplot2::geom_jitter(
       data = raw_df, colour = colour, alpha = 0.18, size = 1,
-      width = jitter_width, height = 0
+      position = ggplot2::position_jitter(width = jitter_width, height = 0, seed = 1L)
     )
   }
   if (length(chance_lo) && is.finite(chance_lo)) {

@@ -71,6 +71,36 @@ test_that("plot_dapc_xval overlays every individual bootstrap replicate and the 
   expect_equal(intercepts, c(0.30, 0.34, 0.38))
 })
 
+test_that("plot_dapc_xval's jittered raw-replicate scatter is reproducible across repeated renders of the same data", {
+  # Real regression: ggplot2::geom_jitter()'s default position_jitter()
+  # draws a fresh random offset on every render (seed = NA), so the exact
+  # same retained `cv` object produced a visibly different point cloud each
+  # time the report was regenerated -- found comparing two real renders of
+  # this package's own example report byte-for-byte, unrelated to any
+  # actual change in the underlying cross-validation data. Fixed with a
+  # fixed jitter seed.
+  cv <- dapc_xval_fixture()
+  cv[["Cross-Validation Results"]] <- data.frame(
+    n.pca = rep(c(2, 4, 6, 8, 10), each = 3L),
+    success = c(
+      0.35, 0.40, 0.45, 0.55, 0.62, 0.69, 0.70, 0.78, 0.86,
+      0.75, 0.81, 0.87, 0.65, 0.75, 0.85
+    )
+  )
+  profile <- popgenVCF:::figure_style_profile("accessibility-first")
+  cfg <- list(output = list(figure_formats = "pdf", dpi = 150L))
+
+  build_jitter_x <- function() {
+    p <- popgenVCF:::plot_dapc_xval(cv, "3", cfg, list(figures = withr::local_tempdir()), profile)
+    idx <- which(vapply(
+      p$layers, function(l) inherits(l$geom, "GeomPoint") && is.data.frame(l$data), logical(1L)
+    ))[1L]
+    ggplot2::ggplot_build(p)$data[[idx]]$x
+  }
+
+  expect_identical(build_jitter_x(), build_jitter_x())
+})
+
 test_that("plot_dapc_xval does nothing when cross-validation did not run or produced no curve", {
   profile <- popgenVCF:::figure_style_profile("accessibility-first")
   cfg <- list(output = list(figure_formats = "pdf", dpi = 150L))
