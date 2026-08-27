@@ -371,17 +371,27 @@ run_module_clonality <- function(analysis, context) {
   write_tsv(result$summary, file.path(dirs$tables, "56_MLG_diversity_summary.tsv"))
   write_tsv(result$groups, file.path(dirs$tables, "57_MLG_groups.tsv"))
   if (nrow(result$curve)) write_tsv(result$curve, file.path(dirs$tables, "58_genotype_accumulation_curve.tsv"))
+  if (nrow(result$msn_edges)) write_tsv(result$msn_edges, file.path(dirs$tables, "58b_MSN_edges.tsv"))
   plot_clonality(result, cfg, dirs)
+  plot_msn_network(result, cfg, dirs)
   if (!isTRUE(result$ld_pruned_usable)) {
     analysis <- record_analysis_message(
       analysis, "WARNING", "clonality",
-      "The LD-pruned marker set has fewer than two usable loci; poppr::poppr()'s Ia/rbarD diversity summary and the genotype accumulation curve were skipped. MLG duplicate-group detection, which uses the full unpruned marker set, is unaffected"
+      "The LD-pruned marker set has fewer than two usable loci; poppr::poppr()'s Ia/rbarD diversity summary, the genotype accumulation curve, and the minimum spanning network were skipped. MLG duplicate-group detection, which uses the full unpruned marker set, is unaffected"
     )
-  } else if (isTRUE(result$poppr_failed)) {
-    analysis <- record_analysis_message(
-      analysis, "WARNING", "clonality",
-      "poppr::poppr()'s Ia/rbarD diversity summary crashed (a known 32-bit overflow in poppr's compiled pairdiffs routine at large sample x locus counts) and was skipped; MLG duplicate-group detection and the genotype accumulation curve, which do not depend on that call, are unaffected"
-    )
+  } else {
+    if (isTRUE(result$poppr_failed)) {
+      analysis <- record_analysis_message(
+        analysis, "WARNING", "clonality",
+        "poppr::poppr()'s Ia/rbarD diversity summary crashed (a known 32-bit overflow in poppr's compiled pairdiffs routine at large sample x locus counts) and was skipped; MLG duplicate-group detection and the genotype accumulation curve, which do not depend on that call, are unaffected"
+      )
+    }
+    if (isTRUE(result$msn_failed)) {
+      analysis <- record_analysis_message(
+        analysis, "WARNING", "clonality",
+        "The minimum spanning network could not be computed and was skipped; other clonality outputs are unaffected"
+      )
+    }
   }
   if (nrow(result$groups)) {
     n_cross <- sum(result$groups$cross_population)

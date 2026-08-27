@@ -870,6 +870,45 @@ clonal structure, in this genuinely outbreeding human dataset. Read any
 remaining positive value cautiously either way, not as direct evidence of
 clonal reproduction.
 
+A minimum spanning network (MSN; Kamvar, Tabima, and Grunwald 2014,
+`poppr::poppr.msn()`, over the same LD-pruned marker set as the accumulation
+curve above) draws a complementary picture: a genetic-distance network
+connecting each clone-corrected multilocus genotype -- one node per distinct
+genotype, larger when more than one sample shares it -- to its nearest
+neighbors, rather than either a bifurcating tree (the NJ trees above) or a
+fixed low-dimensional projection (PCA/DAPC). Every edge's endpoints and
+genetic distance are in `58b_MSN_edges.tsv`. Unlike [the poppr MSN
+tutorial](https://grunwaldlab.github.io/Population_Genetics_in_R/Minimum_Spanning_Networks.html)'s
+own `bruvo.msn()`, which assumes a stepwise mutation model appropriate for
+microsatellite repeat lengths, this pipeline uses `poppr::diss.dist()` -- a
+discrete/Hamming-style distance poppr itself documents as usable for any
+marker system, and, at `percent = TRUE`, numerically identical to
+`provesti.dist()` but built to scale better for large sample counts.
+
+![Minimum spanning network from the quickstart example: one node per distinct multilocus genotype on the LD-pruned marker set, coloured by recorded population, node size scaled to how many samples share that genotype, edge grey-scale/width scaled to genetic distance](figures/58b_MSN_network.png)
+
+On the quickstart example, every one of the 160 samples remains its own node
+even on the LD-pruned set (no edges collapse into a multi-sample node),
+consistent with the accumulation curve's own near-immediate saturation
+above. Reading the network from `58b_MSN_edges.tsv` rather than by eye: the
+overall same-population/cross-population edge-distance split is modest
+(mean 0.154 within a recorded population vs. 0.162 across two, out of 162
+total edges) -- individual pairwise distance on a 357-SNP panel does not
+cleanly separate these populations the way aggregate multi-locus methods
+(PCA, FST) do, consistent with the same ~9% FST/AMOVA-among-population
+signal reported above rather than a sharper one. Some specific structure is
+real and verifiable, though: CHB (East Asian) forms a largely self-contained
+subcluster (18 of its 21 incident edges connect two CHB samples to each
+other) with only single, separate bridging edges out to six other
+populations, no one of them dominant; LWK and YRI (African) likewise mostly
+connect to each other (28 of 36 edges touching either population). Both
+observations echo, from a genuinely different node-and-edge method, the same
+population-structure signal PCA/DAPC/FST report elsewhere on this page --
+not a new finding on its own. A sample whose shortest edge crosses into a
+different population's genotypes is worth checking against its PCA/DAPC
+placement and kinship results before trusting its recorded population
+label.
+
 ## Sex-biased dispersal test
 
 `hierfstat::sexbias.test()` (Goudet, Perrin, and Waser 2002) asks a

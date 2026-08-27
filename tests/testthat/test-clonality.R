@@ -279,4 +279,66 @@ test_that("run_clonality degrades gracefully when the LD-pruned set has fewer th
   # groups (from the full, unpruned set) are unaffected by the LD-pruned set
   # being too small to support Ia/rbarD.
   expect_true(is.data.frame(res$groups))
+  # The minimum spanning network shares the same LD-pruned gating as
+  # Ia/rbarD/the curve above -- see this file's top-of-file comment.
+  expect_null(res$msn)
+  expect_null(res$msn_gid)
+  expect_false(res$msn_failed) # gating, not a real MSN failure
+  expect_identical(nrow(res$msn_edges), 0L)
+})
+
+test_that("run_clonality computes a minimum spanning network over the LD-pruned set, one node per distinct genotype", {
+  geno <- clonality_fixture_genotype(n = 20L, l = 30L, seed = 4L)
+  geno["VCF_S2", ] <- geno["VCF_S1", ] # a real duplicate, clone-corrected to one MSN node
+  metadata <- data.table::data.table(
+    sample = rownames(geno), population = rep(c("A", "B"), each = 10)
+  )
+  res <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 0)
+
+  expect_true(res$ld_pruned_usable)
+  expect_false(res$msn_failed)
+  expect_false(is.null(res$msn))
+  expect_identical(names(res$msn), c("graph", "populations", "colors"))
+  expect_s4_class(res$msn_gid, "genclone")
+  # 20 samples, one exact duplicate pair -> 19 distinct multilocus genotypes.
+  expect_equal(igraph::gorder(res$msn$graph), 19L)
+  # A minimum spanning network has at least n-1 edges (more if include.ties
+  # keeps equally-short ties, as this module always requests).
+  expect_gte(nrow(res$msn_edges), igraph::gorder(res$msn$graph) - 1L)
+  expect_true(all(res$msn_edges$distance >= 0))
+  expect_true(all(c(res$msn_edges$from_sample, res$msn_edges$to_sample) %in% rownames(geno)))
+})
+
+test_that("clonality_run_msn returns NULL rather than erroring on a single-sample genclone", {
+  geno <- clonality_fixture_genotype(n = 1L, l = 10L)
+  gid <- popgenVCF:::clonality_encode_genind(geno, rownames(geno), "A")
+  gc <- poppr::as.genclone(gid)
+  expect_null(popgenVCF:::clonality_run_msn(gc))
+})
+
+test_that("clonality_msn_edge_table returns an empty, well-typed table for a NULL or nodeless msn", {
+  empty <- popgenVCF:::clonality_msn_empty_edges()
+  expect_identical(nrow(empty), 0L)
+  expect_identical(names(empty), c("from_sample", "from_mlg", "to_sample", "to_mlg", "distance"))
+  expect_identical(popgenVCF:::clonality_msn_edge_table(NULL), empty)
+})
+
+test_that("plot_msn_network writes a figure file for a real network and is a no-op without one", {
+  geno <- clonality_fixture_genotype(n = 20L, l = 30L, seed = 4L)
+  metadata <- data.table::data.table(
+    sample = rownames(geno), population = rep(c("A", "B"), each = 10)
+  )
+  res <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 0)
+  cfg <- popgenVCF::default_config(); cfg$output$figure_formats <- "png"
+  out <- tempfile("clonality-msn-plot-"); dirs <- list(figures = file.path(out, "figures"))
+  dir.create(dirs$figures, recursive = TRUE)
+
+  popgenVCF:::plot_msn_network(res, cfg, dirs)
+  expect_true(file.exists(file.path(dirs$figures, "58b_MSN_network.png")))
+
+  no_msn <- res; no_msn$msn <- NULL; no_msn$msn_gid <- NULL
+  out2 <- tempfile("clonality-msn-none-"); dirs2 <- list(figures = file.path(out2, "figures"))
+  dir.create(dirs2$figures, recursive = TRUE)
+  popgenVCF:::plot_msn_network(no_msn, cfg, dirs2)
+  expect_length(list.files(dirs2$figures), 0L)
 })

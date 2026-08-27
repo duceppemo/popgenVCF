@@ -18,6 +18,7 @@ dependencies:
   - r-digest
   - r-ggplot2
   - r-ggrepel
+  - r-igraph
   - r-jsonlite
   - r-openssl
   - r-poppr

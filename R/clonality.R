@@ -139,6 +139,67 @@ clonality_group_table <- function(mlg_groups, population, sample_ids) {
   }))
 }
 
+clonality_msn_empty_edges <- function() {
+  data.table::data.table(
+    from_sample = character(), from_mlg = character(),
+    to_sample = character(), to_mlg = character(), distance = numeric()
+  )
+}
+
+# Minimum spanning network (MSN; Kamvar, Tabima, and Grunwald 2014's
+# poppr.msn(), https://grunwaldlab.github.io/Population_Genetics_in_R/Minimum_Spanning_Networks.html)
+# over the same LD-pruned marker set as poppr()'s Ia/rbarD summary and the
+# genotype accumulation curve above -- a genetic-distance network showing
+# how MLGs relate to each other, clone-corrected (one node per distinct
+# multilocus genotype, sized by how many samples share it), complementary
+# to the exact-duplicate detection above (which uses the full unpruned set)
+# and to the population-structure views elsewhere in this pipeline
+# (PCA/DAPC/NJ trees). The tutorial's own `bruvo.msn()` assumes a stepwise
+# mutation model appropriate for microsatellite repeat-length data, not
+# SNPs, so this uses the general `poppr.msn()` with `poppr::diss.dist()`
+# instead -- a simple discrete/Hamming-style distance poppr itself
+# documents as usable "for any marker system" and, at `percent = TRUE`,
+# numerically identical to `provesti.dist()` but built to "perform better
+# for large numbers of individuals (n > 125)" (this package's own real
+# production datasets reach into the thousands of samples). `include.ties
+# = TRUE` keeps every edge tied for shortest distance rather than
+# arbitrarily dropping ties (poppr's own MSN tutorial makes the same
+# choice), since a discrete SNP-based distance routinely produces exact
+# ties. Color palette is left at poppr.msn()'s own default here -- baked
+# into the graph at construction time, by that function's own design --
+# and re-styled to this pipeline's real population palette later by
+# plot_msn_network(), via plot_poppr_msn()'s own `palette` argument, so
+# this compute step stays style-agnostic like every other run_*() function
+# in this codebase.
+clonality_run_msn <- function(gc) {
+  if (adegenet::nInd(gc) < 2L) return(NULL)
+  tryCatch({
+    dist_mat <- poppr::diss.dist(gc, percent = TRUE)
+    poppr::poppr.msn(gc, dist_mat, showplot = FALSE, include.ties = TRUE)
+  }, error = function(e) NULL)
+}
+
+# One row per MSN edge: the two clone-corrected representative sample names
+# anchoring each edge (poppr.msn()'s own vertex names) and their MLG labels
+# (poppr's own "MLG.<n>" identifiers, joined from the graph's vertex
+# attributes -- the same labels the figure itself displays), plus the
+# genetic distance between them (the same diss.dist() value used to build
+# the network, not separately re-derived).
+clonality_msn_edge_table <- function(msn) {
+  if (is.null(msn) || is.null(msn$graph) || igraph::gorder(msn$graph) < 2L) {
+    return(clonality_msn_empty_edges())
+  }
+  edges <- igraph::as_data_frame(msn$graph, what = "edges")
+  if (!nrow(edges)) return(clonality_msn_empty_edges())
+  vertices <- igraph::as_data_frame(msn$graph, what = "vertices")
+  mlg_by_name <- stats::setNames(as.character(vertices$label), vertices$name)
+  data.table::data.table(
+    from_sample = edges$from, from_mlg = unname(mlg_by_name[edges$from]),
+    to_sample = edges$to, to_mlg = unname(mlg_by_name[edges$to]),
+    distance = as.numeric(edges$weight)
+  )
+}
+
 clonality_empty_curve <- function() {
   data.table::data.table(n_loci = integer(), mean_mlg = numeric(),
                          q025_mlg = numeric(), q975_mlg = numeric())
@@ -251,12 +312,23 @@ run_clonality <- function(genotype, ld_genotype, sample_ids, metadata, seed,
   summary_dt <- if (poppr_failed) clonality_empty_summary() else clonality_rename_summary(summary_raw)
   curve <- if (ld_pruned_usable) clonality_curve_summary(gc_ld, as.integer(curve_replicates)) else clonality_empty_curve()
 
+  # Minimum spanning network: same LD-pruned marker set and gating as
+  # Ia/rbarD/the genotype accumulation curve above (see this file's
+  # top-of-file comment for why). Kept independent of poppr_failed, since
+  # poppr.msn()/diss.dist() share no code path with the isolated,
+  # 32-bit-overflow-prone poppr::poppr() call above.
+  msn <- if (ld_pruned_usable) clonality_run_msn(gc_ld) else NULL
+  msn_gid <- if (!is.null(msn)) gc_ld else NULL
+  msn_failed <- ld_pruned_usable && is.null(msn)
+  msn_edges <- clonality_msn_edge_table(msn)
+
   n_mlg_total <- suppressWarnings(as.integer(summary_dt[population == "Total", mlg]))
   if (!length(n_mlg_total)) n_mlg_total <- NA_integer_
 
   list(summary = summary_dt, groups = groups, curve = curve,
       n_mlg_total = n_mlg_total, curve_replicates = as.integer(curve_replicates),
-      poppr_failed = poppr_failed, ld_pruned_usable = ld_pruned_usable)
+      poppr_failed = poppr_failed, ld_pruned_usable = ld_pruned_usable,
+      msn = msn, msn_gid = msn_gid, msn_failed = msn_failed, msn_edges = msn_edges)
 }
 
 plot_clonality <- function(result, cfg, dirs) {
@@ -286,4 +358,57 @@ plot_clonality <- function(result, cfg, dirs) {
       x = "Number of LD-pruned loci sampled", y = "Multilocus genotypes (MLG)"
     ) + theme_publication(figure_base_size(cfg))
   save_plot(p, "58_genotype_accumulation_curve", dirs, fmts, 8, 5.5, dpi)
+}
+
+# Minimum spanning network figure (poppr::plot_poppr_msn()). Base-graphics,
+# like the NJ trees in R/tree_bootstrap.R (see save_base_plot()'s own
+# comment): poppr's MSN plotting is an igraph/base-graphics routine with no
+# ggplot2-native equivalent among this package's dependencies. Individual
+# sample labels are suppressed (`inds = "none"`): a real SNP marker panel
+# routinely resolves one unique MLG per sample, so node count/size (a
+# clone-corrected group's real member count) already carries that
+# information without a real dataset's worth of names cluttering the
+# network; population colour (restyled here via plot_poppr_msn()'s own
+# `palette` argument, not by touching the graph object poppr.msn() already
+# built) and poppr's own built-in legends carry the rest. `layout.auto()`
+# is stochastic, so the pipeline's own seed is set immediately before
+# plotting for a reproducible figure across repeated runs on the same data.
+plot_msn_network <- function(result, cfg, dirs) {
+  if (is.null(result$msn) || is.null(result$msn_gid)) return(invisible(NULL))
+  n_nodes <- igraph::gorder(result$msn$graph)
+  if (n_nodes < 2L) return(invisible(NULL))
+  fmts <- cfg$output$figure_formats; dpi <- cfg$output$dpi
+  style <- figure_style_name(cfg)
+  pal <- population_palette(adegenet::pop(result$msn_gid), style)
+  n_samples <- adegenet::nInd(result$msn_gid)
+
+  draw <- function() {
+    # plot_poppr_msn() builds its own multi-panel graphics::layout() (legend
+    # | main network | distance scale bar) and restores the caller's par()
+    # on exit, but leaves that layout's last panel active -- a title/mtext()
+    # call placed normally after it returns lands inside that small last
+    # panel, on top of poppr's own "DISTANCE" scale-bar label, not below the
+    # whole figure as intended (confirmed by rendering the real figure).
+    # Outer margins are unaffected by which inner layout panel is active, so
+    # the title/caption go there instead via mtext(..., outer = TRUE).
+    op <- graphics::par(oma = c(2.2, 0, 1.8, 0))
+    on.exit(graphics::par(op), add = TRUE)
+    set.seed(as.integer(cfg$compute$seed %||% 1L))
+    poppr::plot_poppr_msn(
+      result$msn_gid, result$msn, palette = pal, inds = "none",
+      mlg = FALSE, quantiles = FALSE
+    )
+    graphics::mtext(
+      "Minimum spanning network", side = 3, outer = TRUE, cex = 1.05, line = 0.3
+    )
+    graphics::mtext(
+      sprintf(
+        "%s clone-corrected genotype(s) from %s sample(s); edges: Hamming-style genetic distance on the LD-pruned marker set",
+        scales::comma(n_nodes), scales::comma(n_samples)
+      ),
+      side = 1, outer = TRUE, cex = 0.68, col = "#666666", adj = 0, line = 0.8
+    )
+  }
+  side <- max(6, min(14, 4 + n_nodes * 0.08))
+  save_base_plot(draw, "58b_MSN_network", dirs, fmts, side, side, dpi)
 }
