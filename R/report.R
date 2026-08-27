@@ -128,11 +128,30 @@ render_standard_report_format <- function(template, results_rds, output_dir,
   intermediates_dir <- tempfile(paste0("popgenvcf-report-", format, "-"))
   dir.create(intermediates_dir, recursive = TRUE)
   on.exit(unlink(intermediates_dir, recursive = TRUE), add = TRUE)
+  # A per-format *render* output directory too, not just intermediates_dir
+  # above: HTML and PDF both render from the same source template basename
+  # into the same shared `output_dir`, so rmarkdown's own companion
+  # "<basename>_files/" supporting-image directory lands at the identical
+  # path for both concurrently forked renders (render_report_formats()
+  # below). A real, confirmed race, not a hypothetical one: HTML's
+  # self_contained = TRUE finalization step embeds every image and then
+  # deletes that shared directory once done, which can happen while the PDF
+  # format's xelatex/xdvipdfmx compiler is still reading images out of it --
+  # "Image inclusion failed: Could not find file" for an image that
+  # genuinely no longer exists, not a flaky/nondeterministic LaTeX error.
+  # Confirmed directly: PDF alone and HTML alone each render cleanly every
+  # time; only the concurrent combination fails, nondeterministically,
+  # depending on fork scheduling. Rendering into its own scratch directory
+  # and copying out only the final document afterward removes all shared
+  # state between the two forked renders.
+  render_output_dir <- tempfile(paste0("popgenvcf-report-out-", format, "-"))
+  dir.create(render_output_dir, recursive = TRUE)
+  on.exit(unlink(render_output_dir, recursive = TRUE), add = TRUE)
   rmarkdown::render(
     template,
     output_format = output_format,
     output_file = output_file,
-    output_dir = output_dir,
+    output_dir = render_output_dir,
     intermediates_dir = intermediates_dir,
     params = list(
       results_rds = results_rds, title = title, author = author,
@@ -141,6 +160,9 @@ render_standard_report_format <- function(template, results_rds, output_dir,
     envir = new.env(parent = globalenv()),
     quiet = TRUE
   )
+  final_path <- file.path(output_dir, output_file)
+  file.copy(file.path(render_output_dir, output_file), final_path, overwrite = TRUE)
+  final_path
 }
 
 # Renders each requested format via `render_one(format)`. HTML and PDF share

@@ -245,6 +245,64 @@ test_that("requesting both formats together renders each correctly, whether conc
   expect_match(html, "Both formats report", fixed = TRUE)
 })
 
+test_that("each report format renders into its own isolated output directory, never the shared destination or each other's", {
+  # Real regression, found on a real full pipeline report (not this file's
+  # own minimal fixtures, which apparently never hit it): HTML and PDF
+  # render from the same source template basename into the same shared
+  # destination output_dir, concurrently, via render_report_formats()'s
+  # mclapply(). rmarkdown creates a companion "<basename>_files/" directory
+  # for supporting images at that identical shared path for both forked
+  # renders; HTML's self_contained = TRUE finalization step deletes it once
+  # its own images are embedded, which can race ahead of the PDF format's
+  # xelatex/xdvipdfmx still reading images from that same path -- "Image
+  # inclusion failed: Could not find file" for a real, existing report.
+  # Confirmed directly against the real failure: PDF alone and HTML alone
+  # each rendered cleanly on every repeated attempt; only the concurrent
+  # combination failed, nondeterministically, depending on fork scheduling.
+  # Testing the race itself would make this test just as nondeterministic
+  # in the other direction, so this instead pins the fix's actual
+  # invariant: rmarkdown::render() must never be called with the shared
+  # destination as its own `output_dir`, and the two formats must never
+  # share a render output_dir with each other either -- regardless of
+  # timing, and without needing a real LaTeX installation to check it.
+  root <- tempfile("report-isolation-")
+  dir.create(root, recursive = TRUE)
+  results <- file.path(root, "analysis_results.rds")
+  saveRDS(minimal_standard_report_result(), results)
+  dest_dir <- file.path(root, "report")
+  dir.create(dest_dir, recursive = TRUE)
+  template <- system.file(
+    "rmarkdown", "templates", "popgenvcf_report", "skeleton", "skeleton.Rmd",
+    package = "popgenVCF"
+  )
+
+  captured_dirs <- list()
+  local_mocked_bindings(
+    render = function(input, output_format, output_file, output_dir,
+                      intermediates_dir, params, envir, quiet) {
+      captured_dirs[[params$report_format]] <<- output_dir
+      writeLines("stub", file.path(output_dir, output_file))
+      invisible(file.path(output_dir, output_file))
+    },
+    .package = "rmarkdown"
+  )
+
+  path_html <- popgenVCF:::render_standard_report_format(
+    template, results, dest_dir, "Test", "Test", "html"
+  )
+  path_pdf <- popgenVCF:::render_standard_report_format(
+    template, results, dest_dir, "Test", "Test", "pdf"
+  )
+
+  expect_false(identical(captured_dirs[["html"]], dest_dir))
+  expect_false(identical(captured_dirs[["pdf"]], dest_dir))
+  expect_false(identical(captured_dirs[["html"]], captured_dirs[["pdf"]]))
+  expect_identical(path_html, file.path(dest_dir, "population_genomics_report.html"))
+  expect_identical(path_pdf, file.path(dest_dir, "population_genomics_report.pdf"))
+  expect_true(file.exists(path_html))
+  expect_true(file.exists(path_pdf))
+})
+
 test_that("render_report_formats renders a single format sequentially", {
   calls <- character()
   result <- popgenVCF:::render_report_formats("html", function(format) {
