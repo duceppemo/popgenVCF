@@ -128,6 +128,14 @@ analyses:
   ne_ld_max_snps: 2000
   dapc: true
   dapc_k: 2:10
+  # Automatically picks each K's number of retained PCs via
+  # adegenet::xvalDapc() cross-validated assignment success (the standard
+  # DAPC diagnostic), instead of a fixed default -- retaining too few PCs
+  # discards real signal, too many starts to memorize individual samples.
+  # See the 12b_DAPC_xval_K<k> (raw cross-validation curve) and
+  # 12c_DAPC_eigenvalues_K<k> (DA eigenvalues) figures, and the DAPC
+  # section of the Results and Interpretation guide, to judge whether the
+  # automatic selection deserves trust before reading K<k>'s clustering.
   dapc_cross_validation: true
   dapc_loading_top_n: 20
   amova: true
