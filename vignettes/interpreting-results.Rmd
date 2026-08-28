@@ -48,6 +48,18 @@ knitr::include_graphics("figures/01_MAF.png")
 
 The quickstart example (see `vignette("quickstart")`) starts from 98,922 biallelic SNPs (21,418 on chromosome 22, 16,999 on chromosome X, 60,505 on chromosome Y -- real, male-only 1000 Genomes data; the 83 female samples correctly show no calls there at all, not a data-quality problem); MAF filtering retains 63,585 of these combined. By default (`qc.autosome_only`) only the 1,969 chromosome 22 SNPs continue into LD pruning, which reduces them to 357 -- the marker set used by PCA, IBS, kinship, DAPC, the ancestry backends, ROH, FST, genome scans, diversity, and AMOVA. Sex chromosomes are excluded from these by default because they are not uniformly diploid (or, for chromosome Y, present at all) across samples; mixing them in measurably corrupted results on this exact dataset before these exclusions were added: kinship for a known real duplicate pair collapsed from 0.4525 to essentially zero, and separately every female sample was silently dropped from the entire pipeline (chromosome Y's near-total absence in females inflated their overall missingness past the sample-QC threshold). The remaining 1,148 QC-passing chromosome X SNPs and 60,468 QC-passing chromosome Y SNPs are reserved for the sex-check module below. Real numbers from a real 160-sample, 8-population run, not a toy fixture.
 
+```{r variant-missingness-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/02_variant_missingness.png")
+```
+
+The bimodal shape above is that same sex-chromosome story rendered directly: the left peak is well-covered autosomal markers near 0% missingness, and the right peak just past 50% is chromosome X/Y markers missing across roughly half the cohort (hemizygous or absent in one sex) -- not a data-quality failure, the exact mechanism described above.
+
+```{r snp-retention-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/04_SNP_retention.png")
+```
+
+The funnel above is the same sequence of numbers just quoted, in order: input, after MAF, after missingness (identical to after MAF here -- this cohort's variants are either well-covered or not called at all, nothing in between to filter further), and after LD pruning to the 357-SNP final marker set.
+
 ## PCA
 
 Principal components summarize directions of variance in the analyzed genotype matrix. Separation can reflect population structure, family relationships, batch effects, uneven missingness, marker ascertainment, inversions, or geographic clines.
@@ -167,9 +179,23 @@ Compare populations only when estimators and sampling effort are appropriate. A 
 
 `hwe_pvalue` (per-population Wigginton et al. 2005 exact test) and `private_allele` are reporting-only and never filter a SNP. A significant HWE deviation has many non-error causes -- null alleles, genotyping artifacts, selection, non-random mating, or substructure within the labeled group -- and small samples have limited power to detect real deviations, so treat both the raw and FDR-adjusted significant-loci counts as descriptive. A private allele is evidence only that it was observed in one retained population and nowhere else in the sampled set; it is not, by itself, evidence of adaptive significance.
 
+```{r hwe-pvalues-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/19_HWE_pvalues.png")
+```
+
+The distribution above is what "descriptive, not exclusionary" looks like in practice: every population shows a large spike at p = 1 (genotype counts matching Hardy-Weinberg expectations exactly, common at biallelic SNP scale) plus a roughly uniform scatter of smaller p-values below the dashed significance threshold -- the expected shape under the null, not a red flag by itself. A population with an unusually heavy concentration of loci just below the threshold, rather than this uniform scatter, is the pattern worth investigating further.
+
 ```{r diversity-figure, echo=FALSE, out.width="90%"}
 knitr::include_graphics("figures/05_sample_heterozygosity.png")
 ```
+
+The sample-level view above complements a population-level one: observed heterozygosity averaged per population against its Hardy-Weinberg expectation.
+
+```{r population-diversity-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/06_population_diversity.png")
+```
+
+A population whose observed heterozygosity sits well below its expected value (PEL here, a real 1000 Genomes admixed American population) is worth a second look with FIS/inbreeding-aware analyses -- this comparison alone does not distinguish inbreeding, a Wahlund effect (pooling genetically distinct sub-groups under one population label), or a complex admixed demographic history from each other.
 
 `allelic_richness` (rarefied via `hierfstat::allelic.richness()`, an optional dependency that skips transparently with a logged warning if not installed) is a per-population, sample-size-corrected count of alleles per locus -- unlike raw heterozygosity, it is comparable across populations with unequal sample sizes, since it rarefies every population down to the same allele count before counting. For biallelic SNPs it ranges from 1 (monomorphic within the population) to 2 (both alleles present).
 
@@ -392,6 +418,12 @@ The figures below are from real ADMIXTURE, fastStructure, and sNMF runs against 
 In every population-organized membership figure below, populations are ordered by similarity of their mean ancestry composition (average-linkage clustering on each population's per-cluster mean proportions), not alphabetically, so similar populations sit next to each other rather than being scattered apart by name.
 
 ### ADMIXTURE
+
+```{r admixture-cv-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/13_ADMIXTURE_CV.png")
+```
+
+ADMIXTURE's own native cross-validation error curve above is one of the raw diagnostics the consensus figure below combines with others (BIC, elbow, parsimony); showing it directly lets a reader judge how sharp or flat the minimum really is before trusting a single derived number.
 
 ```{r admixture-k-selection-figure, echo=FALSE, out.width="90%"}
 knitr::include_graphics("figures/13b_ADMIXTURE_cluster_number_selection.png")

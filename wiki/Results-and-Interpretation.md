@@ -44,6 +44,22 @@ added. The remaining 1,148 QC-passing chromosome X SNPs and 60,468
 QC-passing chromosome Y SNPs are reserved for the sex-check module below,
 the one place this package deliberately needs them.
 
+![Variant missingness distribution from the quickstart example, with the maximum retained missingness marked](figures/02_variant_missingness.png)
+
+The bimodal shape above is that same sex-chromosome story rendered
+directly: the left peak is well-covered autosomal markers near 0%
+missingness, and the right peak just past 50% is chromosome X/Y markers
+missing across roughly half the cohort (hemizygous or absent in one sex) --
+not a data-quality failure, the exact mechanism described above.
+
+![Sequential SNP retention through each filtering stage, from the quickstart example](figures/04_SNP_retention.png)
+
+The funnel above is the same sequence of numbers just quoted, in order:
+input, after MAF, after missingness (identical to after MAF here -- this
+cohort's variants are either well-covered or not called at all, nothing in
+between to filter further), and after LD pruning to the 357-SNP final
+marker set.
+
 ## PCA
 
 Check the variance table, scores, sample identities, missingness, and outliers.
@@ -345,7 +361,31 @@ exclusion criterion. `private_allele` identifies alleles found in only one
 retained population; it is not itself evidence of adaptive significance or
 of any particular demographic history.
 
+![Hardy-Weinberg exact-test p-value distribution by population from the quickstart example](figures/19_HWE_pvalues.png)
+
+The distribution above is what "descriptive, not exclusionary" looks like
+in practice: every population shows a large spike at p = 1 (genotype
+counts matching Hardy-Weinberg expectations exactly, common at biallelic
+SNP scale) plus a roughly uniform scatter of smaller p-values below the
+dashed significance threshold -- the expected shape under the null, not a
+red flag by itself. A population with an unusually heavy concentration of
+loci just below the threshold, rather than this uniform scatter, is the
+pattern worth investigating further.
+
 ![Observed heterozygosity by population from the quickstart example](figures/05_sample_heterozygosity.png)
+
+The sample-level view above complements a population-level one: observed
+heterozygosity averaged per population against its Hardy-Weinberg
+expectation.
+
+![Population genetic diversity from the quickstart example: observed vs. expected heterozygosity per population](figures/06_population_diversity.png)
+
+A population whose observed heterozygosity sits well below its expected
+value (PEL here, a real 1000 Genomes admixed American population) is worth
+a second look with FIS/inbreeding-aware analyses -- this comparison alone
+does not distinguish inbreeding, a Wahlund effect (pooling genetically
+distinct sub-groups under one population label), or a complex admixed
+demographic history from each other.
 
 `allelic_richness` (rarefied via `hierfstat::allelic.richness()`, an optional
 dependency that skips transparently with a logged warning if not installed)
@@ -768,6 +808,13 @@ alphabetically -- so populations with a similar ancestry profile sit next
 to each other in the panel instead of being scattered apart by their name.
 
 ### ADMIXTURE
+
+![ADMIXTURE cross-validation error by K from the quickstart example](figures/13_ADMIXTURE_CV.png)
+
+ADMIXTURE's own native cross-validation error curve above is one of the
+raw diagnostics the consensus figure below combines with others (BIC,
+elbow, parsimony); showing it directly lets a reader judge how sharp or
+flat the minimum really is before trusting a single derived number.
 
 ![ADMIXTURE cluster-number selection from the quickstart example](figures/13b_ADMIXTURE_cluster_number_selection.png)
 
