@@ -707,9 +707,11 @@ avoid retaining enough PCs to memorize individuals. Strong separation is not
 independent evidence for groups when those groups defined the discriminant
 analysis.
 
-`22d_DAPC_K_selection.tsv`/`22e_DAPC_K_selection.tsv` and this figure report
-the automatic cluster-number consensus across BIC, mean cross-validation
-success, Calinski-Harabasz, Davies-Bouldin, and replicate-membership RMSE.
+`22d_DAPC_K_selection.tsv` (a top-level convenience copy) and the four
+`22e_DAPC_K_selection_*.tsv` tables (`_methods`, `_scores`, `_votes`,
+`_consensus`) and this figure report the automatic cluster-number
+consensus across BIC, mean cross-validation success, Calinski-Harabasz,
+Davies-Bouldin, and replicate-membership RMSE.
 It is a starting point, not a substitute for domain judgment about how many
 groups the data can support.
 

@@ -321,7 +321,7 @@ This package's DAPC module discriminates unsupervised `find.clusters()` partitio
 
 Document how many principal components and discriminant axes were retained, how those choices were validated, and whether sample sizes support the model. Avoid presenting discrimination between data-driven clusters as an unbiased discovery result about the sampled populations.
 
-`22d_DAPC_K_selection.tsv`/`22e_DAPC_K_selection.tsv` and this figure report the automatic cluster-number consensus across BIC, mean cross-validation success, Calinski-Harabasz, Davies-Bouldin, and replicate-membership RMSE. It is a starting point, not a substitute for domain judgment about how many groups the data can support.
+`22d_DAPC_K_selection.tsv` (a top-level convenience copy) and the four `22e_DAPC_K_selection_*.tsv` tables (`_methods`, `_scores`, `_votes`, `_consensus`) and this figure report the automatic cluster-number consensus across BIC, mean cross-validation success, Calinski-Harabasz, Davies-Bouldin, and replicate-membership RMSE. It is a starting point, not a substitute for domain judgment about how many groups the data can support.
 
 ```{r dapc-k-selection-figure, echo=FALSE, out.width="90%"}
 knitr::include_graphics("figures/12_DAPC_cluster_number_selection.png")
