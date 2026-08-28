@@ -101,6 +101,14 @@ analyses:
     # are meaningful, small enough to stay fast even sequentially. Runs in
     # parallel across compute.threads workers.
     replicates: 100
+  ml_tree:
+    # Off by default: a genuine maximum-likelihood tree (GTR+Gamma, Lewis
+    # 2001 ascertainment-bias correction, via the optional phangorn package)
+    # for the individual-level tree, complementary to the always-on NJ tree
+    # from IBS distance above. Opt in when a likelihood-based topology and
+    # its own bootstrap support matter more than NJ's speed.
+    enabled: false
+    bootstrap_replicates: 100
   # Frequency-based self-assignment test (Paetkau et al. 1995, 2004): does
   # each sample's genotype fit its own recorded population's allele
   # frequencies best, or a different one (a candidate migrant or metadata
@@ -113,6 +121,16 @@ analyses:
   genome_scan_window_bp: 50000
   genome_scan_step_bp: 50000
   genome_scan_min_snps: 5
+  pcadapt: true
+  # PCA-based outlier/selection scan (Luu et al. 2016; Prive et al. 2020): a
+  # real per-locus test with a calibrated null (Mahalanobis distance of each
+  # locus's regression on the retained PCs, chi-squared with K degrees of
+  # freedom), distinct from genome_scan's windowed FST above, which has no
+  # null distribution. Works from genotypes alone -- unlike almost every
+  # other analysis here, no population column is required.
+  pcadapt_k: null # defaults to (population count - 1) when unset; needs an explicit value with no population metadata
+  pcadapt_min_maf: 0.05
+  pcadapt_fdr_alpha: 0.05
   ld_decay: true
   # Computed only on the QC-passed, unpruned SNP set -- the LD-pruned set is
   # selected to have LOW pairwise LD by construction, so decay on it would
@@ -139,6 +157,25 @@ analyses:
   dapc_cross_validation: true
   dapc_loading_top_n: 20
   amova: true
+  clonality: true
+  # Multilocus genotype (MLG) matching and clonal diversity (Kamvar, Tabima,
+  # and Grunwald 2014): exact-duplicate detection, poppr's Ia/rbarD, a
+  # genotype accumulation curve, and a minimum spanning network. See the
+  # Results and Interpretation guide's MLG section, including why this
+  # module runs on two deliberately different marker sets.
+  clonality_genotype_curve_replicates: 100
+  # Set to 0 to skip poppr::poppr()'s Ia/rbarD permutation p-values, which
+  # are the slower part of this module on a large cohort; the accumulation
+  # curve and duplicate-genotype detection are unaffected.
+  clonality_ia_permutations: 0
+  sexbias: true
+  # Sex-biased dispersal test (Goudet, Perrin, and Waser 2002): does one
+  # recorded sex show a systematically lower mean assignment index (AIc)
+  # than the other -- the signature of the more-dispersing sex. Requires
+  # the optional hierfstat package and a metadata sex column; skips
+  # transparently, with a WARNING, when either is absent.
+  sexbias_test: mAIc # mAIc (t-test/permutation on mean AIc), or FST/FIS (requires sexbias_permutations > 0)
+  sexbias_permutations: 0
   mantel: true
   isolation_by_distance: true
   spatial_autocorrelation: true
@@ -154,6 +191,10 @@ analyses:
     enabled: false
     replicates: 500
     unit: chromosome
+  # Despite the name, this governs DAPC's own reproducibility replicates
+  # above (dapc_cross_validation's companion diagnostic), not the ADMIXTURE/
+  # fastStructure/sNMF backends below: each K is re-fit this many times with
+  # a different seed and cluster assignments compared for stability.
   structure:
     replicates: 3
     seeds: null
@@ -167,6 +208,10 @@ analyses:
     k: 2:10
     threads: auto
     cv_folds: 5
+    # Accepted for schema symmetry with snmf.q_sample_file below, but
+    # currently unused: PLINK's own .fam file already carries authoritative
+    # sample order for the Q-matrix, so no separate override is needed.
+    q_sample_file: null
     # Maximum wall-clock seconds allowed per K value before ADMIXTURE (and
     # its full process tree) is killed and treated as a failure -- guards
     # against a hang on a degenerate or malformed genotype matrix rather
@@ -179,6 +224,9 @@ analyses:
     # Optional: otherwise generated from retained samples and LD-pruned SNPs.
     plink_prefix: null
     k: 2:10
+    # Same schema-symmetry note as admixture.q_sample_file above: accepted
+    # but currently unused.
+    q_sample_file: null
     # Maximum wall-clock seconds allowed per subprocess call (each K value's
     # structure.py run, and the final chooseK.py run) before it is killed
     # and treated as a failure.

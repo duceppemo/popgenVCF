@@ -7,7 +7,12 @@ Rscript -e 'popgenVCF::cli_main(c("--write-config", "analysis.yml"))'
 ```
 
 The canonical example is
-[`inst/example_config.yml`](https://github.com/duceppemo/popgenVCF/blob/main/inst/example_config.yml).
+[`inst/example_config.yml`](https://github.com/duceppemo/popgenVCF/blob/main/inst/example_config.yml) --
+every key this version supports, each with an inline comment explaining what
+it does. `--write-config` writes the same keys with the same defaults, just
+without the comments (plain `yaml::write_yaml()` cannot preserve them). Copy
+the canonical example when you want the commentary; use `--write-config` when
+you just want a version-matched starting point to edit.
 
 ## Input
 
@@ -78,13 +83,57 @@ analysis plan.
 
 ## Analyses
 
-The generated file contains supported module settings. Common controls include
-the requested number of PCs, population analyses, spatial modules, bootstrap
-settings, and ancestry backends.
+Every `analyses.*` block below maps to one analysis module. `enabled: false`
+(or the boolean flag shown) turns a module off outright; a module whose
+required metadata is missing skips itself automatically instead (a WARNING,
+plus a row in `analysis_capabilities.tsv` explaining why) -- toggling it off
+explicitly is for modules you deliberately do not want, not a substitute for
+having the right metadata.
 
 Do not enable a module merely because the software supports it. The input,
 metadata, sample size, estimator assumptions, and intended claim must justify
-it. `analysis_capabilities.tsv` explains what was available or skipped.
+it. See the [Results and Interpretation guide](Results-and-Interpretation)
+for how to read each module's output.
+
+**Gating column key:** "population" needs a metadata `population` column;
+"2+ populations" needs at least two distinct recorded populations; "lat/long"
+needs complete `geographic_columns` pairs; "opt-in" ships disabled by default
+regardless of metadata.
+
+| Key(s) | Enables | Key output(s) | Gating / notes |
+| --- | --- | --- | --- |
+| `diversity`, `diversity_allelic_richness`, `hwe_alpha` | Heterozygosity, allelic richness, HWE p-values, private alleles | `08_sample_diversity`, `09_population_diversity`, `32_private_alleles` | population |
+| `bottleneck`, `bottleneck_n_bins` | Folded site-frequency spectrum + mode-shift bottleneck screen | `48_site_frequency_spectrum`, `49_bottleneck_mode_shift` | population |
+| `pca`, `n_pcs`, `pca_loading_top_n`, `pca_metadata_color*` | Principal component analysis + per-metadata-column color panels | `12_PCA_scores`, `13_PCA_variance`, `31_PCA_loadings` | none |
+| `ibs` | Identity-by-state similarity/distance + MDS | `14_IBS_similarity`, `15_IBS_distance`, `16_IBS_MDS` | none |
+| `kinship`, `kinship_close_relative_threshold` | KING-robust pairwise kinship | `33_kinship_matrix`, `35_kinship_pairs`, `36_close_relatives` | none |
+| `sex_check`, `sex_check_*` thresholds | Genetic sex vs. recorded sex (PLINK `--check-sex` convention) | `42_sex_check` | needs a metadata sex column |
+| `roh`, `roh_gt_error_phred`, `roh_length_class_*` | Runs of homozygosity + length-class breakdown | `37_ROH_runs`, `38_ROH_sample_summary` | none |
+| `tree` | Individual-level NJ tree from IBS distance | figure `52_IBS_tree`, `IBS_neighbor_joining.nwk` | none |
+| `population_tree` | Population-level NJ tree from Nei's (1972) genetic distance | `46_population_genetic_distance`, figure `53_population_tree` | population, 2+ populations |
+| `tree_bootstrap` | Locus-resampling bootstrap support for both NJ trees above | support values embedded in both trees | applies only when `tree` and/or `population_tree` are on |
+| `ml_tree` | Maximum-likelihood tree (GTR+Gamma, phangorn) -- complements the NJ tree above | `54_ML_tree_summary` | **opt-in**; needs the optional phangorn package |
+| `population_assignment` | Frequency-based self-assignment test (Paetkau et al. 1995, 2004) | `47_population_assignment` | population, 2+ populations |
+| `fst` | Weir & Cockerham global/pairwise FST, bootstrap CIs | `17_global_FST`, `18_pairwise_FST`, `20_pairwise_FST_bootstrap_CI` | population, 2+ populations |
+| `genome_scan`, `genome_scan_window_bp`, `genome_scan_step_bp`, `genome_scan_min_snps` | Sliding-window FST/diversity scan + exploratory outlier flagging | `39_genome_scan_fst`, `40_genome_scan_diversity`, `41_genome_scan_FST_outliers` | population, 2+ populations |
+| `pcadapt`, `pcadapt_k`, `pcadapt_min_maf`, `pcadapt_fdr_alpha` | PCA-based outlier/selection scan with a calibrated null (unlike `genome_scan`'s outlier flags above) | `59_pcadapt_outliers`, `59b_pcadapt_significant_outliers` | none -- works from genotypes alone |
+| `ld_decay`, `ld_decay_max_distance_bp`, `ld_decay_bin_bp`, `ld_decay_slide` | Linkage-disequilibrium decay curve | `43_LD_decay` | none |
+| `ne_ld`, `ne_ld_max_snps` | LD-based effective population size (Waples 2006) | `45_Ne_LD` | population |
+| `dapc`, `dapc_k`, `dapc_cross_validation`, `dapc_loading_top_n` | Discriminant analysis of principal components, per K | `21_DAPC_diagnostics`, `22_DAPC_coordinates_K<k>`, `22e_DAPC_K_selection_*` | population |
+| `amova` | Analysis of molecular variance | `23_AMOVA_components`, `24_AMOVA_phi_statistics` | population, 2+ populations |
+| `clonality`, `clonality_genotype_curve_replicates`, `clonality_ia_permutations` | Multilocus genotype (MLG) matching, clonal diversity, minimum spanning network | `56_MLG_diversity_summary`, `57_MLG_groups`, `58b_MSN_edges` | population |
+| `sexbias`, `sexbias_test`, `sexbias_permutations` | Sex-biased dispersal test (Goudet, Perrin, and Waser 2002) | `60_sexbias_AIc_by_sample`, `60b_sexbias_test_summary` | population; needs the optional hierfstat package and a metadata sex column |
+| `mantel`, `isolation_by_distance` | Mantel test + isolation-by-distance regression (either flag turns the module on) | `25_Mantel_IBD_summary`, `26_IBD_pairs` | lat/long |
+| `spatial_autocorrelation`, `spatial_autocorrelation_bins`, `spatial_autocorrelation_permutations` | Distance-class genetic autocorrelation correlogram | `50_spatial_autocorrelation` | lat/long |
+| `chromosome_specific`, `chromosome_min_snps` | Per-chromosome PCA + FST | `chromosome_summary` | population, 2+ populations |
+| `bootstrap` (`enabled`, `replicates`, `unit`) | Locus-resampling confidence intervals on `diversity`'s estimates | `11_diversity_bootstrap_CI` | population (piggybacks on `diversity`) |
+| `structure` (`replicates`, `seeds`, `reproducibility_rmse`, `minimum_cluster_correlation`) | **Not** the ADMIXTURE/fastStructure backends below, despite the name -- reproducibility replicates for DAPC's own K-fits | `22c_DAPC_reproducibility_K<k>` | applies only when `dapc` is on |
+| `admixture` (`enabled`, `executable`, `plink_prefix`, `k`, `cv_folds`, ...) | ADMIXTURE cluster analysis | `27_ADMIXTURE_CV`, `28_ADMIXTURE_Q_K<k>` | **opt-in**; needs the `admixture` executable on `PATH` |
+| `faststructure` (`enabled`, `structure_executable`, `choosek_executable`, `plink_prefix`, `k`, ...) | fastStructure cluster analysis | `29_fastStructure_runs`, `29_fastStructure_Q_K<k>` | **opt-in**; needs `structure.py`/`chooseK.py` |
+| `snmf` (`enabled`, `geno_file`, `q_sample_file`, `k`, `repetitions`, `entropy`, ...) | sNMF cluster analysis (LEA) | `30_sNMF_cross_entropy`, `30_sNMF_Q_K<k>` | **opt-in**; needs the optional LEA package |
+
+`analysis_capabilities.tsv` in every run's output records which modules
+actually ran, were skipped, or were disabled, and why.
 
 ## Reports
 
