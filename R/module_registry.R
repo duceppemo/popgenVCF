@@ -372,6 +372,16 @@ run_module_clonality <- function(analysis, context) {
   write_tsv(result$groups, file.path(dirs$tables, "57_MLG_groups.tsv"))
   if (nrow(result$curve)) write_tsv(result$curve, file.path(dirs$tables, "58_genotype_accumulation_curve.tsv"))
   if (nrow(result$msn_edges)) write_tsv(result$msn_edges, file.path(dirs$tables, "58b_MSN_edges.tsv"))
+  if (length(result$dropped_monomorphic_loci)) {
+    data.table::fwrite(
+      data.table::data.table(locus = result$dropped_monomorphic_loci),
+      file.path(dirs$tables, "58c_monomorphic_loci_dropped.csv")
+    )
+    log_msg(sprintf(
+      "%d monomorphic locus/loci dropped before the genotype accumulation curve (see 58c_monomorphic_loci_dropped.csv)",
+      length(result$dropped_monomorphic_loci)
+    ))
+  }
   plot_clonality(result, cfg, dirs)
   plot_msn_network(result, cfg, dirs)
   if (!isTRUE(result$ld_pruned_usable)) {

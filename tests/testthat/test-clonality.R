@@ -57,6 +57,31 @@ test_that("run_clonality's summary table has one row per population plus Total, 
   expect_equal(res$n_mlg_total, as.numeric(total_row$mlg))
 })
 
+test_that("run_clonality suppresses poppr::genotype_curve()'s per-locus monomorphic message and returns the dropped loci structurally instead", {
+  geno <- clonality_fixture_genotype(n = 20L, l = 10L, seed = 3L)
+  geno[, "snp3"] <- 0L
+  geno[, "snp7"] <- 2L
+  metadata <- data.table::data.table(
+    sample = rownames(geno), population = rep(c("A", "B"), each = 10)
+  )
+  msgs <- character()
+  res <- withCallingHandlers(
+    popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 20),
+    message = function(m) msgs[[length(msgs) + 1L]] <<- conditionMessage(m)
+  )
+  expect_length(msgs, 0L)
+  expect_setequal(res$dropped_monomorphic_loci, c("snp3", "snp7"))
+})
+
+test_that("run_clonality reports no dropped monomorphic loci when every locus is polymorphic", {
+  geno <- clonality_fixture_genotype(n = 20L, l = 10L, seed = 3L)
+  metadata <- data.table::data.table(
+    sample = rownames(geno), population = rep(c("A", "B"), each = 10)
+  )
+  res <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 20)
+  expect_identical(res$dropped_monomorphic_loci, character())
+})
+
 test_that("run_clonality's genotype accumulation curve is non-decreasing on average and bounded by the total MLG count", {
   geno <- clonality_fixture_genotype(n = 20L, l = 30L, seed = 3L)
   metadata <- data.table::data.table(

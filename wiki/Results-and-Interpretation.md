@@ -951,6 +951,15 @@ clonal structure, in this genuinely outbreeding human dataset. Read any
 remaining positive value cautiously either way, not as direct evidence of
 clonal reproduction.
 
+`poppr::genotype_curve()` drops any locus that is monomorphic on the
+LD-pruned set before resampling (a locus with no variation contributes
+nothing to distinguishing genotypes). On a real marker panel that can be
+many loci, so rather than naming each one on the console -- poppr's own
+default behavior, which floods the pipeline log at scale -- this pipeline
+logs only the count and writes the full list, one locus name per line, to
+`58c_monomorphic_loci_dropped.csv` (present only when at least one locus
+was dropped).
+
 A minimum spanning network (MSN; Kamvar, Tabima, and Grunwald 2014,
 `poppr::poppr.msn()`, over the same LD-pruned marker set as the accumulation
 curve above) draws a complementary picture: a genetic-distance network

@@ -214,23 +214,46 @@ clonality_empty_curve <- function() {
 # Runs on the LD-pruned locus set, like poppr()'s own Ia/rbarD summary above
 # -- see this file's top-of-file comment for why (performance and
 # methodology both point the same way).
+#
+# poppr::genotype_curve() drops monomorphic loci before resampling and
+# reports every dropped locus name via an unconditional message() (not
+# gated by its own `quiet` argument, confirmed against the installed poppr
+# source) -- on a real marker panel that can be thousands of lines of
+# console noise. That message is intercepted here, parsed for the dropped
+# locus names, and muffled; the caller gets the names back structurally
+# instead, to log as a single count and write to a file (see
+# run_module_clonality()).
 clonality_curve_summary <- function(gc, replicates) {
+  empty <- list(curve = clonality_empty_curve(), dropped_monomorphic_loci = character())
   if (adegenet::nLoc(gc) < 2L || replicates <= 0L) {
-    return(clonality_empty_curve())
+    return(empty)
   }
+  dropped <- character()
   raw <- tryCatch(
-    poppr::genotype_curve(gc, sample = replicates, plot = FALSE, quiet = TRUE),
+    withCallingHandlers(
+      poppr::genotype_curve(gc, sample = replicates, plot = FALSE, quiet = TRUE),
+      message = function(m) {
+        cond_msg <- conditionMessage(m)
+        if (startsWith(cond_msg, "Dropping monomorphic loci:")) {
+          dropped <<- trimws(strsplit(
+            sub("^Dropping monomorphic loci:\\s*", "", cond_msg), ","
+          )[[1L]])
+          invokeRestart("muffleMessage")
+        }
+      }
+    ),
     error = function(e) NULL
   )
   if (is.null(raw)) {
-    return(clonality_empty_curve())
+    return(list(curve = clonality_empty_curve(), dropped_monomorphic_loci = dropped))
   }
   long <- data.table::data.table(
     n_loci = as.integer(rep(colnames(raw), each = nrow(raw))),
     n_mlg = as.numeric(raw)
   )
-  long[, .(mean_mlg = mean(n_mlg), q025_mlg = stats::quantile(n_mlg, 0.025),
+  curve <- long[, .(mean_mlg = mean(n_mlg), q025_mlg = stats::quantile(n_mlg, 0.025),
           q975_mlg = stats::quantile(n_mlg, 0.975)), by = n_loci][order(n_loci)]
+  list(curve = curve, dropped_monomorphic_loci = dropped)
 }
 
 # poppr::poppr()'s Ia/rbarD computation (pair_diffs() -> pairdiffs(), a
@@ -310,7 +333,13 @@ run_clonality <- function(genotype, ld_genotype, sample_ids, metadata, seed,
   } else NULL
   poppr_failed <- is.null(summary_raw)
   summary_dt <- if (poppr_failed) clonality_empty_summary() else clonality_rename_summary(summary_raw)
-  curve <- if (ld_pruned_usable) clonality_curve_summary(gc_ld, as.integer(curve_replicates)) else clonality_empty_curve()
+  curve_result <- if (ld_pruned_usable) {
+    clonality_curve_summary(gc_ld, as.integer(curve_replicates))
+  } else {
+    list(curve = clonality_empty_curve(), dropped_monomorphic_loci = character())
+  }
+  curve <- curve_result$curve
+  dropped_monomorphic_loci <- curve_result$dropped_monomorphic_loci
 
   # Minimum spanning network: same LD-pruned marker set and gating as
   # Ia/rbarD/the genotype accumulation curve above (see this file's
@@ -328,7 +357,8 @@ run_clonality <- function(genotype, ld_genotype, sample_ids, metadata, seed,
   list(summary = summary_dt, groups = groups, curve = curve,
       n_mlg_total = n_mlg_total, curve_replicates = as.integer(curve_replicates),
       poppr_failed = poppr_failed, ld_pruned_usable = ld_pruned_usable,
-      msn = msn, msn_gid = msn_gid, msn_failed = msn_failed, msn_edges = msn_edges)
+      msn = msn, msn_gid = msn_gid, msn_failed = msn_failed, msn_edges = msn_edges,
+      dropped_monomorphic_loci = dropped_monomorphic_loci)
 }
 
 plot_clonality <- function(result, cfg, dirs) {
