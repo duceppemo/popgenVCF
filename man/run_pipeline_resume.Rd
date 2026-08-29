@@ -4,7 +4,11 @@
 \alias{run_pipeline_resume}
 \title{Resume a popgenVCF analysis pipeline from its last execution checkpoint}
 \usage{
-run_pipeline_resume(output_directory, registry = default_analysis_registry())
+run_pipeline_resume(
+  output_directory,
+  registry = default_analysis_registry(),
+  config = NULL
+)
 }
 \arguments{
 \item{output_directory}{The `output.directory` of the interrupted run
@@ -14,6 +18,12 @@ run_pipeline_resume(output_directory, registry = default_analysis_registry())
 \item{registry}{Analysis module registry. Must match the registry the
 original run used -- [read_execution_checkpoint()] rejects a checkpoint
 whose recorded plan is incompatible with the current registry.}
+
+\item{config}{Optional configuration (path or already-validated list) to
+verify against the checkpointed one before resuming; see Details.
+`NULL` (the default) skips this check entirely and reuses the
+checkpointed configuration unconditionally, matching every prior
+release's behavior.}
 }
 \value{
 The completed `PopgenVCFAnalysis` object.
@@ -28,4 +38,18 @@ re-run, and every stage that precedes analysis-registry execution
 (metadata import, VCF/GDS preparation, sample and variant QC, LD pruning)
 is skipped entirely, since the checkpoint already carries their validated
 results.
+}
+\details{
+By default (`config = NULL`) no configuration is re-read at all: the
+exact configuration frozen into the checkpoint at write time is reused
+unconditionally, for every remaining module. Passing `config` (a path or
+an already-validated config list) opts into a safety check instead: its
+fingerprint is compared against the one recorded when the checkpoint was
+written, and resuming is refused, loudly, if they differ -- silently
+reusing checkpointed results computed under a different configuration
+would be scientifically wrong, and this codebase has no per-module
+config-key ownership metadata precise enough to safely reuse *some*
+completed modules while re-running only the ones a specific edit
+actually affects. There is currently no supported way to resume with a
+changed configuration; start a fresh run instead.
 }

@@ -259,15 +259,33 @@ finalize_pipeline_analysis <- function(analysis, registry, cfg, dirs) {
 #' is skipped entirely, since the checkpoint already carries their validated
 #' results.
 #'
+#' By default (`config = NULL`) no configuration is re-read at all: the
+#' exact configuration frozen into the checkpoint at write time is reused
+#' unconditionally, for every remaining module. Passing `config` (a path or
+#' an already-validated config list) opts into a safety check instead: its
+#' fingerprint is compared against the one recorded when the checkpoint was
+#' written, and resuming is refused, loudly, if they differ -- silently
+#' reusing checkpointed results computed under a different configuration
+#' would be scientifically wrong, and this codebase has no per-module
+#' config-key ownership metadata precise enough to safely reuse *some*
+#' completed modules while re-running only the ones a specific edit
+#' actually affects. There is currently no supported way to resume with a
+#' changed configuration; start a fresh run instead.
+#'
 #' @param output_directory The `output.directory` of the interrupted run
 #'   (the same directory passed to, or configured for, the original
 #'   [run_pipeline()] call).
 #' @param registry Analysis module registry. Must match the registry the
 #'   original run used -- [read_execution_checkpoint()] rejects a checkpoint
 #'   whose recorded plan is incompatible with the current registry.
+#' @param config Optional configuration (path or already-validated list) to
+#'   verify against the checkpointed one before resuming; see Details.
+#'   `NULL` (the default) skips this check entirely and reuses the
+#'   checkpointed configuration unconditionally, matching every prior
+#'   release's behavior.
 #' @return The completed `PopgenVCFAnalysis` object.
 #' @export
-run_pipeline_resume <- function(output_directory, registry = default_analysis_registry()) {
+run_pipeline_resume <- function(output_directory, registry = default_analysis_registry(), config = NULL) {
   checkpoint_path <- file.path(output_directory, "execution_checkpoint.rds")
   if (!file.exists(checkpoint_path)) {
     stop(
@@ -277,6 +295,34 @@ run_pipeline_resume <- function(output_directory, registry = default_analysis_re
     )
   }
   checkpoint <- read_execution_checkpoint(checkpoint_path, registry = registry)
+  if (!is.null(config)) {
+    candidate <- if (is.character(config)) read_config(config) else config
+    candidate <- validate_config(candidate)
+    checkpointed_fingerprint <- checkpoint$config_fingerprint
+    if (is.null(checkpointed_fingerprint)) {
+      stop(
+        "This checkpoint predates config-drift detection (no recorded config fingerprint) ",
+        "and cannot be safely compared against a supplied config; resume without `config` ",
+        "(reusing the checkpointed configuration as-is), or start a fresh run.",
+        call. = FALSE
+      )
+    }
+    if (!identical(config_fingerprint(candidate), checkpointed_fingerprint)) {
+      changed <- union(names(candidate), names(checkpoint$analysis$config))
+      changed <- changed[vapply(changed, function(section) {
+        !identical(candidate[[section]], checkpoint$analysis$config[[section]])
+      }, logical(1L))]
+      stop(
+        "The supplied configuration does not match the one this checkpoint was written under ",
+        "(differing top-level section(s): ", paste(changed, collapse = ", "), "). ",
+        "Resuming with a changed configuration is not supported: any already-completed module's ",
+        "result may have been computed under the old values, and this registry has no way to know ",
+        "which ones a given edit actually affects. Revert the change and resume normally, or start ",
+        "a fresh run.",
+        call. = FALSE
+      )
+    }
+  }
   cfg <- checkpoint$analysis$config
   dirs <- make_dirs(cfg$output$directory)
   .pg_env$log_file <- file.path(dirs$root, "pipeline.log")

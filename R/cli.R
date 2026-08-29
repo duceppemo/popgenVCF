@@ -4,12 +4,18 @@ cli_usage <- function(status = 0L) {
     "Usage:\n",
     "  Rscript popgenVCF.R --config analysis.yml\n",
     "  Rscript popgenVCF.R --write-config analysis.yml\n",
-    "  Rscript popgenVCF.R --resume OUTPUT_DIR\n\n",
+    "  Rscript popgenVCF.R --resume OUTPUT_DIR\n",
+    "  Rscript popgenVCF.R --resume OUTPUT_DIR --config analysis.yml\n\n",
     "--resume picks up an interrupted run (crash, out-of-memory kill,\n",
     "`docker stop`, or anything else) from its last completed analysis-\n",
     "registry batch, using the checkpoint run_pipeline() writes automatically\n",
     "as it goes. OUTPUT_DIR is the same output.directory the original run\n",
-    "used; no --config or other override flags are needed or read.\n\n",
+    "used. No --config or other override flag is required; the checkpointed\n",
+    "configuration is reused as-is. Passing --config verifies it matches the\n",
+    "checkpointed one and refuses to resume, loudly, if it does not -- there\n",
+    "is no supported way to resume with a changed configuration; start a\n",
+    "fresh run instead. Other override flags (--vcf, --maf, etc.) are not\n",
+    "read with --resume.\n\n",
     "Optional overrides:\n",
     "  --vcf FILE\n",
     "  --metadata FILE\n",
@@ -83,7 +89,7 @@ cli_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     return(invisible(NULL))
   }
   if (!is.null(x$write_config)) return(write_default_config(x$write_config))
-  if (!is.null(x$resume)) return(run_pipeline_resume(x$resume))
+  if (!is.null(x$resume)) return(run_pipeline_resume(x$resume, config = x$config))
   if (is.null(x$config)) cli_usage(1L)
 
   cfg <- read_config(x$config)

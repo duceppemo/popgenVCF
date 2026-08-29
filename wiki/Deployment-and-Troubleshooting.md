@@ -111,6 +111,36 @@ vectors or exchangeable ancestry labels to match naively.
 Use a new output directory or archive the prior run. Fail-closed workflows often
 refuse non-empty directories to prevent mixing evidence from different runs.
 
+### Interrupted run (crash, out-of-memory kill, `docker stop`, host reboot)
+
+`run_pipeline()` writes a checkpoint after every completed analysis-registry
+batch, unconditionally. Resume with:
+
+```bash
+Rscript popgenVCF.R --resume OUTPUT_DIR
+```
+
+`OUTPUT_DIR` is the same `output.directory` the interrupted run used.
+Already-completed modules are not re-run; every stage before analysis-registry
+execution (metadata import, VCF/GDS preparation, sample and variant QC, LD
+pruning) is skipped entirely, since the checkpoint already carries their
+validated results. No `--config` or other override flag is required -- the
+checkpointed configuration is reused as-is.
+
+If you edited the configuration since the interrupted run, pass it explicitly:
+
+```bash
+Rscript popgenVCF.R --resume OUTPUT_DIR --config analysis.yml
+```
+
+This verifies the supplied configuration matches the one the checkpoint was
+written under, and refuses to resume, loudly, naming which top-level
+section(s) differ, if it does not. There is no supported way to resume with a
+changed configuration -- any already-completed module's result may have been
+computed under the old values, and this registry has no per-module config-key
+ownership metadata precise enough to know which modules a given edit actually
+affects. Revert the change and resume normally, or start a fresh run.
+
 ## Diagnostic record
 
 When reporting a problem, include:

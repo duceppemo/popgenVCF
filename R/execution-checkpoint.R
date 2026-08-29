@@ -16,6 +16,19 @@ execution_plan_signature <- function(plan, registry) {
   )
 }
 
+# A whole-config fingerprint, not a per-module one: qc/input/compute values
+# are baked into context (qc_snps/final_snps/the retained sample set) before
+# any registry module runs, and resume deliberately skips re-deriving them
+# (see run_pipeline_resume()'s own docstring) -- a change anywhere in the
+# config could in principle invalidate any already-completed module's
+# result, not just the ones whose own analyses.<name> keys moved. Detecting
+# "config changed at all" and refusing by default is the correctness-safe
+# choice; a true per-module allow-list would need per-module config-key
+# ownership metadata this registry does not currently track.
+config_fingerprint <- function(cfg) {
+  digest::digest(cfg, algo = "sha256", serialize = TRUE)
+}
+
 checkpoint_payload_digest <- function(checkpoint) {
   payload <- checkpoint
   payload$checkpoint_digest <- NULL
@@ -87,6 +100,7 @@ new_execution_checkpoint <- function(executed, registry) {
       package_version = popgenvcf_version(),
       plan_order = executed$plan$order,
       plan_signature = execution_plan_signature(executed$plan, registry),
+      config_fingerprint = config_fingerprint(executed$analysis$config),
       completed = successful,
       analysis = executed$analysis,
       context = executed$context,

@@ -216,6 +216,23 @@ test_that("cli_main --resume dispatches to run_pipeline_resume with the given di
   expect_false(ran_normal)
 })
 
+test_that("cli_main --resume combined with --config passes both through to run_pipeline_resume", {
+  captured <- NULL
+  local_mocked_bindings(
+    run_pipeline_resume = function(output_directory, ..., config = NULL) {
+      captured <<- list(output_directory = output_directory, config = config)
+      "resumed"
+    },
+    .package = "popgenVCF"
+  )
+
+  result <- popgenVCF::cli_main(c("--resume", "some/output/dir", "--config", "analysis.yml"))
+
+  expect_equal(result, "resumed")
+  expect_equal(captured$output_directory, "some/output/dir")
+  expect_equal(captured$config, "analysis.yml")
+})
+
 test_that("cli_main leaves unset optional overrides at their configured defaults", {
   captured <- NULL
   local_mocked_bindings(

@@ -180,3 +180,107 @@ test_that("run_pipeline_resume on an already-fully-completed checkpoint re-runs 
     "resumed from checkpoint: 3 module\\(s\\) reused, 0 module\\(s\\) executed"
   )
 })
+
+# Real gap this closes (see the GitHub issue this was filed from): editing a
+# config value and resuming used to be undetectable, since run_pipeline_resume()
+# never accepted a config at all -- there was no way to even attempt it, let
+# alone safely. These tests exercise the opt-in config-drift check directly.
+resume_interrupted_checkpoint <- function() {
+  pg_env <- popgenVCF:::.pg_env
+  on.exit(pg_env$log_file <- NULL, add = TRUE)
+  outdir <- tempfile("resume-config-drift-")
+  fx <- resume_fixture_gds()
+  built <- resume_fixture_analysis(outdir, fx$path)
+  # run_pipeline() always stores the post-validate_config() config on a real
+  # analysis (see run_pipeline()); resume_fixture_analysis() does not, so
+  # validate here to make config_fingerprint() comparisons apples-to-apples
+  # with what run_pipeline_resume()'s own internal validate_config(candidate)
+  # call produces.
+  built$analysis$config <- validate_config(built$analysis$config)
+  failing_registry <- resume_fixture_registry(fail_second = TRUE)
+  checkpoint_path <- file.path(outdir, "execution_checkpoint.rds")
+
+  gds <- SNPRelate::snpgdsOpen(fx$path)
+  tryCatch({
+    context <- c(built$context, list(gds = gds))
+    execute_analysis_registry(
+      built$analysis, context, failing_registry,
+      engine = new_execution_engine(fail_fast = TRUE),
+      checkpoint_path = checkpoint_path
+    )
+  }, error = function(e) NULL)
+  SNPRelate::snpgdsClose(gds)
+  list(outdir = outdir, checkpoint_path = checkpoint_path)
+}
+
+test_that("run_pipeline_resume with no config argument reuses the checkpointed configuration unconditionally, unchanged behavior", {
+  fx <- resume_interrupted_checkpoint()
+  counter <- new.env(parent = emptyenv())
+  resumed <- run_pipeline_resume(fx$outdir, resume_fixture_registry(counter = counter))
+  expect_identical(resumed$status, "complete")
+  expect_identical(counter$second, 1L)
+})
+
+test_that("run_pipeline_resume with a matching config resumes normally", {
+  fx <- resume_interrupted_checkpoint()
+  on_disk <- popgenVCF:::read_execution_checkpoint(fx$checkpoint_path, resume_fixture_registry())
+  matching_config <- on_disk$analysis$config
+
+  counter <- new.env(parent = emptyenv())
+  resumed <- run_pipeline_resume(
+    fx$outdir, resume_fixture_registry(counter = counter), config = matching_config
+  )
+  expect_identical(resumed$status, "complete")
+  expect_identical(counter$second, 1L)
+})
+
+test_that("run_pipeline_resume refuses, loudly and clearly, when the supplied config differs from the checkpointed one", {
+  fx <- resume_interrupted_checkpoint()
+  on_disk <- popgenVCF:::read_execution_checkpoint(fx$checkpoint_path, resume_fixture_registry())
+  changed_config <- on_disk$analysis$config
+  changed_config$qc$maf <- changed_config$qc$maf + 0.1
+
+  counter <- new.env(parent = emptyenv())
+  expect_error(
+    run_pipeline_resume(fx$outdir, resume_fixture_registry(counter = counter), config = changed_config),
+    "does not match the one this checkpoint was written under.*qc"
+  )
+  # Nothing should have executed -- the check happens before any module runs.
+  expect_null(counter$second)
+})
+
+test_that("run_pipeline_resume's config-mismatch error names every top-level section that actually differs", {
+  fx <- resume_interrupted_checkpoint()
+  on_disk <- popgenVCF:::read_execution_checkpoint(fx$checkpoint_path, resume_fixture_registry())
+  changed_config <- on_disk$analysis$config
+  changed_config$qc$maf <- changed_config$qc$maf + 0.1
+  changed_config$analyses$pca <- !isTRUE(changed_config$analyses$pca)
+
+  expect_error(
+    run_pipeline_resume(fx$outdir, resume_fixture_registry(), config = changed_config),
+    "qc, analyses|analyses, qc"
+  )
+})
+
+test_that("run_pipeline_resume refuses to compare against a checkpoint with no recorded config fingerprint", {
+  fx <- resume_interrupted_checkpoint()
+  on_disk <- popgenVCF:::read_execution_checkpoint(fx$checkpoint_path, resume_fixture_registry())
+  legacy <- on_disk
+  legacy$config_fingerprint <- NULL
+  legacy$checkpoint_digest <- popgenVCF:::checkpoint_payload_digest(legacy)
+  envelope <- popgenVCF:::new_runtime_integrity_envelope("checkpoint", legacy)
+  saveRDS(envelope, fx$checkpoint_path, version = 3, compress = "xz")
+  writeLines(
+    paste(digest::digest(file = fx$checkpoint_path, algo = "sha256"), basename(fx$checkpoint_path)),
+    paste0(fx$checkpoint_path, ".sha256")
+  )
+
+  expect_error(
+    run_pipeline_resume(fx$outdir, resume_fixture_registry(), config = on_disk$analysis$config),
+    "predates config-drift detection"
+  )
+  # Resuming without a config still works against the same legacy checkpoint.
+  counter <- new.env(parent = emptyenv())
+  resumed <- run_pipeline_resume(fx$outdir, resume_fixture_registry(counter = counter))
+  expect_identical(resumed$status, "complete")
+})
