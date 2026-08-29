@@ -8,7 +8,7 @@ popgenVCF is an installable R package and command-line population-genomics toolk
 - Canonical state class: `PopgenVCFAnalysis`.
 - Configuration schema: `1.0`.
 - Analysis-object schema: `1.0`.
-- Exact SNPRelate filtering contract: MAF from configuration, missing rate 0.2, correlation threshold `sqrt(0.2)`, infinite base-pair span, 50-SNP window, `start.pos = "first"`, and at most four LD-pruning threads.
+- Exact SNPRelate filtering contract: MAF, missing rate, and LD-pruning parameters (`ld_r2`, window span, window size, start position) all from configuration, and at most four LD-pruning threads. `max_variant_missing = 0.2`, `ld_r2 = 0.2` (correlation threshold `sqrt(0.2)`), infinite base-pair span, 50-SNP window, and `start.pos = "first"` remain the defaults every release has used.
 - Dependency-aware module registry for statistical analyses.
 - Canonical machine-readable TSV outputs and serialized analysis state.
 - CLI launcher: `popgenVCF.R` or the installed script returned by `system.file("scripts", "popgenVCF", package = "popgenVCF")`.

@@ -25,7 +25,7 @@ fst_pair <- function(gds, snp_ids, metadata, p1, p2) {
   as.numeric(z$Fst)
 }
 
-run_fst <- function(gds, snp_ids, metadata) {
+run_fst <- function(gds, snp_ids, metadata, gds_path = NULL, threads = 1L) {
   valid <- metadata[, .N, by = population][N >= 2, population]
   m <- metadata[population %in% valid]
   global <- if (data.table::uniqueN(m$population) >= 2L) {
@@ -43,13 +43,40 @@ run_fst <- function(gds, snp_ids, metadata) {
     )$Fst)
   } else NA_real_
   pops <- sort(unique(metadata$population)); pairs <- if (length(pops) >= 2L) utils::combn(pops, 2, simplify = FALSE) else list()
-  long <- data.table::rbindlist(lapply(pairs, function(pp) {
-    fst_value <- fst_pair(gds, snp_ids, metadata, pp[1], pp[2])
+  # Each pair's snpgdsFst() call scans the full QC-passing SNP set (500K+ on
+  # a real production cohort, not the LD-pruned subset) -- genuinely heavy
+  # per pair, and pair count grows quadratically with population count, so
+  # this is forked per pair like diversity's per-population computation.
+  # Sharing the parent's already-open GDS handle across forks is unsafe (see
+  # diversity.R's fork_worker_count() usage for the gdsfmt documentation
+  # citation); each worker opens its own independent connection instead.
+  workers <- if (is.null(gds_path)) 1L else fork_worker_count(length(pairs), threads)
+  fst_values <- if (workers <= 1L) {
+    vapply(pairs, function(pp) fst_pair(gds, snp_ids, metadata, pp[1], pp[2]), numeric(1L))
+  } else {
+    results <- parallel::mclapply(pairs, function(pp) {
+      worker_gds <- SNPRelate::snpgdsOpen(
+        gds_path, readonly = TRUE, allow.duplicate = TRUE, allow.fork = TRUE
+      )
+      on.exit(SNPRelate::snpgdsClose(worker_gds), add = TRUE)
+      fst_pair(worker_gds, snp_ids, metadata, pp[1], pp[2])
+    }, mc.cores = workers, mc.preschedule = FALSE, mc.set.seed = FALSE)
+    failed <- vapply(results, inherits, logical(1L), what = "try-error")
+    if (any(failed)) {
+      failed_pairs <- vapply(pairs[failed], paste, character(1L), collapse = "-")
+      stop(
+        "Parallel FST computation failed for population pair(s): ",
+        paste(failed_pairs, collapse = ", "), call. = FALSE
+      )
+    }
+    unlist(results)
+  }
+  long <- data.table::rbindlist(Map(function(pp, fst_value) {
     data.table::data.table(
       population_1 = pp[1], population_2 = pp[2],
       n_1 = metadata[population == pp[1], .N], n_2 = metadata[population == pp[2], .N],
       fst = fst_value, nm = fst_to_nm(fst_value))
-  }), fill = TRUE)
+  }, pairs, fst_values), fill = TRUE)
   mat <- matrix(0, length(pops), length(pops), dimnames = list(pops, pops))
   if (nrow(long)) for (i in seq_len(nrow(long))) mat[long$population_1[i], long$population_2[i]] <- mat[long$population_2[i], long$population_1[i]] <- long$fst[i]
   list(global = global, global_nm = fst_to_nm(global), long = long, matrix = mat)

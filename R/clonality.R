@@ -10,6 +10,78 @@
 # clonal replicates, accidental resampling, or duplicate submissions in any
 # population-genetic dataset -- diploid outbreeding or partially clonal.
 #
+# Two genuinely different marker sets feed this module, deliberately, not
+# out of inconsistency:
+#
+#   - `mlg.id()` (exact multilocus-genotype identity / duplicate detection)
+#     uses the FULL, unpruned QC-passing locus set. Fewer markers make it
+#     *more* likely that two genuinely different individuals coincidentally
+#     match at every retained locus (a false "duplicate" call) -- exact
+#     identity needs maximum discriminating power, so thinning the marker
+#     set here would be a real regression in this table's accuracy, not a
+#     harmless shortcut.
+#
+#   - `poppr()`'s Ia/rbarD diversity summary and its companion genotype
+#     accumulation curve (`genotype_curve()`) instead use the LD-pruned
+#     locus set. Originally these reused the full unpruned set too "for
+#     consistency with AMOVA" (see NEWS.md's earlier history), but that
+#     turned out to be wrong on two independent grounds, found together via
+#     a real production run:
+#     1. Performance: a real 50-sample, 561,767-locus unpruned cohort took
+#        29+ hours in poppr()'s Ia/rbarD computation alone, still running
+#        when investigated. Direct scaling measurement (500 to 20,000
+#        synthetic loci, everything else held fixed) showed poppr()'s
+#        runtime growing superlinearly in locus count, with the local
+#        growth exponent climbing from ~1.0 to ~1.6 across that range --
+#        not a flat per-locus cost, and clearly heading toward quadratic at
+#        real-world scale. Extrapolating that measured growth curve to
+#        561,767 loci predicts ~28.5 hours, matching the real run almost
+#        exactly. `genotype_curve()`'s resampling has the same problem
+#        (timed out past 5 minutes at just 20,000 loci in the same
+#        investigation). `encode`/`as.genclone`/`mlg.id()` are all
+#        negligible by comparison at every scale tested (sub-second even at
+#        20,000 loci) -- the cost lives entirely inside poppr's own
+#        Ia/rbarD and genotype-curve code, not in anything this package
+#        does to prepare its input.
+#     2. Methodology: Ia/rbarD's own null-model interpretation assumes the
+#        input loci start approximately independent -- that is what
+#        "non-random association among loci" is testing for. Feeding it
+#        hundreds of thousands of physically linked SNPs mechanically
+#        inflates the appearance of non-random multilocus association
+#        through ordinary linkage disequilibrium, an artifact of marker
+#        density, not a real signal of clonality. The wiki's own
+#        quickstart walkthrough already flagged this exact caveat before
+#        this change ("a positive value here largely reflects ordinary
+#        physical linkage among nearby SNPs, not clonality"). Running on
+#        the LD-pruned, approximately-independent set is the statistically
+#        appropriate input for this specific statistic, not merely a
+#        workaround for its performance -- the same set already used for
+#        kinship/PCA/DAPC elsewhere in this pipeline.
+#
+#   Consequence for interpreting the outputs: `56_MLG_diversity_summary.tsv`
+#   (MLG/eMLG/Shannon/Simpson/Ia/rbarD) now describes genotypic diversity as
+#   measured on the LD-pruned marker panel, while `57_MLG_groups.tsv` (actual
+#   sample-sharing-a-genotype pairs/groups) and the MLG count implicit in
+#   duplicate detection still reflect the full unpruned panel. These two
+#   tables' MLG-related numbers are consequently not directly comparable to
+#   each other post-change the way they trivially were when both used the
+#   same marker set -- each is now computed on the marker set appropriate to
+#   its own statistical question.
+#
+# On top of the LD-pruning fix above, monomorphic loci (identical genotype
+# at every retained sample) are now also dropped, once and up front, from
+# BOTH marker sets (run_clonality(), clonality_monomorphic_loci()) -- found
+# reported directly by a user whose real 50-sample, 7-population cohort
+# (561,767 unpruned / 54,052 LD-pruned loci) still took 8.3 hours in this
+# module even after the LD-pruning fix above. A monomorphic locus is
+# identical for every sample by construction, so it can never affect
+# mlg.id()'s exact-identity comparison and contributes nothing to Ia/rbarD's
+# pairwise distances either -- dropping it is correctness-neutral, not a
+# tradeoff, unlike the LD-pruning change above (which does trade some
+# discriminating power for speed on the Ia/rbarD side only).
+# `57b_monomorphic_loci_dropped.csv` and `58c_monomorphic_loci_dropped.csv`
+# record what was dropped from the full and LD-pruned sets respectively.
+#
 # adegenet's genlight/poppr's snpclone representation (this package's usual
 # object for SNP data -- see genlight_from_gds(), R/dapc.R) is explicitly
 # rejected by both poppr() and genotype_curve() ("The poppr function will
@@ -21,6 +93,23 @@
 # per locus, not real nucleotide identity (the same simplification ml_tree's
 # IUPAC encoding could not make, since that module needs real bases for a
 # nucleotide substitution model).
+
+# Locus IDs (column names) with fewer than two distinct non-missing dosage
+# values (0/1/2) among the given samples -- carries zero discriminating
+# power for exact multilocus-genotype matching (poppr::mlg.id()) and zero
+# information for Ia/rbarD's pairwise distances (a monomorphic locus is
+# identical for every sample by definition, so it contributes nothing to
+# either). Vectorized column-wise (colSums() on a logical comparison
+# matrix) rather than apply()/duplicated() per column: the full unpruned
+# marker set can be hundreds of thousands of loci wide on a real cohort
+# (confirmed fast at that scale: ~0.7s for 560,000 columns).
+clonality_monomorphic_loci <- function(genotype) {
+  if (!ncol(genotype)) return(character())
+  n_distinct <- (colSums(genotype == 0, na.rm = TRUE) > 0L) +
+    (colSums(genotype == 1, na.rm = TRUE) > 0L) +
+    (colSums(genotype == 2, na.rm = TRUE) > 0L)
+  colnames(genotype)[n_distinct <= 1L]
+}
 
 clonality_encode_genind <- function(genotype, sample_ids, population) {
   code <- matrix(NA_character_, nrow(genotype), ncol(genotype), dimnames = dimnames(genotype))
@@ -81,31 +170,121 @@ clonality_group_table <- function(mlg_groups, population, sample_ids) {
   }))
 }
 
+clonality_msn_empty_edges <- function() {
+  data.table::data.table(
+    from_sample = character(), from_mlg = character(),
+    to_sample = character(), to_mlg = character(), distance = numeric()
+  )
+}
+
+# Minimum spanning network (MSN; Kamvar, Tabima, and Grunwald 2014's
+# poppr.msn(), https://grunwaldlab.github.io/Population_Genetics_in_R/Minimum_Spanning_Networks.html)
+# over the same LD-pruned marker set as poppr()'s Ia/rbarD summary and the
+# genotype accumulation curve above -- a genetic-distance network showing
+# how MLGs relate to each other, clone-corrected (one node per distinct
+# multilocus genotype, sized by how many samples share it), complementary
+# to the exact-duplicate detection above (which uses the full unpruned set)
+# and to the population-structure views elsewhere in this pipeline
+# (PCA/DAPC/NJ trees). The tutorial's own `bruvo.msn()` assumes a stepwise
+# mutation model appropriate for microsatellite repeat-length data, not
+# SNPs, so this uses the general `poppr.msn()` with `poppr::diss.dist()`
+# instead -- a simple discrete/Hamming-style distance poppr itself
+# documents as usable "for any marker system" and, at `percent = TRUE`,
+# numerically identical to `provesti.dist()` but built to "perform better
+# for large numbers of individuals (n > 125)" (this package's own real
+# production datasets reach into the thousands of samples). `include.ties
+# = TRUE` keeps every edge tied for shortest distance rather than
+# arbitrarily dropping ties (poppr's own MSN tutorial makes the same
+# choice), since a discrete SNP-based distance routinely produces exact
+# ties. Color palette is left at poppr.msn()'s own default here -- baked
+# into the graph at construction time, by that function's own design --
+# and re-styled to this pipeline's real population palette later by
+# plot_msn_network(), via plot_poppr_msn()'s own `palette` argument, so
+# this compute step stays style-agnostic like every other run_*() function
+# in this codebase.
+clonality_run_msn <- function(gc) {
+  if (adegenet::nInd(gc) < 2L) return(NULL)
+  tryCatch({
+    dist_mat <- poppr::diss.dist(gc, percent = TRUE)
+    poppr::poppr.msn(gc, dist_mat, showplot = FALSE, include.ties = TRUE)
+  }, error = function(e) NULL)
+}
+
+# One row per MSN edge: the two clone-corrected representative sample names
+# anchoring each edge (poppr.msn()'s own vertex names) and their MLG labels
+# (poppr's own "MLG.<n>" identifiers, joined from the graph's vertex
+# attributes -- the same labels the figure itself displays), plus the
+# genetic distance between them (the same diss.dist() value used to build
+# the network, not separately re-derived).
+clonality_msn_edge_table <- function(msn) {
+  if (is.null(msn) || is.null(msn$graph) || igraph::gorder(msn$graph) < 2L) {
+    return(clonality_msn_empty_edges())
+  }
+  edges <- igraph::as_data_frame(msn$graph, what = "edges")
+  if (!nrow(edges)) return(clonality_msn_empty_edges())
+  vertices <- igraph::as_data_frame(msn$graph, what = "vertices")
+  mlg_by_name <- stats::setNames(as.character(vertices$label), vertices$name)
+  data.table::data.table(
+    from_sample = edges$from, from_mlg = unname(mlg_by_name[edges$from]),
+    to_sample = edges$to, to_mlg = unname(mlg_by_name[edges$to]),
+    distance = as.numeric(edges$weight)
+  )
+}
+
+clonality_empty_curve <- function() {
+  data.table::data.table(n_loci = integer(), mean_mlg = numeric(),
+                         q025_mlg = numeric(), q975_mlg = numeric())
+}
+
 # Genotype accumulation curve (Ia/rbarD's companion diagnostic): resamples
 # increasing numbers of loci and counts how many distinct MLGs they resolve,
 # summarized as a mean +/- 95% quantile envelope per loci count rather than
 # poppr::genotype_curve()'s own per-count boxplots -- a real marker panel
 # here has hundreds of loci, where hundreds of individual boxplots are
 # illegible; a continuous mean/envelope curve reads cleanly at that scale.
+# Runs on the LD-pruned locus set, like poppr()'s own Ia/rbarD summary above
+# -- see this file's top-of-file comment for why (performance and
+# methodology both point the same way).
+#
+# poppr::genotype_curve() drops monomorphic loci before resampling and
+# reports every dropped locus name via an unconditional message() (not
+# gated by its own `quiet` argument, confirmed against the installed poppr
+# source) -- on a real marker panel that can be thousands of lines of
+# console noise. That message is intercepted here, parsed for the dropped
+# locus names, and muffled; the caller gets the names back structurally
+# instead, to log as a single count and write to a file (see
+# run_module_clonality()).
 clonality_curve_summary <- function(gc, replicates) {
+  empty <- list(curve = clonality_empty_curve(), dropped_monomorphic_loci = character())
   if (adegenet::nLoc(gc) < 2L || replicates <= 0L) {
-    return(data.table::data.table(n_loci = integer(), mean_mlg = numeric(),
-                                  q025_mlg = numeric(), q975_mlg = numeric()))
+    return(empty)
   }
+  dropped <- character()
   raw <- tryCatch(
-    poppr::genotype_curve(gc, sample = replicates, plot = FALSE, quiet = TRUE),
+    withCallingHandlers(
+      poppr::genotype_curve(gc, sample = replicates, plot = FALSE, quiet = TRUE),
+      message = function(m) {
+        cond_msg <- conditionMessage(m)
+        if (startsWith(cond_msg, "Dropping monomorphic loci:")) {
+          dropped <<- trimws(strsplit(
+            sub("^Dropping monomorphic loci:\\s*", "", cond_msg), ","
+          )[[1L]])
+          invokeRestart("muffleMessage")
+        }
+      }
+    ),
     error = function(e) NULL
   )
   if (is.null(raw)) {
-    return(data.table::data.table(n_loci = integer(), mean_mlg = numeric(),
-                                  q025_mlg = numeric(), q975_mlg = numeric()))
+    return(list(curve = clonality_empty_curve(), dropped_monomorphic_loci = dropped))
   }
   long <- data.table::data.table(
     n_loci = as.integer(rep(colnames(raw), each = nrow(raw))),
     n_mlg = as.numeric(raw)
   )
-  long[, .(mean_mlg = mean(n_mlg), q025_mlg = stats::quantile(n_mlg, 0.025),
+  curve <- long[, .(mean_mlg = mean(n_mlg), q025_mlg = stats::quantile(n_mlg, 0.025),
           q975_mlg = stats::quantile(n_mlg, 0.975)), by = n_loci][order(n_loci)]
+  list(curve = curve, dropped_monomorphic_loci = dropped)
 }
 
 # poppr::poppr()'s Ia/rbarD computation (pair_diffs() -> pairdiffs(), a
@@ -150,37 +329,90 @@ clonality_run_poppr_isolated <- function(gc, ia_permutations) {
   if (is.null(result) || inherits(result, "try-error")) NULL else result
 }
 
-run_clonality <- function(genotype, sample_ids, metadata, seed,
+run_clonality <- function(genotype, ld_genotype, sample_ids, metadata, seed,
                           curve_replicates = 100L, ia_permutations = 0L) {
   matched <- match(sample_ids, metadata$sample)
   population <- trimws(as.character(metadata$population[matched]))
   if (anyNA(population) || any(!nzchar(population))) {
     stop("Clonality analysis requires a non-missing population for every retained sample", call. = FALSE)
   }
+
+  # Monomorphic loci (identical genotype at every retained sample) are
+  # dropped once, up front, from both marker sets this module uses --
+  # correctness-neutral (a monomorphic locus can never distinguish two
+  # multilocus genotypes, and contributes nothing to Ia/rbarD's pairwise
+  # distances either) and a real, measured performance win: a production
+  # cohort's LD-pruned set with a substantial monomorphic fraction spent
+  # hours in poppr::poppr()'s Ia/rbarD computation, which -- unlike
+  # poppr::genotype_curve()'s own internal drop for the accumulation curve
+  # (clonality_curve_summary()) -- does not skip them on its own.
+  dropped_monomorphic_full <- clonality_monomorphic_loci(genotype)
+  if (length(dropped_monomorphic_full)) {
+    genotype <- genotype[, setdiff(colnames(genotype), dropped_monomorphic_full), drop = FALSE]
+  }
+  dropped_monomorphic_ld <- clonality_monomorphic_loci(ld_genotype)
+  if (length(dropped_monomorphic_ld)) {
+    ld_genotype <- ld_genotype[, setdiff(colnames(ld_genotype), dropped_monomorphic_ld), drop = FALSE]
+  }
+
   if (ncol(genotype) < 2L) {
-    stop("Clonality analysis requires at least two polymorphic loci; ", ncol(genotype), " available", call. = FALSE)
+    stop("Clonality analysis requires at least two polymorphic loci; ", ncol(genotype), " available after dropping monomorphic loci", call. = FALSE)
   }
   public_ids <- public_sample_ids(metadata, sample_ids)
 
+  # Full, unpruned marker set: exact multilocus-genotype identity only (see
+  # this file's top-of-file comment for why this set must stay unpruned).
   gid <- clonality_encode_genind(genotype, public_ids, population)
   gc <- poppr::as.genclone(gid)
-
-  set.seed(as.integer(seed))
-  summary_raw <- clonality_run_poppr_isolated(gc, ia_permutations)
-  poppr_failed <- is.null(summary_raw)
-  summary_dt <- if (poppr_failed) clonality_empty_summary() else clonality_rename_summary(summary_raw)
-
   mlg_groups <- poppr::mlg.id(gc)
   groups <- clonality_group_table(mlg_groups, population, public_ids)
 
-  curve <- clonality_curve_summary(gc, as.integer(curve_replicates))
+  # LD-pruned marker set: poppr()'s Ia/rbarD summary and the genotype
+  # accumulation curve, both of which assume approximately independent loci
+  # and were the entire real-world performance bottleneck at full-panel
+  # scale (see this file's top-of-file comment). Degrades gracefully, the
+  # same way an actual poppr() crash already does, rather than failing the
+  # whole module, on the rare dataset where LD pruning leaves fewer than 2
+  # usable loci.
+  ld_pruned_usable <- ncol(ld_genotype) >= 2L
+  set.seed(as.integer(seed))
+  summary_raw <- if (ld_pruned_usable) {
+    gid_ld <- clonality_encode_genind(ld_genotype, public_ids, population)
+    gc_ld <- poppr::as.genclone(gid_ld)
+    clonality_run_poppr_isolated(gc_ld, ia_permutations)
+  } else NULL
+  poppr_failed <- is.null(summary_raw)
+  summary_dt <- if (poppr_failed) clonality_empty_summary() else clonality_rename_summary(summary_raw)
+  curve_result <- if (ld_pruned_usable) {
+    clonality_curve_summary(gc_ld, as.integer(curve_replicates))
+  } else {
+    list(curve = clonality_empty_curve(), dropped_monomorphic_loci = character())
+  }
+  curve <- curve_result$curve
+  # Union with genotype_curve()'s own internal drop (clonality_curve_summary()):
+  # normally empty now that the LD-pruned set is already pre-filtered above,
+  # kept as defense-in-depth rather than assumed redundant.
+  dropped_monomorphic_ld <- union(dropped_monomorphic_ld, curve_result$dropped_monomorphic_loci)
+
+  # Minimum spanning network: same LD-pruned marker set and gating as
+  # Ia/rbarD/the genotype accumulation curve above (see this file's
+  # top-of-file comment for why). Kept independent of poppr_failed, since
+  # poppr.msn()/diss.dist() share no code path with the isolated,
+  # 32-bit-overflow-prone poppr::poppr() call above.
+  msn <- if (ld_pruned_usable) clonality_run_msn(gc_ld) else NULL
+  msn_gid <- if (!is.null(msn)) gc_ld else NULL
+  msn_failed <- ld_pruned_usable && is.null(msn)
+  msn_edges <- clonality_msn_edge_table(msn)
 
   n_mlg_total <- suppressWarnings(as.integer(summary_dt[population == "Total", mlg]))
   if (!length(n_mlg_total)) n_mlg_total <- NA_integer_
 
   list(summary = summary_dt, groups = groups, curve = curve,
       n_mlg_total = n_mlg_total, curve_replicates = as.integer(curve_replicates),
-      poppr_failed = poppr_failed)
+      poppr_failed = poppr_failed, ld_pruned_usable = ld_pruned_usable,
+      msn = msn, msn_gid = msn_gid, msn_failed = msn_failed, msn_edges = msn_edges,
+      dropped_monomorphic_full = dropped_monomorphic_full,
+      dropped_monomorphic_ld = dropped_monomorphic_ld)
 }
 
 plot_clonality <- function(result, cfg, dirs) {
@@ -202,12 +434,65 @@ plot_clonality <- function(result, cfg, dirs) {
     ggplot2::scale_y_continuous(labels = scales::label_comma()) +
     ggplot2::labs(
       title = "Genotype accumulation curve",
-      subtitle = "Distinct multilocus genotypes resolved when subsampling loci",
+      subtitle = "Distinct multilocus genotypes resolved when subsampling LD-pruned, polymorphic loci",
       caption = sprintf(
-        "Mean and 95%% envelope across %s replicates; dashed line: %s MLGs with the full marker set",
+        "Mean and 95%% envelope across %s replicates; dashed line: %s MLGs with the full LD-pruned, polymorphic marker set (58c_monomorphic_loci_dropped.csv lists loci excluded before this curve)",
         scales::comma(result$curve_replicates), scales::comma(result$n_mlg_total)
       ),
-      x = "Number of loci sampled", y = "Multilocus genotypes (MLG)"
+      x = "Number of LD-pruned, polymorphic loci sampled", y = "Multilocus genotypes (MLG)"
     ) + theme_publication(figure_base_size(cfg))
   save_plot(p, "58_genotype_accumulation_curve", dirs, fmts, 8, 5.5, dpi)
+}
+
+# Minimum spanning network figure (poppr::plot_poppr_msn()). Base-graphics,
+# like the NJ trees in R/tree_bootstrap.R (see save_base_plot()'s own
+# comment): poppr's MSN plotting is an igraph/base-graphics routine with no
+# ggplot2-native equivalent among this package's dependencies. Individual
+# sample labels are suppressed (`inds = "none"`): a real SNP marker panel
+# routinely resolves one unique MLG per sample, so node count/size (a
+# clone-corrected group's real member count) already carries that
+# information without a real dataset's worth of names cluttering the
+# network; population colour (restyled here via plot_poppr_msn()'s own
+# `palette` argument, not by touching the graph object poppr.msn() already
+# built) and poppr's own built-in legends carry the rest. `layout.auto()`
+# is stochastic, so the pipeline's own seed is set immediately before
+# plotting for a reproducible figure across repeated runs on the same data.
+plot_msn_network <- function(result, cfg, dirs) {
+  if (is.null(result$msn) || is.null(result$msn_gid)) return(invisible(NULL))
+  n_nodes <- igraph::gorder(result$msn$graph)
+  if (n_nodes < 2L) return(invisible(NULL))
+  fmts <- cfg$output$figure_formats; dpi <- cfg$output$dpi
+  style <- figure_style_name(cfg)
+  pal <- population_palette(adegenet::pop(result$msn_gid), style)
+  n_samples <- adegenet::nInd(result$msn_gid)
+
+  draw <- function() {
+    # plot_poppr_msn() builds its own multi-panel graphics::layout() (legend
+    # | main network | distance scale bar) and restores the caller's par()
+    # on exit, but leaves that layout's last panel active -- a title/mtext()
+    # call placed normally after it returns lands inside that small last
+    # panel, on top of poppr's own "DISTANCE" scale-bar label, not below the
+    # whole figure as intended (confirmed by rendering the real figure).
+    # Outer margins are unaffected by which inner layout panel is active, so
+    # the title/caption go there instead via mtext(..., outer = TRUE).
+    op <- graphics::par(oma = c(2.2, 0, 1.8, 0))
+    on.exit(graphics::par(op), add = TRUE)
+    set.seed(as.integer(cfg$compute$seed %||% 1L))
+    poppr::plot_poppr_msn(
+      result$msn_gid, result$msn, palette = pal, inds = "none",
+      mlg = FALSE, quantiles = FALSE
+    )
+    graphics::mtext(
+      "Minimum spanning network", side = 3, outer = TRUE, cex = 1.05, line = 0.3
+    )
+    graphics::mtext(
+      sprintf(
+        "%s clone-corrected genotype(s) from %s sample(s); edges: Hamming-style genetic distance on the LD-pruned marker set",
+        scales::comma(n_nodes), scales::comma(n_samples)
+      ),
+      side = 1, outer = TRUE, cex = 0.68, col = "#666666", adj = 0, line = 0.8
+    )
+  }
+  side <- max(6, min(14, 4 + n_nodes * 0.08))
+  save_base_plot(draw, "58b_MSN_network", dirs, fmts, side, side, dpi)
 }

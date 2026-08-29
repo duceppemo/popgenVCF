@@ -11,12 +11,12 @@ repository-code: "https://github.com/duceppemo/popgenVCF"
 repository-artifact: "https://github.com/duceppemo/popgenVCF/releases"
 url: "https://duceppemo.github.io/popgenVCF/"
 license: MIT
-version: 1.0.2
-date-released: "2026-08-23"
+version: 1.0.6
+date-released: "2026-08-28"
 identifiers:
   - type: doi
-    value: "10.5281/zenodo.22072524"
-    description: "The version-specific archive of popgenVCF 1.0.2."
+    value: "10.5281/zenodo.22135350"
+    description: "The version-specific archive of popgenVCF 1.0.6."
   - type: doi
     value: "10.5281/zenodo.21747067"
     description: "The concept DOI, which always resolves to the latest version of popgenVCF."

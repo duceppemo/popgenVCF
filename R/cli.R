@@ -3,7 +3,13 @@ cli_usage <- function(status = 0L) {
     "popgenVCF population genomics toolkit\n\n",
     "Usage:\n",
     "  Rscript popgenVCF.R --config analysis.yml\n",
-    "  Rscript popgenVCF.R --write-config analysis.yml\n\n",
+    "  Rscript popgenVCF.R --write-config analysis.yml\n",
+    "  Rscript popgenVCF.R --resume OUTPUT_DIR\n\n",
+    "--resume picks up an interrupted run (crash, out-of-memory kill,\n",
+    "`docker stop`, or anything else) from its last completed analysis-\n",
+    "registry batch, using the checkpoint run_pipeline() writes automatically\n",
+    "as it goes. OUTPUT_DIR is the same output.directory the original run\n",
+    "used; no --config or other override flags are needed or read.\n\n",
     "Optional overrides:\n",
     "  --vcf FILE\n",
     "  --metadata FILE\n",
@@ -25,12 +31,13 @@ parse_cli <- function(args) {
   out <- list(
     config = NULL,
     write_config = NULL,
+    resume = NULL,
     force_gds = FALSE,
     no_report = FALSE,
     version = FALSE
   )
   value_opts <- c(
-    "--config", "--write-config", "--vcf", "--metadata", "--outdir",
+    "--config", "--write-config", "--resume", "--vcf", "--metadata", "--outdir",
     "--threads", "--seed", "--maf", "--max-sample-missing"
   )
   i <- 1L
@@ -76,6 +83,7 @@ cli_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     return(invisible(NULL))
   }
   if (!is.null(x$write_config)) return(write_default_config(x$write_config))
+  if (!is.null(x$resume)) return(run_pipeline_resume(x$resume))
   if (is.null(x$config)) cli_usage(1L)
 
   cfg <- read_config(x$config)

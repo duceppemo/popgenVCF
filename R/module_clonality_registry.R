@@ -2,9 +2,10 @@
 #'
 #' The descriptor owns the complete clonality registry contract: per-population
 #' genotypic diversity indices, samples sharing an identical multilocus
-#' genotype, and a genotype accumulation curve, computed by
-#' `run_module_clonality()` from `compute_diversity()`'s already-computed
-#' genotype matrix (`requires = "diversity"`).
+#' genotype, a genotype accumulation curve, and a minimum spanning network of
+#' multilocus genotypes, computed by `run_module_clonality()` from
+#' `compute_diversity()`'s already-computed genotype matrix
+#' (`requires = "diversity"`).
 #'
 #' @return A `PopgenVCFModuleSpec` object.
 #' @export

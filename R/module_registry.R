@@ -4,7 +4,8 @@ run_module_diversity <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
   div <- compute_diversity(context$gds, context$sample_ids, context$qc_snps,
                            context$metadata, context$ids, cfg$analyses$hwe_alpha,
-                           compute_allelic_richness = isTRUE(cfg$analyses$diversity_allelic_richness))
+                           compute_allelic_richness = isTRUE(cfg$analyses$diversity_allelic_richness),
+                           gds_path = context$gds_path, threads = cfg$compute$threads)
   ci <- if (isTRUE(cfg$analyses$bootstrap$enabled)) {
     bootstrap_diversity(div$locus, cfg$analyses$bootstrap$replicates,
                         cfg$compute$seed, cfg$analyses$bootstrap$unit)
@@ -164,7 +165,10 @@ run_module_ml_tree <- function(analysis, context) {
 
 run_module_fst <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
-  fst <- run_fst(context$gds, context$qc_snps, context$metadata)
+  fst <- run_fst(
+    context$gds, context$qc_snps, context$metadata,
+    gds_path = context$gds_path, threads = cfg$compute$threads
+  )
   jost <- compute_jost_d(context$diversity_full$locus)
   fst$global_jost_d <- jost$global
   fst$jost_d_matrix <- jost$matrix
@@ -268,11 +272,13 @@ run_module_genome_scan <- function(analysis, context) {
   min_snps <- cfg$analyses$genome_scan_min_snps
   fst_windows <- run_genome_scan_fst(
     context$gds, context$qc_snps, context$ids, context$metadata,
-    window_bp, step_bp, min_snps
+    window_bp, step_bp, min_snps,
+    gds_path = context$gds_path, threads = cfg$compute$threads
   )
   population_n <- context$metadata[, .N, by = population][, stats::setNames(N, population)]
   diversity_windows <- run_genome_scan_diversity(
-    context$diversity_full$locus, window_bp, step_bp, min_snps, population_n
+    context$diversity_full$locus, window_bp, step_bp, min_snps, population_n,
+    threads = cfg$compute$threads
   )
   outliers <- fst_windows[is.finite(global_fst)]
   data.table::setorder(outliers, -global_fst)
@@ -350,21 +356,66 @@ run_module_pcadapt <- function(analysis, context) {
 
 run_module_clonality <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs; div <- context$diversity_full
+  # div$genotype's columns correspond positionally to context$qc_snps (see
+  # run_module_diversity()'s compute_diversity() call), and final_snps is
+  # always a subset of qc_snps (ld_prune_exact() only ever removes ids), so
+  # this match() is a safe positional lookup, never NA.
+  ld_idx <- match(context$final_snps, context$qc_snps)
+  ld_genotype <- div$genotype[, ld_idx, drop = FALSE]
   result <- run_clonality(
-    div$genotype, context$sample_ids, context$metadata, cfg$compute$seed,
+    div$genotype, ld_genotype, context$sample_ids, context$metadata, cfg$compute$seed,
     curve_replicates = cfg$analyses$clonality_genotype_curve_replicates,
     ia_permutations = cfg$analyses$clonality_ia_permutations
   )
   analysis <- set_analysis_result(analysis, "clonality", result)
   write_tsv(result$summary, file.path(dirs$tables, "56_MLG_diversity_summary.tsv"))
   write_tsv(result$groups, file.path(dirs$tables, "57_MLG_groups.tsv"))
+  if (length(result$dropped_monomorphic_full)) {
+    data.table::fwrite(
+      data.table::data.table(locus = result$dropped_monomorphic_full),
+      file.path(dirs$tables, "57b_monomorphic_loci_dropped.csv")
+    )
+    full_msg <- sprintf(
+      "%d monomorphic locus/loci dropped from the full unpruned marker set before MLG duplicate detection (see 57b_monomorphic_loci_dropped.csv)",
+      length(result$dropped_monomorphic_full)
+    )
+    log_msg(full_msg)
+    analysis <- record_analysis_message(analysis, "INFO", "clonality", full_msg)
+  }
   if (nrow(result$curve)) write_tsv(result$curve, file.path(dirs$tables, "58_genotype_accumulation_curve.tsv"))
+  if (nrow(result$msn_edges)) write_tsv(result$msn_edges, file.path(dirs$tables, "58b_MSN_edges.tsv"))
+  if (length(result$dropped_monomorphic_ld)) {
+    data.table::fwrite(
+      data.table::data.table(locus = result$dropped_monomorphic_ld),
+      file.path(dirs$tables, "58c_monomorphic_loci_dropped.csv")
+    )
+    ld_msg <- sprintf(
+      "%d monomorphic locus/loci dropped from the LD-pruned marker set before poppr::poppr()'s Ia/rbarD summary, the genotype accumulation curve, and the minimum spanning network (see 58c_monomorphic_loci_dropped.csv)",
+      length(result$dropped_monomorphic_ld)
+    )
+    log_msg(ld_msg)
+    analysis <- record_analysis_message(analysis, "INFO", "clonality", ld_msg)
+  }
   plot_clonality(result, cfg, dirs)
-  if (isTRUE(result$poppr_failed)) {
+  plot_msn_network(result, cfg, dirs)
+  if (!isTRUE(result$ld_pruned_usable)) {
     analysis <- record_analysis_message(
       analysis, "WARNING", "clonality",
-      "poppr::poppr()'s Ia/rbarD diversity summary crashed (a known 32-bit overflow in poppr's compiled pairdiffs routine at large sample x locus counts) and was skipped; MLG duplicate-group detection and the genotype accumulation curve, which do not depend on that call, are unaffected"
+      "The LD-pruned marker set has fewer than two usable loci; poppr::poppr()'s Ia/rbarD diversity summary, the genotype accumulation curve, and the minimum spanning network were skipped. MLG duplicate-group detection, which uses the full unpruned marker set, is unaffected"
     )
+  } else {
+    if (isTRUE(result$poppr_failed)) {
+      analysis <- record_analysis_message(
+        analysis, "WARNING", "clonality",
+        "poppr::poppr()'s Ia/rbarD diversity summary crashed (a known 32-bit overflow in poppr's compiled pairdiffs routine at large sample x locus counts) and was skipped; MLG duplicate-group detection and the genotype accumulation curve, which do not depend on that call, are unaffected"
+      )
+    }
+    if (isTRUE(result$msn_failed)) {
+      analysis <- record_analysis_message(
+        analysis, "WARNING", "clonality",
+        "The minimum spanning network could not be computed and was skipped; other clonality outputs are unaffected"
+      )
+    }
   }
   if (nrow(result$groups)) {
     n_cross <- sum(result$groups$cross_population)

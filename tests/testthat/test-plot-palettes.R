@@ -11,6 +11,33 @@ test_that("population figures share a high-contrast accessible palette", {
   )
 })
 
+test_that("plot_qc_reports keeps the sequential SNP retention bars in filtering order, not alphabetical", {
+  plots <- list()
+  local_mocked_bindings(
+    save_plot = function(p, stem, ...) { plots[[stem]] <<- p; invisible(TRUE) },
+    .package = "popgenVCF"
+  )
+  cfg <- default_config()
+  sample_qc <- data.table::data.table(sample = "s1", population = "A", missing_rate = 0.01)
+  reports <- list(
+    variant = data.table::data.table(maf = 0.1, missing_rate = 0.01),
+    # The real qc_reports() step labels -- alphabetically these would sort
+    # to "After LD pruning", "After MAF", "After missingness", "Input
+    # biallelic", a genuinely different (and misleading) order from the
+    # real filtering sequence below.
+    sequential = data.table::data.table(
+      step = c("Input biallelic", "After MAF", "After missingness", "After LD pruning"),
+      variants = c(1000L, 800L, 700L, 500L)
+    )
+  )
+  plot_qc_reports(reports, sample_qc, cfg, list(figures = tempdir()))
+
+  expect_identical(
+    levels(plots[["04_SNP_retention"]]$data$step),
+    c("Input biallelic", "After MAF", "After missingness", "After LD pruning")
+  )
+})
+
 test_that("requested population plots use accessible colors and expanded titles", {
   plots <- list()
   local_mocked_bindings(

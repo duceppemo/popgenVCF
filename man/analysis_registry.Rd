@@ -35,7 +35,8 @@ execute_analysis_registry(
   context,
   registry,
   selected = NULL,
-  engine = new_execution_engine()
+  engine = new_execution_engine(),
+  checkpoint_path = NULL
 )
 
 default_analysis_registry()
@@ -58,5 +59,6 @@ default_analysis_registry()
   \item{analysis}{A \code{PopgenVCFAnalysis} object.}
   \item{context}{Runtime context shared by module runners.}
   \item{engine}{A \code{PopgenVCFExecutionEngine} object.}
+  \item{checkpoint_path}{Optional \code{.rds} path forwarded to \code{execute_analysis_plan()} for unconditional per-batch checkpointing.}
 }
 \value{A registry, module table, execution order, or updated analysis/context bundle depending on the function.}

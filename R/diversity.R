@@ -1,5 +1,5 @@
 compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha = 0.05,
-                               compute_allelic_richness = TRUE) {
+                               compute_allelic_richness = TRUE, gds_path = NULL, threads = 1L) {
   # SNPRelate::snpgdsGetGeno() silently returns rows/columns in the GDS's own
   # native storage order (verified empirically, same behavior class as
   # snpgdsSampMissRate()'s with.id ordering found for sex_check), not the
@@ -22,7 +22,14 @@ compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha
     homozygous_reference_calls = rowSums(geno == 0, na.rm = TRUE),
     homozygous_alternate_calls = rowSums(geno == 2, na.rm = TRUE)
   )
-  loci <- lapply(sort(unique(metadata$population)), function(pop) {
+  populations <- sort(unique(metadata$population))
+
+  # Split out so the per-population computation can run either against the
+  # shared `gds` handle (sequential path) or a worker's own independent GDS
+  # connection (parallel path, below) -- everything except the
+  # snpgdsHWE() call operates on `geno`, already fully extracted into memory
+  # above, so `gds_conn` is only ever touched for that one read.
+  diversity_locus_stats <- function(pop, gds_conn) {
     smp <- metadata[population == pop, sample]
     idx <- match(smp, sample_ids); idx <- idx[!is.na(idx)]
     x <- geno[idx, , drop = FALSE]
@@ -45,7 +52,7 @@ compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha
     # for monomorphic input; report NA instead of p = 1 for loci monomorphic
     # within this specific population, since "not tested" is more honest than a
     # spurious pile-up of p = 1 in the summary counts and histogram.
-    hwe_pvalue <- SNPRelate::snpgdsHWE(gds, sample.id = sample_ids[idx], snp.id = snp_ids)
+    hwe_pvalue <- SNPRelate::snpgdsHWE(gds_conn, sample.id = sample_ids[idx], snp.id = snp_ids)
     hwe_pvalue[!polymorphic] <- NA_real_
     data.table::data.table(
       population = pop, snp_id = snp_ids,
@@ -58,7 +65,40 @@ compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha
       effective_alleles = effective_alleles,
       polymorphic = polymorphic, hwe_pvalue = hwe_pvalue
     )
-  })
+  }
+
+  # A real production incident: on a real 50-sample/561,767-locus cohort,
+  # this loop's dominant cost (a fresh snpgdsHWE() scan per population) made
+  # `diversity` alone take 57 minutes. Parallelizing across populations is
+  # only safe with `gds_path` set: gdsfmt's own documentation warns that
+  # `mclapply`'s forked children inherit the *same* underlying file
+  # descriptor as the parent, sharing its current read position -- "wrong
+  # reading, even program crashes" -- when they read the same GDS file
+  # concurrently. Rather than relying on gdsfmt's own `allow.fork` mitigation
+  # on a single shared handle (undocumented in enough detail to trust
+  # blindly), each worker opens its own fully independent GDS connection, the
+  # unambiguously safe pattern -- verified to reproduce the exact sequential
+  # result before shipping (see test-diversity-parallel.R).
+  workers <- if (is.null(gds_path)) 1L else fork_worker_count(length(populations), threads)
+  loci <- if (workers <= 1L) {
+    lapply(populations, function(pop) diversity_locus_stats(pop, gds))
+  } else {
+    results <- parallel::mclapply(populations, function(pop) {
+      worker_gds <- SNPRelate::snpgdsOpen(
+        gds_path, readonly = TRUE, allow.duplicate = TRUE, allow.fork = TRUE
+      )
+      on.exit(SNPRelate::snpgdsClose(worker_gds), add = TRUE)
+      diversity_locus_stats(pop, worker_gds)
+    }, mc.cores = workers, mc.preschedule = FALSE, mc.set.seed = FALSE)
+    failed <- vapply(results, inherits, logical(1L), what = "try-error")
+    if (any(failed)) {
+      stop(
+        "Parallel diversity computation failed for population(s): ",
+        paste(populations[failed], collapse = ", "), call. = FALSE
+      )
+    }
+    results
+  }
   locus <- data.table::rbindlist(loci)
 
   # Private alleles: an allele is private to a population when every copy of it,

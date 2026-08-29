@@ -14,25 +14,6 @@ dapc_parallel_fixture <- function() {
   list(genotype = genotype, sample_ids = sample_ids, metadata = metadata)
 }
 
-test_that("DAPC worker count is bounded by K values and platform support", {
-  expect_identical(
-    popgenVCF:::dapc_worker_count(2:8, 64L, fork_available = TRUE),
-    7L
-  )
-  expect_identical(
-    popgenVCF:::dapc_worker_count(2:8, 3L, fork_available = TRUE),
-    3L
-  )
-  expect_identical(
-    popgenVCF:::dapc_worker_count(2:8, 64L, fork_available = FALSE),
-    1L
-  )
-  expect_identical(
-    popgenVCF:::dapc_worker_count(2:8, NA_integer_, fork_available = TRUE),
-    1L
-  )
-})
-
 test_that("parallel DAPC matches serial output and computes one PCA per run", {
   fixture <- dapc_parallel_fixture()
   original_compute <- popgenVCF:::compute_dapc_shared_pca
@@ -106,6 +87,46 @@ test_that("DAPC avoids PCA work when no requested K is valid", {
   )
   expect_length(result$models, 0L)
   expect_equal(nrow(result$diagnostics), 0L)
+})
+
+test_that("run_dapc_k_task's xvalDapc call never requests boot::boot()'s parallel bootstrap", {
+  # Deliberately NOT wired up: adegenet::xvalDapc() forwards `...` into
+  # boot::boot(sim = "parametric", ...), which per boot's own documentation
+  # resamples inside the worker processes with each choosing its own
+  # separate, non-reproducible seed. Confirmed directly on this package's
+  # real quickstart dataset: identical data/seed gave n.pca = 10 (replicate
+  # RMSE ~0) serial vs. n.pca = 40 (RMSE 0.076, exceeding the stability
+  # threshold) with parallel = "multicore" enabled -- a materially
+  # different, less reproducible result, not just a faster one. Every other
+  # parallel path in this codebase is verified byte-identical regardless of
+  # thread count; this call must stay serial to match that guarantee.
+  fixture <- dapc_parallel_fixture()
+  gl <- popgenVCF:::genlight_from_gds(fixture$genotype, fixture$sample_ids, fixture$metadata)
+  public_ids <- popgenVCF:::public_sample_ids(fixture$metadata, fixture$sample_ids)
+  shared_pca <- popgenVCF:::compute_dapc_shared_pca(gl, 10L)
+  truth <- fixture$metadata$population[match(fixture$sample_ids, fixture$metadata$sample)]
+  stub_cv <- list(
+    `Number of PCs Achieving Highest Mean Success` = "5",
+    `Mean Successful Assignment by Number of PCs of PCA` = c(`5` = 0.8)
+  )
+
+  captured <- list()
+  local_mocked_bindings(
+    xvalDapc = function(...) {
+      captured[[length(captured) + 1L]] <<- list(...)
+      stub_cv
+    },
+    .package = "adegenet"
+  )
+
+  popgenVCF:::run_dapc_k_task(
+    2L, gl = gl, shared_pca = shared_pca, max_pca = 10L,
+    sample_ids = fixture$sample_ids, public_ids = public_ids,
+    metadata = fixture$metadata, truth = truth,
+    cross_validate = TRUE, replicate_seeds = 42L
+  )
+  expect_null(captured[[1L]]$parallel)
+  expect_null(captured[[1L]]$ncpus)
 })
 
 test_that("single-replicate DAPC records unestimated RMSE as missing", {

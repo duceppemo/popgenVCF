@@ -259,11 +259,25 @@ plot_pca_loading_manhattan <- function(loadings, cfg, dirs, profile) {
     ) + theme_publication(base_size) +
     ggplot2::theme(panel.spacing = ggplot2::unit(1, "lines"))
   last_axis <- levels(loadings$axis)[length(levels(loadings$axis))]
-  p <- manhattan_chromosome_row(
-    p, layout$ticks, range(loadings$contribution[loadings$axis == last_axis], na.rm = TRUE),
-    base_size, facet_var = "axis", facet_last_level = last_axis, facet_levels = levels(loadings$axis)
-  )
   n_axes <- data.table::uniqueN(loadings$axis)
+  # geom_hline(yintercept = 0) above silently expands this facet's own
+  # rendered y-scale to include 0 whenever the real data doesn't naturally
+  # span it (e.g. a low-variance PC whose loadings cluster tightly well
+  # away from zero) -- ggplot2 trains scale limits on every layer's data,
+  # not just the primary geom's. manhattan_chromosome_row()'s pad/margin
+  # math is computed from this y_range directly, so it must match the
+  # panel's true rendered range or the label ends up positioned inside the
+  # now much taller panel instead of below it, truncated by the panel's
+  # own clipping rather than bleeding into the margin as intended --
+  # confirmed directly against a real production figure.
+  last_axis_range <- range(
+    c(loadings$contribution[loadings$axis == last_axis], 0), na.rm = TRUE
+  )
+  p <- manhattan_chromosome_row(
+    p, layout$ticks, last_axis_range,
+    base_size, facet_var = "axis", facet_last_level = last_axis, facet_levels = levels(loadings$axis),
+    plot_width_in = 10
+  )
   save_plot(
     p, "17_PCA_loadings_manhattan", dirs,
     cfg$output$figure_formats, 10, max(4, 2.2 * n_axes), cfg$output$dpi

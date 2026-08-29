@@ -8,9 +8,11 @@ your data. The complete PDF report from this same run is available at
 [`docs/examples/chr22-quickstart-report.pdf`](https://github.com/duceppemo/popgenVCF/blob/main/docs/examples/chr22-quickstart-report.pdf).
 
 Interpret execution state before biology. Begin with
-`analysis_execution_ledger.tsv` and `analysis_validation.tsv`. A module that is
-failed, blocked, cancelled, timed out, or unavailable has no interpretable
-biological result.
+`analysis_execution_ledger.tsv` and `analysis_validation.tsv`, and the
+report's own "Pipeline notices" section (every `WARNING`/`INFO` message
+recorded during the run, in one place). A module that is failed, blocked,
+cancelled, timed out, or unavailable has no interpretable biological
+result.
 
 ## Quality control
 
@@ -21,6 +23,22 @@ show which rule removed a sample or marker.
 
 Filtering defines the analyzed dataset. Avoid choosing thresholds after seeing
 the preferred population pattern.
+
+`00_vcf_variant_types.tsv` is the very first table written, before any QC
+threshold is applied: a transparency count of the raw input VCF's record
+types (`bcftools stats`), showing how many are the biallelic, polymorphic
+SNPs this pipeline actually analyzes versus indels, multiallelic sites,
+MNPs, or other variant types that `SNPRelate::snpgdsVCF2GDS(method =
+"biallelic.only")` silently retains or drops during VCF-to-GDS conversion.
+A raw VCF straight off a variant caller does not need to be pre-filtered --
+this table exists so you can *see* that filtering happened, not just trust
+that it did. On the quickstart example all 98,922 input records are already
+biallelic SNPs (`total_records` = `biallelic_snps_retained` = 98,922,
+nothing dropped); a real, messier VCF will show a real difference here. Any
+run with at least one dropped record also logs a one-line summary to
+`pipeline.log` and adds an `INFO`-level entry to the report's own "Pipeline
+notices" section (present only when there is at least one `WARNING` or
+`INFO` message to show).
 
 ![Minor allele frequency distribution from the quickstart example, with the retention threshold marked](figures/01_MAF.png)
 
@@ -43,6 +61,22 @@ the sample-QC threshold), both confirmed before these exclusions were
 added. The remaining 1,148 QC-passing chromosome X SNPs and 60,468
 QC-passing chromosome Y SNPs are reserved for the sex-check module below,
 the one place this package deliberately needs them.
+
+![Variant missingness distribution from the quickstart example, with the maximum retained missingness marked](figures/02_variant_missingness.png)
+
+The bimodal shape above is that same sex-chromosome story rendered
+directly: the left peak is well-covered autosomal markers near 0%
+missingness, and the right peak just past 50% is chromosome X/Y markers
+missing across roughly half the cohort (hemizygous or absent in one sex) --
+not a data-quality failure, the exact mechanism described above.
+
+![Sequential SNP retention through each filtering stage, from the quickstart example](figures/04_SNP_retention.png)
+
+The funnel above is the same sequence of numbers just quoted, in order:
+input, after MAF, after missingness (identical to after MAF here -- this
+cohort's variants are either well-covered or not called at all, nothing in
+between to filter further), and after LD pruning to the 357-SNP final
+marker set.
 
 ## PCA
 
@@ -345,7 +379,31 @@ exclusion criterion. `private_allele` identifies alleles found in only one
 retained population; it is not itself evidence of adaptive significance or
 of any particular demographic history.
 
+![Hardy-Weinberg exact-test p-value distribution by population from the quickstart example](figures/19_HWE_pvalues.png)
+
+The distribution above is what "descriptive, not exclusionary" looks like
+in practice: every population shows a large spike at p = 1 (genotype
+counts matching Hardy-Weinberg expectations exactly, common at biallelic
+SNP scale) plus a roughly uniform scatter of smaller p-values below the
+dashed significance threshold -- the expected shape under the null, not a
+red flag by itself. A population with an unusually heavy concentration of
+loci just below the threshold, rather than this uniform scatter, is the
+pattern worth investigating further.
+
 ![Observed heterozygosity by population from the quickstart example](figures/05_sample_heterozygosity.png)
+
+The sample-level view above complements a population-level one: observed
+heterozygosity averaged per population against its Hardy-Weinberg
+expectation.
+
+![Population genetic diversity from the quickstart example: observed vs. expected heterozygosity per population](figures/06_population_diversity.png)
+
+A population whose observed heterozygosity sits well below its expected
+value (PEL here, a real 1000 Genomes admixed American population) is worth
+a second look with FIS/inbreeding-aware analyses -- this comparison alone
+does not distinguish inbreeding, a Wahlund effect (pooling genetically
+distinct sub-groups under one population label), or a complex admixed
+demographic history from each other.
 
 `allelic_richness` (rarefied via `hierfstat::allelic.richness()`, an optional
 dependency that skips transparently with a logged warning if not installed)
@@ -667,9 +725,11 @@ avoid retaining enough PCs to memorize individuals. Strong separation is not
 independent evidence for groups when those groups defined the discriminant
 analysis.
 
-`22d_DAPC_K_selection.tsv`/`22e_DAPC_K_selection.tsv` and this figure report
-the automatic cluster-number consensus across BIC, mean cross-validation
-success, Calinski-Harabasz, Davies-Bouldin, and replicate-membership RMSE.
+`22d_DAPC_K_selection.tsv` (a top-level convenience copy) and the four
+`22e_DAPC_K_selection_*.tsv` tables (`_methods`, `_scores`, `_votes`,
+`_consensus`) and this figure report the automatic cluster-number
+consensus across BIC, mean cross-validation success, Calinski-Harabasz,
+Davies-Bouldin, and replicate-membership RMSE.
 It is a starting point, not a substitute for domain judgment about how many
 groups the data can support.
 
@@ -688,6 +748,38 @@ diagnostics that led to it. In the quickstart example, the consensus K=3 has
 `replicate_max_rmse` effectively 0 (fully reproducible); several other K
 values in the same run exceed the threshold and are not shown here for that
 reason.
+
+Retaining too many or too few PCs before the discriminant step is a separate
+risk from picking the wrong K: too few PCs discards real signal, too many
+starts to memorize individual samples rather than group structure (in the
+extreme, retaining so many PCs that samples nearly perfectly separate can
+make every K look artificially clean). By default
+(`analyses.dapc_cross_validation: true`) each K's number of retained PCs is
+chosen automatically by `adegenet::xvalDapc()` cross-validated assignment
+success, not left at a fixed default -- the number reported as `n_pca` in
+`21_DAPC_diagnostics.tsv` for that K. This figure shows the full diagnostic
+behind that choice, not just the summary: every individual bootstrap
+replicate's outcome (the semi-transparent points -- the same real
+per-replicate variability `adegenet::xvalDapc()` itself computes but
+normally discards after averaging), the mean curve connecting them, the full
+random-chance reference band (2.5/50/97.5%, not just its median), and the
+selected PC count marked directly on the curve. A tight cluster of replicate
+points at each candidate count is reassuring; a wide spread means the "best"
+count is closer to a coin flip among several similarly-plausible values than
+a clean, confident peak -- exactly the case where the automatic selection
+deserves a second look before trusting the resulting K=3 clustering below.
+
+![DAPC PC-count cross-validation at K=3 from the quickstart example: every individual bootstrap replicate's outcome, the mean success curve, the full random-chance reference band, and the selected PC count](figures/12b_DAPC_xval_K3.png)
+
+A second, independent check on the same question comes from the
+discriminant analysis itself rather than the PC-retention step that feeds
+it: `dapc$eig`, the between-group variance each retained discriminant axis
+explains. A steep drop after the first axis or two means later axes carry
+comparatively little real separating power; a flat, undifferentiated bar
+chart across many axes is a sign the discriminant step is not cleanly
+separating the data either.
+
+![DA eigenvalues at K=3 from the quickstart example](figures/12c_DAPC_eigenvalues_K3.png)
 
 `22f_DAPC_loadings_K<k>.tsv` and the per-K Manhattan/ranked loading figures
 report each SNP's contribution to every discriminant function (this
@@ -736,6 +828,13 @@ alphabetically -- so populations with a similar ancestry profile sit next
 to each other in the panel instead of being scattered apart by their name.
 
 ### ADMIXTURE
+
+![ADMIXTURE cross-validation error by K from the quickstart example](figures/13_ADMIXTURE_CV.png)
+
+ADMIXTURE's own native cross-validation error curve above is one of the
+raw diagnostics the consensus figure below combines with others (BIC,
+elbow, parsimony); showing it directly lets a reader judge how sharp or
+flat the minimum really is before trusting a single derived number.
 
 ![ADMIXTURE cluster-number selection from the quickstart example](figures/13b_ADMIXTURE_cluster_number_selection.png)
 
@@ -819,44 +918,118 @@ related are these two samples," but "do these two samples have *exactly*
 the same genotype at every analyzed locus." That's the standard signal for
 clonal replicates, accidental resampling, or duplicate sample submissions --
 relevant for any population-genetic dataset, not only strictly outbreeding
-ones. `56_MLG_diversity_summary.tsv` reports per-population (and overall)
-genotypic diversity: the number of distinct multilocus genotypes (MLG)
-recovered, rarefied expected MLG (eMLG), Shannon's H, Stoddart-Taylor's G,
-Simpson's lambda, evenness (E.5), and the index of association (Ia/rbarD), a
-measure of non-random association among loci. `57_MLG_groups.tsv` lists any
-group of samples sharing an identical genotype, flagging groups that span
-more than one recorded population -- a stronger, discrete corroboration of
-the kind of cross-population duplicate or mislabeling issue kinship's
-continuous score can only suggest.
+ones.
 
-![Genotype accumulation curve from the quickstart example: mean and 95% envelope of distinct multilocus genotypes resolved as loci are subsampled, with a dashed line at the full marker set's MLG count](figures/58_genotype_accumulation_curve.png)
+Two genuinely different marker sets feed this module, deliberately.
+`57_MLG_groups.tsv` (exact duplicate-genotype detection, via `mlg.id()`)
+uses the full, unpruned QC-passing locus set -- fewer markers would make it
+*more* likely that two genuinely different individuals coincidentally match
+at every retained locus, so exact identity needs maximum discriminating
+power. `56_MLG_diversity_summary.tsv` (MLG/eMLG/Shannon's H/Stoddart-
+Taylor's G/Simpson's lambda/evenness/Ia/rbarD, via `poppr()`) and the
+genotype accumulation curve below instead use the LD-pruned locus set. Both
+originally reused the full unpruned set "for consistency with AMOVA," but a
+real production run found that choice was wrong on two counts at once: a
+50-sample, 561,767-locus unpruned cohort took 29+ hours in `poppr()`'s
+Ia/rbarD computation alone (confirmed superlinear in locus count by direct
+scaling measurement, not merely slow); and Ia/rbarD's own null-model
+interpretation assumes approximately independent input loci, so feeding it
+hundreds of thousands of physically linked SNPs mechanically inflates the
+appearance of non-random multilocus association through ordinary linkage,
+not real clonal signal. Running it on the LD-pruned set instead -- the same
+set already used for kinship/PCA/DAPC elsewhere in this pipeline -- fixes
+both problems together; see `R/clonality.R`'s top-of-file comment for the
+full measurement and reasoning.
+
+![Genotype accumulation curve from the quickstart example: mean and 95% envelope of distinct multilocus genotypes resolved as LD-pruned, polymorphic loci are subsampled, with a dashed line at the full LD-pruned, polymorphic marker set's MLG count](figures/58_genotype_accumulation_curve.png)
 
 On the quickstart example, all 160 samples have a unique multilocus genotype
-across the 1,969 QC-passing loci this module reuses from the diversity
-module (not the 357-SNP LD-pruned set kinship/PCA/tree use above) --
-`57_MLG_groups.tsv` is empty. Notably, this includes the one pair kinship
-above confidently classifies as `duplicate/MZ twin` (`NA19331`/`NA19334`,
-kinship = 0.4459): on this larger marker panel their genotypes are *not*
-bit-identical. That is not a contradiction, it is the expected difference
-between the two signals. Kinship's continuous estimator assigns a
-relatedness class from partial genetic similarity (even a genuine duplicate
-can show some genotyping noise or missing-data differences); exact
+-- `57_MLG_groups.tsv` is empty. This is computed on the full 1,969
+QC-passing loci this module reuses from the diversity module (not the
+357-SNP LD-pruned set kinship/PCA/tree use above), and includes the one pair
+kinship above confidently classifies as `duplicate/MZ twin`
+(`NA19331`/`NA19334`, kinship = 0.4459): on this larger marker panel their
+genotypes are *not* bit-identical. That is not a contradiction, it is the
+expected difference between the two signals. Kinship's continuous estimator
+assigns a relatedness class from partial genetic similarity (even a genuine
+duplicate can show some genotyping noise or missing-data differences); exact
 multilocus-genotype matching requires literal identity, and with almost
-2,000 markers even a very close pair is unlikely to match at every one. The
-genotype accumulation curve shows just how little data this distinction
-needs in practice: a mean of 150 of the 160 possible MLGs are already
-resolved with only 14 of the ~1,969 available loci, and every resampled
-replicate deterministically resolves all 160 by 174 loci.
+2,000 markers even a very close pair is unlikely to match at every one.
 
-Ia and rbarD are positive in every population and overall (Total Ia = 35.40,
-rbarD = 0.0185) -- read this cautiously, not as evidence of clonal
-reproduction in this outbreeding species. Ia/rbarD is designed to detect
-non-random association among loci assuming approximately independent
-markers; this module deliberately reuses diversity's full QC-passing locus
-set (not the LD-pruned set) for consistency with AMOVA, so a positive value
-here largely reflects ordinary physical linkage among nearby SNPs, not
-clonality. The MLG counts, diversity indices, and duplicate-detection table
-above are unaffected by that choice.
+The genotype accumulation curve and Ia/rbarD summary run on the 357-SNP
+LD-pruned set instead, and show just how little data the MLG distinction
+needs in practice: a mean of 150 of the 160 possible MLGs are already
+resolved with only 14 of the 357 available LD-pruned loci, and every
+resampled replicate deterministically resolves all 160 by 71 loci. Ia and
+rbarD are still positive overall (Total Ia = 2.28, rbarD = 0.0066) but far
+smaller than the full-unpruned-set values this module reported before this
+change (Ia = 35.40, rbarD = 0.0185) -- concrete confirmation that most of
+that earlier signal was ordinary physical linkage among nearby SNPs, not
+clonal structure, in this genuinely outbreeding human dataset. Read any
+remaining positive value cautiously either way, not as direct evidence of
+clonal reproduction.
+
+A locus that is monomorphic (identical genotype at every retained sample)
+carries zero information for either question this module asks: it can never
+distinguish two multilocus genotypes for `mlg.id()`, and it contributes
+nothing to Ia/rbarD's pairwise distances. This pipeline drops monomorphic
+loci once, up front, from both marker sets, rather than leaving `poppr()`
+to compute over them uselessly -- reported directly by a user whose real
+50-sample, 7-population cohort (561,767 unpruned / 54,052 LD-pruned loci)
+still took 8.3 hours in this module even after the LD-pruning fix above,
+much of it wasted on loci that could not possibly affect the result.
+Dropping a monomorphic locus is correctness-neutral for both marker sets --
+unlike the LD-pruning tradeoff above, which does trade some discriminating
+power for speed on the Ia/rbarD side only. On a real marker panel this can
+be many loci, so rather than naming each one on the console (`poppr`'s own
+default behavior for the ones it discovers internally, which floods the
+pipeline log at scale), this pipeline logs only the count and writes the
+full list, one locus name per line, to `57b_monomorphic_loci_dropped.csv`
+(dropped from the full unpruned set, before `57_MLG_groups.tsv`/duplicate
+detection) and `58c_monomorphic_loci_dropped.csv` (dropped from the
+LD-pruned set, before the Ia/rbarD summary, the accumulation curve below,
+and the MSN) -- each present only when at least one locus was dropped from
+that set. On the quickstart example neither file is written: none of its
+1,969 QC-passing or 357 LD-pruned loci are monomorphic.
+
+A minimum spanning network (MSN; Kamvar, Tabima, and Grunwald 2014,
+`poppr::poppr.msn()`, over the same LD-pruned marker set as the accumulation
+curve above) draws a complementary picture: a genetic-distance network
+connecting each clone-corrected multilocus genotype -- one node per distinct
+genotype, larger when more than one sample shares it -- to its nearest
+neighbors, rather than either a bifurcating tree (the NJ trees above) or a
+fixed low-dimensional projection (PCA/DAPC). Every edge's endpoints and
+genetic distance are in `58b_MSN_edges.tsv`. Unlike [the poppr MSN
+tutorial](https://grunwaldlab.github.io/Population_Genetics_in_R/Minimum_Spanning_Networks.html)'s
+own `bruvo.msn()`, which assumes a stepwise mutation model appropriate for
+microsatellite repeat lengths, this pipeline uses `poppr::diss.dist()` -- a
+discrete/Hamming-style distance poppr itself documents as usable for any
+marker system, and, at `percent = TRUE`, numerically identical to
+`provesti.dist()` but built to scale better for large sample counts.
+
+![Minimum spanning network from the quickstart example: one node per distinct multilocus genotype on the LD-pruned marker set, coloured by recorded population, node size scaled to how many samples share that genotype, edge grey-scale/width scaled to genetic distance](figures/58b_MSN_network.png)
+
+On the quickstart example, every one of the 160 samples remains its own node
+even on the LD-pruned set (no edges collapse into a multi-sample node),
+consistent with the accumulation curve's own near-immediate saturation
+above. Reading the network from `58b_MSN_edges.tsv` rather than by eye: the
+overall same-population/cross-population edge-distance split is modest
+(mean 0.154 within a recorded population vs. 0.162 across two, out of 162
+total edges) -- individual pairwise distance on a 357-SNP panel does not
+cleanly separate these populations the way aggregate multi-locus methods
+(PCA, FST) do, consistent with the same ~9% FST/AMOVA-among-population
+signal reported above rather than a sharper one. Some specific structure is
+real and verifiable, though: CHB (East Asian) forms a largely self-contained
+subcluster (18 of its 21 incident edges connect two CHB samples to each
+other) with only single, separate bridging edges out to six other
+populations, no one of them dominant; LWK and YRI (African) likewise mostly
+connect to each other (28 of 36 edges touching either population). Both
+observations echo, from a genuinely different node-and-edge method, the same
+population-structure signal PCA/DAPC/FST report elsewhere on this page --
+not a new finding on its own. A sample whose shortest edge crosses into a
+different population's genotypes is worth checking against its PCA/DAPC
+placement and kinship results before trusting its recorded population
+label.
 
 ## Sex-biased dispersal test
 

@@ -24,6 +24,8 @@ Population-genomic outputs are summaries of a particular sample, marker set, fil
 
 ## Execution and evidence states
 
+Start with `analysis_execution_ledger.tsv`, `analysis_validation.tsv`, and the report's own "Pipeline notices" section (every `WARNING`/`INFO` message recorded during the run, in one place; present only when there is at least one to show).
+
 | State | Meaning | Interpretation rule |
 |---|---|---|
 | `success` | The module completed | Interpret only after its validation record passes |
@@ -42,11 +44,25 @@ Review missingness, heterozygosity, minor-allele frequency, retained sample coun
 
 Filtering can change ordinations, distances, diversity, and differentiation. Report thresholds and sensitivity analyses when conclusions depend on a narrow filtering choice.
 
+`00_vcf_variant_types.tsv` is the very first table written, before any QC threshold: a `bcftools stats`-based transparency count of the raw input VCF's record types, showing how many are the biallelic, polymorphic SNPs this pipeline analyzes versus indels, multiallelic sites, MNPs, or other variant types `SNPRelate::snpgdsVCF2GDS(method = "biallelic.only")` silently drops during VCF-to-GDS conversion. A raw VCF straight off a variant caller does not need pre-filtering -- this table exists so you can see that filtering happened, not just trust that it did. Any run with at least one dropped record also logs a summary line and adds an `INFO` entry to the report's own "Pipeline notices" section.
+
 ```{r maf-figure, echo=FALSE, out.width="90%"}
 knitr::include_graphics("figures/01_MAF.png")
 ```
 
 The quickstart example (see `vignette("quickstart")`) starts from 98,922 biallelic SNPs (21,418 on chromosome 22, 16,999 on chromosome X, 60,505 on chromosome Y -- real, male-only 1000 Genomes data; the 83 female samples correctly show no calls there at all, not a data-quality problem); MAF filtering retains 63,585 of these combined. By default (`qc.autosome_only`) only the 1,969 chromosome 22 SNPs continue into LD pruning, which reduces them to 357 -- the marker set used by PCA, IBS, kinship, DAPC, the ancestry backends, ROH, FST, genome scans, diversity, and AMOVA. Sex chromosomes are excluded from these by default because they are not uniformly diploid (or, for chromosome Y, present at all) across samples; mixing them in measurably corrupted results on this exact dataset before these exclusions were added: kinship for a known real duplicate pair collapsed from 0.4525 to essentially zero, and separately every female sample was silently dropped from the entire pipeline (chromosome Y's near-total absence in females inflated their overall missingness past the sample-QC threshold). The remaining 1,148 QC-passing chromosome X SNPs and 60,468 QC-passing chromosome Y SNPs are reserved for the sex-check module below. Real numbers from a real 160-sample, 8-population run, not a toy fixture.
+
+```{r variant-missingness-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/02_variant_missingness.png")
+```
+
+The bimodal shape above is that same sex-chromosome story rendered directly: the left peak is well-covered autosomal markers near 0% missingness, and the right peak just past 50% is chromosome X/Y markers missing across roughly half the cohort (hemizygous or absent in one sex) -- not a data-quality failure, the exact mechanism described above.
+
+```{r snp-retention-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/04_SNP_retention.png")
+```
+
+The funnel above is the same sequence of numbers just quoted, in order: input, after MAF, after missingness (identical to after MAF here -- this cohort's variants are either well-covered or not called at all, nothing in between to filter further), and after LD pruning to the 357-SNP final marker set.
 
 ## PCA
 
@@ -167,9 +183,23 @@ Compare populations only when estimators and sampling effort are appropriate. A 
 
 `hwe_pvalue` (per-population Wigginton et al. 2005 exact test) and `private_allele` are reporting-only and never filter a SNP. A significant HWE deviation has many non-error causes -- null alleles, genotyping artifacts, selection, non-random mating, or substructure within the labeled group -- and small samples have limited power to detect real deviations, so treat both the raw and FDR-adjusted significant-loci counts as descriptive. A private allele is evidence only that it was observed in one retained population and nowhere else in the sampled set; it is not, by itself, evidence of adaptive significance.
 
+```{r hwe-pvalues-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/19_HWE_pvalues.png")
+```
+
+The distribution above is what "descriptive, not exclusionary" looks like in practice: every population shows a large spike at p = 1 (genotype counts matching Hardy-Weinberg expectations exactly, common at biallelic SNP scale) plus a roughly uniform scatter of smaller p-values below the dashed significance threshold -- the expected shape under the null, not a red flag by itself. A population with an unusually heavy concentration of loci just below the threshold, rather than this uniform scatter, is the pattern worth investigating further.
+
 ```{r diversity-figure, echo=FALSE, out.width="90%"}
 knitr::include_graphics("figures/05_sample_heterozygosity.png")
 ```
+
+The sample-level view above complements a population-level one: observed heterozygosity averaged per population against its Hardy-Weinberg expectation.
+
+```{r population-diversity-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/06_population_diversity.png")
+```
+
+A population whose observed heterozygosity sits well below its expected value (PEL here, a real 1000 Genomes admixed American population) is worth a second look with FIS/inbreeding-aware analyses -- this comparison alone does not distinguish inbreeding, a Wahlund effect (pooling genetically distinct sub-groups under one population label), or a complex admixed demographic history from each other.
 
 `allelic_richness` (rarefied via `hierfstat::allelic.richness()`, an optional dependency that skips transparently with a logged warning if not installed) is a per-population, sample-size-corrected count of alleles per locus -- unlike raw heterozygosity, it is comparable across populations with unequal sample sizes, since it rarefies every population down to the same allele count before counting. For biallelic SNPs it ranges from 1 (monomorphic within the population) to 2 (both alleles present).
 
@@ -295,13 +325,25 @@ This package's DAPC module discriminates unsupervised `find.clusters()` partitio
 
 Document how many principal components and discriminant axes were retained, how those choices were validated, and whether sample sizes support the model. Avoid presenting discrimination between data-driven clusters as an unbiased discovery result about the sampled populations.
 
-`22d_DAPC_K_selection.tsv`/`22e_DAPC_K_selection.tsv` and this figure report the automatic cluster-number consensus across BIC, mean cross-validation success, Calinski-Harabasz, Davies-Bouldin, and replicate-membership RMSE. It is a starting point, not a substitute for domain judgment about how many groups the data can support.
+`22d_DAPC_K_selection.tsv` (a top-level convenience copy) and the four `22e_DAPC_K_selection_*.tsv` tables (`_methods`, `_scores`, `_votes`, `_consensus`) and this figure report the automatic cluster-number consensus across BIC, mean cross-validation success, Calinski-Harabasz, Davies-Bouldin, and replicate-membership RMSE. It is a starting point, not a substitute for domain judgment about how many groups the data can support.
 
 ```{r dapc-k-selection-figure, echo=FALSE, out.width="90%"}
 knitr::include_graphics("figures/12_DAPC_cluster_number_selection.png")
 ```
 
 The full report (`22_DAPC_coordinates_K<k>.tsv`, `22f_DAPC_loadings_K<k>.tsv`, and figures) contains one complete set of DAPC results for **every** requested K (2 through 10 by default), not only the consensus K shown here. Before trusting any given K's clustering, check its `replicate_max_rmse` in `21_DAPC_diagnostics.tsv` against `analyses.structure.reproducibility_rmse` (default 0.05): a K at or below that threshold has reproducible replicate membership across independent `find.clusters()`/`dapc()` runs; a K above it does not, and its clusters and loadings should not be interpreted, only the consensus itself and the diagnostics that led to it. In the quickstart example, the consensus K=3 has `replicate_max_rmse` effectively 0 (fully reproducible); several other K values in the same run exceed the threshold and are not shown here for that reason.
+
+Retaining too many or too few PCs before the discriminant step is a separate risk from picking the wrong K: too few PCs discards real signal, too many starts to memorize individual samples rather than group structure (in the extreme, retaining so many PCs that samples nearly perfectly separate can make every K look artificially clean). By default (`analyses.dapc_cross_validation: true`) each K's number of retained PCs is chosen automatically by `adegenet::xvalDapc()` cross-validated assignment success, not left at a fixed default -- the number reported as `n_pca` in `21_DAPC_diagnostics.tsv` for that K. This figure shows the full diagnostic behind that choice, not just the summary: every individual bootstrap replicate's outcome (the semi-transparent points -- the same real per-replicate variability `adegenet::xvalDapc()` itself computes but normally discards after averaging), the mean curve connecting them, the full random-chance reference band (2.5/50/97.5%, not just its median), and the selected PC count marked directly on the curve. A tight cluster of replicate points at each candidate count is reassuring; a wide spread means the "best" count is closer to a coin flip among several similarly-plausible values than a clean, confident peak -- exactly the case where the automatic selection deserves a second look before trusting the resulting K=3 clustering above.
+
+```{r dapc-xval-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/12b_DAPC_xval_K3.png")
+```
+
+A second, independent check on the same question comes from the discriminant analysis itself rather than the PC-retention step that feeds it: `dapc$eig`, the between-group variance each retained discriminant axis explains. A steep drop after the first axis or two (as in the quickstart example below, where LD1 explains roughly twice LD2's variance and there are only `K - 1 = 2` axes to retain at K=3) means later axes carry comparatively little real separating power; a flat, undifferentiated bar chart across many axes is a sign the discriminant step is not cleanly separating the data either.
+
+```{r dapc-eigenvalues-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/12c_DAPC_eigenvalues_K3.png")
+```
 
 `22f_DAPC_loadings_K<k>.tsv`, plus a genomic Manhattan-style figure and a rank-ordered figure, report each SNP's contribution to every discriminant function at each K. A large contribution identifies a marker that helped separate that K's clusters; it does not by itself establish biological cause.
 
@@ -325,13 +367,23 @@ Analysis of molecular variance (Excoffier et al. 1992, via `poppr::poppr.amova()
 
 ## Multilocus genotype (MLG) and clonal diversity
 
-`poppr::poppr()`/`poppr::mlg.id()`/`poppr::genotype_curve()` (Kamvar, Tabima, and Grunwald 2014) ask a question distinct from kinship above: not "how related are these two samples," but "do these two samples have *exactly* the same genotype at every analyzed locus" -- the standard signal for clonal replicates, accidental resampling, or duplicate sample submissions. `56_MLG_diversity_summary.tsv` reports per-population genotypic diversity (MLG count, eMLG, Shannon's H, Stoddart-Taylor's G, Simpson's lambda, evenness, and the index of association Ia/rbarD); `57_MLG_groups.tsv` lists any samples sharing an identical genotype, flagging groups that span more than one recorded population.
+`poppr::poppr()`/`poppr::mlg.id()`/`poppr::genotype_curve()` (Kamvar, Tabima, and Grunwald 2014) ask a question distinct from kinship above: not "how related are these two samples," but "do these two samples have *exactly* the same genotype at every analyzed locus" -- the standard signal for clonal replicates, accidental resampling, or duplicate sample submissions.
+
+Two genuinely different marker sets feed this module, deliberately. `57_MLG_groups.tsv` (exact duplicate-genotype detection, via `mlg.id()`) uses the full, unpruned QC-passing locus set -- fewer markers would make it *more* likely that two genuinely different individuals coincidentally match at every retained locus, so exact identity needs maximum discriminating power. `56_MLG_diversity_summary.tsv` (MLG count, eMLG, Shannon's H, Stoddart-Taylor's G, Simpson's lambda, evenness, and the index of association Ia/rbarD, via `poppr()`) and the genotype accumulation curve below instead use the LD-pruned locus set -- the same set already used for kinship/PCA/DAPC elsewhere in this pipeline. Both originally reused the full unpruned set "for consistency with AMOVA," but a real production run found that wrong on two counts at once: a 50-sample, 561,767-locus unpruned cohort took 29+ hours in `poppr()`'s Ia/rbarD computation alone (confirmed superlinear in locus count by direct scaling measurement), and Ia/rbarD's own null-model interpretation assumes approximately independent input loci, so feeding it hundreds of thousands of physically linked SNPs mechanically inflates the appearance of non-random multilocus association through ordinary linkage, not real clonal signal. See `R/clonality.R`'s top-of-file comment for the full measurement and reasoning.
 
 ```{r clonality-curve-figure, echo=FALSE, out.width="90%"}
 knitr::include_graphics("figures/58_genotype_accumulation_curve.png")
 ```
 
-On the quickstart example, all 160 samples have a unique multilocus genotype across the 1,969 QC-passing loci this module reuses from the diversity module (not the 357-SNP LD-pruned set kinship/PCA/tree use). Notably, this includes the one pair kinship classifies as `duplicate/MZ twin` (`NA19331`/`NA19334`, kinship = 0.4459): on this larger marker panel their genotypes are not bit-identical -- the expected difference between a continuous relatedness estimator and exact genotype matching, not a contradiction. The accumulation curve saturates almost immediately: a mean of 150 of the 160 possible MLGs are already resolved with only 14 of the ~1,969 available loci, deterministically saturating at 174. Ia/rbarD are positive throughout (Total Ia = 35.40, rbarD = 0.0185); read this cautiously, not as clonality evidence in this outbreeding species -- the module reuses diversity's unpruned locus set for consistency with AMOVA, so a positive value here largely reflects ordinary physical linkage among nearby SNPs.
+On the quickstart example, all 160 samples have a unique multilocus genotype across the full 1,969 QC-passing loci this module reuses from the diversity module (not the 357-SNP LD-pruned set kinship/PCA/tree use) -- `57_MLG_groups.tsv` is empty. Notably, this includes the one pair kinship classifies as `duplicate/MZ twin` (`NA19331`/`NA19334`, kinship = 0.4459): on this larger marker panel their genotypes are not bit-identical -- the expected difference between a continuous relatedness estimator and exact genotype matching, not a contradiction. The accumulation curve and Ia/rbarD summary run on the 357-SNP LD-pruned set instead, and saturate almost immediately: a mean of 150 of the 160 possible MLGs are already resolved with only 14 of the 357 available LD-pruned loci, deterministically saturating at 71 loci. Ia/rbarD are still positive overall (Total Ia = 2.28, rbarD = 0.0066) but far smaller than the full-unpruned-set values this module reported before this change (Ia = 35.40, rbarD = 0.0185) -- concrete confirmation that most of that earlier signal was ordinary physical linkage, not clonal structure, in this genuinely outbreeding human dataset. Read any remaining positive value cautiously either way, not as direct clonality evidence. A monomorphic locus (identical genotype at every retained sample) carries zero information for either question this module asks, so this pipeline drops monomorphic loci once, up front, from both marker sets, rather than leaving `poppr()` to compute over them uselessly -- reported directly by a user whose real 50-sample cohort (561,767 unpruned / 54,052 LD-pruned loci) still took 8.3 hours in this module even after the LD-pruning fix above. Dropping is correctness-neutral for both sets (unlike LD-pruning, which trades discriminating power for speed on the Ia/rbarD side only). Rather than naming each dropped locus on the console (poppr's own default for the ones it discovers internally, which floods the log on a real marker panel), this pipeline logs only the count and writes the full list, one locus name per line, to `57b_monomorphic_loci_dropped.csv` (full set, before duplicate detection) and `58c_monomorphic_loci_dropped.csv` (LD-pruned set, before Ia/rbarD/the curve/the MSN) -- each present only when at least one locus was dropped from that set. Neither is written for the quickstart example: none of its loci are monomorphic.
+
+A minimum spanning network (MSN; Kamvar, Tabima, and Grunwald 2014, `poppr::poppr.msn()`, the same LD-pruned marker set as the accumulation curve above) draws a complementary picture: a genetic-distance network connecting each clone-corrected multilocus genotype (one node per distinct genotype, larger when more than one sample shares it -- see `58b_MSN_edges.tsv` for every edge's endpoints and distance) to its nearest neighbors, rather than either a bifurcating tree (the NJ trees above) or a fixed low-dimensional projection (PCA/DAPC). Unlike the tutorial's own `bruvo.msn()`, which assumes a stepwise mutation model appropriate for microsatellite repeat lengths, this uses `poppr::diss.dist()` -- a discrete/Hamming-style distance poppr documents as usable for any marker system.
+
+```{r clonality-msn-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/58b_MSN_network.png")
+```
+
+On the quickstart example, every one of the 160 samples remains its own node even on the LD-pruned set (no edges collapse into a multi-sample node), consistent with the accumulation curve's own near-immediate saturation above. Reading the network from `58b_MSN_edges.tsv` rather than by eye: the overall same-population/cross-population edge-distance split is modest (mean 0.154 within a recorded population vs. 0.162 across two, out of 162 total edges) -- individual pairwise distance on a 357-SNP panel does not cleanly separate these populations the way aggregate multi-locus methods (PCA, FST) do, consistent with the same ~9% FST/AMOVA-among-population signal reported above rather than a sharper one. Some specific structure is real and verifiable, though: CHB (East Asian) forms a largely self-contained subcluster (18 of its 21 incident edges connect two CHB samples to each other) with only single, separate bridging edges out to six other populations, no one of them dominant; LWK and YRI (African) likewise mostly connect to each other (28 of 36 edges touching either population). Both observations echo, from a genuinely different node-and-edge method, the same population-structure signal PCA/DAPC/FST report elsewhere in this document -- not a new finding on its own. A sample whose shortest edge crosses into a different population's genotypes is worth checking against its PCA/DAPC placement and kinship results before trusting its recorded population label.
 
 ## Sex-biased dispersal test
 
@@ -370,6 +422,12 @@ The figures below are from real ADMIXTURE, fastStructure, and sNMF runs against 
 In every population-organized membership figure below, populations are ordered by similarity of their mean ancestry composition (average-linkage clustering on each population's per-cluster mean proportions), not alphabetically, so similar populations sit next to each other rather than being scattered apart by name.
 
 ### ADMIXTURE
+
+```{r admixture-cv-figure, echo=FALSE, out.width="90%"}
+knitr::include_graphics("figures/13_ADMIXTURE_CV.png")
+```
+
+ADMIXTURE's own native cross-validation error curve above is one of the raw diagnostics the consensus figure below combines with others (BIC, elbow, parsimony); showing it directly lets a reader judge how sharp or flat the minimum really is before trusting a single derived number.
 
 ```{r admixture-k-selection-figure, echo=FALSE, out.width="90%"}
 knitr::include_graphics("figures/13b_ADMIXTURE_cluster_number_selection.png")

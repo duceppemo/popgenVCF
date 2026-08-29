@@ -128,11 +128,30 @@ render_standard_report_format <- function(template, results_rds, output_dir,
   intermediates_dir <- tempfile(paste0("popgenvcf-report-", format, "-"))
   dir.create(intermediates_dir, recursive = TRUE)
   on.exit(unlink(intermediates_dir, recursive = TRUE), add = TRUE)
+  # A per-format *render* output directory too, not just intermediates_dir
+  # above: HTML and PDF both render from the same source template basename
+  # into the same shared `output_dir`, so rmarkdown's own companion
+  # "<basename>_files/" supporting-image directory lands at the identical
+  # path for both concurrently forked renders (render_report_formats()
+  # below). A real, confirmed race, not a hypothetical one: HTML's
+  # self_contained = TRUE finalization step embeds every image and then
+  # deletes that shared directory once done, which can happen while the PDF
+  # format's xelatex/xdvipdfmx compiler is still reading images out of it --
+  # "Image inclusion failed: Could not find file" for an image that
+  # genuinely no longer exists, not a flaky/nondeterministic LaTeX error.
+  # Confirmed directly: PDF alone and HTML alone each render cleanly every
+  # time; only the concurrent combination fails, nondeterministically,
+  # depending on fork scheduling. Rendering into its own scratch directory
+  # and copying out only the final document afterward removes all shared
+  # state between the two forked renders.
+  render_output_dir <- tempfile(paste0("popgenvcf-report-out-", format, "-"))
+  dir.create(render_output_dir, recursive = TRUE)
+  on.exit(unlink(render_output_dir, recursive = TRUE), add = TRUE)
   rmarkdown::render(
     template,
     output_format = output_format,
     output_file = output_file,
-    output_dir = output_dir,
+    output_dir = render_output_dir,
     intermediates_dir = intermediates_dir,
     params = list(
       results_rds = results_rds, title = title, author = author,
@@ -141,6 +160,9 @@ render_standard_report_format <- function(template, results_rds, output_dir,
     envir = new.env(parent = globalenv()),
     quiet = TRUE
   )
+  final_path <- file.path(output_dir, output_file)
+  file.copy(file.path(render_output_dir, output_file), final_path, overwrite = TRUE)
+  final_path
 }
 
 # Renders each requested format via `render_one(format)`. HTML and PDF share
@@ -151,12 +173,15 @@ render_standard_report_format <- function(template, results_rds, output_dir,
 # (mclapply): each worker is a live copy of the calling process, so no
 # package-namespace resolution or object-export step is needed, unlike a
 # PSOCK cluster. Windows has no fork, so it always falls back to the
-# original sequential path. mclapply() does not propagate worker errors as
-# R conditions -- it returns a "try-error" object in the failed slot instead
-# -- so failures are detected and re-signalled explicitly to preserve the
-# same error-throwing behaviour the sequential path already has.
-render_report_formats <- function(formats, render_one) {
-  if (length(formats) <= 1L || identical(.Platform$OS.type, "windows")) {
+# original sequential path; `parallel = FALSE` forces that same sequential
+# path on any platform (render_report() uses this for a report large enough
+# that concurrent rendering's roughly-doubled peak memory is a real risk).
+# mclapply() does not propagate worker errors as R conditions -- it returns
+# a "try-error" object in the failed slot instead -- so failures are
+# detected and re-signalled explicitly to preserve the same error-throwing
+# behaviour the sequential path already has.
+render_report_formats <- function(formats, render_one, parallel = TRUE) {
+  if (length(formats) <= 1L || identical(.Platform$OS.type, "windows") || !isTRUE(parallel)) {
     return(stats::setNames(vapply(formats, render_one, character(1L)), formats))
   }
   results <- parallel::mclapply(
@@ -167,6 +192,18 @@ render_report_formats <- function(formats, render_one) {
   if (any(failed)) {
     condition <- attr(results[[which(failed)[1L]]], "condition")
     stop(conditionMessage(condition), call. = FALSE)
+  }
+  # A worker killed by a signal (OOM, segfault -- a real, confirmed cause on
+  # a large real report: LaTeX compiling several hundred figures) is not an
+  # R-level "try-error" -- mclapply() just returns NULL for that slot, which
+  # unlist() below would otherwise silently drop, misreporting a hard crash
+  # as a clean, if quietly incomplete, success instead of a clear failure.
+  missing <- vapply(results, is.null, logical(1L))
+  if (any(missing)) {
+    stopf(
+      "Report rendering for format(s) %s terminated abnormally (worker process killed, likely out-of-memory or a crash) rather than returning a result or a normal error",
+      paste(formats[missing], collapse = ", ")
+    )
   }
   stats::setNames(unlist(results), formats)
 }
@@ -182,12 +219,20 @@ render_report_formats <- function(formats, render_one) {
 #'   formats are requested and LaTeX is unavailable, HTML is still produced
 #'   and PDF is skipped with a warning. When both formats are requested on a
 #'   non-Windows platform, they render concurrently in forked worker
-#'   processes; Windows (no fork support) always renders sequentially.
+#'   processes -- unless the report has more than `max_concurrent_figures`
+#'   embedded figures, in which case they render sequentially instead, to
+#'   keep peak memory bounded on a very large report (a real production
+#'   report with 300+ figures was killed, likely by the OS, while rendering
+#'   both formats concurrently). Windows (no fork support) always renders
+#'   sequentially regardless.
+#' @param max_concurrent_figures Figure-count threshold above which
+#'   concurrent HTML+PDF rendering is disabled in favor of sequential
+#'   rendering (slower, but with roughly half the peak memory).
 #' @return Named rendered report paths, invisibly.
 #' @export
 render_report <- function(results_rds, output_dir,
                           title = "Population genomics analysis", author = "",
-                          formats = c("html", "pdf")) {
+                          formats = c("html", "pdf"), max_concurrent_figures = 100L) {
   template <- system.file("rmarkdown", "templates", "popgenvcf_report", "skeleton", "skeleton.Rmd", package = "popgenVCF")
   if (!nzchar(template)) stop("Installed report template not found", call. = FALSE)
   if (!rmarkdown::pandoc_available()) stop("Pandoc is required to render the optional manuscript report", call. = FALSE)
@@ -207,12 +252,20 @@ render_report <- function(results_rds, output_dir,
     warning(paste0(message, "; generating HTML only"), call. = FALSE)
     formats <- setdiff(formats, "pdf")
   }
+  n_figures <- nrow(report_figure_inventory(results_rds, "pdf"))
+  render_parallel <- length(formats) > 1L && n_figures <= as.integer(max_concurrent_figures)
+  if (length(formats) > 1L && !render_parallel) {
+    log_msg(sprintf(
+      "Rendering %d embedded figures sequentially, not concurrently, across %s formats (exceeds max_concurrent_figures = %d)",
+      n_figures, paste(formats, collapse = "/"), as.integer(max_concurrent_figures)
+    ))
+  }
   paths <- render_report_formats(formats, function(format) {
     render_standard_report_format(
       template, results_rds, output_dir, title, author, format,
       latex_engine = if (identical(format, "pdf")) latex_engine else NULL
     )
-  })
+  }, parallel = render_parallel)
   invisible(paths)
 }
 

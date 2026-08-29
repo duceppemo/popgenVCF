@@ -130,3 +130,53 @@ prepare_vcf_input <- function(vcf, cache_dir, force = FALSE) {
   }
   list(path = normalized, index = vcf_index_path(normalized), source = vcf, normalized = TRUE)
 }
+
+# Counts VCF records by variant type via `bcftools stats`'s SN summary
+# section (a single fast streaming pass, ~0.1s even at ~100,000 records),
+# and derives how many are the biallelic, polymorphic SNPs
+# SNPRelate::snpgdsVCF2GDS(method = "biallelic.only") actually retains
+# (prepare_gds(), R/io.R) -- real transparency for a "raw" VCF straight off
+# a variant caller, which this pipeline accepts without requiring the user
+# to pre-filter (see wiki/Getting-Started.md). Verified directly against a
+# synthetic VCF mixing a true biallelic SNP, an insertion, a deletion, a
+# multiallelic SNP, an MNP, and a structural variant: `bcftools stats`
+# reports "number of SNPs" including multiallelic ones, so
+# biallelic_snps_retained = snps - multiallelic_snp_sites matches the real
+# GDS-retained count exactly (confirmed 2 of 7 records retained, both
+# calculations agreeing) -- monomorphic-at-VCF-scale records are NOT
+# additionally excluded here despite snpgdsVCF2GDS()'s own documentation
+# claiming so (confirmed empirically against the installed SNPRelate: a
+# monomorphic biallelic SNP was retained, not dropped).
+vcf_variant_type_summary <- function(vcf, bcftools = require_vcf_tool("bcftools")) {
+  result <- vcf_command_status(bcftools, c("stats", shQuote(vcf)))
+  if (!identical(result$status, 0L)) {
+    stop("bcftools stats failed on ", vcf, ": ", paste(result$output, collapse = "\n"), call. = FALSE)
+  }
+  sn <- grep("^SN\t", result$output, value = TRUE)
+  fields <- strsplit(sn, "\t", fixed = TRUE)
+  label <- vapply(fields, function(x) trimws(sub(":$", "", x[[3L]])), character(1L))
+  value <- vapply(fields, function(x) suppressWarnings(as.integer(x[[4L]])), integer(1L))
+  get_count <- function(target) {
+    idx <- match(target, label)
+    if (is.na(idx)) 0L else value[idx]
+  }
+  records <- get_count("number of records")
+  snps <- get_count("number of SNPs")
+  mnps <- get_count("number of MNPs")
+  indels <- get_count("number of indels")
+  others <- get_count("number of others")
+  multiallelic_sites <- get_count("number of multiallelic sites")
+  multiallelic_snp_sites <- get_count("number of multiallelic SNP sites")
+  biallelic_snps_retained <- snps - multiallelic_snp_sites
+  data.table::data.table(
+    total_records = records,
+    biallelic_snps_retained = biallelic_snps_retained,
+    dropped_non_biallelic_snp = records - biallelic_snps_retained,
+    snps = snps,
+    multiallelic_snp_sites = multiallelic_snp_sites,
+    indels = indels,
+    mnps = mnps,
+    multiallelic_sites_all_types = multiallelic_sites,
+    other_variant_types = others
+  )
+}

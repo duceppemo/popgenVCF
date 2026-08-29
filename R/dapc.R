@@ -56,12 +56,6 @@ compute_dapc_shared_pca <- function(gl, max_pca) {
   )
 }
 
-dapc_worker_count <- function(k_values, threads,
-                              fork_available = .Platform$OS.type != "windows") {
-  threads <- suppressWarnings(as.integer(threads)[1L])
-  if (is.na(threads) || threads < 1L || !isTRUE(fork_available)) return(1L)
-  max(1L, min(threads, length(k_values)))
-}
 
 run_dapc_k_task <- function(k, gl, shared_pca, max_pca, sample_ids,
                             public_ids, metadata, truth, cross_validate,
@@ -80,6 +74,21 @@ run_dapc_k_task <- function(k, gl, shared_pca, max_pca, sample_ids,
     n_pca <- min(max_pca, max(2L, floor(length(sample_ids) * .8)))
     cv <- NULL
     if (cross_validate) {
+      # adegenet::xvalDapc() does forward `...` down into boot::boot()'s own
+      # native parallel = "multicore"/ncpus (via its internal .get.prop.pred()
+      # helper) -- the mechanism the widely-used "Population Genetics in R"
+      # DAPC tutorial demonstrates -- but deliberately NOT used here: this
+      # call resamples with sim = "parametric", which per boot::boot()'s own
+      # documentation resamples *inside* the worker processes, each choosing
+      # its own separate, non-reproducible seed. Confirmed directly on this
+      # package's real quickstart dataset: identical data/seed gave n.pca =
+      # 10 (replicate RMSE ~0) serial vs. n.pca = 40 (RMSE 0.076, exceeding
+      # the stability threshold) with parallel = "multicore" enabled -- a
+      # materially different, less reproducible result, not just a faster
+      # one. Every other parallel path in this codebase is verified
+      # byte-identical regardless of thread count; this one cannot be
+      # without reimplementing xvalDapc's own resampling loop, so it stays
+      # serial.
       cv <- tryCatch(adegenet::xvalDapc(
         gl, grp, n.pca.max = n_pca, training.set = .9,
         result = "groupMean", center = TRUE, scale = FALSE,
@@ -152,6 +161,11 @@ run_dapc_k_task <- function(k, gl, shared_pca, max_pca, sample_ids,
         NA_real_
       } else {
         max(reproducibility$metrics$rmse)
+      },
+      replicate_min_cluster_correlation = if (is.null(reproducibility)) {
+        NA_real_
+      } else {
+        min(reproducibility$metrics$minimum_cluster_correlation)
       }
     ),
     replicate_membership = reps
@@ -194,7 +208,7 @@ run_dapc_analysis <- function(geno, sample_ids, metadata, k_values, seed,
   max_pca <- max(2L, min(nrow(geno) - 1L, 100L))
   shared_pca <- compute_dapc_shared_pca(gl, max_pca)
   truth <- metadata$population[match(sample_ids, metadata$sample)]
-  workers <- dapc_worker_count(valid_k, threads)
+  workers <- fork_worker_count(length(valid_k), threads)
   log_msg(
     "DAPC fitting ", length(valid_k), " K value(s) with ", workers,
     " worker(s) and one shared genotype PCA"
@@ -225,11 +239,21 @@ run_dapc_analysis <- function(geno, sample_ids, metadata, k_values, seed,
 }
 
 dapc_reproducibility_annotation <- function(dapc, k, cfg) {
-  threshold <- cfg$analyses$structure$reproducibility_rmse %||% 0.05
+  rmse_threshold <- cfg$analyses$structure$reproducibility_rmse %||% 0.05
+  corr_threshold <- cfg$analyses$structure$minimum_cluster_correlation %||% 0.90
   diagnostics <- data.table::as.data.table(dapc$diagnostics)
   row <- diagnostics[as.character(K) == as.character(k)]
   rmse <- if (nrow(row) && "replicate_max_rmse" %in% names(row)) {
     suppressWarnings(as.numeric(row$replicate_max_rmse[[1L]]))
+  } else {
+    NA_real_
+  }
+  # minimum_cluster_correlation's own companion diagnostic (structure_reproducibility()'s
+  # per-replicate worst-cluster correlation to the reference replicate, R/population_structure.R)
+  # -- absent from a hand-built diagnostics table (e.g. an older cache or a test fixture)
+  # is treated the same as "not estimated", not as a hard failure.
+  min_corr <- if (nrow(row) && "replicate_min_cluster_correlation" %in% names(row)) {
+    suppressWarnings(as.numeric(row$replicate_min_cluster_correlation[[1L]]))
   } else {
     NA_real_
   }
@@ -239,30 +263,47 @@ dapc_reproducibility_annotation <- function(dapc, k, cfg) {
     return(list(
       text = sprintf(
         "Replicate membership RMSE not estimated (stability threshold = %.4g).",
-        threshold
+        rmse_threshold
       ),
       unstable = FALSE
     ))
   }
-  if (rmse > threshold) {
+  rmse_unstable <- rmse > rmse_threshold
+  corr_unstable <- length(min_corr) > 0L && is.finite(min_corr) && min_corr < corr_threshold
+  if (rmse_unstable || corr_unstable) {
+    detail <- if (rmse_unstable && corr_unstable) {
+      sprintf(
+        "RMSE = %.4g > %.4g, minimum cluster correlation = %.4g < %.4g",
+        rmse, rmse_threshold, min_corr, corr_threshold
+      )
+    } else if (rmse_unstable) {
+      sprintf("RMSE = %.4g > %.4g", rmse, rmse_threshold)
+    } else {
+      sprintf("minimum cluster correlation = %.4g < %.4g", min_corr, corr_threshold)
+    }
     return(list(
       text = sprintf(
         paste0(
           "WARNING: DAPC replicate membership is unstable ",
-          "(RMSE = %.4g > %.4g).\nAvoid interpreting these assignments."
+          "(%s).\nAvoid interpreting these assignments."
         ),
-        rmse, threshold
+        detail
       ),
       unstable = TRUE
     ))
   }
-  list(
-    text = sprintf(
+  text <- if (is.finite(min_corr)) {
+    sprintf(
+      "Replicate membership RMSE = %.4g (stability threshold = %.4g); minimum cluster correlation = %.4g (threshold = %.4g).",
+      rmse, rmse_threshold, min_corr, corr_threshold
+    )
+  } else {
+    sprintf(
       "Replicate membership RMSE = %.4g (stability threshold = %.4g).",
-      rmse, threshold
-    ),
-    unstable = FALSE
-  )
+      rmse, rmse_threshold
+    )
+  }
+  list(text = text, unstable = FALSE)
 }
 
 plot_dapc_loading_manhattan <- function(loadings, k, cfg, dirs, profile) {
@@ -285,11 +326,12 @@ plot_dapc_loading_manhattan <- function(loadings, k, cfg, dirs, profile) {
     ) + theme_publication(base_size) +
     ggplot2::theme(panel.spacing = ggplot2::unit(1, "lines"))
   last_axis <- levels(loadings$axis)[length(levels(loadings$axis))]
+  n_axes <- data.table::uniqueN(loadings$axis)
   p <- manhattan_chromosome_row(
     p, layout$ticks, range(loadings$contribution[loadings$axis == last_axis], na.rm = TRUE),
-    base_size, facet_var = "axis", facet_last_level = last_axis, facet_levels = levels(loadings$axis)
+    base_size, facet_var = "axis", facet_last_level = last_axis, facet_levels = levels(loadings$axis),
+    plot_width_in = 10
   )
-  n_axes <- data.table::uniqueN(loadings$axis)
   save_plot(
     p, sprintf("15_DAPC_loadings_manhattan_K%s", k), dirs,
     cfg$output$figure_formats, 10, max(4, 2.2 * n_axes), cfg$output$dpi
@@ -315,6 +357,138 @@ plot_dapc_loading_ranked <- function(loadings, k, cfg, dirs, profile) {
   save_plot(
     p, sprintf("16_DAPC_loadings_ranked_K%s", k), dirs,
     cfg$output$figure_formats, 8, max(4, 2.2 * n_axes), cfg$output$dpi
+  )
+  invisible(p)
+}
+
+# adegenet::xvalDapc() (called once per K in run_dapc_k_task(), gated behind
+# cfg$analyses$dapc_cross_validation) already picks the number of retained
+# PCs by cross-validated assignment success -- the full per-n.pca curve
+# behind that choice was computed and kept on `cv` all along, just never
+# rendered (xvalDapc(..., xval.plot = FALSE)). This draws the same
+# diagnostic as adegenet's own built-in xval.plot = TRUE scatter (its own
+# axis labels are literally "Number of PCA axes retained" and "Proportion
+# of successful outcome prediction"), reusing the exact retained `cv`
+# object rather than recomputing anything: every individual bootstrap
+# replicate's outcome (not just the per-n.pca mean, which alone can look
+# like a clean, confident peak even when the underlying replicates are
+# highly variable -- exactly the case a user needs to see to judge whether
+# the auto-selected PC count is trustworthy or an artifact of too few
+# replicates/too small a training set on a real dataset), the full
+# 2.5/50/97.5% random-chance reference band (not just the median), the
+# mean curve on top, and the selected PC count marked directly on it.
+plot_dapc_xval <- function(cv, k, cfg, dirs, profile) {
+  if (is.null(cv)) return(invisible(NULL))
+  success <- cv[["Mean Successful Assignment by Number of PCs of PCA"]]
+  if (is.null(success) || !length(success)) return(invisible(NULL))
+  df <- data.frame(
+    n_pca = suppressWarnings(as.integer(names(success))),
+    success = suppressWarnings(as.numeric(success))
+  )
+  df <- df[is.finite(df$n_pca) & is.finite(df$success), ]
+  if (!nrow(df)) return(invisible(NULL))
+  data.table::setorder(data.table::setDT(df), n_pca)
+
+  raw <- cv[["Cross-Validation Results"]]
+  raw_df <- NULL
+  if (is.data.frame(raw) && all(c("n.pca", "success") %in% names(raw))) {
+    raw_df <- data.frame(
+      n_pca = suppressWarnings(as.numeric(raw$n.pca)),
+      success = suppressWarnings(as.numeric(raw$success))
+    )
+    raw_df <- raw_df[is.finite(raw_df$n_pca) & is.finite(raw_df$success), ]
+  }
+
+  selected <- suppressWarnings(as.integer(
+    cv[["Number of PCs Achieving Highest Mean Success"]]
+  ))[1]
+  chance <- suppressWarnings(as.numeric(
+    cv[["Median and Confidence Interval for Random Chance"]]
+  ))
+  chance_names <- names(cv[["Median and Confidence Interval for Random Chance"]])
+  chance_lo <- chance[chance_names == "2.5%"][1]
+  chance_mid <- chance[chance_names == "50%"][1]
+  chance_hi <- chance[chance_names == "97.5%"][1]
+
+  colour <- expand_figure_palette(profile, 1L, "colours")
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = n_pca, y = success))
+  if (!is.null(raw_df) && nrow(raw_df)) {
+    # Jittered so the discrete n.pca values a real n.rep = 30 replicates
+    # tightly stack on don't render as one solid vertical smear. A fixed
+    # seed keeps the figure itself reproducible across repeated report
+    # generations against unchanged data -- ggplot2::position_jitter()
+    # otherwise draws a fresh random offset every render (confirmed
+    # directly: two renders from the identical retained `cv` object
+    # produced visibly different point clouds without this).
+    jitter_width <- max(diff(sort(unique(df$n_pca))), 1) * 0.12
+    p <- p + ggplot2::geom_jitter(
+      data = raw_df, colour = colour, alpha = 0.18, size = 1,
+      position = ggplot2::position_jitter(width = jitter_width, height = 0, seed = 1L)
+    )
+  }
+  if (length(chance_lo) && is.finite(chance_lo)) {
+    p <- p + ggplot2::geom_hline(
+      yintercept = chance_lo, linetype = "dashed", colour = "#999999"
+    )
+  }
+  if (length(chance_hi) && is.finite(chance_hi)) {
+    p <- p + ggplot2::geom_hline(
+      yintercept = chance_hi, linetype = "dashed", colour = "#999999"
+    )
+  }
+  if (length(chance_mid) && is.finite(chance_mid)) {
+    p <- p + ggplot2::geom_hline(
+      yintercept = chance_mid, linetype = "solid", colour = "#999999"
+    )
+  }
+  p <- p +
+    ggplot2::geom_line(colour = colour) +
+    ggplot2::geom_point(colour = colour, size = 2)
+  if (is.finite(selected)) {
+    p <- p + ggplot2::geom_vline(
+      xintercept = selected, linetype = "dotted", colour = "#B2182B"
+    )
+  }
+  p <- p +
+    ggplot2::scale_y_continuous(labels = scales::percent) +
+    ggplot2::labs(
+      title = sprintf("DAPC PC-count cross-validation (K = %s)", k),
+      subtitle = if (is.finite(selected)) {
+        sprintf("Selected %d PC(s) by highest mean assignment success", selected)
+      } else {
+        NULL
+      },
+      x = "Number of PCA axes retained", y = "Proportion of successful outcome prediction"
+    ) + theme_publication(figure_base_size(cfg))
+  save_plot(
+    p, sprintf("12b_DAPC_xval_K%s", k), dirs,
+    cfg$output$figure_formats, 7, 5, cfg$output$dpi
+  )
+  invisible(p)
+}
+
+# The standard base-R DAPC diagnostic (barplot(dapc$eig, ...)) as a proper
+# ggplot2 figure: how much between-group variance each retained
+# discriminant axis explains. A steep drop after the first one or two axes
+# is the usual signal that later axes (and the LD scatterplot panels built
+# from them) carry little real separating power -- a second, independent
+# way to sanity-check the retained axis count alongside plot_dapc_xval()'s
+# PC-count curve above (that one validates n.pca going into dapc(), this
+# one validates n.da coming out of it).
+plot_dapc_eigenvalues <- function(model, k, cfg, dirs, profile) {
+  eig <- model$eig
+  if (is.null(eig) || !length(eig)) return(invisible(NULL))
+  df <- data.frame(axis = factor(seq_along(eig)), eigenvalue = as.numeric(eig))
+  colour <- unname(expand_figure_palette(profile, 1L, "fills"))
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = axis, y = eigenvalue)) +
+    ggplot2::geom_col(fill = colour, width = 0.72) +
+    ggplot2::labs(
+      title = sprintf("DA eigenvalues (K = %s)", k),
+      x = "Discriminant axis", y = "Eigenvalue"
+    ) + theme_publication(figure_base_size(cfg))
+  save_plot(
+    p, sprintf("12c_DAPC_eigenvalues_K%s", k), dirs,
+    cfg$output$figure_formats, 7, 5, cfg$output$dpi
   )
   invisible(p)
 }
@@ -355,6 +529,8 @@ plot_dapc <- function(dapc, cfg, dirs) {
       }
       save_plot(p, sprintf("11_DAPC_K%s", k), dirs, cfg$output$figure_formats, 8, 6, cfg$output$dpi)
     }
+    plot_dapc_xval(dapc$models[[k]]$cv, k, cfg, dirs, profile)
+    plot_dapc_eigenvalues(dapc$models[[k]]$model, k, cfg, dirs, profile)
     membership <- dapc$models[[k]]$membership
     q <- data.table::as.data.table(membership)
     q[, sample := rownames(membership)]

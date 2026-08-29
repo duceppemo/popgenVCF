@@ -45,7 +45,7 @@ For Conda/Mamba or HPC, use [Deployment and Troubleshooting](Deployment-and-Trou
 
 ## 2. Prepare input
 
-The minimum input is a diploid, biallelic SNP VCF:
+The minimum input is a diploid VCF:
 
 - `.vcf`;
 - BGZF `.vcf.gz` with `.tbi` or `.csi`;
@@ -56,6 +56,16 @@ The minimum input is a diploid, biallelic SNP VCF:
 popgenVCF reuses a valid index. Otherwise it uses BCFtools to create a sorted,
 BGZF-compressed and indexed working copy. Preserve the original input and its
 checksum.
+
+A raw VCF straight off a variant caller -- indels, multiallelic sites,
+structural variants, and MNPs mixed in with genuine biallelic SNPs -- does
+not need to be pre-filtered. VCF-to-GDS conversion
+(`SNPRelate::snpgdsVCF2GDS(..., method = "biallelic.only")`) automatically
+retains only biallelic SNPs and silently drops everything else before any of
+this package's own analysis code runs (monomorphic records pass through
+this step and are instead removed by this package's own MAF filter);
+`00_vcf_variant_types.tsv` in every run's output shows exactly how many
+records were retained versus dropped, and why.
 
 Metadata are optional. When supplied, the required `sample` column must match
 every VCF sample identifier exactly and uniquely. An optional `alias` provides

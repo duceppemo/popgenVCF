@@ -19,7 +19,7 @@ popgenVCF determines which analyses are scientifically available from the suppli
 
 | Mode | Required input | Analyses that can become available |
 |---|---|---|
-| VCF only | Diploid biallelic SNP VCF | QC, filtering, LD pruning, PCA, IBS/MDS, kinship (KING-robust), genetic sex check, runs of homozygosity, and configured ancestry engines |
+| VCF only | Diploid VCF (any variant types; only biallelic SNPs are retained, automatically) | QC, filtering, LD pruning, PCA, IBS/MDS, kinship (KING-robust), genetic sex check, runs of homozygosity, and configured ancestry engines |
 | Sample metadata | VCF plus exact sample identifiers | VCF-only analyses with descriptive annotations |
 | Population metadata | Complete `population` values | Diversity, FST, genome scans, DAPC, AMOVA, and population summaries |
 | Spatial metadata | Usable `latitude` and `longitude` values | Mantel, isolation-by-distance, maps, and spatial analyses |
@@ -27,6 +27,8 @@ popgenVCF determines which analyses are scientifically available from the suppli
 Missing metadata does not make a VCF-only analysis invalid. Modules whose requirements are not met are skipped transparently and recorded in `analysis_capabilities.tsv`.
 
 ## 2. Prepare the VCF and metadata
+
+A raw VCF straight off a variant caller does not need pre-filtering. VCF-to-GDS conversion (`SNPRelate::snpgdsVCF2GDS(..., method = "biallelic.only")`) automatically retains only biallelic SNPs, silently dropping indels, multiallelic sites, structural variants, and MNPs before any of this package's own analysis code runs (monomorphic records pass through and are instead removed by this package's own MAF filter). `00_vcf_variant_types.tsv` shows exactly how many records were retained versus dropped, and why.
 
 The VCF sample names are immutable sample keys. When metadata are supplied,
 the `sample` column must match every VCF sample name exactly, once and only
@@ -191,7 +193,7 @@ images are embedded in the report for portability.
 ```r
 analysis <- readRDS("results/analysis_results.rds")
 summary(analysis)
-popgenVCF::list_analyses()
+popgenVCF::list_analyses(popgenVCF::default_analysis_registry())
 popgenVCF::get_analysis_result(analysis, "pca")
 ```
 

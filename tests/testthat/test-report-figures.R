@@ -245,6 +245,64 @@ test_that("requesting both formats together renders each correctly, whether conc
   expect_match(html, "Both formats report", fixed = TRUE)
 })
 
+test_that("each report format renders into its own isolated output directory, never the shared destination or each other's", {
+  # Real regression, found on a real full pipeline report (not this file's
+  # own minimal fixtures, which apparently never hit it): HTML and PDF
+  # render from the same source template basename into the same shared
+  # destination output_dir, concurrently, via render_report_formats()'s
+  # mclapply(). rmarkdown creates a companion "<basename>_files/" directory
+  # for supporting images at that identical shared path for both forked
+  # renders; HTML's self_contained = TRUE finalization step deletes it once
+  # its own images are embedded, which can race ahead of the PDF format's
+  # xelatex/xdvipdfmx still reading images from that same path -- "Image
+  # inclusion failed: Could not find file" for a real, existing report.
+  # Confirmed directly against the real failure: PDF alone and HTML alone
+  # each rendered cleanly on every repeated attempt; only the concurrent
+  # combination failed, nondeterministically, depending on fork scheduling.
+  # Testing the race itself would make this test just as nondeterministic
+  # in the other direction, so this instead pins the fix's actual
+  # invariant: rmarkdown::render() must never be called with the shared
+  # destination as its own `output_dir`, and the two formats must never
+  # share a render output_dir with each other either -- regardless of
+  # timing, and without needing a real LaTeX installation to check it.
+  root <- tempfile("report-isolation-")
+  dir.create(root, recursive = TRUE)
+  results <- file.path(root, "analysis_results.rds")
+  saveRDS(minimal_standard_report_result(), results)
+  dest_dir <- file.path(root, "report")
+  dir.create(dest_dir, recursive = TRUE)
+  template <- system.file(
+    "rmarkdown", "templates", "popgenvcf_report", "skeleton", "skeleton.Rmd",
+    package = "popgenVCF"
+  )
+
+  captured_dirs <- list()
+  local_mocked_bindings(
+    render = function(input, output_format, output_file, output_dir,
+                      intermediates_dir, params, envir, quiet) {
+      captured_dirs[[params$report_format]] <<- output_dir
+      writeLines("stub", file.path(output_dir, output_file))
+      invisible(file.path(output_dir, output_file))
+    },
+    .package = "rmarkdown"
+  )
+
+  path_html <- popgenVCF:::render_standard_report_format(
+    template, results, dest_dir, "Test", "Test", "html"
+  )
+  path_pdf <- popgenVCF:::render_standard_report_format(
+    template, results, dest_dir, "Test", "Test", "pdf"
+  )
+
+  expect_false(identical(captured_dirs[["html"]], dest_dir))
+  expect_false(identical(captured_dirs[["pdf"]], dest_dir))
+  expect_false(identical(captured_dirs[["html"]], captured_dirs[["pdf"]]))
+  expect_identical(path_html, file.path(dest_dir, "population_genomics_report.html"))
+  expect_identical(path_pdf, file.path(dest_dir, "population_genomics_report.pdf"))
+  expect_true(file.exists(path_html))
+  expect_true(file.exists(path_pdf))
+})
+
 test_that("render_report_formats renders a single format sequentially", {
   calls <- character()
   result <- popgenVCF:::render_report_formats("html", function(format) {
@@ -273,6 +331,68 @@ test_that("render_report_formats re-signals a worker error as a real R condition
     })),
     "simulated render failure"
   )
+})
+
+test_that("render_report_formats reports a clear error when a worker is killed rather than erroring normally", {
+  # Real regression: a forked mclapply() worker killed by a signal (OOM,
+  # segfault -- confirmed on a real 300+-figure report) returns NULL, not a
+  # "try-error", for that slot. The old code only checked for "try-error"
+  # and would let unlist() silently drop the NULL, misreporting a hard
+  # crash as a clean (if quietly incomplete) success.
+  skip_on_os("windows")
+  expect_error(
+    popgenVCF:::render_report_formats(c("html", "pdf"), function(format) {
+      if (identical(format, "pdf")) return(NULL)
+      "path-html"
+    }),
+    "terminated abnormally"
+  )
+})
+
+test_that("render_report_formats's parallel = FALSE forces the sequential path even for multiple formats on a non-Windows platform", {
+  skip_on_os("windows")
+  pids <- character()
+  result <- popgenVCF:::render_report_formats(c("html", "pdf"), function(format) {
+    pids <<- c(pids, Sys.getpid())
+    paste0("path-", format)
+  }, parallel = FALSE)
+  expect_identical(result, c(html = "path-html", pdf = "path-pdf"))
+  # Sequential (non-forked) rendering runs both closures in this same process.
+  expect_length(unique(pids), 1L)
+})
+
+test_that("render_report switches to sequential rendering above max_concurrent_figures, and stays concurrent at or below it", {
+  skip_if_not(rmarkdown::pandoc_available())
+  skip_if(is.null(popgenVCF:::report_latex_engine()), "No LaTeX engine")
+  skip_on_os("windows")
+
+  make_run <- function(n_figures) {
+    root <- tempfile("report-size-guard-")
+    dir.create(file.path(root, "figures"), recursive = TRUE)
+    for (i in seq_len(n_figures)) {
+      writeLines("", file.path(root, "figures", sprintf("%02d_figure.png", i)))
+    }
+    results <- file.path(root, "analysis_results.rds")
+    saveRDS(minimal_standard_report_result(), results)
+    results
+  }
+
+  captured <- new.env()
+  testthat::local_mocked_bindings(
+    render_report_formats = function(formats, render_one, parallel = TRUE) {
+      captured$parallel <- parallel
+      stats::setNames(vapply(formats, function(f) tempfile(fileext = paste0(".", f)), character(1L)), formats)
+    },
+    .package = "popgenVCF"
+  )
+
+  small <- make_run(3L)
+  popgenVCF::render_report(small, tempfile("report-out-"), formats = c("html", "pdf"), max_concurrent_figures = 5L)
+  expect_true(captured$parallel)
+
+  large <- make_run(8L)
+  popgenVCF::render_report(large, tempfile("report-out-"), formats = c("html", "pdf"), max_concurrent_figures = 5L)
+  expect_false(captured$parallel)
 })
 
 test_that("reduced HTML reports omit the loading/private-allele sections when the data is absent", {
@@ -334,6 +454,50 @@ test_that("HTML reports include the loading and private-allele sections when the
   expect_match(html, "DAPC SNP loadings", fixed = TRUE)
   expect_match(html, "32_private_alleles.tsv", fixed = TRUE)
   expect_match(html, "31_PCA_loadings.tsv", fixed = TRUE)
+})
+
+test_that("HTML reports show a Pipeline notices section with WARNING/INFO messages, filtering out routine SUCCESS entries", {
+  skip_if_not(rmarkdown::pandoc_available())
+  root <- tempfile("pipeline-notices-report-")
+  dir.create(root)
+  results <- file.path(root, "analysis_results.rds")
+  populated <- minimal_standard_report_result()
+  populated$messages <- data.table::data.table(
+    timestamp = Sys.time(),
+    level = c("SUCCESS", "WARNING", "INFO"),
+    stage = c("VCF preparation", "clonality", "VCF preparation"),
+    message = c(
+      "completed",
+      "some real warning text",
+      "5 of 7 VCF record(s) are biallelic SNPs (2 dropped)"
+    )
+  )
+  saveRDS(populated, results)
+
+  rendered <- render_report(results, file.path(root, "report"), formats = "html")
+  html <- paste(readLines(rendered[["html"]], warn = FALSE), collapse = "\n")
+
+  expect_match(html, "Pipeline notices", fixed = TRUE)
+  expect_match(html, "some real warning text", fixed = TRUE)
+  expect_match(html, "biallelic SNPs", fixed = TRUE)
+})
+
+test_that("HTML reports omit the Pipeline notices section entirely when there are no WARNING/INFO messages", {
+  skip_if_not(rmarkdown::pandoc_available())
+  root <- tempfile("no-pipeline-notices-report-")
+  dir.create(root)
+  results <- file.path(root, "analysis_results.rds")
+  populated <- minimal_standard_report_result()
+  populated$messages <- data.table::data.table(
+    timestamp = Sys.time(), level = "SUCCESS",
+    stage = "VCF preparation", message = "completed"
+  )
+  saveRDS(populated, results)
+
+  rendered <- render_report(results, file.path(root, "report"), formats = "html")
+  html <- paste(readLines(rendered[["html"]], warn = FALSE), collapse = "\n")
+
+  expect_no_match(html, "Pipeline notices", fixed = TRUE)
 })
 
 test_that("standard report rejects unsupported formats", {

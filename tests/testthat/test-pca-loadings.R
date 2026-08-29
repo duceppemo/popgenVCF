@@ -142,6 +142,76 @@ test_that("PCA loading plots facet axes naturally (PC2 before PC10, not lexicogr
   expect_identical(panel_axis_order, c("PC1", "PC2", "PC10"))
 })
 
+test_that("PCA loading plots position the chromosome-label row below the real rendered scale even when geom_hline(yintercept = 0) silently widens it", {
+  # Real regression: plot_pca_loading_manhattan() computed the y_range it
+  # handed to manhattan_chromosome_row() from range(contribution) alone for
+  # the last facet -- but that facet's plot already carries
+  # geom_hline(yintercept = 0), and ggplot2 trains a panel's rendered
+  # y-scale on every layer's data, including annotation layers, not just
+  # the primary geom's. On a real low-variance PC whose loadings cluster
+  # tightly far from zero (contribution 0.0196-0.0231, this test's PC2
+  # deliberately shaped the same way), the hline silently pulled the
+  # rendered scale down to include 0 while the externally-computed pad/
+  # label position still assumed the narrow raw-data range -- so the label,
+  # anchored just below what it *thought* was the panel's bottom, actually
+  # landed inside the now much taller real panel instead of below it,
+  # clipped by the panel's own boundary rather than bleeding into the
+  # margin as intended. The fix (range(c(contribution, 0), ...)) keeps the
+  # externally-computed range in sync with what the hline will do to the
+  # scale, so the label lands below the true rendered range on every axis,
+  # not just the ones whose raw data already happens to span zero.
+  plots <- list()
+  local_mocked_bindings(
+    save_plot = function(p, stem, ...) {
+      plots[[stem]] <<- p
+      invisible(TRUE)
+    },
+    .package = "popgenVCF"
+  )
+  dirs <- list(figures = tempdir())
+  cfg <- list(output = list(figure_formats = "pdf", dpi = 150L, label_samples = "none"))
+
+  axes <- c("PC1", "PC2")
+  pca <- list(
+    scores = data.table::data.table(sample = c("s1", "s2", "s3"), PC1 = c(-1, 0, 1), PC2 = c(0.5, -0.5, 0)),
+    variance = data.table::data.table(PC = axes, proportion = c(0.6, 0.4), percent = c(60, 40)),
+    loadings = data.table::data.table(
+      axis = rep(axes, each = 3L),
+      snp_id = rep(c("1", "2", "3"), 2L),
+      chromosome = "1",
+      position = c(100L, 500L, 900L, 100L, 500L, 900L),
+      contribution = c(0.6, -0.2, 0.1, 0.0231, 0.0196, 0.0221), # PC2 (last axis): tight, far from 0
+      magnitude = c(0.6, 0.2, 0.1, 0.0231, 0.0196, 0.0221)
+    )
+  )
+  popgenVCF:::plot_pca(pca, cfg, dirs)
+
+  manhattan <- plots[["17_PCA_loadings_manhattan"]]
+  built <- ggplot2::ggplot_build(manhattan)
+  last_panel <- as.integer(built$layout$layout$PANEL[built$layout$layout$axis == "PC2"])
+  true_range <- built$layout$panel_scales_y[[last_panel]]$range$range
+  # The hline really did widen this panel's own rendered scale to include 0,
+  # confirming the test fixture reproduces the mechanism this regression
+  # depends on.
+  expect_true(true_range[1] <= 0)
+
+  # Pins the actual fix (the call site's own y_range computation), not just
+  # its downstream effect: with the bug (y_range from range(contribution)
+  # alone, e.g. c(0.0196, 0.0231)), pad would be a tiny fraction of that
+  # narrow 0.0035 span and the label would land at y ~= 0.019 -- comfortably
+  # *inside* the true rendered range asserted above once the hline pulls it
+  # down to include 0, instead of below it. Asserting the exact expected
+  # value (computed the same way the fix computes it) fails loudly if
+  # range(c(contribution, 0), ...) regresses back to range(contribution).
+  expected_y_range <- range(c(0.0231, 0.0196, 0.0221, 0))
+  expected_label_y <- expected_y_range[1] - diff(expected_y_range) * 0.14
+
+  label_layer <- manhattan$layers[[length(manhattan$layers)]]
+  label_y <- label_layer$data$y[label_layer$data$axis == "PC2"][1]
+  expect_equal(label_y, expected_label_y)
+  expect_true(label_y <= true_range[1])
+})
+
 test_that("PCA loading plots are absent when no loadings table is supplied", {
   plots <- list()
   local_mocked_bindings(

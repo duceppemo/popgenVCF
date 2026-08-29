@@ -38,7 +38,7 @@ required <- c(
   "SNPRelate", "vegan", "yaml"
 )
 optional <- c(
-  "clue", "covr", "hierfstat", "LEA", "knitr", "patchwork",
+  "clue", "covr", "hierfstat", "LEA", "knitr",
   "pkgdown", "svglite", "testthat"
 )
 check <- function(packages, type) {

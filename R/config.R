@@ -65,7 +65,8 @@ default_config <- function() {
                     snmf = list(enabled = FALSE, geno_file = NULL, q_sample_file = NULL,
                                 k = "2:10", repetitions = 5L, entropy = TRUE,
                                 threads = "auto")),
-    report = list(enabled = TRUE, title = "Population genomics analysis", author = "")
+    report = list(enabled = TRUE, title = "Population genomics analysis", author = "",
+                  max_concurrent_figures = 100L)
   )
 }
 
@@ -128,10 +129,26 @@ validate_config <- function(cfg) {
   vals <- c(cfg$qc$maf, cfg$qc$max_variant_missing, cfg$qc$max_sample_missing, cfg$qc$ld_r2)
   if (any(!is.finite(vals)) || any(vals < 0) || any(vals > 1)) stop("QC proportions must be between zero and one", call. = FALSE)
   if (cfg$qc$maf > 0.5) stop("MAF cannot exceed 0.5", call. = FALSE)
-  fixed_changed <- !isTRUE(all.equal(cfg$qc$ld_r2, 0.2)) || !isTRUE(all.equal(cfg$qc$max_variant_missing, 0.2))
-  if (fixed_changed) warning("The fixed QC contract requires max_variant_missing = 0.2 and LD r^2 = 0.2; overriding configured values.", call. = FALSE)
-  cfg$qc$ld_r2 <- 0.2; cfg$qc$max_variant_missing <- 0.2
-  cfg$qc$ld_slide_max_bp <- Inf; cfg$qc$ld_slide_max_n <- 50L; cfg$qc$ld_start_pos <- "first"
+  # max_variant_missing, ld_r2, ld_slide_max_bp/ld_slide_max_n/ld_start_pos are
+  # all real, user-configurable QC/LD-pruning parameters (threaded into
+  # variant_qc() and ld_prune_exact()'s snpgdsLDpruning() call, both in
+  # R/qc.R, and into run_roh()'s own missingness gate for max_variant_missing
+  # specifically) -- validated, not silently overridden, so a bad value fails
+  # loudly instead of a configured choice being discarded without notice.
+  # The values below (0.2 missingness, r^2 = 0.2, unbounded window, 50-SNP
+  # slide, start.pos = "first") are the historical defaults every prior
+  # release used, kept as defaults for continuity, not enforced as fixed.
+  if (!is.finite(cfg$qc$ld_slide_max_n) || cfg$qc$ld_slide_max_n < 1L) {
+    stop("qc.ld_slide_max_n must be a positive integer", call. = FALSE)
+  }
+  cfg$qc$ld_slide_max_n <- as.integer(cfg$qc$ld_slide_max_n)
+  if (!identical(cfg$qc$ld_slide_max_bp, Inf) && (!is.finite(cfg$qc$ld_slide_max_bp) || cfg$qc$ld_slide_max_bp <= 0)) {
+    stop("qc.ld_slide_max_bp must be a positive number or Inf", call. = FALSE)
+  }
+  cfg$qc$ld_start_pos <- as.character(cfg$qc$ld_start_pos)[1L]
+  if (!cfg$qc$ld_start_pos %in% c("first", "last", "random", "random.f500")) {
+    stopf("qc.ld_start_pos must be one of \"first\", \"last\", \"random\", \"random.f500\" (SNPRelate::snpgdsLDpruning()'s own accepted values); got %s", cfg$qc$ld_start_pos)
+  }
   cfg$qc$non_autosomal_chromosome_names <- as.character(cfg$qc$non_autosomal_chromosome_names)
 
   if (is.null(cfg$compute$memory_mb)) {
@@ -142,6 +159,10 @@ validate_config <- function(cfg) {
   cfg$compute$seed <- as.integer(cfg$compute$seed)
   cfg$output$dpi <- as.integer(cfg$output$dpi)
   cfg$output$base_font_size <- as.numeric(cfg$output$base_font_size)
+  cfg$report$max_concurrent_figures <- as.integer(cfg$report$max_concurrent_figures)
+  if (!is.finite(cfg$report$max_concurrent_figures) || cfg$report$max_concurrent_figures < 1L) {
+    stop("report.max_concurrent_figures must be a positive integer", call. = FALSE)
+  }
   cfg$analyses$hwe_alpha <- as.numeric(cfg$analyses$hwe_alpha)
   cfg$analyses$bottleneck_n_bins <- as.integer(cfg$analyses$bottleneck_n_bins)
   cfg$analyses$n_pcs <- as.integer(cfg$analyses$n_pcs)

@@ -34,18 +34,26 @@ population_allele_count_matrix <- function(locus_table) {
   data.table::setorder(alt_wide, population)
   data.table::setorder(ref_wide, population)
   snp_ids <- names(alt_wide)[-1L]
+  n_snps <- length(snp_ids)
 
-  tab <- matrix(0, nrow = length(populations), ncol = 2L * length(snp_ids))
-  col_names <- character(2L * length(snp_ids))
-  for (i in seq_along(snp_ids)) {
-    tab[, 2L * i - 1L] <- ref_wide[[snp_ids[i]]]
-    tab[, 2L * i] <- alt_wide[[snp_ids[i]]]
-    col_names[2L * i - 1L] <- paste0(snp_ids[i], ".0")
-    col_names[2L * i] <- paste0(snp_ids[i], ".1")
-  }
+  # Vectorized interleave (ref_snp1, alt_snp1, ref_snp2, alt_snp2, ...)
+  # instead of a per-SNP R-level for loop -- this receives the full
+  # diversity_full$locus table (500K+ QC-passing loci on a real production
+  # cohort), where the loop's per-iteration overhead was measurable. Indexing
+  # both wide tables by the same snp_ids name vector (rather than assuming
+  # matching column order) keeps this safe even if dcast ever orders the two
+  # tables' columns differently.
+  ref_cols <- seq.int(1L, 2L * n_snps, by = 2L)
+  alt_cols <- seq.int(2L, 2L * n_snps, by = 2L)
+  tab <- matrix(0, nrow = length(populations), ncol = 2L * n_snps)
+  tab[, ref_cols] <- as.matrix(ref_wide[, snp_ids, with = FALSE])
+  tab[, alt_cols] <- as.matrix(alt_wide[, snp_ids, with = FALSE])
+  col_names <- character(2L * n_snps)
+  col_names[ref_cols] <- paste0(snp_ids, ".0")
+  col_names[alt_cols] <- paste0(snp_ids, ".1")
   colnames(tab) <- col_names
   rownames(tab) <- alt_wide$population
-  list(tab = tab, populations = populations, n_snps = length(snp_ids))
+  list(tab = tab, populations = populations, n_snps = n_snps)
 }
 
 population_genpop_distance <- function(tab) {

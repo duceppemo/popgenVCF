@@ -22,6 +22,46 @@ checkpoint_payload_digest <- function(checkpoint) {
   digest::digest(payload, algo = "sha256", serialize = TRUE)
 }
 
+# context$gds is a live gdsfmt/SNPRelate connection wrapping a C-level
+# external pointer -- gdsfmt's own documentation (see the fork-safety
+# citation in R/diversity.R) already established that external pointers do
+# not survive process/serialization boundaries. saveRDS()/readRDS() would
+# not error on it (the pointer just serializes to a placeholder and comes
+# back invalid), so this is a silent-corruption risk, not a loud one:
+# without stripping it here, a checkpoint would look fine until something
+# tried to actually use the resumed context$gds and hit a dead handle.
+# context$gds_path (a plain string) is untouched and is what
+# run_pipeline_resume() re-opens a fresh connection from.
+execution_checkpoint_safe_context <- function(context) {
+  context$gds <- NULL
+  context
+}
+
+# Builds and writes a checkpoint from in-progress execution state (the
+# in-flight `analysis`/`context`/`artifacts`/`execution` ledger, not
+# necessarily a finished run). Used both by execute_analysis_plan()'s
+# unconditional per-batch autosave and by the cancellation path's
+# checkpoint-on-request. A write failure (a full disk, a read-only output
+# directory) is logged and swallowed, never fatal: the checkpoint is a
+# resilience aid for a *future* run, and must never cost the current one.
+write_incremental_execution_checkpoint <- function(analysis, context, order, plan,
+                                                    artifacts, execution, registry,
+                                                    checkpoint_path) {
+  tryCatch({
+    checkpoint <- new_execution_checkpoint(
+      list(
+        analysis = analysis, context = execution_checkpoint_safe_context(context),
+        order = order, plan = plan, artifacts = artifacts, execution = execution
+      ),
+      registry
+    )
+    write_execution_checkpoint(checkpoint, checkpoint_path, overwrite = TRUE)
+  }, error = function(e) {
+    log_msg("Execution checkpoint write failed (continuing without it): ", conditionMessage(e), level = "WARNING")
+  })
+  invisible(NULL)
+}
+
 #' Create an execution checkpoint
 #'
 #' Capture validated execution state so unfinished modules can be resumed without

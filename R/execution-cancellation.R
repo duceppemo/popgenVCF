@@ -137,7 +137,17 @@ add_cancellation_metadata <- function(result, token, registry, checkpoint_path =
     )
   }
   if (isTRUE(token$requested)) {
-    result$checkpoint <- new_execution_checkpoint(result, registry)
+    # context$gds (a live gdsfmt connection) is stripped before the
+    # checkpoint is built, not just before writing it: an external pointer
+    # cannot survive serialization regardless, and a resumed run must always
+    # re-open its own connection from context$gds_path (see
+    # execution_checkpoint_safe_context()), so the in-memory checkpoint
+    # should behave identically whether or not it is ever written to disk.
+    result$checkpoint <- new_execution_checkpoint(
+      c(result[c("analysis", "order", "plan", "artifacts", "execution")],
+        list(context = execution_checkpoint_safe_context(result$context))),
+      registry
+    )
     if (!is.null(checkpoint_path)) {
       write_execution_checkpoint(result$checkpoint, checkpoint_path, overwrite = TRUE)
       metadata$cancellation$checkpoint_path <- normalizePath(

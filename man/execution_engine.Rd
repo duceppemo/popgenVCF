@@ -31,7 +31,8 @@ execute_analysis_plan(
   context,
   registry,
   plan,
-  engine = new_execution_engine()
+  engine = new_execution_engine(),
+  checkpoint_path = NULL
 )
 }
 \arguments{
@@ -48,6 +49,7 @@ execute_analysis_plan(
   \item{context}{Runtime context shared by module runners.}
   \item{plan}{A \code{PopgenVCFExecutionPlan} object.}
   \item{engine}{A \code{PopgenVCFExecutionEngine} object.}
+  \item{checkpoint_path}{Optional \code{.rds} path. When supplied, an execution checkpoint is written (overwriting any prior one) after every batch completes, unconditionally -- not tied to any cancellation or failure -- so a later \code{run_pipeline_resume()} can pick up after the last completed batch regardless of how the process ended. A checkpoint-write failure (e.g. a full disk) is logged as a warning, not fatal.}
 }
 \value{
 \code{new_execution_engine()} returns a \code{PopgenVCFExecutionEngine}.
