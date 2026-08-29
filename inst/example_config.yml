@@ -261,5 +261,10 @@ report:
   enabled: true
   title: Population genomics analysis
   author: Marc-Olivier Duceppe
+  # HTML and PDF render concurrently by default (roughly halving wall-clock
+  # time). Above this many embedded figures, they render sequentially
+  # instead, to keep peak memory bounded -- a real 300+-figure report was
+  # killed (likely by the OS) rendering both formats concurrently.
+  max_concurrent_figures: 100
 # Population-structure reproducibility settings are nested under analyses.structure.
 # External fastStructure and sNMF modules are disabled unless explicitly enabled.

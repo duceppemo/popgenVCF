@@ -68,6 +68,20 @@
 #   same marker set -- each is now computed on the marker set appropriate to
 #   its own statistical question.
 #
+# On top of the LD-pruning fix above, monomorphic loci (identical genotype
+# at every retained sample) are now also dropped, once and up front, from
+# BOTH marker sets (run_clonality(), clonality_monomorphic_loci()) -- found
+# reported directly by a user whose real 50-sample, 7-population cohort
+# (561,767 unpruned / 54,052 LD-pruned loci) still took 8.3 hours in this
+# module even after the LD-pruning fix above. A monomorphic locus is
+# identical for every sample by construction, so it can never affect
+# mlg.id()'s exact-identity comparison and contributes nothing to Ia/rbarD's
+# pairwise distances either -- dropping it is correctness-neutral, not a
+# tradeoff, unlike the LD-pruning change above (which does trade some
+# discriminating power for speed on the Ia/rbarD side only).
+# `57b_monomorphic_loci_dropped.csv` and `58c_monomorphic_loci_dropped.csv`
+# record what was dropped from the full and LD-pruned sets respectively.
+#
 # adegenet's genlight/poppr's snpclone representation (this package's usual
 # object for SNP data -- see genlight_from_gds(), R/dapc.R) is explicitly
 # rejected by both poppr() and genotype_curve() ("The poppr function will
@@ -79,6 +93,23 @@
 # per locus, not real nucleotide identity (the same simplification ml_tree's
 # IUPAC encoding could not make, since that module needs real bases for a
 # nucleotide substitution model).
+
+# Locus IDs (column names) with fewer than two distinct non-missing dosage
+# values (0/1/2) among the given samples -- carries zero discriminating
+# power for exact multilocus-genotype matching (poppr::mlg.id()) and zero
+# information for Ia/rbarD's pairwise distances (a monomorphic locus is
+# identical for every sample by definition, so it contributes nothing to
+# either). Vectorized column-wise (colSums() on a logical comparison
+# matrix) rather than apply()/duplicated() per column: the full unpruned
+# marker set can be hundreds of thousands of loci wide on a real cohort
+# (confirmed fast at that scale: ~0.7s for 560,000 columns).
+clonality_monomorphic_loci <- function(genotype) {
+  if (!ncol(genotype)) return(character())
+  n_distinct <- (colSums(genotype == 0, na.rm = TRUE) > 0L) +
+    (colSums(genotype == 1, na.rm = TRUE) > 0L) +
+    (colSums(genotype == 2, na.rm = TRUE) > 0L)
+  colnames(genotype)[n_distinct <= 1L]
+}
 
 clonality_encode_genind <- function(genotype, sample_ids, population) {
   code <- matrix(NA_character_, nrow(genotype), ncol(genotype), dimnames = dimnames(genotype))
@@ -305,8 +336,27 @@ run_clonality <- function(genotype, ld_genotype, sample_ids, metadata, seed,
   if (anyNA(population) || any(!nzchar(population))) {
     stop("Clonality analysis requires a non-missing population for every retained sample", call. = FALSE)
   }
+
+  # Monomorphic loci (identical genotype at every retained sample) are
+  # dropped once, up front, from both marker sets this module uses --
+  # correctness-neutral (a monomorphic locus can never distinguish two
+  # multilocus genotypes, and contributes nothing to Ia/rbarD's pairwise
+  # distances either) and a real, measured performance win: a production
+  # cohort's LD-pruned set with a substantial monomorphic fraction spent
+  # hours in poppr::poppr()'s Ia/rbarD computation, which -- unlike
+  # poppr::genotype_curve()'s own internal drop for the accumulation curve
+  # (clonality_curve_summary()) -- does not skip them on its own.
+  dropped_monomorphic_full <- clonality_monomorphic_loci(genotype)
+  if (length(dropped_monomorphic_full)) {
+    genotype <- genotype[, setdiff(colnames(genotype), dropped_monomorphic_full), drop = FALSE]
+  }
+  dropped_monomorphic_ld <- clonality_monomorphic_loci(ld_genotype)
+  if (length(dropped_monomorphic_ld)) {
+    ld_genotype <- ld_genotype[, setdiff(colnames(ld_genotype), dropped_monomorphic_ld), drop = FALSE]
+  }
+
   if (ncol(genotype) < 2L) {
-    stop("Clonality analysis requires at least two polymorphic loci; ", ncol(genotype), " available", call. = FALSE)
+    stop("Clonality analysis requires at least two polymorphic loci; ", ncol(genotype), " available after dropping monomorphic loci", call. = FALSE)
   }
   public_ids <- public_sample_ids(metadata, sample_ids)
 
@@ -339,7 +389,10 @@ run_clonality <- function(genotype, ld_genotype, sample_ids, metadata, seed,
     list(curve = clonality_empty_curve(), dropped_monomorphic_loci = character())
   }
   curve <- curve_result$curve
-  dropped_monomorphic_loci <- curve_result$dropped_monomorphic_loci
+  # Union with genotype_curve()'s own internal drop (clonality_curve_summary()):
+  # normally empty now that the LD-pruned set is already pre-filtered above,
+  # kept as defense-in-depth rather than assumed redundant.
+  dropped_monomorphic_ld <- union(dropped_monomorphic_ld, curve_result$dropped_monomorphic_loci)
 
   # Minimum spanning network: same LD-pruned marker set and gating as
   # Ia/rbarD/the genotype accumulation curve above (see this file's
@@ -358,7 +411,8 @@ run_clonality <- function(genotype, ld_genotype, sample_ids, metadata, seed,
       n_mlg_total = n_mlg_total, curve_replicates = as.integer(curve_replicates),
       poppr_failed = poppr_failed, ld_pruned_usable = ld_pruned_usable,
       msn = msn, msn_gid = msn_gid, msn_failed = msn_failed, msn_edges = msn_edges,
-      dropped_monomorphic_loci = dropped_monomorphic_loci)
+      dropped_monomorphic_full = dropped_monomorphic_full,
+      dropped_monomorphic_ld = dropped_monomorphic_ld)
 }
 
 plot_clonality <- function(result, cfg, dirs) {
@@ -380,12 +434,12 @@ plot_clonality <- function(result, cfg, dirs) {
     ggplot2::scale_y_continuous(labels = scales::label_comma()) +
     ggplot2::labs(
       title = "Genotype accumulation curve",
-      subtitle = "Distinct multilocus genotypes resolved when subsampling LD-pruned loci",
+      subtitle = "Distinct multilocus genotypes resolved when subsampling LD-pruned, polymorphic loci",
       caption = sprintf(
-        "Mean and 95%% envelope across %s replicates; dashed line: %s MLGs with the full LD-pruned marker set",
+        "Mean and 95%% envelope across %s replicates; dashed line: %s MLGs with the full LD-pruned, polymorphic marker set (58c_monomorphic_loci_dropped.csv lists loci excluded before this curve)",
         scales::comma(result$curve_replicates), scales::comma(result$n_mlg_total)
       ),
-      x = "Number of LD-pruned loci sampled", y = "Multilocus genotypes (MLG)"
+      x = "Number of LD-pruned, polymorphic loci sampled", y = "Multilocus genotypes (MLG)"
     ) + theme_publication(figure_base_size(cfg))
   save_plot(p, "58_genotype_accumulation_curve", dirs, fmts, 8, 5.5, dpi)
 }

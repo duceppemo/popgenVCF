@@ -13,6 +13,13 @@ pairwise kinship (KING-robust), genetic sex check (X-chromosome
 heterozygosity; compares against a metadata `sex` column when present), runs
 of homozygosity, and configured ancestry backends.
 
+A raw VCF -- indels, multiallelic sites, structural variants, and monomorphic
+records mixed in with genuine biallelic SNPs -- needs no pre-filtering.
+VCF-to-GDS conversion automatically retains only biallelic, polymorphic SNPs
+(`SNPRelate::snpgdsVCF2GDS(..., method = "biallelic.only")`) before any of
+this package's own code runs; everything downstream only ever describes that
+retained set.
+
 ### Sample metadata
 
 Metadata can annotate outputs with fields such as location, collection date,

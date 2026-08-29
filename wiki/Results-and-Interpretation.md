@@ -923,7 +923,7 @@ set already used for kinship/PCA/DAPC elsewhere in this pipeline -- fixes
 both problems together; see `R/clonality.R`'s top-of-file comment for the
 full measurement and reasoning.
 
-![Genotype accumulation curve from the quickstart example: mean and 95% envelope of distinct multilocus genotypes resolved as LD-pruned loci are subsampled, with a dashed line at the full LD-pruned marker set's MLG count](figures/58_genotype_accumulation_curve.png)
+![Genotype accumulation curve from the quickstart example: mean and 95% envelope of distinct multilocus genotypes resolved as LD-pruned, polymorphic loci are subsampled, with a dashed line at the full LD-pruned, polymorphic marker set's MLG count](figures/58_genotype_accumulation_curve.png)
 
 On the quickstart example, all 160 samples have a unique multilocus genotype
 -- `57_MLG_groups.tsv` is empty. This is computed on the full 1,969
@@ -951,14 +951,28 @@ clonal structure, in this genuinely outbreeding human dataset. Read any
 remaining positive value cautiously either way, not as direct evidence of
 clonal reproduction.
 
-`poppr::genotype_curve()` drops any locus that is monomorphic on the
-LD-pruned set before resampling (a locus with no variation contributes
-nothing to distinguishing genotypes). On a real marker panel that can be
-many loci, so rather than naming each one on the console -- poppr's own
-default behavior, which floods the pipeline log at scale -- this pipeline
-logs only the count and writes the full list, one locus name per line, to
-`58c_monomorphic_loci_dropped.csv` (present only when at least one locus
-was dropped).
+A locus that is monomorphic (identical genotype at every retained sample)
+carries zero information for either question this module asks: it can never
+distinguish two multilocus genotypes for `mlg.id()`, and it contributes
+nothing to Ia/rbarD's pairwise distances. This pipeline drops monomorphic
+loci once, up front, from both marker sets, rather than leaving `poppr()`
+to compute over them uselessly -- reported directly by a user whose real
+50-sample, 7-population cohort (561,767 unpruned / 54,052 LD-pruned loci)
+still took 8.3 hours in this module even after the LD-pruning fix above,
+much of it wasted on loci that could not possibly affect the result.
+Dropping a monomorphic locus is correctness-neutral for both marker sets --
+unlike the LD-pruning tradeoff above, which does trade some discriminating
+power for speed on the Ia/rbarD side only. On a real marker panel this can
+be many loci, so rather than naming each one on the console (`poppr`'s own
+default behavior for the ones it discovers internally, which floods the
+pipeline log at scale), this pipeline logs only the count and writes the
+full list, one locus name per line, to `57b_monomorphic_loci_dropped.csv`
+(dropped from the full unpruned set, before `57_MLG_groups.tsv`/duplicate
+detection) and `58c_monomorphic_loci_dropped.csv` (dropped from the
+LD-pruned set, before the Ia/rbarD summary, the accumulation curve below,
+and the MSN) -- each present only when at least one locus was dropped from
+that set. On the quickstart example neither file is written: none of its
+1,969 QC-passing or 357 LD-pruned loci are monomorphic.
 
 A minimum spanning network (MSN; Kamvar, Tabima, and Grunwald 2014,
 `poppr::poppr.msn()`, over the same LD-pruned marker set as the accumulation

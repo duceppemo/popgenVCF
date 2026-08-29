@@ -333,6 +333,68 @@ test_that("render_report_formats re-signals a worker error as a real R condition
   )
 })
 
+test_that("render_report_formats reports a clear error when a worker is killed rather than erroring normally", {
+  # Real regression: a forked mclapply() worker killed by a signal (OOM,
+  # segfault -- confirmed on a real 300+-figure report) returns NULL, not a
+  # "try-error", for that slot. The old code only checked for "try-error"
+  # and would let unlist() silently drop the NULL, misreporting a hard
+  # crash as a clean (if quietly incomplete) success.
+  skip_on_os("windows")
+  expect_error(
+    popgenVCF:::render_report_formats(c("html", "pdf"), function(format) {
+      if (identical(format, "pdf")) return(NULL)
+      "path-html"
+    }),
+    "terminated abnormally"
+  )
+})
+
+test_that("render_report_formats's parallel = FALSE forces the sequential path even for multiple formats on a non-Windows platform", {
+  skip_on_os("windows")
+  pids <- character()
+  result <- popgenVCF:::render_report_formats(c("html", "pdf"), function(format) {
+    pids <<- c(pids, Sys.getpid())
+    paste0("path-", format)
+  }, parallel = FALSE)
+  expect_identical(result, c(html = "path-html", pdf = "path-pdf"))
+  # Sequential (non-forked) rendering runs both closures in this same process.
+  expect_length(unique(pids), 1L)
+})
+
+test_that("render_report switches to sequential rendering above max_concurrent_figures, and stays concurrent at or below it", {
+  skip_if_not(rmarkdown::pandoc_available())
+  skip_if(is.null(popgenVCF:::report_latex_engine()), "No LaTeX engine")
+  skip_on_os("windows")
+
+  make_run <- function(n_figures) {
+    root <- tempfile("report-size-guard-")
+    dir.create(file.path(root, "figures"), recursive = TRUE)
+    for (i in seq_len(n_figures)) {
+      writeLines("", file.path(root, "figures", sprintf("%02d_figure.png", i)))
+    }
+    results <- file.path(root, "analysis_results.rds")
+    saveRDS(minimal_standard_report_result(), results)
+    results
+  }
+
+  captured <- new.env()
+  testthat::local_mocked_bindings(
+    render_report_formats = function(formats, render_one, parallel = TRUE) {
+      captured$parallel <- parallel
+      stats::setNames(vapply(formats, function(f) tempfile(fileext = paste0(".", f)), character(1L)), formats)
+    },
+    .package = "popgenVCF"
+  )
+
+  small <- make_run(3L)
+  popgenVCF::render_report(small, tempfile("report-out-"), formats = c("html", "pdf"), max_concurrent_figures = 5L)
+  expect_true(captured$parallel)
+
+  large <- make_run(8L)
+  popgenVCF::render_report(large, tempfile("report-out-"), formats = c("html", "pdf"), max_concurrent_figures = 5L)
+  expect_false(captured$parallel)
+})
+
 test_that("reduced HTML reports omit the loading/private-allele sections when the data is absent", {
   skip_if_not(rmarkdown::pandoc_available())
   root <- tempfile("reduced-loadings-report-")

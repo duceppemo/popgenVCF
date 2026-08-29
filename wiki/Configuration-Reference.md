@@ -153,10 +153,17 @@ actually ran, were skipped, or were disabled, and why.
 ```yaml
 report:
   enabled: true
+  max_concurrent_figures: 100
 ```
 
 Reports summarize retained results. They do not convert a failed, blocked, or
 unvalidated module into a usable result.
+
+HTML and PDF render concurrently by default when both are requested (roughly
+halving wall-clock time). Above `max_concurrent_figures` embedded figures,
+they render sequentially instead, trading that speed for bounded peak
+memory -- a real 300+-figure report was killed (likely by the OS) rendering
+both formats concurrently.
 
 ## Ancestry backends
 

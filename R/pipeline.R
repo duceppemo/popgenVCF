@@ -221,7 +221,10 @@ finalize_pipeline_analysis <- function(analysis, registry, cfg, dirs) {
   utils::capture.output(utils::sessionInfo(), file = file.path(dirs$root, "sessionInfo.txt"))
   if (isTRUE(cfg$report$enabled)) {
     t0 <- proc.time()[["elapsed"]]
-    run_stage("manuscript report", render_report(results_rds, dirs$report, cfg$report$title, cfg$report$author))
+    run_stage("manuscript report", render_report(
+      results_rds, dirs$report, cfg$report$title, cfg$report$author,
+      max_concurrent_figures = cfg$report$max_concurrent_figures
+    ))
     analysis <- record_analysis_timing(analysis, "manuscript report", proc.time()[["elapsed"]] - t0)
     analysis <- record_analysis_message(analysis, "SUCCESS", "manuscript report", "completed")
   }

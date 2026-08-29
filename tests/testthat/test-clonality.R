@@ -70,7 +70,10 @@ test_that("run_clonality suppresses poppr::genotype_curve()'s per-locus monomorp
     message = function(m) msgs[[length(msgs) + 1L]] <<- conditionMessage(m)
   )
   expect_length(msgs, 0L)
-  expect_setequal(res$dropped_monomorphic_loci, c("snp3", "snp7"))
+  # geno is passed as both the full and LD-pruned set here, so the same two
+  # forced-monomorphic loci are dropped from both.
+  expect_setequal(res$dropped_monomorphic_full, c("snp3", "snp7"))
+  expect_setequal(res$dropped_monomorphic_ld, c("snp3", "snp7"))
 })
 
 test_that("run_clonality reports no dropped monomorphic loci when every locus is polymorphic", {
@@ -79,7 +82,43 @@ test_that("run_clonality reports no dropped monomorphic loci when every locus is
     sample = rownames(geno), population = rep(c("A", "B"), each = 10)
   )
   res <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 20)
-  expect_identical(res$dropped_monomorphic_loci, character())
+  expect_identical(res$dropped_monomorphic_full, character())
+  expect_identical(res$dropped_monomorphic_ld, character())
+})
+
+test_that("run_clonality drops monomorphic loci independently from the full and LD-pruned sets when they differ", {
+  geno <- clonality_fixture_genotype(n = 20L, l = 10L, seed = 5L)
+  # Monomorphic only in the full set (a locus not present in the LD-pruned subset).
+  geno[, "snp1"] <- 1L
+  ld_geno <- geno[, 2:6, drop = FALSE]
+  # Monomorphic only in the LD-pruned set.
+  ld_geno[, "snp4"] <- 0L
+  metadata <- data.table::data.table(
+    sample = rownames(geno), population = rep(c("A", "B"), each = 10)
+  )
+  res <- popgenVCF:::run_clonality(geno, ld_geno, rownames(geno), metadata, seed = 42, curve_replicates = 20)
+  expect_setequal(res$dropped_monomorphic_full, "snp1")
+  expect_setequal(res$dropped_monomorphic_ld, "snp4")
+})
+
+test_that("clonality_monomorphic_loci is a no-op on group/duplicate detection: dropping a monomorphic locus never changes which samples are flagged as sharing a genotype", {
+  geno <- clonality_fixture_genotype(n = 20L, l = 10L, seed = 7L)
+  geno["VCF_S2", ] <- geno["VCF_S1", ]
+  # A monomorphic locus (identical for everyone, including the real
+  # duplicate pair) is added on top; it must not change which pair is
+  # flagged, only reduce the analyzed locus count.
+  geno <- cbind(geno, mono_snp = 1L)
+  metadata <- data.table::data.table(
+    sample = rownames(geno), population = rep(c("A", "B"), each = 10)
+  )
+  with_mono <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 0)
+  without_mono <- popgenVCF:::run_clonality(
+    geno[, colnames(geno) != "mono_snp", drop = FALSE],
+    geno[, colnames(geno) != "mono_snp", drop = FALSE],
+    rownames(geno), metadata, seed = 42, curve_replicates = 0
+  )
+  expect_identical(with_mono$groups$samples, without_mono$groups$samples)
+  expect_setequal(with_mono$dropped_monomorphic_full, "mono_snp")
 })
 
 test_that("run_clonality's genotype accumulation curve is non-decreasing on average and bounded by the total MLG count", {

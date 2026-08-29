@@ -65,7 +65,8 @@ default_config <- function() {
                     snmf = list(enabled = FALSE, geno_file = NULL, q_sample_file = NULL,
                                 k = "2:10", repetitions = 5L, entropy = TRUE,
                                 threads = "auto")),
-    report = list(enabled = TRUE, title = "Population genomics analysis", author = "")
+    report = list(enabled = TRUE, title = "Population genomics analysis", author = "",
+                  max_concurrent_figures = 100L)
   )
 }
 
@@ -158,6 +159,10 @@ validate_config <- function(cfg) {
   cfg$compute$seed <- as.integer(cfg$compute$seed)
   cfg$output$dpi <- as.integer(cfg$output$dpi)
   cfg$output$base_font_size <- as.numeric(cfg$output$base_font_size)
+  cfg$report$max_concurrent_figures <- as.integer(cfg$report$max_concurrent_figures)
+  if (!is.finite(cfg$report$max_concurrent_figures) || cfg$report$max_concurrent_figures < 1L) {
+    stop("report.max_concurrent_figures must be a positive integer", call. = FALSE)
+  }
   cfg$analyses$hwe_alpha <- as.numeric(cfg$analyses$hwe_alpha)
   cfg$analyses$bottleneck_n_bins <- as.integer(cfg$analyses$bottleneck_n_bins)
   cfg$analyses$n_pcs <- as.integer(cfg$analyses$n_pcs)

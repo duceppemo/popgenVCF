@@ -370,17 +370,31 @@ run_module_clonality <- function(analysis, context) {
   analysis <- set_analysis_result(analysis, "clonality", result)
   write_tsv(result$summary, file.path(dirs$tables, "56_MLG_diversity_summary.tsv"))
   write_tsv(result$groups, file.path(dirs$tables, "57_MLG_groups.tsv"))
+  if (length(result$dropped_monomorphic_full)) {
+    data.table::fwrite(
+      data.table::data.table(locus = result$dropped_monomorphic_full),
+      file.path(dirs$tables, "57b_monomorphic_loci_dropped.csv")
+    )
+    full_msg <- sprintf(
+      "%d monomorphic locus/loci dropped from the full unpruned marker set before MLG duplicate detection (see 57b_monomorphic_loci_dropped.csv)",
+      length(result$dropped_monomorphic_full)
+    )
+    log_msg(full_msg)
+    analysis <- record_analysis_message(analysis, "INFO", "clonality", full_msg)
+  }
   if (nrow(result$curve)) write_tsv(result$curve, file.path(dirs$tables, "58_genotype_accumulation_curve.tsv"))
   if (nrow(result$msn_edges)) write_tsv(result$msn_edges, file.path(dirs$tables, "58b_MSN_edges.tsv"))
-  if (length(result$dropped_monomorphic_loci)) {
+  if (length(result$dropped_monomorphic_ld)) {
     data.table::fwrite(
-      data.table::data.table(locus = result$dropped_monomorphic_loci),
+      data.table::data.table(locus = result$dropped_monomorphic_ld),
       file.path(dirs$tables, "58c_monomorphic_loci_dropped.csv")
     )
-    log_msg(sprintf(
-      "%d monomorphic locus/loci dropped before the genotype accumulation curve (see 58c_monomorphic_loci_dropped.csv)",
-      length(result$dropped_monomorphic_loci)
-    ))
+    ld_msg <- sprintf(
+      "%d monomorphic locus/loci dropped from the LD-pruned marker set before poppr::poppr()'s Ia/rbarD summary, the genotype accumulation curve, and the minimum spanning network (see 58c_monomorphic_loci_dropped.csv)",
+      length(result$dropped_monomorphic_ld)
+    )
+    log_msg(ld_msg)
+    analysis <- record_analysis_message(analysis, "INFO", "clonality", ld_msg)
   }
   plot_clonality(result, cfg, dirs)
   plot_msn_network(result, cfg, dirs)
