@@ -1,4 +1,4 @@
-test_that("configuration enforces the fixed max_variant_missing contract; LD-pruning parameters are user-configurable", {
+test_that("QC and LD-pruning parameters are all user-configurable, with no forced override", {
   cfg <- default_config()
   cfg$input$vcf <- tempfile(fileext = ".vcf")
   cfg$input$metadata <- tempfile(fileext = ".tsv")
@@ -9,9 +9,9 @@ test_that("configuration enforces the fixed max_variant_missing contract; LD-pru
   cfg$qc$max_variant_missing <- 0.8
   cfg$qc$ld_slide_max_n <- 200L
   cfg$qc$ld_start_pos <- "random"
-  out <- suppressWarnings(validate_config(cfg))
+  out <- expect_silent(validate_config(cfg))
   expect_equal(out$qc$ld_r2, 0.8)
-  expect_equal(out$qc$max_variant_missing, 0.2)
+  expect_equal(out$qc$max_variant_missing, 0.8)
   expect_equal(out$qc$ld_slide_max_n, 200L)
   expect_identical(out$qc$ld_start_pos, "random")
 })

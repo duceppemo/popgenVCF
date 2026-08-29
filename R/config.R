@@ -128,19 +128,15 @@ validate_config <- function(cfg) {
   vals <- c(cfg$qc$maf, cfg$qc$max_variant_missing, cfg$qc$max_sample_missing, cfg$qc$ld_r2)
   if (any(!is.finite(vals)) || any(vals < 0) || any(vals > 1)) stop("QC proportions must be between zero and one", call. = FALSE)
   if (cfg$qc$maf > 0.5) stop("MAF cannot exceed 0.5", call. = FALSE)
-  # max_variant_missing stays a fixed part of the scientific QC contract: unlike
-  # the LD-pruning parameters below (which ld_prune_exact() alone consumes),
-  # it is also read directly by variant_qc() for ROH's own missingness gate
-  # (R/module_registry.R), so letting it vary would change more than just the
-  # marker panel LD-pruning selects from.
-  if (!isTRUE(all.equal(cfg$qc$max_variant_missing, 0.2))) {
-    warning("The fixed QC contract requires max_variant_missing = 0.2; overriding the configured value.", call. = FALSE)
-  }
-  cfg$qc$max_variant_missing <- 0.2
-  # ld_r2/ld_slide_max_bp/ld_slide_max_n/ld_start_pos are real, user-configurable
-  # LD-pruning parameters (threaded into ld_prune_exact()'s snpgdsLDpruning()
-  # call) -- validated, not silently overridden, so a bad value fails loudly
-  # instead of a configured choice being discarded without notice.
+  # max_variant_missing, ld_r2, ld_slide_max_bp/ld_slide_max_n/ld_start_pos are
+  # all real, user-configurable QC/LD-pruning parameters (threaded into
+  # variant_qc() and ld_prune_exact()'s snpgdsLDpruning() call, both in
+  # R/qc.R, and into run_roh()'s own missingness gate for max_variant_missing
+  # specifically) -- validated, not silently overridden, so a bad value fails
+  # loudly instead of a configured choice being discarded without notice.
+  # The values below (0.2 missingness, r^2 = 0.2, unbounded window, 50-SNP
+  # slide, start.pos = "first") are the historical defaults every prior
+  # release used, kept as defaults for continuity, not enforced as fixed.
   if (!is.finite(cfg$qc$ld_slide_max_n) || cfg$qc$ld_slide_max_n < 1L) {
     stop("qc.ld_slide_max_n must be a positive integer", call. = FALSE)
   }

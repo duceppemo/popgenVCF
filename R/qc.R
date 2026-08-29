@@ -111,7 +111,7 @@ variant_qc <- function(gds, sample_ids, ids, maf_threshold, max_missing = 0.2,
 
 ld_prune_exact <- function(gds, sample_ids, maf_threshold, threads, seed, snp_ids = NULL,
                            ld_r2 = 0.2, slide_max_bp = Inf, slide_max_n = 50L,
-                           start_pos = "first") {
+                           start_pos = "first", max_missing = 0.2) {
   safe_threads <- max(1L, min(as.integer(threads), 4L))
   set.seed(seed)
 
@@ -126,7 +126,7 @@ ld_prune_exact <- function(gds, sample_ids, maf_threshold, threads, seed, snp_id
     sample.id = sample_ids,
     snp.id = snp_ids,
     maf = maf_threshold,
-    missing.rate = 0.2,
+    missing.rate = max_missing,
     method = "corr",
     # ld_r2 is r^2 (the public, documented unit); snpgdsLDpruning()'s own
     # ld.threshold is on the r scale, hence the sqrt() conversion.

@@ -89,7 +89,7 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
 
   vq <- stage(
     "variant QC audit",
-    variant_qc(gds, sample_ids, ids, cfg$qc$maf, 0.2, cfg$analyses$sex_check_y_chromosome_names)
+    variant_qc(gds, sample_ids, ids, cfg$qc$maf, cfg$qc$max_variant_missing, cfg$analyses$sex_check_y_chromosome_names)
   )
   qc_snps_all <- vq[pass_combined == TRUE, snp_id]
   # Ploidy-sensitive modules (kinship, PCA, IBS, DAPC, ancestry backends, ROH,
@@ -115,7 +115,8 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
     ld_prune_exact(
       gds, sample_ids, cfg$qc$maf, cfg$compute$threads, cfg$compute$seed, snp_ids = qc_snps,
       ld_r2 = cfg$qc$ld_r2, slide_max_bp = cfg$qc$ld_slide_max_bp,
-      slide_max_n = cfg$qc$ld_slide_max_n, start_pos = cfg$qc$ld_start_pos
+      slide_max_n = cfg$qc$ld_slide_max_n, start_pos = cfg$qc$ld_start_pos,
+      max_missing = cfg$qc$max_variant_missing
     )
   )
   analysis$variants$ld_ids <- final_snps

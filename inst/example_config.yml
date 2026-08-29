@@ -27,10 +27,12 @@ compute:
   force_gds: false
 qc:
   maf: 0.05
-  # Fixed by the scientific QC contract at 0.20 regardless of what is set
-  # here -- validate_config() overrides any other value (with a warning) so
-  # every popgenVCF run measures variant missingness the same way. Also
-  # read directly by the ROH module's own missingness gate, not just QC.
+  # Maximum per-variant missing-genotype rate. Feeds both variant_qc()'s own
+  # QC gate (which SNPs enter LD pruning) and, via missing.rate below,
+  # ld_prune_exact()'s SNPRelate::snpgdsLDpruning() call, plus the ROH
+  # module's own missingness gate -- one configured value used consistently
+  # everywhere this concept applies. 0.20 is the historical default every
+  # prior release used, kept as the default for continuity, not enforced.
   max_variant_missing: 0.20
   max_sample_missing: 0.20
   # LD-pruning parameters (SNPRelate::snpgdsLDpruning(), via ld_prune_exact()
