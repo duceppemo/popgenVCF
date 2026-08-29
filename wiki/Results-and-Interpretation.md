@@ -8,9 +8,11 @@ your data. The complete PDF report from this same run is available at
 [`docs/examples/chr22-quickstart-report.pdf`](https://github.com/duceppemo/popgenVCF/blob/main/docs/examples/chr22-quickstart-report.pdf).
 
 Interpret execution state before biology. Begin with
-`analysis_execution_ledger.tsv` and `analysis_validation.tsv`. A module that is
-failed, blocked, cancelled, timed out, or unavailable has no interpretable
-biological result.
+`analysis_execution_ledger.tsv` and `analysis_validation.tsv`, and the
+report's own "Pipeline notices" section (every `WARNING`/`INFO` message
+recorded during the run, in one place). A module that is failed, blocked,
+cancelled, timed out, or unavailable has no interpretable biological
+result.
 
 ## Quality control
 
@@ -21,6 +23,22 @@ show which rule removed a sample or marker.
 
 Filtering defines the analyzed dataset. Avoid choosing thresholds after seeing
 the preferred population pattern.
+
+`00_vcf_variant_types.tsv` is the very first table written, before any QC
+threshold is applied: a transparency count of the raw input VCF's record
+types (`bcftools stats`), showing how many are the biallelic, polymorphic
+SNPs this pipeline actually analyzes versus indels, multiallelic sites,
+MNPs, or other variant types that `SNPRelate::snpgdsVCF2GDS(method =
+"biallelic.only")` silently retains or drops during VCF-to-GDS conversion.
+A raw VCF straight off a variant caller does not need to be pre-filtered --
+this table exists so you can *see* that filtering happened, not just trust
+that it did. On the quickstart example all 98,922 input records are already
+biallelic SNPs (`total_records` = `biallelic_snps_retained` = 98,922,
+nothing dropped); a real, messier VCF will show a real difference here. Any
+run with at least one dropped record also logs a one-line summary to
+`pipeline.log` and adds an `INFO`-level entry to the report's own "Pipeline
+notices" section (present only when there is at least one `WARNING` or
+`INFO` message to show).
 
 ![Minor allele frequency distribution from the quickstart example, with the retention threshold marked](figures/01_MAF.png)
 

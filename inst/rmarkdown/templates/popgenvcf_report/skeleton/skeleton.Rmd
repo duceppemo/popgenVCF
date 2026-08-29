@@ -27,7 +27,8 @@ if (inherits(r, "PopgenVCFAnalysis")) {
       qc_snps = a$variants$qc_ids,
       final_snps = a$variants$ld_ids,
       qc = a$variants$reports,
-      package_version = a$package_version
+      package_version = a$package_version,
+      messages = a$messages
     ),
     a$results
   )
@@ -98,6 +99,12 @@ R users; it is not required to read this report.
 The analysis retained **`r nrow(r$metadata)` samples** from **`r data.table::uniqueN(r$metadata$population)` populations**, with **`r length(r$qc_snps)` QC-passing SNPs** and **`r length(r$final_snps)` LD-pruned SNPs**.
 
 ```{r analysis-sections, results='asis'}
+pipeline_notices <- NULL
+if (!is.null(r$messages) && nrow(r$messages)) {
+  pipeline_notices <- r$messages[r$messages$level %in% c("WARNING", "INFO"), c("stage", "level", "message")]
+  if (!nrow(pipeline_notices)) pipeline_notices <- NULL
+}
+report_table_section("Pipeline notices", pipeline_notices)
 if (!is.null(r$fst$global) && length(r$fst$global) &&
     is.finite(r$fst$global[[1L]])) {
   cat(sprintf(

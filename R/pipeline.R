@@ -37,6 +37,21 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
   analysis$inputs$vcf_path <- prepared_vcf$path
   analysis$inputs$vcf_index <- prepared_vcf$index
   analysis$inputs$vcf_normalized <- prepared_vcf$normalized
+  variant_types <- stage("VCF variant-type summary", vcf_variant_type_summary(prepared_vcf$path))
+  analysis$inputs$variant_types <- variant_types
+  write_tsv(variant_types, file.path(dirs$tables, "00_vcf_variant_types.tsv"))
+  log_msg(sprintf(
+    "VCF variant types: %s total record(s), %s biallelic SNP(s) retained, %s dropped (indels, multiallelic sites, MNPs, and other variant types) -- see 00_vcf_variant_types.tsv",
+    format(variant_types$total_records, big.mark = ","),
+    format(variant_types$biallelic_snps_retained, big.mark = ","),
+    format(variant_types$dropped_non_biallelic_snp, big.mark = ",")
+  ))
+  analysis <- record_analysis_message(analysis, "INFO", "VCF preparation", sprintf(
+    "%s of %s VCF record(s) are biallelic SNPs (%s dropped as indels, multiallelic sites, MNPs, or other variant types); see 00_vcf_variant_types.tsv",
+    format(variant_types$biallelic_snps_retained, big.mark = ","),
+    format(variant_types$total_records, big.mark = ","),
+    format(variant_types$dropped_non_biallelic_snp, big.mark = ",")
+  ))
   gds_path <- file.path(dirs$cache, "genotypes.gds")
   gds <- stage("GDS preparation", prepare_gds(prepared_vcf$path, gds_path, cfg$compute$force_gds))
   analysis$inputs$gds_path <- gds_path

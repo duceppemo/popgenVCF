@@ -122,3 +122,70 @@ test_that("force = TRUE always rebuilds regardless of cache validity", {
 
   expect_gt(file.info(second$path)$mtime, cached_mtime)
 })
+
+# Real production motivation (reported directly by a user): a raw VCF
+# straight off a variant caller mixes indels, multiallelic sites, MNPs, and
+# structural variants in with genuine biallelic SNPs. SNPRelate::snpgdsVCF2GDS(
+# method = "biallelic.only") already silently retains only the biallelic
+# SNPs (confirmed directly against the installed SNPRelate -- see
+# R/io.R's prepare_gds()), but until vcf_variant_type_summary() there was no
+# way for a user to see how many records were dropped, or why.
+write_mixed_variant_type_vcf <- function(path) {
+  writeLines(c(
+    "##fileformat=VCFv4.2",
+    "##contig=<ID=1,length=1000>",
+    "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">",
+    "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ts1\ts2\ts3\ts4",
+    "1\t100\tsnp_true_biallelic\tA\tG\t.\tPASS\t.\tGT\t0/0\t0/1\t1/1\t0/1",
+    "1\t200\tindel_insertion\tA\tATG\t.\tPASS\t.\tGT\t0/0\t0/1\t1/1\t0/1",
+    "1\t300\tindel_deletion\tATG\tA\t.\tPASS\t.\tGT\t0/0\t0/1\t1/1\t0/1",
+    "1\t400\tsnp_multiallelic\tA\tG,T\t.\tPASS\t.\tGT\t0/1\t1/2\t0/2\t0/0",
+    "1\t500\tsnp_biallelic_2\tC\tT\t.\tPASS\t.\tGT\t0/1\t0/0\t1/1\t0/1",
+    "1\t600\tmnp_variant\tAC\tGT\t.\tPASS\t.\tGT\t0/1\t0/0\t1/1\t0/1",
+    "1\t700\tstructural_sv\tA\t<DEL>\t.\tPASS\t.\tGT\t0/1\t0/0\t1/1\t0/1"
+  ), path, useBytes = TRUE)
+}
+
+test_that("vcf_variant_type_summary correctly classifies a raw VCF mixing SNPs, indels, a multiallelic site, an MNP, and a structural variant", {
+  skip_if(Sys.which("bcftools") == "", "bcftools is not available")
+  vcf <- tempfile(fileext = ".vcf")
+  write_mixed_variant_type_vcf(vcf)
+
+  summary <- popgenVCF:::vcf_variant_type_summary(vcf)
+
+  expect_equal(summary$total_records, 7L)
+  expect_equal(summary$biallelic_snps_retained, 2L)
+  expect_equal(summary$dropped_non_biallelic_snp, 5L)
+  expect_equal(summary$indels, 2L)
+  expect_equal(summary$mnps, 1L)
+  expect_equal(summary$multiallelic_snp_sites, 1L)
+  expect_equal(summary$other_variant_types, 1L)
+})
+
+test_that("vcf_variant_type_summary's biallelic_snps_retained matches what SNPRelate::snpgdsVCF2GDS(method = \"biallelic.only\") actually retains", {
+  skip_if(Sys.which("bcftools") == "", "bcftools is not available")
+  skip_if_not_installed("SNPRelate")
+  vcf <- tempfile(fileext = ".vcf")
+  write_mixed_variant_type_vcf(vcf)
+
+  summary <- popgenVCF:::vcf_variant_type_summary(vcf)
+  gds_path <- tempfile(fileext = ".gds")
+  SNPRelate::snpgdsVCF2GDS(vcf, gds_path, method = "biallelic.only", verbose = FALSE)
+  gds <- SNPRelate::snpgdsOpen(gds_path)
+  on.exit(SNPRelate::snpgdsClose(gds), add = TRUE)
+  n_retained <- length(gdsfmt::read.gdsn(gdsfmt::index.gdsn(gds, "snp.id")))
+
+  expect_equal(summary$biallelic_snps_retained, n_retained)
+})
+
+test_that("vcf_variant_type_summary reports zero dropped records for a VCF that is already all biallelic SNPs", {
+  skip_if(Sys.which("bcftools") == "", "bcftools is not available")
+  vcf <- tempfile(fileext = ".vcf")
+  write_minimal_vcf(vcf)
+
+  summary <- popgenVCF:::vcf_variant_type_summary(vcf)
+
+  expect_equal(summary$total_records, 2L)
+  expect_equal(summary$biallelic_snps_retained, 2L)
+  expect_equal(summary$dropped_non_biallelic_snp, 0L)
+})

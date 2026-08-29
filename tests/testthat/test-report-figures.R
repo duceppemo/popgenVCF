@@ -456,6 +456,50 @@ test_that("HTML reports include the loading and private-allele sections when the
   expect_match(html, "31_PCA_loadings.tsv", fixed = TRUE)
 })
 
+test_that("HTML reports show a Pipeline notices section with WARNING/INFO messages, filtering out routine SUCCESS entries", {
+  skip_if_not(rmarkdown::pandoc_available())
+  root <- tempfile("pipeline-notices-report-")
+  dir.create(root)
+  results <- file.path(root, "analysis_results.rds")
+  populated <- minimal_standard_report_result()
+  populated$messages <- data.table::data.table(
+    timestamp = Sys.time(),
+    level = c("SUCCESS", "WARNING", "INFO"),
+    stage = c("VCF preparation", "clonality", "VCF preparation"),
+    message = c(
+      "completed",
+      "some real warning text",
+      "5 of 7 VCF record(s) are biallelic SNPs (2 dropped)"
+    )
+  )
+  saveRDS(populated, results)
+
+  rendered <- render_report(results, file.path(root, "report"), formats = "html")
+  html <- paste(readLines(rendered[["html"]], warn = FALSE), collapse = "\n")
+
+  expect_match(html, "Pipeline notices", fixed = TRUE)
+  expect_match(html, "some real warning text", fixed = TRUE)
+  expect_match(html, "biallelic SNPs", fixed = TRUE)
+})
+
+test_that("HTML reports omit the Pipeline notices section entirely when there are no WARNING/INFO messages", {
+  skip_if_not(rmarkdown::pandoc_available())
+  root <- tempfile("no-pipeline-notices-report-")
+  dir.create(root)
+  results <- file.path(root, "analysis_results.rds")
+  populated <- minimal_standard_report_result()
+  populated$messages <- data.table::data.table(
+    timestamp = Sys.time(), level = "SUCCESS",
+    stage = "VCF preparation", message = "completed"
+  )
+  saveRDS(populated, results)
+
+  rendered <- render_report(results, file.path(root, "report"), formats = "html")
+  html <- paste(readLines(rendered[["html"]], warn = FALSE), collapse = "\n")
+
+  expect_no_match(html, "Pipeline notices", fixed = TRUE)
+})
+
 test_that("standard report rejects unsupported formats", {
   expect_error(
     render_report(tempfile(), tempfile(), formats = "docx"),

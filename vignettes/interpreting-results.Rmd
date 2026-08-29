@@ -24,6 +24,8 @@ Population-genomic outputs are summaries of a particular sample, marker set, fil
 
 ## Execution and evidence states
 
+Start with `analysis_execution_ledger.tsv`, `analysis_validation.tsv`, and the report's own "Pipeline notices" section (every `WARNING`/`INFO` message recorded during the run, in one place; present only when there is at least one to show).
+
 | State | Meaning | Interpretation rule |
 |---|---|---|
 | `success` | The module completed | Interpret only after its validation record passes |
@@ -41,6 +43,8 @@ Sample and variant QC determine the data on which every downstream result depend
 Review missingness, heterozygosity, minor-allele frequency, retained sample counts, retained variant counts, chromosome representation, and the exact LD-pruned SNP list. Large changes after one threshold deserve explanation. A sample with unusual heterozygosity may reflect biology, contamination, ploidy mismatch, mapping error, or sample mixture; the statistic alone does not identify the cause.
 
 Filtering can change ordinations, distances, diversity, and differentiation. Report thresholds and sensitivity analyses when conclusions depend on a narrow filtering choice.
+
+`00_vcf_variant_types.tsv` is the very first table written, before any QC threshold: a `bcftools stats`-based transparency count of the raw input VCF's record types, showing how many are the biallelic, polymorphic SNPs this pipeline analyzes versus indels, multiallelic sites, MNPs, or other variant types `SNPRelate::snpgdsVCF2GDS(method = "biallelic.only")` silently drops during VCF-to-GDS conversion. A raw VCF straight off a variant caller does not need pre-filtering -- this table exists so you can see that filtering happened, not just trust that it did. Any run with at least one dropped record also logs a summary line and adds an `INFO` entry to the report's own "Pipeline notices" section.
 
 ```{r maf-figure, echo=FALSE, out.width="90%"}
 knitr::include_graphics("figures/01_MAF.png")
