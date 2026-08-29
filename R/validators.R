@@ -399,6 +399,16 @@ validate_dapc_result <- function(result, analysis, context) {
       threshold <- context$cfg$analyses$structure$reproducibility_rmse %||% 0.05
       if (is.finite(max_rmse) && max_rmse > threshold) warnings <- c(warnings, "DAPC replicate membership exceeds configured RMSE threshold")
     }
+    if ("replicate_min_cluster_correlation" %in% names(result$diagnostics)) {
+      corr <- suppressWarnings(as.numeric(
+        result$diagnostics$replicate_min_cluster_correlation
+      ))
+      finite_corr <- corr[is.finite(corr)]
+      min_corr <- if (length(finite_corr)) min(finite_corr) else NA_real_
+      metrics$minimum_replicate_cluster_correlation <- min_corr
+      corr_threshold <- context$cfg$analyses$structure$minimum_cluster_correlation %||% 0.90
+      if (is.finite(min_corr) && min_corr < corr_threshold) warnings <- c(warnings, "DAPC replicate membership is below the configured minimum cluster correlation")
+    }
   }
   validation_result(!length(errors), errors, warnings, metrics)
 }

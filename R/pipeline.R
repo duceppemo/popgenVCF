@@ -112,7 +112,11 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
   analysis$variants$qc_ids_all <- qc_snps_all
   final_snps <- stage(
     "exact SNPRelate LD pruning",
-    ld_prune_exact(gds, sample_ids, cfg$qc$maf, cfg$compute$threads, cfg$compute$seed, snp_ids = qc_snps)
+    ld_prune_exact(
+      gds, sample_ids, cfg$qc$maf, cfg$compute$threads, cfg$compute$seed, snp_ids = qc_snps,
+      ld_r2 = cfg$qc$ld_r2, slide_max_bp = cfg$qc$ld_slide_max_bp,
+      slide_max_n = cfg$qc$ld_slide_max_n, start_pos = cfg$qc$ld_start_pos
+    )
   )
   analysis$variants$ld_ids <- final_snps
   validate_analysis(analysis, "ordination")

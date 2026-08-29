@@ -1,4 +1,4 @@
-dapc_plot_fixture <- function(rmse = 0.01, with_replicates = TRUE, with_loadings = FALSE) {
+dapc_plot_fixture <- function(rmse = 0.01, with_replicates = TRUE, with_loadings = FALSE, min_corr = NA_real_) {
   coordinates <- data.table::data.table(
     sample = c("sample_1", "sample_2", "sample_3", "sample_4"),
     population = c("A", "A", "B", "B"),
@@ -28,11 +28,17 @@ dapc_plot_fixture <- function(rmse = 0.01, with_replicates = TRUE, with_loadings
       `2` = list(
         coordinates = coordinates,
         membership = membership,
-        reproducibility = if (with_replicates) list(metrics = data.frame(rmse = rmse)) else NULL,
+        reproducibility = if (with_replicates) {
+          list(metrics = data.frame(rmse = rmse, minimum_cluster_correlation = min_corr))
+        } else {
+          NULL
+        },
         loadings = loadings
       )
     ),
-    diagnostics = data.table::data.table(K = 2L, replicate_max_rmse = rmse)
+    diagnostics = data.table::data.table(
+      K = 2L, replicate_max_rmse = rmse, replicate_min_cluster_correlation = min_corr
+    )
   )
 }
 
@@ -153,6 +159,37 @@ test_that("unstable DAPC figures warn against interpreting assignments", {
   )))
 })
 
+test_that("unstable DAPC figures warn on a low minimum cluster correlation even when RMSE is fine", {
+  plots <- list()
+  local_mocked_bindings(
+    save_plot = function(p, stem, ...) {
+      plots[[stem]] <<- p
+      invisible(TRUE)
+    },
+    .package = "popgenVCF"
+  )
+  cfg <- default_config()
+  cfg$analyses$structure$reproducibility_rmse <- 0.05
+  cfg$analyses$structure$minimum_cluster_correlation <- 0.90
+  plot_dapc(dapc_plot_fixture(rmse = 0.01, min_corr = 0.5), cfg, list(figures = tempdir()))
+
+  subtitles <- vapply(plots, function(p) p$labels$subtitle, character(1))
+  expect_true(all(grepl("WARNING", subtitles, fixed = TRUE)))
+  expect_true(all(grepl("minimum cluster correlation = 0.5 < 0.9", subtitles, fixed = TRUE)))
+  expect_false(any(grepl("RMSE = 0.01 >", subtitles, fixed = TRUE)))
+})
+
+test_that("stable DAPC figures report the minimum cluster correlation alongside RMSE when available", {
+  annotation <- popgenVCF:::dapc_reproducibility_annotation(
+    dapc_plot_fixture(rmse = 0.01, min_corr = 0.97),
+    2L,
+    default_config()
+  )
+
+  expect_false(annotation$unstable)
+  expect_match(annotation$text, "minimum cluster correlation = 0.97")
+})
+
 test_that("DAPC figures distinguish unavailable replicate RMSE", {
   annotation <- popgenVCF:::dapc_reproducibility_annotation(
     dapc_plot_fixture(rmse = 0, with_replicates = FALSE),
@@ -175,4 +212,17 @@ test_that("DAPC validation handles entirely missing replicate RMSE", {
   expect_true(validation$valid)
   expect_length(validation$warnings, 0L)
   expect_true(is.na(validation$metrics$maximum_replicate_rmse))
+})
+
+test_that("DAPC validation warns when the minimum cluster correlation is below the configured threshold", {
+  result <- dapc_plot_fixture(rmse = 0.01, min_corr = 0.5)
+  cfg <- default_config()
+  cfg$analyses$structure$minimum_cluster_correlation <- 0.90
+  validation <- popgenVCF:::validate_dapc_result(
+    result, analysis = NULL, context = list(cfg = cfg)
+  )
+
+  expect_true(validation$valid)
+  expect_match(validation$warnings, "minimum cluster correlation", all = FALSE)
+  expect_equal(validation$metrics$minimum_replicate_cluster_correlation, 0.5)
 })

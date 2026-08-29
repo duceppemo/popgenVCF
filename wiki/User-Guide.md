@@ -78,7 +78,7 @@ reliably. Keep one row for every VCF sample even when annotations are missing.
 | `population` | Optional group, but must be complete to enable population and spatial modules |
 | `latitude` | Signed decimal degrees north/south; missing pair members exclude that sample spatially |
 | `longitude` | Signed decimal degrees east/west; missing pair members exclude that sample spatially |
-| `individual` | Optional biological-individual grouping |
+| `individual` | Optional biological-individual grouping -- but see the note below: it doubles as a `sample` synonym when no `sample`/`sample_id`/`id` column exists |
 | `family` | Optional family/pedigree grouping; repeated values are allowed |
 | `replicate` | Optional replicate grouping; repeated values are allowed |
 | `display_order` | Optional positive integer; non-missing values must be unique |
@@ -88,6 +88,14 @@ reliably. Keep one row for every VCF sample even when annotations are missing.
 Header names are normalized to lowercase with underscores. Common sample-key
 synonyms and `pop` are recognized, but new files should use `sample` and
 `population` explicitly to avoid ambiguity with the `individual` grouping.
+
+`individual` has a dual role: the sample-key synonym list is, in priority
+order, `sample`, `sample_id`, `id`, `individual`, `individual_id`. If a file
+has none of `sample`/`sample_id`/`id`, its `individual` column is consumed as
+the required identity key instead of staying a grouping annotation -- add an
+explicit `sample` column (or set `input.sample_column`) if you want
+`individual` to stay a plain grouping column while also having a distinct
+sample-key column.
 
 If an existing column already holds population-equivalent data under a name
 that is not auto-detected (`pathotype`, `lineage`, `clade`, ...), set

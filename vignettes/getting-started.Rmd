@@ -191,7 +191,7 @@ images are embedded in the report for portability.
 ```r
 analysis <- readRDS("results/analysis_results.rds")
 summary(analysis)
-popgenVCF::list_analyses()
+popgenVCF::list_analyses(popgenVCF::default_analysis_registry())
 popgenVCF::get_analysis_result(analysis, "pca")
 ```
 

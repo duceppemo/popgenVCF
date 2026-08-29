@@ -38,6 +38,29 @@ test_that("ld_prune_exact restricts pruning to a supplied candidate SNP set", {
   expect_true(any(!pruned_all %in% autosomal_candidates))
 })
 
+test_that("ld_prune_exact's ld_r2/slide_max_bp/slide_max_n/start_pos arguments really reach snpgdsLDpruning (not silently ignored)", {
+  captured <- NULL
+  testthat::local_mocked_bindings(
+    snpgdsLDpruning = function(gdsobj, ..., ld.threshold, slide.max.bp, slide.max.n, start.pos) {
+      captured <<- list(
+        ld.threshold = ld.threshold, slide.max.bp = slide.max.bp,
+        slide.max.n = slide.max.n, start.pos = start.pos
+      )
+      list(chr1 = 1L)
+    },
+    .package = "SNPRelate"
+  )
+  gds_placeholder <- structure(list(), class = "gds.class")
+  popgenVCF:::ld_prune_exact(
+    gds_placeholder, c("s1", "s2"), maf_threshold = 0.05, threads = 1L, seed = 42L,
+    ld_r2 = 0.7, slide_max_bp = 250000, slide_max_n = 200L, start_pos = "random"
+  )
+  expect_equal(captured$ld.threshold, sqrt(0.7))
+  expect_equal(captured$slide.max.n, 200L)
+  expect_identical(captured$start.pos, "random")
+  expect_true(is.finite(captured$slide.max.bp) && captured$slide.max.bp > 0)
+})
+
 # A second, more severe real regression chromosome Y exposed (found while
 # adding a real chromosome Y demo dataset): a chromosome only one sex has
 # by biology (e.g. human chromosome Y) is ~100% "missing" in the other sex.

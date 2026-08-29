@@ -109,7 +109,9 @@ variant_qc <- function(gds, sample_ids, ids, maf_threshold, max_missing = 0.2,
   dt
 }
 
-ld_prune_exact <- function(gds, sample_ids, maf_threshold, threads, seed, snp_ids = NULL) {
+ld_prune_exact <- function(gds, sample_ids, maf_threshold, threads, seed, snp_ids = NULL,
+                           ld_r2 = 0.2, slide_max_bp = Inf, slide_max_n = 50L,
+                           start_pos = "first") {
   safe_threads <- max(1L, min(as.integer(threads), 4L))
   set.seed(seed)
 
@@ -117,7 +119,7 @@ ld_prune_exact <- function(gds, sample_ids, maf_threshold, threads, seed, snp_id
   # Inf then becomes NA and can trigger an error or disable the intended
   # comparison window. Normalize the unbounded public setting before crossing
   # the SNPRelate API boundary.
-  effective_slide_max_bp <- normalize_ld_window_bp(Inf)
+  effective_slide_max_bp <- normalize_ld_window_bp(slide_max_bp)
 
   z <- SNPRelate::snpgdsLDpruning(
     gds,
@@ -126,10 +128,12 @@ ld_prune_exact <- function(gds, sample_ids, maf_threshold, threads, seed, snp_id
     maf = maf_threshold,
     missing.rate = 0.2,
     method = "corr",
-    ld.threshold = sqrt(0.2),
+    # ld_r2 is r^2 (the public, documented unit); snpgdsLDpruning()'s own
+    # ld.threshold is on the r scale, hence the sqrt() conversion.
+    ld.threshold = sqrt(ld_r2),
     slide.max.bp = effective_slide_max_bp,
-    slide.max.n = 50L,
-    start.pos = "first",
+    slide.max.n = as.integer(slide_max_n),
+    start.pos = start_pos,
     autosome.only = FALSE,
     num.thread = safe_threads,
     verbose = FALSE

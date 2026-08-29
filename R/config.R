@@ -128,10 +128,30 @@ validate_config <- function(cfg) {
   vals <- c(cfg$qc$maf, cfg$qc$max_variant_missing, cfg$qc$max_sample_missing, cfg$qc$ld_r2)
   if (any(!is.finite(vals)) || any(vals < 0) || any(vals > 1)) stop("QC proportions must be between zero and one", call. = FALSE)
   if (cfg$qc$maf > 0.5) stop("MAF cannot exceed 0.5", call. = FALSE)
-  fixed_changed <- !isTRUE(all.equal(cfg$qc$ld_r2, 0.2)) || !isTRUE(all.equal(cfg$qc$max_variant_missing, 0.2))
-  if (fixed_changed) warning("The fixed QC contract requires max_variant_missing = 0.2 and LD r^2 = 0.2; overriding configured values.", call. = FALSE)
-  cfg$qc$ld_r2 <- 0.2; cfg$qc$max_variant_missing <- 0.2
-  cfg$qc$ld_slide_max_bp <- Inf; cfg$qc$ld_slide_max_n <- 50L; cfg$qc$ld_start_pos <- "first"
+  # max_variant_missing stays a fixed part of the scientific QC contract: unlike
+  # the LD-pruning parameters below (which ld_prune_exact() alone consumes),
+  # it is also read directly by variant_qc() for ROH's own missingness gate
+  # (R/module_registry.R), so letting it vary would change more than just the
+  # marker panel LD-pruning selects from.
+  if (!isTRUE(all.equal(cfg$qc$max_variant_missing, 0.2))) {
+    warning("The fixed QC contract requires max_variant_missing = 0.2; overriding the configured value.", call. = FALSE)
+  }
+  cfg$qc$max_variant_missing <- 0.2
+  # ld_r2/ld_slide_max_bp/ld_slide_max_n/ld_start_pos are real, user-configurable
+  # LD-pruning parameters (threaded into ld_prune_exact()'s snpgdsLDpruning()
+  # call) -- validated, not silently overridden, so a bad value fails loudly
+  # instead of a configured choice being discarded without notice.
+  if (!is.finite(cfg$qc$ld_slide_max_n) || cfg$qc$ld_slide_max_n < 1L) {
+    stop("qc.ld_slide_max_n must be a positive integer", call. = FALSE)
+  }
+  cfg$qc$ld_slide_max_n <- as.integer(cfg$qc$ld_slide_max_n)
+  if (!identical(cfg$qc$ld_slide_max_bp, Inf) && (!is.finite(cfg$qc$ld_slide_max_bp) || cfg$qc$ld_slide_max_bp <= 0)) {
+    stop("qc.ld_slide_max_bp must be a positive number or Inf", call. = FALSE)
+  }
+  cfg$qc$ld_start_pos <- as.character(cfg$qc$ld_start_pos)[1L]
+  if (!cfg$qc$ld_start_pos %in% c("first", "last", "random", "random.f500")) {
+    stopf("qc.ld_start_pos must be one of \"first\", \"last\", \"random\", \"random.f500\" (SNPRelate::snpgdsLDpruning()'s own accepted values); got %s", cfg$qc$ld_start_pos)
+  }
   cfg$qc$non_autosomal_chromosome_names <- as.character(cfg$qc$non_autosomal_chromosome_names)
 
   if (is.null(cfg$compute$memory_mb)) {

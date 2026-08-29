@@ -75,11 +75,25 @@ qc:
   max_sample_missing: 0.20
   max_variant_missing: 0.20
   ld_r2: 0.20
+  ld_slide_max_bp: .inf
+  ld_slide_max_n: 50
+  ld_start_pos: first
 ```
 
 Thresholds are part of the scientific method. Choose them before examining the
 desired result and report any deviation from a preregistered or validated
 analysis plan.
+
+`max_variant_missing` is a fixed part of the scientific QC contract: any
+configured value is overridden back to `0.20` (with a warning), so every
+run measures variant missingness the same way -- it is also read directly by
+the ROH module's own missingness gate, not just QC. `maf` and
+`max_sample_missing` are always genuinely configurable. `ld_r2`,
+`ld_slide_max_bp`, `ld_slide_max_n`, and `ld_start_pos`
+(`SNPRelate::snpgdsLDpruning()`'s own parameters -- distance/window/count
+bounds and where each chromosome's pruning starts) are configurable too; the
+values shown above are the defaults every prior release used, kept as
+defaults for continuity rather than forced.
 
 ## Analyses
 

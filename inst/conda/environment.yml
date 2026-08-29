@@ -33,7 +33,6 @@ dependencies:
   - r-covr
   - r-hierfstat
   - r-knitr
-  - r-patchwork
   - r-pcadapt
   - r-phangorn
   - r-pkgdown

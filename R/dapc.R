@@ -161,6 +161,11 @@ run_dapc_k_task <- function(k, gl, shared_pca, max_pca, sample_ids,
         NA_real_
       } else {
         max(reproducibility$metrics$rmse)
+      },
+      replicate_min_cluster_correlation = if (is.null(reproducibility)) {
+        NA_real_
+      } else {
+        min(reproducibility$metrics$minimum_cluster_correlation)
       }
     ),
     replicate_membership = reps
@@ -234,11 +239,21 @@ run_dapc_analysis <- function(geno, sample_ids, metadata, k_values, seed,
 }
 
 dapc_reproducibility_annotation <- function(dapc, k, cfg) {
-  threshold <- cfg$analyses$structure$reproducibility_rmse %||% 0.05
+  rmse_threshold <- cfg$analyses$structure$reproducibility_rmse %||% 0.05
+  corr_threshold <- cfg$analyses$structure$minimum_cluster_correlation %||% 0.90
   diagnostics <- data.table::as.data.table(dapc$diagnostics)
   row <- diagnostics[as.character(K) == as.character(k)]
   rmse <- if (nrow(row) && "replicate_max_rmse" %in% names(row)) {
     suppressWarnings(as.numeric(row$replicate_max_rmse[[1L]]))
+  } else {
+    NA_real_
+  }
+  # minimum_cluster_correlation's own companion diagnostic (structure_reproducibility()'s
+  # per-replicate worst-cluster correlation to the reference replicate, R/population_structure.R)
+  # -- absent from a hand-built diagnostics table (e.g. an older cache or a test fixture)
+  # is treated the same as "not estimated", not as a hard failure.
+  min_corr <- if (nrow(row) && "replicate_min_cluster_correlation" %in% names(row)) {
+    suppressWarnings(as.numeric(row$replicate_min_cluster_correlation[[1L]]))
   } else {
     NA_real_
   }
@@ -248,30 +263,47 @@ dapc_reproducibility_annotation <- function(dapc, k, cfg) {
     return(list(
       text = sprintf(
         "Replicate membership RMSE not estimated (stability threshold = %.4g).",
-        threshold
+        rmse_threshold
       ),
       unstable = FALSE
     ))
   }
-  if (rmse > threshold) {
+  rmse_unstable <- rmse > rmse_threshold
+  corr_unstable <- length(min_corr) > 0L && is.finite(min_corr) && min_corr < corr_threshold
+  if (rmse_unstable || corr_unstable) {
+    detail <- if (rmse_unstable && corr_unstable) {
+      sprintf(
+        "RMSE = %.4g > %.4g, minimum cluster correlation = %.4g < %.4g",
+        rmse, rmse_threshold, min_corr, corr_threshold
+      )
+    } else if (rmse_unstable) {
+      sprintf("RMSE = %.4g > %.4g", rmse, rmse_threshold)
+    } else {
+      sprintf("minimum cluster correlation = %.4g < %.4g", min_corr, corr_threshold)
+    }
     return(list(
       text = sprintf(
         paste0(
           "WARNING: DAPC replicate membership is unstable ",
-          "(RMSE = %.4g > %.4g).\nAvoid interpreting these assignments."
+          "(%s).\nAvoid interpreting these assignments."
         ),
-        rmse, threshold
+        detail
       ),
       unstable = TRUE
     ))
   }
-  list(
-    text = sprintf(
+  text <- if (is.finite(min_corr)) {
+    sprintf(
+      "Replicate membership RMSE = %.4g (stability threshold = %.4g); minimum cluster correlation = %.4g (threshold = %.4g).",
+      rmse, rmse_threshold, min_corr, corr_threshold
+    )
+  } else {
+    sprintf(
       "Replicate membership RMSE = %.4g (stability threshold = %.4g).",
-      rmse, threshold
-    ),
-    unstable = FALSE
-  )
+      rmse, rmse_threshold
+    )
+  }
+  list(text = text, unstable = FALSE)
 }
 
 plot_dapc_loading_manhattan <- function(loadings, k, cfg, dirs, profile) {

@@ -27,11 +27,26 @@ compute:
   force_gds: false
 qc:
   maf: 0.05
+  # Fixed by the scientific QC contract at 0.20 regardless of what is set
+  # here -- validate_config() overrides any other value (with a warning) so
+  # every popgenVCF run measures variant missingness the same way. Also
+  # read directly by the ROH module's own missingness gate, not just QC.
   max_variant_missing: 0.20
   max_sample_missing: 0.20
+  # LD-pruning parameters (SNPRelate::snpgdsLDpruning(), via ld_prune_exact()
+  # in R/qc.R) -- genuinely configurable; these are the historical fixed
+  # values every prior release used, kept as the default for continuity.
+  # ld_r2 is r^2 (this codebase's own public unit); snpgdsLDpruning()'s
+  # ld.threshold is on the r scale, so it is passed sqrt(ld_r2) internally.
   ld_r2: 0.20
+  # Maximum physical distance (bp) between two SNPs still compared for LD;
+  # .inf disables the distance cap entirely (only slide_max_n bounds the
+  # comparison window).
   ld_slide_max_bp: .inf
+  # Maximum number of preceding SNPs compared against each candidate.
   ld_slide_max_n: 50
+  # Where each chromosome's pruning starts: first, last, random, or
+  # random.f500 (snpgdsLDpruning()'s own accepted values).
   ld_start_pos: first
   # Excludes sex/mitochondrial chromosomes from kinship, PCA, DAPC, ancestry
   # backends, ROH, FST, genome scans, diversity, and AMOVA -- these assume

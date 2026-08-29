@@ -62,7 +62,6 @@ Suggests:
     hierfstat,
     LEA,
     knitr,
-    patchwork,
     pcadapt,
     phangorn,
     pkgdown,
