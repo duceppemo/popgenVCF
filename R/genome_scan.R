@@ -102,13 +102,9 @@ run_genome_scan_fst <- function(gds, snp_ids, ids, metadata, window_bp, step_bp,
       on.exit(SNPRelate::snpgdsClose(worker_gds), add = TRUE)
       lapply(idx, window_fst_stat, gds_conn = worker_gds)
     }, mc.cores = workers, mc.preschedule = FALSE, mc.set.seed = FALSE)
-    failed <- vapply(chunk_results, inherits, logical(1L), what = "try-error")
-    if (any(failed)) {
-      stop(
-        "Parallel genome-scan FST computation failed for ", sum(failed),
-        " window chunk(s)", call. = FALSE
-      )
-    }
+    check_mclapply_results(
+      chunk_results, paste0("chunk ", seq_along(chunks)), "genome-scan FST computation"
+    )
     unlist(chunk_results, recursive = FALSE)
   }
   windows[, n_snps := vapply(results, `[[`, integer(1L), "n_snps")]
@@ -168,13 +164,7 @@ run_genome_scan_diversity <- function(locus_table, window_bp, step_bp, min_snps,
       populations, diversity_scan_windows,
       mc.cores = workers, mc.preschedule = FALSE, mc.set.seed = FALSE
     )
-    failed <- vapply(results, inherits, logical(1L), what = "try-error")
-    if (any(failed)) {
-      stop(
-        "Parallel genome-scan diversity computation failed for population(s): ",
-        paste(populations[failed], collapse = ", "), call. = FALSE
-      )
-    }
+    check_mclapply_results(results, populations, "genome-scan diversity computation")
     results
   }
   out <- data.table::rbindlist(grids)

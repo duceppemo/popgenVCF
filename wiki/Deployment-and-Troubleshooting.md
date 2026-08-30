@@ -141,6 +141,11 @@ computed under the old values, and this registry has no per-module config-key
 ownership metadata precise enough to know which modules a given edit actually
 affects. Revert the change and resume normally, or start a fresh run.
 
+Every other override flag (`--vcf`, `--maf`, `--outdir`, `--force-gds`,
+`--no-report`, ...) is a no-op with `--resume` -- only `--config` is read.
+Supplying one anyway prints a warning naming it, rather than silently doing
+nothing.
+
 ## Diagnostic record
 
 When reporting a problem, include:

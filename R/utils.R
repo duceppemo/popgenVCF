@@ -62,6 +62,40 @@ fork_worker_count <- function(n_tasks, threads, fork_available = .Platform$OS.ty
   max(1L, min(threads, n_tasks))
 }
 
+# Validates parallel::mclapply() output against the task labels it was
+# computed for (same length/order as `results`), distinguishing the two ways
+# a forked task can fail to return a real result: an uncaught R-level
+# condition, which mclapply() reports as a classed "try-error" result; and a
+# worker process killed outright by a signal (OOM, segfault -- a real,
+# confirmed cause on large real cohorts), which is NOT a "try-error" -- that
+# slot is simply NULL. A caller that only checks for "try-error" and then
+# unlist()s/rbindlist()s the result silently drops the killed task's slot
+# instead of erroring, which either understates the output (a population's
+# rows just vanish) or, worse, misaligns a positionally-zipped result against
+# its labels (e.g. Fst values shifted onto the wrong population pairs) --
+# this exact bug was found in run_fst() during a pre-release audit and this
+# helper exists so it cannot recur silently at any other fork site.
+check_mclapply_results <- function(results, labels, task_description) {
+  failed <- vapply(results, inherits, logical(1L), what = "try-error")
+  if (any(failed)) {
+    condition <- attr(results[[which(failed)[1L]]], "condition")
+    cond_message <- if (!is.null(condition)) conditionMessage(condition) else NULL
+    stopf(
+      "Parallel %s failed for %s%s", task_description,
+      paste(labels[failed], collapse = ", "),
+      if (is.null(cond_message)) "" else paste0(": ", cond_message)
+    )
+  }
+  missing <- vapply(results, is.null, logical(1L))
+  if (any(missing)) {
+    stopf(
+      "Parallel %s terminated abnormally (worker process killed, likely out-of-memory or a crash) for %s rather than returning a result or a normal error",
+      task_description, paste(labels[missing], collapse = ", ")
+    )
+  }
+  invisible(results)
+}
+
 run_stage <- function(name, expr, timings = NULL) {
   log_msg("Starting ", name)
   t0 <- proc.time()[["elapsed"]]

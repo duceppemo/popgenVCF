@@ -79,6 +79,28 @@ test_that("parallel DAPC matches serial output and computes one PCA per run", {
   }
 })
 
+test_that("a worker killed outright (NULL, not a try-error) is reported loudly, not silently dropped", {
+  # Real regression found in a pre-release audit: a forked worker killed by
+  # a signal (OOM, segfault) returns NULL for that slot in mclapply()'s
+  # results, not a "try-error" -- execute_dapc_k_tasks() only checked for
+  # "try-error", so the caller's `vapply(results, `[[`, ..., "key")` would
+  # error confusingly (or, if a NULL happened to survive further, silently
+  # drop that K value's model with no error at all). run_dapc_k_task() is
+  # mocked to return NULL (what mclapply's own results list actually
+  # contains for a killed worker) rather than trying to really kill a
+  # worker process.
+  local_mocked_bindings(run_dapc_k_task = function(...) NULL, .package = "popgenVCF")
+  fixture <- dapc_parallel_fixture()
+  expect_error(
+    popgenVCF:::run_dapc_analysis(
+      fixture$genotype, fixture$sample_ids, fixture$metadata,
+      k_values = 2:4, seed = 42L, cross_validate = FALSE,
+      replicate_seeds = 42:44, threads = 2L
+    ),
+    "terminated abnormally"
+  )
+})
+
 test_that("DAPC avoids PCA work when no requested K is valid", {
   fixture <- dapc_parallel_fixture()
   result <- popgenVCF:::run_dapc_analysis(

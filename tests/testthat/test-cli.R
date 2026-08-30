@@ -233,6 +233,28 @@ test_that("cli_main --resume combined with --config passes both through to run_p
   expect_equal(captured$config, "analysis.yml")
 })
 
+test_that("cli_main --resume warns when combined with an override flag that has no effect on a resumed run", {
+  # UX gap found in a pre-release audit: --resume silently ignores every
+  # override flag but --config, per cli_usage()'s own documented behaviour
+  # -- a user passing one anyway got no feedback at all that it did nothing.
+  local_mocked_bindings(
+    run_pipeline_resume = function(output_directory, ...) "resumed",
+    .package = "popgenVCF"
+  )
+  expect_warning(
+    popgenVCF::cli_main(c("--resume", "some/output/dir", "--maf", "0.1")),
+    "--maf"
+  )
+  expect_warning(
+    popgenVCF::cli_main(c("--resume", "some/output/dir", "--no-report")),
+    "--no-report"
+  )
+  # --config alone is the one supported override; must not warn.
+  expect_no_warning(
+    popgenVCF::cli_main(c("--resume", "some/output/dir", "--config", "analysis.yml"))
+  )
+})
+
 test_that("cli_main leaves unset optional overrides at their configured defaults", {
   captured <- NULL
   local_mocked_bindings(

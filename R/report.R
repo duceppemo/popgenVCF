@@ -188,23 +188,7 @@ render_report_formats <- function(formats, render_one, parallel = TRUE) {
     formats, render_one,
     mc.cores = length(formats), mc.preschedule = FALSE
   )
-  failed <- vapply(results, inherits, logical(1L), what = "try-error")
-  if (any(failed)) {
-    condition <- attr(results[[which(failed)[1L]]], "condition")
-    stop(conditionMessage(condition), call. = FALSE)
-  }
-  # A worker killed by a signal (OOM, segfault -- a real, confirmed cause on
-  # a large real report: LaTeX compiling several hundred figures) is not an
-  # R-level "try-error" -- mclapply() just returns NULL for that slot, which
-  # unlist() below would otherwise silently drop, misreporting a hard crash
-  # as a clean, if quietly incomplete, success instead of a clear failure.
-  missing <- vapply(results, is.null, logical(1L))
-  if (any(missing)) {
-    stopf(
-      "Report rendering for format(s) %s terminated abnormally (worker process killed, likely out-of-memory or a crash) rather than returning a result or a normal error",
-      paste(formats[missing], collapse = ", ")
-    )
-  }
+  check_mclapply_results(results, formats, "report rendering")
   stats::setNames(unlist(results), formats)
 }
 
@@ -290,7 +274,8 @@ write_manifest <- function(cfg, dirs, analysis, timings = NULL) {
       if (metadata_supplied) normalizePath(cfg$input$metadata) else NA_character_,
       if (metadata_supplied) hash_file(cfg$input$metadata) else NA_character_,
       nrow(metadata), data.table::uniqueN(metadata$population),
-      length(qc_snps), length(final_snps), cfg$qc$maf, 0.2, 0.2,
+      length(qc_snps), length(final_snps), cfg$qc$maf,
+      cfg$qc$max_variant_missing, cfg$qc$ld_r2,
       max(1L, min(as.integer(cfg$compute$threads), 4L))
     )
   )

@@ -178,14 +178,7 @@ execute_dapc_k_tasks <- function(k_values, task, workers) {
     k_values, task, mc.cores = workers,
     mc.preschedule = FALSE, mc.set.seed = FALSE
   )
-  failed <- vapply(results, inherits, logical(1L), what = "try-error")
-  if (any(failed)) {
-    stop(
-      "Parallel DAPC task(s) failed for K = ",
-      paste(k_values[failed], collapse = ", "),
-      call. = FALSE
-    )
-  }
+  check_mclapply_results(results, paste0("K = ", k_values), "DAPC task(s)")
   results
 }
 

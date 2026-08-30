@@ -54,10 +54,32 @@ test_that("tree_bootstrap_replicate_seeds is deterministic and restores the call
   expect_identical(before, after)
 })
 
-test_that("run_tree_bootstrap_replicates runs sequentially for workers <= 1 and filters failures", {
-  build_one <- function(i) if (i == 2L) stop("boom") else i * 10
-  sequential <- popgenVCF:::run_tree_bootstrap_replicates(3L, 1L, function(i) i * 10)
-  expect_identical(unlist(sequential), c(10, 20, 30))
+test_that("run_tree_bootstrap_replicates drops non-phylo results (sequential path)", {
+  # Real regression: build_one() always wraps its own body in
+  # tryCatch(..., error = function(e) e), so a genuine numerical failure
+  # (e.g. ape::nj() erroring on a degenerate resampled distance matrix)
+  # comes back as a plain, unclassed-as-"try-error" error condition, not
+  # "try-error" -- the old `!inherits(x, "try-error")` filter never removed
+  # it, and the sequential path (workers <= 1) did not filter AT ALL,
+  # letting a caller's `length(trees)` always equal the requested replicate
+  # count regardless of real failures.
+  phylo_stub <- function() structure(list(), class = "phylo")
+  build_one <- function(i) if (i == 2L) simpleError("boom") else phylo_stub()
+  sequential <- popgenVCF:::run_tree_bootstrap_replicates(3L, 1L, build_one)
+  expect_length(sequential, 2L)
+  expect_true(all(vapply(sequential, inherits, logical(1L), what = "phylo")))
+})
+
+test_that("run_tree_bootstrap_replicates drops non-phylo results, including a killed worker's NULL (parallel path)", {
+  phylo_stub <- function() structure(list(), class = "phylo")
+  build_one <- function(i) {
+    if (i == 2L) return(simpleError("boom"))
+    if (i == 4L) return(NULL)
+    phylo_stub()
+  }
+  parallel_result <- popgenVCF:::run_tree_bootstrap_replicates(4L, 2L, build_one)
+  expect_length(parallel_result, 2L)
+  expect_true(all(vapply(parallel_result, inherits, logical(1L), what = "phylo")))
 })
 
 test_that("ibs_bootstrap_distance matches SNPRelate::snpgdsIBS()'s exact formula on complete data", {
@@ -159,6 +181,37 @@ test_that("population_allele_count_matrix resampled columns give bootstrap dista
   gp <- methods::new("genpop", tab = manual, ploidy = 2L)
   d_manual <- as.matrix(adegenet::dist.genpop(gp, method = 1L))
   expect_equal(d_via_helper, d_manual, ignore_attr = TRUE)
+})
+
+test_that("bootstrap_population_nj_tree's reported replicate count reflects real successes, not the requested count", {
+  lt <- data.table::data.table(
+    population = rep(c("A", "B", "C"), each = 2L),
+    snp_id = rep(c(1L, 2L), 3L),
+    n_called = rep(20L, 6L),
+    alternate_allele_count = c(30L, 15L, 15L, 8L, 5L, 25L),
+    reference_allele_count = c(10L, 5L, 25L, 12L, 15L, 5L)
+  )
+  res <- popgenVCF:::compute_population_genetic_distance(lt)
+  ref <- ape::nj(stats::as.dist(res$distance))
+
+  # Real regression: ape::nj() failing for some replicates (a genuinely
+  # degenerate resampled distance matrix is the real-world trigger) used to
+  # still leave `replicates` at the full requested count, since build_one()'s
+  # own tryCatch() turns that failure into a plain error condition the old
+  # `!inherits(x, "try-error")` filter never removed. Forcing every third
+  # call to fail deterministically (sequential path, so a single counter is
+  # safe across calls) proves the reported count now equals only the real
+  # successes.
+  original_nj <- ape::nj
+  call_n <- 0L
+  local_mocked_bindings(nj = function(...) {
+    call_n <<- call_n + 1L
+    if (call_n %% 3L == 0L) stop("simulated degenerate distance matrix")
+    original_nj(...)
+  }, .package = "ape")
+
+  result <- popgenVCF:::bootstrap_population_nj_tree(ref, lt, replicates = 9L, workers = 1L, seed = 5L)
+  expect_identical(result$replicates, 6L)
 })
 
 test_that("bootstrap_population_nj_tree returns NULL for zero replicates or too few usable loci", {

@@ -15,7 +15,7 @@ cli_usage <- function(status = 0L) {
     "checkpointed one and refuses to resume, loudly, if it does not -- there\n",
     "is no supported way to resume with a changed configuration; start a\n",
     "fresh run instead. Other override flags (--vcf, --maf, etc.) are not\n",
-    "read with --resume.\n\n",
+    "read with --resume; supplying one anyway prints a warning naming it.\n\n",
     "Optional overrides:\n",
     "  --vcf FILE\n",
     "  --metadata FILE\n",
@@ -89,7 +89,28 @@ cli_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     return(invisible(NULL))
   }
   if (!is.null(x$write_config)) return(write_default_config(x$write_config))
-  if (!is.null(x$resume)) return(run_pipeline_resume(x$resume, config = x$config))
+  if (!is.null(x$resume)) {
+    # --resume only ever reads --config (verified against the checkpoint's
+    # own fingerprint) -- every other override flag is silently a no-op by
+    # design, per cli_usage()'s own documented behaviour. A user who passes
+    # one anyway (most plausibly expecting it to apply on top of the
+    # resumed run) gets no feedback that it did nothing; this warns loudly,
+    # naming which flag(s), rather than staying quiet about it.
+    ignored <- c(
+      "vcf", "metadata", "outdir", "threads", "seed", "maf", "max_sample_missing"
+    )
+    ignored <- ignored[!vapply(x[ignored], is.null, logical(1L))]
+    if (x$force_gds) ignored <- c(ignored, "force_gds")
+    if (x$no_report) ignored <- c(ignored, "no_report")
+    if (length(ignored)) {
+      warning(
+        "--resume ignores the following override flag(s), which have no effect on a resumed run: --",
+        paste(gsub("_", "-", ignored), collapse = ", --"),
+        call. = FALSE
+      )
+    }
+    return(run_pipeline_resume(x$resume, config = x$config))
+  }
   if (is.null(x$config)) cli_usage(1L)
 
   cfg <- read_config(x$config)

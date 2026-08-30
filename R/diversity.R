@@ -90,13 +90,7 @@ compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha
       on.exit(SNPRelate::snpgdsClose(worker_gds), add = TRUE)
       diversity_locus_stats(pop, worker_gds)
     }, mc.cores = workers, mc.preschedule = FALSE, mc.set.seed = FALSE)
-    failed <- vapply(results, inherits, logical(1L), what = "try-error")
-    if (any(failed)) {
-      stop(
-        "Parallel diversity computation failed for population(s): ",
-        paste(populations[failed], collapse = ", "), call. = FALSE
-      )
-    }
+    check_mclapply_results(results, populations, "diversity computation")
     results
   }
   locus <- data.table::rbindlist(loci)

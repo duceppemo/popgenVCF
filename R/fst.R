@@ -61,14 +61,8 @@ run_fst <- function(gds, snp_ids, metadata, gds_path = NULL, threads = 1L) {
       on.exit(SNPRelate::snpgdsClose(worker_gds), add = TRUE)
       fst_pair(worker_gds, snp_ids, metadata, pp[1], pp[2])
     }, mc.cores = workers, mc.preschedule = FALSE, mc.set.seed = FALSE)
-    failed <- vapply(results, inherits, logical(1L), what = "try-error")
-    if (any(failed)) {
-      failed_pairs <- vapply(pairs[failed], paste, character(1L), collapse = "-")
-      stop(
-        "Parallel FST computation failed for population pair(s): ",
-        paste(failed_pairs, collapse = ", "), call. = FALSE
-      )
-    }
+    pair_labels <- vapply(pairs, paste, character(1L), collapse = "-")
+    check_mclapply_results(results, pair_labels, "FST computation")
     unlist(results)
   }
   long <- data.table::rbindlist(Map(function(pp, fst_value) {

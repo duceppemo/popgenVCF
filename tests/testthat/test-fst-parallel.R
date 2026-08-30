@@ -71,3 +71,26 @@ test_that("a real per-pair failure surfaces as a clear, non-silent error rather 
     "Parallel FST computation failed"
   )
 })
+
+test_that("a worker killed outright (NULL, not a try-error) is reported loudly rather than silently misattributing FST values", {
+  # Real regression found in a pre-release audit: a forked worker killed by
+  # a signal (OOM, segfault) returns NULL for that slot, not a "try-error".
+  # The old code only checked for "try-error", so unlist(results) below
+  # would silently shrink the vector, and Map() would then zip the
+  # remaining, shorter fst_values against the full, unshrunken `pairs`
+  # vector -- Fst values silently attributed to the WRONG population pairs,
+  # not just a crash. fst_pair() is mocked to return NULL (what mclapply's
+  # own results list actually contains for a killed worker) rather than
+  # trying to really kill a worker process, which mclapply() inherits into
+  # the forked children the same way a real interpreter crash would leave
+  # that slot NULL.
+  local_mocked_bindings(fst_pair = function(...) NULL, .package = "popgenVCF")
+  fx <- fst_parallel_fixture_gds()
+  gds <- SNPRelate::snpgdsOpen(fx$path)
+  on.exit(SNPRelate::snpgdsClose(gds), add = TRUE)
+
+  expect_error(
+    popgenVCF:::run_fst(gds, fx$snp_ids, fx$metadata, gds_path = fx$path, threads = 2L),
+    "terminated abnormally"
+  )
+})

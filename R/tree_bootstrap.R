@@ -39,13 +39,31 @@ tree_bootstrap_replicate_seeds <- function(seed, replicates) {
   sample.int(.Machine$integer.max, replicates)
 }
 
+# Filters to actual `"phylo"` successes, not `!inherits(x, "try-error")`:
+# every real caller's `build_one` already wraps its own body in
+# `tryCatch(..., error = function(e) e)` (so a genuine numerical failure,
+# e.g. ape::nj() erroring on a degenerate resampled distance matrix, comes
+# back as a plain, unclassed-as-"try-error" error condition object, not
+# "try-error"), and a worker killed outright by a signal (OOM, segfault)
+# comes back as NULL -- neither of which the old `!inherits(x, "try-error")`
+# check ever removed. That let both `bootstrap_population_nj_tree()` and
+# `bootstrap_nj_ibs_tree()` report `replicates = length(trees)` using this
+# still-inflated list, always equal to the requested replicate count
+# regardless of how many genuinely succeeded -- overstating confidence in
+# the resulting bootstrap support percentages with no indication anything
+# was dropped. Matches `bootstrap_tree_support()`'s own internal filter
+# below, so the reported count and the support percentages' real
+# denominator now agree.
 run_tree_bootstrap_replicates <- function(replicates, workers, build_one) {
-  if (workers <= 1L) return(lapply(seq_len(replicates), build_one))
-  results <- parallel::mclapply(
-    seq_len(replicates), build_one,
-    mc.cores = workers, mc.preschedule = FALSE, mc.set.seed = FALSE
-  )
-  Filter(function(x) !inherits(x, "try-error"), results)
+  results <- if (workers <= 1L) {
+    lapply(seq_len(replicates), build_one)
+  } else {
+    parallel::mclapply(
+      seq_len(replicates), build_one,
+      mc.cores = workers, mc.preschedule = FALSE, mc.set.seed = FALSE
+    )
+  }
+  Filter(function(x) inherits(x, "phylo"), results)
 }
 
 # Renders an NJ tree (individual IBS or population Nei's-D) as a phylogram,
