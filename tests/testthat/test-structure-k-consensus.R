@@ -101,6 +101,24 @@ test_that("Calinski-Harabasz separation rewards compact distinct clusters", {
   expect_lt(separated_db, mixed_db)
 })
 
+test_that("davies_bouldin_index reports NA, not a falsely-good score, when two distinct groups share a centroid", {
+  # Real edge case found in a pre-release audit: a zero distance between two
+  # DISTINCT group centroids is a genuinely degenerate, maximally-bad case
+  # (not the meaningless i == i self-term, which is correctly excluded).
+  # The old code filtered candidates via a blanket is.finite() across the
+  # whole distance row, silently dropping this real Inf along with the
+  # self-term -- understating the index instead of reporting the
+  # undefined/degenerate result as NA.
+  coordinates <- rbind(
+    c(0, 0), c(0.1, -0.1), c(-0.1, 0.1),
+    c(0, 0), c(0.05, -0.05), c(-0.05, 0.05),
+    c(10, 10), c(10.1, 9.9), c(9.9, 10.1)
+  )
+  groups <- rep(c("A", "B", "C"), each = 3L)
+  db <- popgenVCF:::davies_bouldin_index(coordinates, groups)
+  expect_true(is.na(db))
+})
+
 test_that("optional cluster-number consensus handles uninformative diagnostics", {
   cases <- list(
     single = data.frame(K = 2L, cv_error = 0.2),

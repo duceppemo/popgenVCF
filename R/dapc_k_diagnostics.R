@@ -56,10 +56,20 @@ davies_bouldin_index <- function(coordinates, groups) {
   }
   ratios <- numeric(length(levels))
   for (i in seq_along(levels)) {
-    candidates <- (scatter[[i]] + scatter) / distances[i, ]
-    candidates <- candidates[is.finite(candidates)]
-    if (!length(candidates)) return(NA_real_)
-    ratios[[i]] <- max(candidates)
+    others <- setdiff(seq_along(levels), i)
+    # Excludes only the i == i self-term (always 0/0 or x/0, meaningless by
+    # definition); a zero distance between two DISTINCT group centroids
+    # (a real, if rare, degenerate case -- two DAPC groups mapping to the
+    # same discriminant-space coordinate) is a genuinely maximally-bad
+    # ratio, not a value to silently drop -- blanket-filtering by
+    # is.finite() across the whole row (including j == i) used to also
+    # discard that real Inf, understating the index for a clustering that
+    # is actually degenerate.
+    ratios[[i]] <- if (length(others)) {
+      max((scatter[[i]] + scatter[others]) / distances[i, others])
+    } else {
+      NA_real_
+    }
   }
   if (any(!is.finite(ratios))) return(NA_real_)
   mean(ratios)
