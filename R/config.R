@@ -46,10 +46,10 @@ default_config <- function() {
                     ne_ld = TRUE, ne_ld_max_snps = 2000L,
                     dapc = TRUE, dapc_k = "2:10", dapc_cross_validation = TRUE,
                     dapc_loading_top_n = 20L,
-                    amova = TRUE, clonality = TRUE,
+                    amova = TRUE, amova_permutations = 999L, clonality = TRUE,
                     clonality_genotype_curve_replicates = 100L, clonality_ia_permutations = 0L,
                     sexbias = TRUE, sexbias_test = "mAIc", sexbias_permutations = 0L,
-                    mantel = TRUE, isolation_by_distance = TRUE,
+                    mantel = TRUE, mantel_permutations = 999L, isolation_by_distance = TRUE,
                     spatial_autocorrelation = TRUE, spatial_autocorrelation_bins = 10L,
                     spatial_autocorrelation_permutations = 999L,
                     chromosome_specific = TRUE, chromosome_min_snps = 100L,
@@ -197,6 +197,8 @@ validate_config <- function(cfg) {
   cfg$analyses$clonality_ia_permutations <- as.integer(cfg$analyses$clonality_ia_permutations)
   cfg$analyses$sexbias_test <- as.character(cfg$analyses$sexbias_test)
   cfg$analyses$sexbias_permutations <- as.integer(cfg$analyses$sexbias_permutations)
+  cfg$analyses$amova_permutations <- as.integer(cfg$analyses$amova_permutations)
+  cfg$analyses$mantel_permutations <- as.integer(cfg$analyses$mantel_permutations)
   cfg$analyses$bootstrap$replicates <- as.integer(cfg$analyses$bootstrap$replicates)
   cfg$analyses$tree_bootstrap$replicates <- as.integer(cfg$analyses$tree_bootstrap$replicates)
   cfg$analyses$ml_tree$bootstrap_replicates <- as.integer(cfg$analyses$ml_tree$bootstrap_replicates)
@@ -247,6 +249,13 @@ validate_config <- function(cfg) {
   if (!cfg$analyses$sexbias_test %in% c("mAIc", "vAIc", "FIS", "FST")) stop("analyses.sexbias_test must be one of \"mAIc\", \"vAIc\", \"FIS\", or \"FST\"", call. = FALSE)
   if (!is.finite(cfg$analyses$sexbias_permutations) || cfg$analyses$sexbias_permutations < 0L) stop("analyses.sexbias_permutations must be >= 0", call. = FALSE)
   if (cfg$analyses$sexbias_test %in% c("FIS", "FST") && cfg$analyses$sexbias_permutations <= 0L) stop("analyses.sexbias_permutations must be > 0 when analyses.sexbias_test is \"FIS\" or \"FST\"", call. = FALSE)
+  # Unlike clonality/sexbias/spatial-autocorrelation's permutation counts
+  # (which gate an optional test that can be meaningfully skipped with 0),
+  # AMOVA's ade4::randtest()/Mantel's vegan::mantel() significance tests are
+  # not optional once their analysis runs, and 0 repetitions cannot produce
+  # a p-value at all.
+  if (!is.finite(cfg$analyses$amova_permutations) || cfg$analyses$amova_permutations < 1L) stop("analyses.amova_permutations must be >= 1", call. = FALSE)
+  if (!is.finite(cfg$analyses$mantel_permutations) || cfg$analyses$mantel_permutations < 1L) stop("analyses.mantel_permutations must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$bootstrap$replicates) || cfg$analyses$bootstrap$replicates < 0L) stop("bootstrap.replicates must be >= 0", call. = FALSE)
   if (!is.finite(cfg$analyses$tree_bootstrap$replicates) || cfg$analyses$tree_bootstrap$replicates < 0L) stop("tree_bootstrap.replicates must be >= 0", call. = FALSE)
   if (!is.finite(cfg$analyses$ml_tree$bootstrap_replicates) || cfg$analyses$ml_tree$bootstrap_replicates < 0L) stop("ml_tree.bootstrap_replicates must be >= 0", call. = FALSE)

@@ -296,7 +296,7 @@ run_module_genome_scan <- function(analysis, context) {
 run_module_amova <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs; div <- context$diversity_full
   amova <- run_amova_analysis(div$genotype, context$sample_ids, context$metadata,
-                              999L, cfg$compute$seed)
+                              cfg$analyses$amova_permutations, cfg$compute$seed)
   analysis <- set_analysis_result(analysis, "amova", amova)
   write_tsv(amova$components, file.path(dirs$tables, "23_AMOVA_components.tsv"))
   write_tsv(amova$phi, file.path(dirs$tables, "24_AMOVA_phi_statistics.tsv"))
@@ -460,7 +460,7 @@ run_module_sexbias <- function(analysis, context) {
 run_module_ibd <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
   ibd <- run_mantel_ibd(context$ibs$distance, context$metadata,
-                        cfg$input$geographic_columns, 999L, cfg$compute$seed)
+                        cfg$input$geographic_columns, cfg$analyses$mantel_permutations, cfg$compute$seed)
   analysis <- set_analysis_result(analysis, "ibd", ibd)
   if (!is.null(ibd)) {
     write_tsv(ibd$summary, file.path(dirs$tables, "25_Mantel_IBD_summary.tsv"))

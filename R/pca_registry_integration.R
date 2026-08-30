@@ -27,11 +27,22 @@ run_module_pca <- function(analysis, context) {
     publication_metadata <- coordinates[, .(sample_id, population)]
     coordinates[, population := NULL]
   }
+  # pca$eigenvalues (SNPRelate::snpgdsPCA(eigen.cnt = N)'s retained-only
+  # eigenvalues) can be longer than pca$variance's npc rows when a trailing
+  # component was clamped to zero and excluded (see run_pca(), R/ordination.R);
+  # truncating keeps eigenvalue/variance_percent aligned component-for-component.
+  # The real percent-of-TOTAL-variance figures already live in pca$variance
+  # (SNPRelate's own varprop-based computation) -- passing them through
+  # explicitly, rather than letting write_pca_publication_artifacts() re-derive
+  # percentages from these truncated eigenvalues alone, is what keeps this
+  # correct (re-deriving from a truncated subset silently inflates every
+  # percentage; see that function's own variance_percent documentation).
   artifacts <- write_pca_publication_artifacts(
     coordinates = coordinates,
-    eigenvalues = pca$eigenvalues,
+    eigenvalues = pca$eigenvalues[seq_len(nrow(pca$variance))],
     metadata = publication_metadata,
-    output_dir = dirs$root
+    output_dir = dirs$root,
+    variance_percent = pca$variance$percent
   )
   analysis <- record_analysis_message(
     analysis,

@@ -99,4 +99,12 @@ test_that("PCA registry publishes and records bounded runtime eigenvalues", {
   expect_match(module_body, "pca$requested_components", fixed = TRUE)
   expect_match(module_body, "pca$eigensystem_source", fixed = TRUE)
   expect_false(grepl("eigenvalues = pca$object$eigenval", module_body, fixed = TRUE))
+
+  # Real regression: write_pca_publication_artifacts() was called with only
+  # the retained-only, truncated eigenvalue subset and no variance_percent,
+  # so its own `eigenvalues / sum(eigenvalues)` fallback silently inflated
+  # every percent-of-variance figure written into manuscript-ready captions
+  # and methods text. pca$variance$percent (SNPRelate's own varprop-based,
+  # true percent-of-total-variance figure) must be passed through explicitly.
+  expect_match(module_body, "variance_percent = pca$variance$percent", fixed = TRUE)
 })

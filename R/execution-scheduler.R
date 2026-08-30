@@ -92,6 +92,30 @@ run_execution_batch <- function(eligible, analysis, context, registry, engine) {
       analysis = analysis, context = context, registry = registry
     ))
   }
+  if (!is.null(context$gds)) {
+    # No registered module currently sets parallel_safe = TRUE (verified: zero
+    # of the real registrations do), so this path is dead today -- but it is
+    # a real landmine for whoever adds the first one while context$gds (a
+    # live gdsfmt external pointer) is still populated. A multicore fork
+    # inherits the parent's handle unsafely (gdsfmt's own documentation:
+    # concurrent reads on a shared handle risk wrong data or crashes -- see
+    # diversity.R's fork_worker_count() usage for the citation), and a
+    # multisession PSOCK worker cannot serialize an external pointer across
+    # a socket at all. merge_parallel_module()'s own
+    # identical(validated$out$context, context) check does not reliably
+    # catch this either, since external-pointer identity is not guaranteed
+    # to round-trip through either transport. Failing loudly here, rather
+    # than leaving a subtle mismatch or a crash for whoever hits it first.
+    stop(
+      "Refusing to run ", length(eligible), " parallel-safe module(s) concurrently: ",
+      "context$gds is a live GDS handle, and sharing or serializing it across a ",
+      "process boundary (forked or PSOCK) is unsafe. Give any parallel-safe module ",
+      "that needs GDS access its own independent connection per task instead (the ",
+      "pattern diversity.R/fst.R's own per-task forking already uses), rather than ",
+      "relying on the shared batch-level context$gds.",
+      call. = FALSE
+    )
+  }
   if (identical(engine$backend, "multicore")) {
     return(parallel::mclapply(
       eligible, run_scheduled_engine_module,

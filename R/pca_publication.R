@@ -1,16 +1,27 @@
 #' Write publication-ready PCA artifacts
 #'
 #' @param coordinates Data frame containing `sample_id`, `PC1`, and `PC2`.
-#' @param eigenvalues Numeric PCA eigenvalues.
+#' @param eigenvalues Numeric PCA eigenvalues, for reference/diagnostic display only.
 #' @param metadata Optional data frame containing `sample_id` and `population`.
 #' @param output_dir Analysis output directory.
 #' @param palette Optional named population colour vector.
 #' @param module Artifact module name.
+#' @param variance_percent Optional pre-computed percent-of-total-variance for
+#'   each component (same length/order as `eigenvalues`), on a 0-100 scale.
+#'   Required whenever `eigenvalues` is a truncated subset of a larger
+#'   spectrum (e.g. `SNPRelate::snpgdsPCA(eigen.cnt = N)`'s retained-only
+#'   eigenvalues): `eigenvalues / sum(eigenvalues)` is only the true percent
+#'   of TOTAL variance when `eigenvalues` is the complete spectrum, and
+#'   silently inflates every percentage otherwise (by roughly
+#'   `N / (n_samples - 1)`; see `R/ordination.R`'s own `run_pca()` for the
+#'   verified, live-data-checked derivation of this). Defaults to `NULL`,
+#'   which falls back to treating `eigenvalues` as the complete spectrum --
+#'   correct only when it genuinely is.
 #' @return A `PopgenVCFArtifactManifest`.
 #' @export
 write_pca_publication_artifacts <- function(coordinates, eigenvalues, metadata = NULL,
                                             output_dir, palette = NULL,
-                                            module = "pca") {
+                                            module = "pca", variance_percent = NULL) {
   if (!is.data.frame(coordinates) || !"sample_id" %in% names(coordinates)) {
     stop("coordinates must be a data frame containing sample_id", call. = FALSE)
   }
@@ -19,6 +30,18 @@ write_pca_publication_artifacts <- function(coordinates, eigenvalues, metadata =
   eigenvalues <- as.numeric(eigenvalues)
   if (!length(eigenvalues) || any(!is.finite(eigenvalues)) || any(eigenvalues < 0) || sum(eigenvalues) <= 0) {
     stop("eigenvalues must be finite nonnegative values with a positive sum", call. = FALSE)
+  }
+  if (is.null(variance_percent)) {
+    variance_percent <- 100 * eigenvalues / sum(eigenvalues)
+  } else {
+    variance_percent <- as.numeric(variance_percent)
+    if (length(variance_percent) != length(eigenvalues) || any(!is.finite(variance_percent)) ||
+        any(variance_percent < 0) || sum(variance_percent) > 100 + 1e-6) {
+      stop(
+        "variance_percent must be finite, nonnegative, the same length as eigenvalues, and sum to at most 100",
+        call. = FALSE
+      )
+    }
   }
 
   dirs <- list(
@@ -39,8 +62,8 @@ write_pca_publication_artifacts <- function(coordinates, eigenvalues, metadata =
 
   variance <- data.table::data.table(
     component = paste0("PC", seq_along(eigenvalues)), eigenvalue = eigenvalues,
-    variance_percent = 100 * eigenvalues / sum(eigenvalues),
-    cumulative_percent = 100 * cumsum(eigenvalues) / sum(eigenvalues)
+    variance_percent = variance_percent,
+    cumulative_percent = cumsum(variance_percent)
   )
   paths <- list(
     coordinates = file.path(dirs$tables, "PCA_coordinates.tsv"),
@@ -60,19 +83,24 @@ write_pca_publication_artifacts <- function(coordinates, eigenvalues, metadata =
   writeLines(paste0(
     "Principal component analysis was performed on the quality-controlled, linkage-disequilibrium-pruned genotype matrix. ",
     "PC1 and PC2 explained ", sprintf("%.2f", variance$variance_percent[1]), "% and ",
-    sprintf("%.2f", variance$variance_percent[2]), "% of the retained genetic variance, respectively."
+    sprintf("%.2f", variance$variance_percent[2]), "% of the total genetic variance, respectively."
   ), paths$methods, useBytes = TRUE)
   writeLines(paste0(
     "Principal component analysis of ", nrow(coords), " samples. PC1 and PC2 explain ",
     sprintf("%.2f", variance$variance_percent[1]), "% and ", sprintf("%.2f", variance$variance_percent[2]),
-    "% of the retained genetic variance, respectively."
+    "% of the total genetic variance, respectively."
   ), paths$caption, useBytes = TRUE)
 
+  # variance_percent legitimately sums to less than 100 whenever `eigenvalues`
+  # is a truncated subset of a larger spectrum (the normal case for a real
+  # PCA run with more markers than retained components) -- only bounding it
+  # above 100 (plus float slack) catches a genuine computation error without
+  # wrongly failing that normal, correct case.
   validation <- data.table::data.table(
-    check = c("finite_coordinates", "finite_eigenvalues", "variance_sums_to_100", "sample_ids_unique"),
+    check = c("finite_coordinates", "finite_eigenvalues", "variance_percent_bounded", "sample_ids_unique"),
     passed = c(
       all(vapply(coords[, ..pc_cols], function(x) all(is.finite(x)), logical(1))),
-      all(is.finite(eigenvalues)), abs(sum(variance$variance_percent) - 100) < 1e-8,
+      all(is.finite(eigenvalues)), sum(variance$variance_percent) <= 100 + 1e-6,
       !anyDuplicated(coords$sample_id)
     )
   )

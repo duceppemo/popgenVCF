@@ -82,6 +82,31 @@ test_that("portable workers actually dispatch to separate real worker processes"
   expect_length(unique(pids), 2L)
 })
 
+test_that("run_execution_batch refuses to parallelize a batch when context carries a live GDS handle", {
+  # Real gap found in a pre-release audit: no registered module currently
+  # sets parallel_safe = TRUE, so this dead path was never exercised with a
+  # real GDS-bearing context -- but if one ever does, forking/serializing
+  # context$gds (a live gdsfmt external pointer) across a process boundary
+  # is unsafe (multicore: gdsfmt's own documentation warns a shared handle
+  # risks wrong reads or crashes; multisession: a PSOCK worker cannot
+  # serialize an external pointer at all), and merge_parallel_module()'s own
+  # identical(validated$out$context, context) check does not reliably catch
+  # it either. This must fail loudly instead of silently risking either.
+  registry <- list(modules = list(
+    a = scheduler_module(0, "a"),
+    b = scheduler_module(0, "b")
+  ))
+  gds_context <- list(gds = structure(1L, class = "fake_gds_handle"))
+  for (backend in c("multicore", "multisession")) {
+    if (identical(backend, "multicore") && identical(.Platform$OS.type, "windows")) next
+    engine <- new_execution_engine(workers = 2L, backend = backend)
+    expect_error(
+      popgenVCF:::run_execution_batch(c("a", "b"), list(), gds_context, registry, engine),
+      "live GDS handle"
+    )
+  }
+})
+
 test_that("scheduler_sequence orders distinct completion times correctly", {
   executions <- list(
     list(name = "slow", finished_numeric = 100.5),

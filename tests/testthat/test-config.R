@@ -130,6 +130,39 @@ test_that("sexbias_test and sexbias_permutations are coerced and validated", {
   expect_silent(popgenVCF::validate_config(cfg))
 })
 
+test_that("amova_permutations and mantel_permutations are coerced and validated, and require >= 1", {
+  # Real gap found in a pre-release audit: run_module_amova()/run_module_ibd()
+  # (R/module_registry.R) hardcoded 999L with no config knob at all, unlike
+  # the structurally identical clonality/sexbias/spatial-autocorrelation
+  # permutation counts. Unlike those three (which gate an optional test
+  # meaningfully skippable with 0), AMOVA's ade4::randtest()/Mantel's
+  # vegan::mantel() significance tests are not optional once their analysis
+  # runs, so 0 must be rejected, not just negative values.
+  cfg <- popgenVCF::default_config()
+  cfg$input$vcf <- tempfile(fileext = ".vcf")
+  cfg$output$directory <- tempfile("popgenvcf-output-")
+  file.create(cfg$input$vcf)
+
+  expect_identical(cfg$analyses$amova_permutations, 999L)
+  expect_identical(cfg$analyses$mantel_permutations, 999L)
+
+  cfg$analyses$amova_permutations <- "500"
+  cfg$analyses$mantel_permutations <- "250"
+  validated <- popgenVCF::validate_config(cfg)
+  expect_identical(validated$analyses$amova_permutations, 500L)
+  expect_identical(validated$analyses$mantel_permutations, 250L)
+
+  cfg$analyses$amova_permutations <- 0L
+  expect_error(popgenVCF::validate_config(cfg), "amova_permutations")
+
+  cfg$analyses$amova_permutations <- 500L
+  cfg$analyses$mantel_permutations <- 0L
+  expect_error(popgenVCF::validate_config(cfg), "mantel_permutations")
+
+  cfg$analyses$mantel_permutations <- -1L
+  expect_error(popgenVCF::validate_config(cfg), "mantel_permutations")
+})
+
 test_that("pcadapt_k, pcadapt_min_maf, and pcadapt_fdr_alpha are coerced and validated", {
   cfg <- popgenVCF::default_config()
   cfg$input$vcf <- tempfile(fileext = ".vcf")

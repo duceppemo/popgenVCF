@@ -17,6 +17,26 @@ test_that("normalize_metadata_name lowercases before collapsing non-alphanumeric
   expect_identical(popgenVCF:::normalize_metadata_name("Patho-Type"), "patho_type")
 })
 
+test_that("two differently-punctuated headers that normalize to the same name error loudly instead of silently colliding", {
+  # Real regression found in a pre-release audit: "Sample.ID" and
+  # "Sample_ID" both normalize to "sample_id". data.table::setnames()
+  # accepts duplicate names without complaint, and the auto-detect path
+  # (data.table::setnames(x, sc, "sample")) then silently renames only the
+  # FIRST match, discarding the second column's data with nothing but an
+  # easy-to-miss R warning -- a real, silent misattribution risk for a real
+  # messy spreadsheet merged from two sources. Every other ambiguity in this
+  # file is a loud stop(); this must be too.
+  path <- metadata_fixture_path(c(
+    "Sample.ID\tSample_ID\tPopulation",
+    "s1\tdup1\tnorth",
+    "s2\tdup2\tsouth"
+  ))
+  expect_error(
+    popgenVCF:::read_metadata(path),
+    "Sample.ID.*Sample_ID|Sample_ID.*Sample.ID"
+  )
+})
+
 test_that("a literal, ordinarily capitalized 'Population' header is still auto-detected", {
   path <- metadata_fixture_path(c(
     "Sample\tPopulation",

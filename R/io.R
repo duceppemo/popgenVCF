@@ -63,6 +63,26 @@ read_metadata <- function(path, header = "auto", sample_column = NULL, populatio
     if (ncol(x) >= 2L) data.table::setnames(x, 2L, "population")
   } else {
     nm <- normalize_metadata_name(names(x))
+    # Two differently-punctuated raw headers (e.g. "Sample.ID" and
+    # "Sample_ID", merged from two data sources) can normalize to the same
+    # name -- data.table::setnames() happily accepts duplicate names, and
+    # the auto-detect path below (data.table::setnames(x, sc, "sample")
+    # etc.) silently renames only the FIRST match, discarding the second
+    # column's data with nothing but an easy-to-miss R-level warning. Every
+    # other column-name ambiguity in this file (a duplicate final sample ID,
+    # an explicit *_column colliding with an existing column) is a loud
+    # stop(), not a silent pick; this matches that convention instead of
+    # being the one silent exception.
+    dup_names <- unique(nm[duplicated(nm)])
+    collisions <- split(names(x), nm)[dup_names]
+    if (length(collisions)) {
+      stopf(
+        "Metadata columns collide after header normalization (lowercased, punctuation collapsed to \"_\"): %s -- rename them to be unambiguous",
+        paste(vapply(names(collisions), function(key) {
+          sprintf("%s all normalize to \"%s\"", paste(sprintf('"%s"', collisions[[key]]), collapse = " and "), key)
+        }, character(1L)), collapse = "; ")
+      )
+    }
     data.table::setnames(x, nm)
     if (!is.null(sample_column)) {
       resolve_named_column(x, sample_column, "sample")
