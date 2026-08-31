@@ -126,6 +126,82 @@ validate_config <- function(cfg) {
   # makes `$metadata` partially match `metadata_header`.
   cfg$input["metadata"] <- list(metadata_path)
 
+  # Every scalar-valued config leaf below is validated by an `if (!is.finite(x)
+  # || x COMPARISON)`-style check that assumes `x` already has length 1 -- but
+  # a malformed config (e.g. an accidental YAML sequence like `maf: [0.1, 0.6]`
+  # from a copy-paste or formatting slip) reaches these checks as a
+  # multi-element vector. `if()` on a length > 1 condition is a hard error on
+  # every R version this package supports (DESCRIPTION requires R >= 4.3), so
+  # this produced a cryptic, generic R error ("the condition has length > 1")
+  # instead of this codebase's otherwise-consistent clear diagnostics -- and
+  # for fields whose individual out-of-range check happens to pass for every
+  # element (max_sample_missing, ld_r2, both checked only via the vectorized
+  # `any()` below), the malformed multi-element value was silently accepted
+  # with no error at all and never coerced back to scalar. A real gap found
+  # in a pre-release audit, in the very first code every real pipeline run
+  # executes. Checking every scalar-expected leaf's length up front, before
+  # any individual comparison touches it, turns every one of these into one
+  # clear, uniform, named error instead.
+  scalar_fields <- list(
+    "qc.maf" = cfg$qc$maf, "qc.max_variant_missing" = cfg$qc$max_variant_missing,
+    "qc.max_sample_missing" = cfg$qc$max_sample_missing, "qc.ld_r2" = cfg$qc$ld_r2,
+    "qc.ld_slide_max_n" = cfg$qc$ld_slide_max_n, "qc.ld_slide_max_bp" = cfg$qc$ld_slide_max_bp,
+    "compute.threads" = cfg$compute$threads, "compute.memory_mb" = cfg$compute$memory_mb,
+    "compute.seed" = cfg$compute$seed, "output.dpi" = cfg$output$dpi,
+    "output.base_font_size" = cfg$output$base_font_size,
+    "report.max_concurrent_figures" = cfg$report$max_concurrent_figures,
+    "input.metadata_header" = cfg$input$metadata_header,
+    "analyses.hwe_alpha" = cfg$analyses$hwe_alpha,
+    "analyses.bottleneck_n_bins" = cfg$analyses$bottleneck_n_bins,
+    "analyses.n_pcs" = cfg$analyses$n_pcs, "analyses.pca_loading_top_n" = cfg$analyses$pca_loading_top_n,
+    "analyses.pca_metadata_color_min_group" = cfg$analyses$pca_metadata_color_min_group,
+    "analyses.pca_metadata_color_max_levels" = cfg$analyses$pca_metadata_color_max_levels,
+    "analyses.kinship_close_relative_threshold" = cfg$analyses$kinship_close_relative_threshold,
+    "analyses.sex_check_male_f_threshold" = cfg$analyses$sex_check_male_f_threshold,
+    "analyses.sex_check_female_f_threshold" = cfg$analyses$sex_check_female_f_threshold,
+    "analyses.sex_check_y_male_call_rate_threshold" = cfg$analyses$sex_check_y_male_call_rate_threshold,
+    "analyses.sex_check_y_female_call_rate_threshold" = cfg$analyses$sex_check_y_female_call_rate_threshold,
+    "analyses.roh_gt_error_phred" = cfg$analyses$roh_gt_error_phred,
+    "analyses.roh_length_class_short_max_bp" = cfg$analyses$roh_length_class_short_max_bp,
+    "analyses.roh_length_class_long_min_bp" = cfg$analyses$roh_length_class_long_min_bp,
+    "analyses.genome_scan_window_bp" = cfg$analyses$genome_scan_window_bp,
+    "analyses.genome_scan_step_bp" = cfg$analyses$genome_scan_step_bp,
+    "analyses.genome_scan_min_snps" = cfg$analyses$genome_scan_min_snps,
+    "analyses.pcadapt_min_maf" = cfg$analyses$pcadapt_min_maf,
+    "analyses.pcadapt_fdr_alpha" = cfg$analyses$pcadapt_fdr_alpha,
+    "analyses.ld_decay_max_distance_bp" = cfg$analyses$ld_decay_max_distance_bp,
+    "analyses.ld_decay_bin_bp" = cfg$analyses$ld_decay_bin_bp,
+    "analyses.ld_decay_slide" = cfg$analyses$ld_decay_slide,
+    "analyses.ne_ld_max_snps" = cfg$analyses$ne_ld_max_snps,
+    "analyses.spatial_autocorrelation_bins" = cfg$analyses$spatial_autocorrelation_bins,
+    "analyses.spatial_autocorrelation_permutations" = cfg$analyses$spatial_autocorrelation_permutations,
+    "analyses.chromosome_min_snps" = cfg$analyses$chromosome_min_snps,
+    "analyses.dapc_loading_top_n" = cfg$analyses$dapc_loading_top_n,
+    "analyses.clonality_genotype_curve_replicates" = cfg$analyses$clonality_genotype_curve_replicates,
+    "analyses.clonality_ia_permutations" = cfg$analyses$clonality_ia_permutations,
+    "analyses.sexbias_test" = cfg$analyses$sexbias_test,
+    "analyses.sexbias_permutations" = cfg$analyses$sexbias_permutations,
+    "analyses.amova_permutations" = cfg$analyses$amova_permutations,
+    "analyses.mantel_permutations" = cfg$analyses$mantel_permutations,
+    "analyses.bootstrap.replicates" = cfg$analyses$bootstrap$replicates,
+    "analyses.tree_bootstrap.replicates" = cfg$analyses$tree_bootstrap$replicates,
+    "analyses.ml_tree.bootstrap_replicates" = cfg$analyses$ml_tree$bootstrap_replicates,
+    "analyses.structure.replicates" = cfg$analyses$structure$replicates,
+    "analyses.structure.reproducibility_rmse" = cfg$analyses$structure$reproducibility_rmse,
+    "analyses.structure.minimum_cluster_correlation" = cfg$analyses$structure$minimum_cluster_correlation,
+    "analyses.snmf.repetitions" = cfg$analyses$snmf$repetitions
+  )
+  # analyses.pcadapt_k is the one genuinely optional (NULL-able) scalar --
+  # already separately guarded by its own `!is.null(...) && ...` check below.
+  if (!is.null(cfg$analyses$pcadapt_k)) scalar_fields[["analyses.pcadapt_k"]] <- cfg$analyses$pcadapt_k
+  non_scalar <- names(scalar_fields)[lengths(scalar_fields) != 1L]
+  if (length(non_scalar)) {
+    stopf(
+      "Configuration value(s) must each be a single value, not a list/vector: %s",
+      paste(non_scalar, collapse = ", ")
+    )
+  }
+
   vals <- c(cfg$qc$maf, cfg$qc$max_variant_missing, cfg$qc$max_sample_missing, cfg$qc$ld_r2)
   if (any(!is.finite(vals)) || any(vals < 0) || any(vals > 1)) stop("QC proportions must be between zero and one", call. = FALSE)
   if (cfg$qc$maf > 0.5) stop("MAF cannot exceed 0.5", call. = FALSE)

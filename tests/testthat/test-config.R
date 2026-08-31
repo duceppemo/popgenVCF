@@ -16,6 +16,51 @@ test_that("max_variant_missing and ld_r2 are both user-configurable, with no for
   expect_equal(v$qc$max_variant_missing, .4)
 })
 
+test_that("a malformed multi-element config value errors clearly instead of crashing cryptically or silently passing", {
+  # Real gap found in a pre-release audit: every scalar-valued config leaf's
+  # own `if (!is.finite(x) || x COMPARISON)`-style check assumes `x` already
+  # has length 1. A malformed config (e.g. an accidental YAML sequence like
+  # `maf: [0.1, 0.6]` from a copy-paste or formatting slip) reached these
+  # checks as a multi-element vector: for most fields this crashed with a
+  # cryptic, generic R error ("the condition has length > 1", a hard error
+  # on every R version this package supports per DESCRIPTION's R >= 4.3
+  # requirement) instead of this codebase's otherwise-consistent clear
+  # diagnostics; for max_sample_missing/ld_r2 specifically, both elements
+  # individually happened to be in-range, so the vectorized `any()`-based
+  # check silently accepted the whole malformed vector with no error at
+  # all, and the field was never coerced back to scalar.
+  base_cfg <- function() {
+    cfg <- popgenVCF::default_config()
+    cfg$input$vcf <- tempfile(fileext = ".vcf")
+    file.create(cfg$input$vcf)
+    cfg$output$directory <- tempfile("popgenvcf-output-")
+    cfg
+  }
+
+  cfg <- base_cfg(); cfg$qc$maf <- c(0.1, 0.6)
+  expect_error(popgenVCF::validate_config(cfg), "qc.maf")
+
+  cfg <- base_cfg(); cfg$qc$max_sample_missing <- c(0.1, 0.2)
+  expect_error(popgenVCF::validate_config(cfg), "qc.max_sample_missing")
+
+  cfg <- base_cfg(); cfg$qc$ld_r2 <- c(0.1, 0.2)
+  expect_error(popgenVCF::validate_config(cfg), "qc.ld_r2")
+
+  cfg <- base_cfg(); cfg$analyses$sex_check_female_f_threshold <- c(0.1, 0.2)
+  expect_error(popgenVCF::validate_config(cfg), "analyses.sex_check_female_f_threshold")
+
+  cfg <- base_cfg(); cfg$analyses$sexbias_test <- c("mAIc", "FST")
+  expect_error(popgenVCF::validate_config(cfg), "analyses.sexbias_test")
+
+  # A well-formed default config must still validate silently.
+  expect_silent(popgenVCF::validate_config(base_cfg()))
+
+  # analyses.pcadapt_k stays genuinely optional (NULL is valid); a
+  # multi-element non-NULL value must still be rejected.
+  cfg <- base_cfg(); cfg$analyses$pcadapt_k <- c(2L, 3L)
+  expect_error(popgenVCF::validate_config(cfg), "analyses.pcadapt_k")
+})
+
 test_that("configuration schema is explicit and validated", {
   cfg <- popgenVCF::default_config()
   expect_identical(cfg$schema_version, "1.0")

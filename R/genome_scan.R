@@ -67,11 +67,25 @@ run_genome_scan_fst <- function(gds, snp_ids, ids, metadata, window_bp, step_bp,
   population <- factor(metadata$population)
   n_windows <- nrow(windows)
 
+  # Pre-split once by chromosome so each window scans only its own
+  # chromosome's loci, not the whole genome -- a real scalability gap found
+  # in a pre-release audit: at real production scale (this session's own
+  # 561,767-locus example, tens of thousands of 50kb-default windows),
+  # re-scanning the FULL snp_ids/snp_chromosome/snp_position vectors for
+  # every single window is O(n_windows * n_loci_total) instead of
+  # O(n_windows * n_loci_per_chromosome) -- the same final selection either
+  # way (this is a pure restriction of the search space, not a semantic
+  # change), just without the large, unnecessary constant-factor blowup.
+  chr_split_ids <- split(snp_ids, snp_chromosome)
+  chr_split_position <- split(snp_position, snp_chromosome)
+
   window_fst_stat <- function(i, gds_conn) {
     chromosome <- windows$chromosome[[i]]
     window_start <- windows$window_start[[i]]
     window_end <- windows$window_end[[i]]
-    w <- snp_ids[snp_chromosome == chromosome & snp_position >= window_start & snp_position <= window_end]
+    chr_ids <- chr_split_ids[[chromosome]]
+    chr_pos <- chr_split_position[[chromosome]]
+    w <- chr_ids[chr_pos >= window_start & chr_pos <= window_end]
     if (length(w) < min_snps) return(list(n_snps = length(w), global_fst = NA_real_))
     z <- SNPRelate::snpgdsFst(
       gds_conn, sample.id = sample_ids, snp.id = w, population = population,
@@ -130,18 +144,24 @@ run_genome_scan_diversity <- function(locus_table, window_bp, step_bp, min_snps,
     } else NA_real_
     grid <- data.table::copy(windows)
     grid[, population := pop]
+    # Pre-split once per population by chromosome, the same fix/rationale as
+    # run_genome_scan_fst() above -- `hit` becomes an integer index vector
+    # into the chromosome-restricted subset rather than a full-length
+    # logical mask, selecting exactly the same rows either way.
+    chr_split_idx <- split(seq_along(locus_chromosome), locus_chromosome)
     grid[, c(
       "n_snps", "mean_observed_heterozygosity", "mean_expected_heterozygosity",
       "segregating_sites", "tajima_d"
     ) := {
-      hit <- locus_chromosome == chromosome & locus_position >= window_start & locus_position <= window_end
-      if (sum(hit) < min_snps) {
-        list(sum(hit), NA_real_, NA_real_, NA_integer_, NA_real_)
+      chr_idx <- chr_split_idx[[chromosome]]
+      hit <- chr_idx[locus_position[chr_idx] >= window_start & locus_position[chr_idx] <= window_end]
+      if (length(hit) < min_snps) {
+        list(length(hit), NA_real_, NA_real_, NA_integer_, NA_real_)
       } else {
         s <- sum(pop_locus$polymorphic[hit], na.rm = TRUE)
         pi_total <- sum(pop_locus$unbiased_expected_heterozygosity[hit], na.rm = TRUE)
         list(
-          sum(hit), mean(pop_locus$observed_heterozygosity[hit], na.rm = TRUE),
+          length(hit), mean(pop_locus$observed_heterozygosity[hit], na.rm = TRUE),
           mean(pop_locus$unbiased_expected_heterozygosity[hit], na.rm = TRUE),
           s, tajima_d_statistic(pi_total, s, n_haploid)
         )
