@@ -220,7 +220,15 @@ run_benchmark <- function(spec) {
   if (!"passed" %in% names(comparisons)) stop("benchmark comparator must return a passed column", call. = FALSE)
   memory_mb <- as.numeric(payload$memory_mb %||% NA_real_)
   disk_mb <- as.numeric(payload$disk_mb %||% NA_real_)
-  numerical_pass <- !nrow(comparisons) || all(comparisons$passed)
+  # A real gap found in a pre-release audit: 0 rows in `comparisons` is only
+  # a legitimate, informational "nothing to check" case when the spec truly
+  # has no reference at all (benchmark_default_compare()'s own NULL-reference
+  # branch, or a custom comparator following that same convention) -- when a
+  # reference WAS supplied but the runner's observed/reference values were
+  # empty (a real upstream bug, not an intentional signal), the old
+  # `!nrow(comparisons) || ...` unconditionally passed vacuously, verifying
+  # zero metrics while reporting success.
+  numerical_pass <- if (!nrow(comparisons)) is.null(reference) else all(comparisons$passed)
   runtime_pass <- runtime <= spec$runtime_budget_seconds
   memory_pass <- is.na(memory_mb) || memory_mb <= spec$memory_budget_mb
   disk_pass <- is.na(disk_mb) || disk_mb <= spec$disk_budget_mb

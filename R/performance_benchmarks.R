@@ -192,8 +192,27 @@ compare_performance_baseline <- function(observed, baseline,
     stop("performance fingerprints differ; cross-host comparison is disabled", call. = FALSE)
   }
   regression_thresholds <- observed$thresholds
+  # A real, if lower-probability, gap found in a pre-release audit: an inner
+  # join here (merge()'s default) silently drops any thread count present in
+  # only one of observed/baseline, rather than reporting it -- if a spec's
+  # threads vector changes between releases (a new thread count added, or a
+  # baseline recorded before one existed), that thread count's regression
+  # check is silently skipped instead of erroring, the same "quietly omits
+  # a check" failure mode found and fixed elsewhere in this comparison
+  # family this session. An explicit full outer join surfaces any mismatch
+  # loudly instead.
   merged <- merge(observed$summary, baseline$summary, by = "threads",
-                  suffixes = c("_observed", "_baseline"))
+                  suffixes = c("_observed", "_baseline"), all = TRUE)
+  missing <- merged$threads[is.na(merged$runtime_median_observed) | is.na(merged$runtime_median_baseline)]
+  if (length(missing)) {
+    stop(
+      "Cannot compare performance baselines: thread count(s) ",
+      paste(sort(unique(missing)), collapse = ", "),
+      " are present in only one of observed/baseline (the benchmark spec's ",
+      "threads changed between releases) -- regenerate a baseline covering ",
+      "the same thread counts before comparing", call. = FALSE
+    )
+  }
   metrics <- data.table::rbindlist(list(
     merged[, .(threads, metric = "runtime_seconds", observed = runtime_median_observed,
                baseline = runtime_median_baseline)],

@@ -1,3 +1,31 @@
+# A digest change alone isn't necessarily a regression -- benchmark
+# components legitimately evolve between releases. But a component that
+# carries its own pass/fail verdict (a validation-style result: either a
+# scalar `passed`/`valid` field, or -- the real shape actually archived by
+# scripts/build_release_benchmark_archive.R, run_scientific_validation()'s
+# own `$checks` data.table -- a logical `passed`/`valid` column with one row
+# per check) going from all-TRUE to not-all-TRUE IS unambiguously a real
+# regression, and must not be reported as the same uninformative "changed"
+# every other digest difference gets. Real bug found in a pre-release audit:
+# the old code never distinguished this case at all, so a genuine validation
+# regression here was silently reported as an overall "passed" comparison,
+# defeating scripts/build_release_benchmark_archive.R's own release-gate
+# stop() (which only fires on comparison$status == "failed").
+.component_validation_regressed <- function(observed, reference) {
+  field <- if ("passed" %in% names(observed) && "passed" %in% names(reference)) {
+    "passed"
+  } else if ("valid" %in% names(observed) && "valid" %in% names(reference)) {
+    "valid"
+  } else {
+    return(FALSE)
+  }
+  obs_vals <- observed[[field]]; ref_vals <- reference[[field]]
+  if (!is.logical(obs_vals) || !is.logical(ref_vals) || !length(obs_vals) || !length(ref_vals)) {
+    return(FALSE)
+  }
+  all(ref_vals, na.rm = TRUE) && !all(obs_vals, na.rm = TRUE)
+}
+
 #' Compare two archived release benchmark records
 #'
 #' @param current,baseline `PopgenVCFReleaseBenchmarkRecord` objects.
@@ -28,10 +56,17 @@ compare_release_benchmarks <- function(current, baseline) {
       current$component_digests[[component]],
       baseline$component_digests[[component]]
     )
+    status <- if (identical_digest) {
+      "unchanged"
+    } else if (.component_validation_regressed(observed, reference)) {
+      "failed"
+    } else {
+      "changed"
+    }
     data.table::data.table(
       component = component,
       comparison_type = "digest",
-      status = if (identical_digest) "unchanged" else "changed",
+      status = status,
       current_digest = current$component_digests[[component]],
       baseline_digest = baseline$component_digests[[component]]
     )

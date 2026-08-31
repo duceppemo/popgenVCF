@@ -99,6 +99,39 @@ set_canonical_change_status <- function(registry, id, status, decided_by, decide
 
 .severity_rank <- c(stable = 0L, minor = 1L, moderate = 2L, major = 3L, breaking = 4L)
 
+# Picks the single approved request that actually governs a metric when more
+# than one approved request covers it (a real supersession scenario: a
+# stricter approval later replaces an earlier, more permissive one). Real
+# bug found in a pre-release audit: the caller previously used
+# `candidates[[length(candidates)]]` where `candidates` is built from
+# `registry$requests`, which register_canonical_change_request() keeps
+# ALPHABETICALLY sorted by request id -- not by decision date or any
+# supersession relationship. "req-10" approved after "req-9" sorts BEFORE
+# it ('1' < '9'), so the older, potentially more permissive "req-9" would
+# silently govern instead -- `supersedes` (a field that exists in the
+# schema specifically for this) was defined but never actually read
+# anywhere. A real regression that a newer, stricter approval meant to
+# block could instead be silently judged "approved_change" under the
+# stale, more permissive one, reaching `release_ready = TRUE`.
+.resolve_governing_approval <- function(candidates) {
+  if (length(candidates) == 1L) return(candidates[[1L]])
+  ids <- vapply(candidates, `[[`, character(1L), "id")
+  superseded_ids <- unique(unlist(lapply(candidates, `[[`, "supersedes")))
+  active <- candidates[!ids %in% superseded_ids]
+  # A request superseding something outside this metric's own candidate set
+  # (e.g. a request covering multiple metrics, only some of which the
+  # superseding request also covers) must not strand this metric ungoverned.
+  if (!length(active)) active <- candidates
+  if (length(active) == 1L) return(active[[1L]])
+  # No supersedes chain resolves the remaining ties: the most recently
+  # decided approval governs, rather than an arbitrary registry-order pick.
+  # decided_at is a validated ISO-8601 string (new_canonical_change_request()
+  # requires it), so lexicographic comparison already orders it correctly --
+  # which.max() would coerce to numeric instead and fail on a real date string.
+  decided_at <- vapply(active, function(x) x$decided_at %||% "", character(1L))
+  active[[which(decided_at == max(decided_at))[[1L]]]]
+}
+
 #' Reconcile canonical drift with scientific change approvals
 #' @param assessment Canonical drift assessment.
 #' @param registry Canonical change registry.
@@ -123,7 +156,7 @@ reconcile_canonical_changes <- function(assessment, registry) {
       return(cbind(row, request_id = NA_character_, expected_classification = NA_character_,
         reconciliation = outcome, justification = NA_character_, stringsAsFactors = FALSE))
     }
-    request <- candidates[[length(candidates)]]
+    request <- .resolve_governing_approval(candidates)
     expected <- unname(request$expected_classifications[[row$metric_id]])
     within <- .severity_rank[[row$classification]] <= .severity_rank[[expected]]
     outcome <- if (within) "approved_change" else "exceeds_approval"

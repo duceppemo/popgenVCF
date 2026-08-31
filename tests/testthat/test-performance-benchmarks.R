@@ -72,6 +72,34 @@ test_that("baseline comparisons detect gating and informational regressions", {
   expect_true(any(informational$comparisons$regressed))
 })
 
+test_that("mismatched thread counts between observed and baseline error loudly instead of silently dropping the missing one", {
+  # Real gap found in a pre-release audit: merge()'s default inner join
+  # silently dropped any thread count present in only one side, skipping
+  # that thread count's regression check entirely rather than reporting it.
+  fingerprint <- list(host = "fixture")
+  make_result <- function(threads_vec) structure(list(
+    schema_version = "1.0", id = "fixture", fingerprint = fingerprint,
+    fingerprint_id = digest::digest(fingerprint, algo = "sha256", serialize = TRUE),
+    measurements = data.table::data.table(),
+    summary = data.table::data.table(
+      threads = threads_vec, runtime_median = rep(1, length(threads_vec)), runtime_mad = 0,
+      runtime_q05 = 1, runtime_q95 = 1,
+      memory_median_mb = 10, memory_mad_mb = 0,
+      disk_median_mb = 1, disk_mad_mb = 0,
+      speedup = 1, scaling_efficiency = 1
+    ),
+    thresholds = c(runtime_seconds = 0.20, peak_memory_mb = 0.25, temporary_disk_mb = 0.25),
+    gating = TRUE, metadata = list()
+  ), class = "PopgenVCFPerformanceResult")
+
+  baseline <- make_result(1L)
+  observed <- make_result(c(1L, 2L))
+  expect_error(
+    compare_performance_baseline(observed, baseline),
+    "thread count\\(s\\) 2"
+  )
+})
+
 test_that("incompatible machines are rejected unless explicitly permitted", {
   make_result <- function(host) structure(list(
     schema_version = "1.0", id = "fixture", fingerprint = list(host = host),

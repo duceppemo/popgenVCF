@@ -40,6 +40,33 @@ test_that("tolerance and resource budget failures are explicit", {
   expect_match(tab[id == "memory-failure", message], "memory")
 })
 
+test_that("empty observed/reference with a real reference supplied fails loudly instead of vacuously passing", {
+  # Real gap found in a pre-release audit: a benchmark runner that returns
+  # empty observed values (a real upstream bug, e.g. a scan that found zero
+  # windows/records) produced a 0-row comparisons table, and the old
+  # `!nrow(comparisons) || all(...)` check reported that as numerically
+  # passed with zero metrics actually verified -- masking the real failure.
+  dataset <- new_benchmark_dataset("empty-data", loader = function() numeric(0))
+  spec <- new_benchmark_spec(
+    "empty-observed", "numerical", dataset,
+    runner = function(x) list(observed = x), reference = numeric(0),
+    absolute_tolerance = 0, relative_tolerance = 0
+  )
+  result <- run_benchmark(spec)
+  expect_equal(result$status, "failed")
+  expect_match(result$message, "numerical")
+})
+
+test_that("a spec with genuinely no reference still passes vacuously -- the legitimate informational case", {
+  dataset <- new_benchmark_dataset("no-reference-data", loader = function() c(a = 1))
+  spec <- new_benchmark_spec(
+    "no-reference", "performance", dataset,
+    runner = function(x) list(observed = x), reference = NULL
+  )
+  result <- run_benchmark(spec)
+  expect_equal(result$status, "passed")
+})
+
 test_that("optional requirements produce transparent skips", {
   dataset <- new_benchmark_dataset("optional-data", loader = function() 1)
   spec <- new_benchmark_spec(

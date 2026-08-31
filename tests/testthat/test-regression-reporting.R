@@ -30,6 +30,62 @@ test_that("release comparisons report shared and unique components", {
   ))
 })
 
+test_that("a validation component's pass/fail regression flips the overall comparison to failed, not the uninformative 'changed'", {
+  # Real bug found in a pre-release audit: the digest-comparison branch only
+  # ever emits "unchanged"/"changed", and "changed" was never in the set
+  # that flips overall status to "failed" -- so a genuine validation
+  # regression (scripts/build_release_benchmark_archive.R archives
+  # run_scientific_validation()'s own $checks data.table, with a logical
+  # `passed` column, as exactly this kind of digest-compared component) was
+  # silently reported as an overall "passed" comparison, defeating that
+  # script's own release-gate stop() (which only fires on status == "failed").
+  make_checks_record <- function(release, all_passed) {
+    checks <- data.table::data.table(
+      check = c("check_a", "check_b"),
+      passed = c(TRUE, all_passed)
+    )
+    new_release_benchmark_record(
+      release = release, package_version = sub("^v", "", release),
+      git_sha = paste0("sha-", release),
+      components = list(scientific_validation = checks),
+      provenance = list(source = "fixture")
+    )
+  }
+  baseline <- make_checks_record("v0.9.0", all_passed = TRUE)
+  current <- make_checks_record("v0.10.0", all_passed = FALSE)
+
+  comparison <- compare_release_benchmarks(current, baseline)
+  expect_equal(comparison$status, "failed")
+  expect_equal(
+    comparison$details$status[comparison$details$component == "scientific_validation"],
+    "failed"
+  )
+})
+
+test_that("a component's non-regressing content change still stays 'changed', not a false 'failed'", {
+  # A digest change alone (this fixture's plain data.frame `value` column, or
+  # a validation component whose checks still all pass despite different
+  # content) is legitimate benchmark evolution, not a regression -- must not
+  # become an over-eager blanket "any change fails" policy.
+  make_checks_record <- function(release, note) {
+    checks <- data.table::data.table(
+      check = c("check_a", "check_b"), passed = c(TRUE, TRUE), note = note
+    )
+    new_release_benchmark_record(
+      release = release, package_version = sub("^v", "", release),
+      git_sha = paste0("sha-", release),
+      components = list(scientific_validation = checks),
+      provenance = list(source = "fixture")
+    )
+  }
+  baseline <- make_checks_record("v0.9.0", "old note")
+  current <- make_checks_record("v0.10.0", "new note")
+
+  comparison <- compare_release_benchmarks(current, baseline)
+  expect_equal(comparison$status, "passed")
+  expect_equal(comparison$details$status, "changed")
+})
+
 test_that("latest release selection uses semantic versions", {
   archive <- new_benchmark_archive()
   archive <- register_release_benchmark(archive, make_release_record("v0.9.0", 1))
