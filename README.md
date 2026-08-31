@@ -54,8 +54,8 @@ metadata isn't available, while optional ancestry backends stay disabled
 until explicitly requested since they need an external tool. Backend
 `threads: auto` values inherit `compute.threads`.
 
-Edit `analysis.yml` to use container paths such as `/data/cohort.vcf.gz`, then
-run:
+Edit `analysis.yml` to use container paths such as `/data/cohort.vcf.gz` (see the
+[Configuration Reference](https://github.com/duceppemo/popgenVCF/wiki/Configuration-Reference)), then run:
 
 ```bash
 docker run --rm --user "$(id -u):$(id -g)" \
