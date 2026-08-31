@@ -12,6 +12,14 @@ repository-artifact: "https://github.com/duceppemo/popgenVCF/releases"
 url: "https://duceppemo.github.io/popgenVCF/"
 license: MIT
 version: 1.0.7
+date-released: "2026-08-31"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.22210850"
+    description: "The version-specific archive of popgenVCF 1.0.7."
+  - type: doi
+    value: "10.5281/zenodo.21747067"
+    description: "The concept DOI, which always resolves to the latest version of popgenVCF."
 keywords:
   - population genomics
   - population genetics
