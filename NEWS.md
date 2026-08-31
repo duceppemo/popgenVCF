@@ -1,3 +1,5 @@
+# popgenVCF 1.0.7.9000 development
+
 # popgenVCF 1.0.7
 
 popgenVCF 1.0.7 is released. DOI [10.5281/zenodo.22210850](https://doi.org/10.5281/zenodo.22210850) (concept DOI [10.5281/zenodo.21747067](https://doi.org/10.5281/zenodo.21747067)), 2026-08-31. Deposited automatically by Zenodo's GitHub integration once the recreated GitHub Release was published (the same `GITHUB_TOKEN` anti-recursion issue already found for `v1.0.0` and `v1.0.6` recurred and was fixed the same way -- see `docs/ROADMAP.md`); verified independently the same way as every prior release (raw Zenodo record API JSON matches `.zenodo.json`; both the version and concept DOIs resolve via real `doi.org` redirects). Reconciled the real DOI and publication date across `inst/metadata/software-identity.json`, `CITATION.cff`, `codemeta.json`, `.zenodo.json`, and `README.md`; `release_status` transitions from `development` to `released`.
