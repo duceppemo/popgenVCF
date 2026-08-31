@@ -29,6 +29,28 @@ test_that("spatial_autocorrelation_r matches PopGenReport::spautocor() on a synt
   )
 })
 
+test_that("spatial_autocorrelation_r tolerates a real NA in the genetic-distance matrix instead of crashing", {
+  # Real crash found in a pre-release audit: stats::dist() returns NA for a
+  # sample pair sharing zero non-missing genotyped loci -- a reachable,
+  # non-adversarial outcome after QC that thresholds only aggregate
+  # missingness, not per-pair overlap. rs/sgd already used na.rm = TRUE
+  # (showing this was anticipated), but cx/cxii/cxjj downstream did not, so
+  # a single NA pair propagated into `denom`, and `if (denom == 0)` on an NA
+  # denom errored outright ("missing value where TRUE/FALSE needed")
+  # instead of gracefully returning NA_real_ for that bin.
+  set.seed(21)
+  n_ind <- 12L; n_snp <- 10L
+  genotype <- matrix(rbinom(n_ind * n_snp, 2, 0.4), nrow = n_ind, ncol = n_snp)
+  xy <- matrix(runif(n_ind * 2, 0, 100), ncol = 2)
+  gd <- as.matrix(stats::dist(genotype, method = "euclidean"))^2
+  ed <- as.matrix(stats::dist(xy))
+  gd[1L, 3L] <- gd[3L, 1L] <- NA_real_
+
+  expect_no_error(res <- popgenVCF:::spatial_autocorrelation_r(gd, ed, bins = 6L))
+  expect_s3_class(res, "data.table")
+  expect_true(nrow(res) == 6L)
+})
+
 test_that("individual_genetic_distance reduces to sum of squared dosage differences (verified against gd.smouse(), see NEWS.md)", {
   # Same fixture as above; the squared-Euclidean-on-dosage reduction matched
   # PopGenReport::gd.smouse()'s own allele-count-based computation to

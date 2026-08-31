@@ -4,6 +4,14 @@ haversine_matrix <- function(lat, lon, labels) {
   for (i in seq_len(n - 1L)) for (j in (i + 1L):n) {
     dlat <- lat[j] - lat[i]; dlon <- lon[j] - lon[i]
     a <- sin(dlat/2)^2 + cos(lat[i]) * cos(lat[j]) * sin(dlon/2)^2
+    # a is mathematically bounded in [0, 1], but is a sum of two
+    # independently-rounded trig terms -- for widely separated or
+    # near-antipodal coordinates, floating-point error can push it
+    # fractionally above 1, making sqrt(1 - a) silently return NaN (a real
+    # bug found in a pre-release audit) instead of the ~0 the true geometry
+    # implies. Clamping before both sqrt() calls is the standard fix for
+    # this well-known haversine-formula pitfall.
+    a <- min(max(a, 0), 1)
     d <- 2 * R * atan2(sqrt(a), sqrt(1 - a)); m[i,j] <- m[j,i] <- d
   }
   m

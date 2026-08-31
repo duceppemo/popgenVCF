@@ -4,6 +4,22 @@ test_that("haversine matrix is symmetric", {
   expect_equal(unname(diag(x)), c(0, 0, 0))
 })
 
+test_that("haversine matrix clamps floating-point overshoot for near-antipodal coordinates instead of returning NaN", {
+  # Real bug found in a pre-release audit: the haversine formula's
+  # intermediate `a` term is mathematically bounded in [0, 1], but is a sum
+  # of two independently-rounded trig terms -- for exact antipodal
+  # coordinates (a real, if geographically extreme, input; plausible for a
+  # population-level representative coordinate spanning a wide range),
+  # floating-point rounding pushes it fractionally above 1, and the
+  # unclamped `sqrt(1 - a)` silently returns NaN. This exact pair
+  # (lat -89.26/89.26, lon -180/0) was confirmed to trigger a > 1 on this
+  # platform before the fix. The true antipodal distance is half Earth's
+  # circumference (~20015 km via the mean radius this function uses).
+  x <- popgenVCF:::haversine_matrix(c(-89.26, 89.26), c(-180, 0), c("a", "b"))
+  expect_false(anyNA(x))
+  expect_equal(unname(x["a", "b"]), pi * 6371.0088, tolerance = 1e-6)
+})
+
 test_that("Mantel IBD joins public IBS labels to aliased metadata", {
   metadata <- popgenVCF::new_sample_identity(data.table::data.table(
     sample = paste0("raw_", 1:4),

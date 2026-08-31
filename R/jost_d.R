@@ -59,7 +59,11 @@ jost_d_group <- function(locus_table, group_populations) {
 }
 
 compute_jost_d <- function(locus_table) {
-  populations <- sort(unique(locus_table$population))
+  # method = "radix": locale-independent, so the written table's row order
+  # is reproducible across machines regardless of ambient LC_COLLATE (a real
+  # bug found in a pre-release audit -- population names with mixed case
+  # otherwise sort differently under different locales).
+  populations <- sort(unique(locus_table$population), method = "radix")
   empty_long <- data.table::data.table(
     population_1 = character(), population_2 = character(),
     jost_d = numeric(), jost_d_n_snps = integer()

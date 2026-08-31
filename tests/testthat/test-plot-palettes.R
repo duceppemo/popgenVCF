@@ -11,6 +11,26 @@ test_that("population figures share a high-contrast accessible palette", {
   )
 })
 
+test_that("population_palette/population_shapes assign names in locale-independent order", {
+  # Real bug found in a pre-release audit: sort() on character input uses
+  # the ambient LC_COLLATE locale by default, empirically confirmed to
+  # differ between "C" and "en_US.UTF-8" for mixed-case names -- the same
+  # analysis on the same data could get different colours/shapes for the
+  # same populations depending on which machine ran it. method = "radix" is
+  # documented as platform-independent for character vectors; asserting the
+  # output directly matches that fixed order proves the fix without needing
+  # to actually switch locales (which may not even be installed in a given
+  # CI runner).
+  populations <- c("north_pop", "South_Pop", "east2", "East10")
+  radix_order <- sort(populations, method = "radix")
+
+  palette <- popgenVCF:::population_palette(populations)
+  expect_identical(names(palette), radix_order)
+
+  shapes <- popgenVCF:::population_shapes(populations)
+  expect_identical(names(shapes), radix_order)
+})
+
 test_that("plot_qc_reports keeps the sequential SNP retention bars in filtering order, not alphabetical", {
   plots <- list()
   local_mocked_bindings(

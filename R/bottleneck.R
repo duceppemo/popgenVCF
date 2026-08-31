@@ -13,7 +13,11 @@
 # per-locus `maf`/`polymorphic` columns -- no new per-locus computation.
 
 run_bottleneck_analysis <- function(locus_table, n_bins = 10L) {
-  populations <- sort(unique(locus_table$population))
+  # method = "radix": locale-independent, so the written table's row order
+  # is reproducible across machines regardless of ambient LC_COLLATE (a real
+  # bug found in a pre-release audit -- population names with mixed case
+  # otherwise sort differently under different locales).
+  populations <- sort(unique(locus_table$population), method = "radix")
   bin_width <- 0.5 / n_bins
   bin_lower <- seq(0, 0.5 - bin_width, by = bin_width)
   bin_upper <- bin_lower + bin_width

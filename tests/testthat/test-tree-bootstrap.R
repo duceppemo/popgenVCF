@@ -82,6 +82,25 @@ test_that("run_tree_bootstrap_replicates drops non-phylo results, including a ki
   expect_true(all(vapply(parallel_result, inherits, logical(1L), what = "phylo")))
 })
 
+test_that("run_tree_bootstrap_replicates routes workers through fork_worker_count(), matching every other mclapply() site", {
+  # Real gap found in a pre-release audit: both real callers
+  # (bootstrap_nj_ibs_tree()/bootstrap_population_nj_tree()) passed
+  # cfg$compute$threads straight through as `workers`, bypassing
+  # fork_worker_count()'s Windows guard and NA/zero/negative-threads
+  # coercion every other mclapply() call site in this codebase routes
+  # through. Not previously an active crash (mclapply() itself already
+  # forces mc.cores = 1 on Windows), but a real, live inconsistency now
+  # closed at the shared helper's own root. An NA/invalid `workers` value
+  # -- something fork_worker_count() explicitly coerces to 1L, and which
+  # would otherwise reach mclapply()'s own mc.cores argument unguarded --
+  # proves the routing is now real, not just a comment.
+  phylo_stub <- function() structure(list(), class = "phylo")
+  build_one <- function(i) phylo_stub()
+  result <- popgenVCF:::run_tree_bootstrap_replicates(3L, NA_integer_, build_one)
+  expect_length(result, 3L)
+  expect_true(all(vapply(result, inherits, logical(1L), what = "phylo")))
+})
+
 test_that("ibs_bootstrap_distance matches SNPRelate::snpgdsIBS()'s exact formula on complete data", {
   skip_if_not_installed("SNPRelate")
   fx <- tree_bootstrap_genotype_fixture()

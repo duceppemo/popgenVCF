@@ -55,6 +55,18 @@ tree_bootstrap_replicate_seeds <- function(seed, replicates) {
 # below, so the reported count and the support percentages' real
 # denominator now agree.
 run_tree_bootstrap_replicates <- function(replicates, workers, build_one) {
+  # fork_worker_count() is the same Windows/task-count/thread-budget guard
+  # every other mclapply() call site in this codebase routes through --
+  # both real callers here (bootstrap_nj_ibs_tree(), bootstrap_population_nj_tree())
+  # used to pass cfg$compute$threads straight through unguarded, a real
+  # inconsistency found in a pre-release audit. mclapply() itself already
+  # silently forces mc.cores = 1 on Windows, so this was not an active
+  # crash, but re-deriving `workers` here (rather than trusting the raw
+  # config value) also picks up fork_worker_count()'s other protections
+  # (NA/zero/negative-threads coercion) that this path was otherwise
+  # bypassing, and closes the gap for every current and future caller at
+  # its root rather than requiring each call site to remember it.
+  workers <- fork_worker_count(replicates, workers)
   results <- if (workers <= 1L) {
     lapply(seq_len(replicates), build_one)
   } else {

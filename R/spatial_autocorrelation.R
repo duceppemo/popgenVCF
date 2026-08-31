@@ -54,11 +54,21 @@ spatial_autocorrelation_r <- function(gd, ed, bins) {
     idx <- which(ed2 <= d * steps & ed2 > (d - 1) * steps, arr.ind = TRUE)
     n_pairs[d] <- nrow(idx)
     if (!nrow(idx)) next
-    cx <- sum(cd[idx])
-    cxii <- sum(diag(cd)[idx[, 1]])
-    cxjj <- sum(diag(cd)[idx[, 2]])
+    # na.rm = TRUE, matching rs/sgd above: gd (and therefore cd, which
+    # subtracts it directly) can contain real, non-adversarial NA cells --
+    # stats::dist() returns NA for any sample pair sharing zero non-missing
+    # genotyped loci, a reachable outcome after QC that only thresholds
+    # aggregate missingness, not per-pair overlap. Without na.rm = TRUE here,
+    # a single NA pair in a distance bin propagated into `denom`, and
+    # `if (denom == 0)` on an NA denom is a hard R error ("missing value
+    # where TRUE/FALSE needed"), not the graceful NA_real_ this function
+    # already intends for the analogous zero-denominator case -- a real
+    # crash found in a pre-release audit.
+    cx <- sum(cd[idx], na.rm = TRUE)
+    cxii <- sum(diag(cd)[idx[, 1]], na.rm = TRUE)
+    cxjj <- sum(diag(cd)[idx[, 2]], na.rm = TRUE)
     denom <- cxii + cxjj
-    r[d] <- if (denom == 0) NA_real_ else 2 * cx / denom
+    r[d] <- if (is.na(denom) || denom == 0) NA_real_ else 2 * cx / denom
   }
   data.table::data.table(bin_upper = bin_upper, n_pairs = n_pairs, r = r)
 }

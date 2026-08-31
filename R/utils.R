@@ -183,7 +183,11 @@ natural_sort_key <- function(x) {
 # character/default-factor column).
 natural_sort_levels <- function(x) {
   u <- unique(x)
-  u[order(natural_sort_key(u))]
+  # method = "radix" keeps this locale-independent even for the non-digit
+  # runs natural_sort_key() leaves untouched (e.g. "X"/"Y"/"MT" or any
+  # letter-only chromosome name) -- the digit-padding alone only protects
+  # purely-numeric comparisons, not the underlying character ordering.
+  u[order(natural_sort_key(u), method = "radix")]
 }
 
 manhattan_layout <- function(chromosome, position) {
@@ -489,7 +493,17 @@ expand_figure_palette <- function(profile, n, aesthetic = c("colours", "fills"))
 }
 
 population_palette <- function(populations, style = "accessibility-first") {
-  lev <- sort(unique(as.character(populations)))
+  # method = "radix" is required, not cosmetic: character sort() otherwise
+  # uses the ambient LC_COLLATE locale, which is not guaranteed consistent
+  # across machines -- a real, empirically confirmed bug found in a
+  # pre-release audit, where the same mixed-case population names sorted
+  # differently under "C" vs "en_US.UTF-8", silently assigning different
+  # colours to the same populations depending on which machine ran the
+  # analysis. "radix" is documented as platform-independent for character
+  # vectors (equivalent to a fixed C-locale byte-order sort), giving this
+  # package's figures the same reproducibility guarantee its checkpoint/
+  # config fingerprints already have.
+  lev <- sort(unique(as.character(populations)), method = "radix")
   cols <- expand_figure_palette(
     figure_style_profile(style), length(lev), "colours"
   )
@@ -497,7 +511,7 @@ population_palette <- function(populations, style = "accessibility-first") {
 }
 
 population_shapes <- function(populations, style = "accessibility-first") {
-  lev <- sort(unique(as.character(populations)))
+  lev <- sort(unique(as.character(populations)), method = "radix")
   profile <- figure_style_profile(style)
   shapes <- rep(profile$shapes, length.out = length(lev))
   stats::setNames(shapes, lev)
