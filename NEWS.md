@@ -1,4 +1,4 @@
-# popgenVCF 1.0.6.9000 development
+# popgenVCF 1.0.7 development
 
 - **Requested: a seventh gap-audit pass, on three classic base-R pitfall patterns not yet specifically targeted -- `1:n`-style off-by-one bugs on zero-length input, `sapply()`/vectorized-`if` type instability, and algorithmic scalability at real production scale.** The `1:n` audit came back genuinely clean (this codebase consistently uses `seq_len()`/`seq_along()` throughout -- only two colon-range constructs exist anywhere in `R/`, both already safely guarded) and `sapply()` is never used at all (this codebase exclusively uses `vapply()`). The other two found real, live issues.
 
