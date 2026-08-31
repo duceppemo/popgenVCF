@@ -146,6 +146,16 @@ Every other override flag (`--vcf`, `--maf`, `--outdir`, `--force-gds`,
 Supplying one anyway prints a warning naming it, rather than silently doing
 nothing.
 
+**Security note:** only ever resume from an `output.directory` your own runs
+produced. The checkpoint file has a SHA-256 sidecar, but that only detects
+accidental corruption (a truncated copy, a partial write) -- it is not a
+tamper-resistance check, since anyone able to replace the checkpoint file can
+equally replace its matching sidecar. Resuming calls R's `readRDS()` on the
+checkpoint, which -- like R's serialization format in general -- can execute
+arbitrary code embedded in a maliciously crafted file the moment it is
+deserialized. Never run `--resume` against a directory downloaded, received
+from a collaborator, or restored from storage you do not fully control.
+
 ## Diagnostic record
 
 When reporting a problem, include:

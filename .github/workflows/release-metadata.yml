@@ -90,16 +90,32 @@ jobs:
           POPGENVCF_ZENODO_METADATA_EVIDENCE: artifacts/zenodo-metadata-validation.json
         run: Rscript scripts/validate_zenodo_metadata.R
 
+      # if: always() is required here, not cosmetic: every validator step
+      # above stops the job outright on a genuine metadata inconsistency (a
+      # real audit found this step had no `if:` guard at all, so a real
+      # validation failure skipped it entirely -- no gate-record JSON was
+      # ever written for the exact case this gate exists to catch, even
+      # though each validator writes its own evidence JSON with
+      # passed: false BEFORE it stop()s). Written defensively for the rarer
+      # case where a validator crashed outright before writing its evidence
+      # file at all, rather than erroring inside this step too.
       - name: Write metadata_consistency gate record
+        if: always()
         run: |
           Rscript -e '
             source("inst/scripts/release_candidate_gate_record.R")
-            results <- lapply(c(
+            root <- "artifacts"
+            dir.create(root, recursive = TRUE, showWarnings = FALSE)
+            paths <- c(
               "artifacts/release-metadata-validation.json",
               "artifacts/license-metadata-validation.json",
               "artifacts/zenodo-metadata-validation.json"
-            ), jsonlite::read_json, simplifyVector = FALSE)
-            passed <- all(vapply(results, function(x) isTRUE(x$passed), logical(1L)))
+            )
+            present <- Filter(file.exists, paths)
+            results <- lapply(present, jsonlite::read_json, simplifyVector = FALSE)
+            passed <- length(present) == length(paths) &&
+              all(vapply(results, function(x) isTRUE(x$passed), logical(1L)))
+            missing <- setdiff(paths, present)
             write_release_candidate_gate_record(
               gate_id = "metadata_consistency",
               status = if (passed) "passed" else "failed",
@@ -108,14 +124,19 @@ jobs:
                 "(validate_release_metadata.R: DESCRIPTION/CITATION.cff/codemeta.json/",
                 "software-identity consistency; validate_license_metadata.R: LICENSE/SPDX",
                 "consistency; validate_zenodo_metadata.R: .zenodo.json consistency)",
-                if (passed) "all passed with no failing checks." else "reported at least one failing check."
+                if (passed) {
+                  "all passed with no failing checks."
+                } else if (length(missing)) {
+                  paste0(
+                    "did not all complete -- missing evidence: ",
+                    paste(basename(missing), collapse = ", "), "."
+                  )
+                } else {
+                  "reported at least one failing check."
+                }
               ),
-              artifact_paths = c(
-                "artifacts/release-metadata-validation.json",
-                "artifacts/license-metadata-validation.json",
-                "artifacts/zenodo-metadata-validation.json"
-              ),
-              root = "artifacts",
+              artifact_paths = present,
+              root = root,
               output_path = "artifacts/metadata_consistency-gate-record.json"
             )
           '

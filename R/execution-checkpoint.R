@@ -169,9 +169,23 @@ validate_execution_checkpoint <- function(checkpoint, registry = NULL) {
 #' Write an execution checkpoint
 #'
 #' The checkpoint is serialized inside a versioned runtime integrity envelope.
-#' A whole-file SHA-256 sidecar protects the serialized bytes, while the envelope
-#' and checkpoint digests independently protect schema compatibility and payload
-#' semantics.
+#' A whole-file SHA-256 sidecar detects accidental corruption of the serialized
+#' bytes (a truncated copy, a partial write, bit rot on disk), while the
+#' envelope and checkpoint digests independently protect schema compatibility
+#' and payload semantics.
+#'
+#' **This is a corruption check, not a tamper-resistance boundary.** The
+#' sidecar is written next to the checkpoint by the same, ordinary write --
+#' anyone able to replace the checkpoint file can just as easily recompute and
+#' replace its sidecar to match, so the checksum provides no protection
+#' against a deliberately crafted file. `read_execution_checkpoint()`
+#' ultimately calls base R's `readRDS()`, which executes arbitrary R code
+#' embedded in a maliciously crafted `.rds` payload the moment it is
+#' deserialized -- this is a documented, general property of R's own
+#' serialization format, not specific to this function. Only ever resume from
+#' an `output.directory` this same trust domain produced (this machine, this
+#' user, this run) -- never from a directory downloaded, received from a
+#' collaborator, or restored from storage you do not fully control.
 #'
 #' @param checkpoint A validated execution checkpoint.
 #' @param path Destination `.rds` path.
@@ -199,9 +213,21 @@ write_execution_checkpoint <- function(checkpoint, path, overwrite = FALSE) {
 
 #' Read and verify an execution checkpoint
 #'
-#' Validation proceeds from the serialized bytes inward: the SHA-256 sidecar,
+#' Validation proceeds from the serialized bytes inward: the SHA-256 sidecar
+#' (accidental-corruption detection only -- see the Security section below),
 #' readable RDS structure, runtime envelope schema and digest, then checkpoint
 #' invariants and optional registry compatibility.
+#'
+#' @section Security:
+#' This function calls `readRDS()` on `path`. R's serialization format can
+#' execute arbitrary code embedded in a maliciously crafted file the moment it
+#' is deserialized; the SHA-256 sidecar check above guards only against
+#' accidental corruption, not a deliberate attacker, since anyone able to
+#' place a crafted checkpoint can equally place a matching sidecar for it.
+#' Only call this (directly, or via `--resume`/`run_pipeline_resume()`) on a
+#' checkpoint directory produced by a run you trust -- never one downloaded,
+#' received from a collaborator, or restored from storage you do not fully
+#' control.
 #'
 #' @param path Checkpoint `.rds` path.
 #' @param registry Optional registry used for compatibility validation.

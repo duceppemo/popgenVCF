@@ -82,12 +82,22 @@ portable_gds_to_bed <- function(gdsobj, bed.fn, sample.id, snp.id,
     stop("SNPRelate PED fallback did not create both .ped and .map files", call. = FALSE)
   }
 
+  # shQuote() every dynamic path: system2()'s default (system_runner = system2)
+  # joins `arguments` into a single command line run through a shell on Unix,
+  # so an unquoted path is shell-interpreted, not passed as one opaque argv
+  # element -- the same discipline every other external-tool call site in
+  # this codebase already follows (e.g. the bcftools invocations in
+  # R/vcf_input.R). ped_prefix/bed.fn trace only to the config-controlled
+  # output.directory, never to VCF/metadata file content, but a path
+  # legitimately containing a space or shell metacharacter (a real
+  # possibility for output.directory) would otherwise still break or,
+  # worse, be silently shell-interpreted.
   arguments <- c(
-    "--file", normalizePath(ped_prefix, mustWork = FALSE),
+    "--file", shQuote(normalizePath(ped_prefix, mustWork = FALSE)),
     "--make-bed",
     "--allow-extra-chr",
     "--keep-allele-order",
-    "--out", normalizePath(bed.fn, mustWork = FALSE)
+    "--out", shQuote(normalizePath(bed.fn, mustWork = FALSE))
   )
   output <- command_runner(
     executable,

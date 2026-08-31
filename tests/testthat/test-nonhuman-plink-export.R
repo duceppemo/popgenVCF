@@ -14,6 +14,46 @@ test_that("undefined autosome bounds are detected without ambiguous conditions",
   expect_true(popgenVCF:::gds_autosome_bounds_defined(NULL, defined))
 })
 
+test_that("PLINK invocation arguments shell-quote dynamic paths, closing a real command-injection gap", {
+  # Real security finding from a pre-release audit: command_runner defaults
+  # to system2(), which -- confirmed directly -- shell-interprets its `args`
+  # vector on Unix (base R pastes command + args into one string run through
+  # a shell), so an unquoted dynamic path is not passed as one opaque argv
+  # element the way it would be under execve()/a shell-free API. A real
+  # output.directory containing a shell metacharacter (a space, a semicolon)
+  # would otherwise either break or, worse, be silently shell-interpreted.
+  root <- tempfile("nonhuman-plink-injection-")
+  dir.create(root)
+  prefix <- file.path(root, "cohort")
+  captured_args <- NULL
+  ped_converter <- function(gdsobj, ped.fn, sample.id, snp.id,
+                            use.snp.rsid = FALSE, format = "A/G/C/T",
+                            verbose = FALSE) {
+    writeLines("synthetic PED", paste0(ped.fn, ".ped"))
+    writeLines("synthetic MAP", paste0(ped.fn, ".map"))
+    invisible(NULL)
+  }
+  command_runner <- function(command, args, stdout, stderr) {
+    captured_args <<- args
+    stop("stop before actually invoking anything -- only inspecting args")
+  }
+  expect_error(
+    popgenVCF:::portable_gds_to_bed(
+      gdsobj = NULL, bed.fn = prefix, sample.id = c("s1", "s2"), snp.id = 1:3,
+      option_reader = function(gds) list(autosome.start = NA_integer_, autosome.end = NA_integer_),
+      direct_converter = function(...) stop("direct converter must not be called"),
+      ped_converter = ped_converter,
+      plink_locator = function(executable) "/usr/bin/plink",
+      command_runner = command_runner
+    ),
+    "inspecting args"
+  )
+  file_index <- match("--file", captured_args)
+  out_index <- match("--out", captured_args)
+  expect_true(grepl("^'.*'$", captured_args[[file_index + 1L]]))
+  expect_true(grepl("^'.*'$", captured_args[[out_index + 1L]]))
+})
+
 test_that("non-human chromosome metadata falls back through PED and PLINK", {
   root <- tempfile("nonhuman-plink-")
   dir.create(root)
@@ -40,7 +80,12 @@ test_that("non-human chromosome metadata falls back through PED and PLINK", {
   }
   command_runner <- function(command, args, stdout, stderr) {
     out_index <- match("--out", args)
-    out_prefix <- args[[out_index + 1L]]
+    # portable_gds_to_bed() shQuote()s dynamic path arguments before handing
+    # them to command_runner, matching what a real shell-interpreted
+    # system2() call requires (a real security fix -- see R/nonhuman_plink_export.R);
+    # this mock bypasses any real shell, so it must undo that quoting itself
+    # to recover the plain path, the same way a real shell would.
+    out_prefix <- gsub("^'(.*)'$", "\\1", args[[out_index + 1L]])
     writeBin(as.raw(c(0x6c, 0x1b, 0x01, 0x00)), paste0(out_prefix, ".bed"))
     data.table::fwrite(
       data.table::data.table(

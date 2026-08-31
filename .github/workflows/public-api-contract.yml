@@ -77,25 +77,42 @@ jobs:
           }
           RSCRIPT
 
+      # if: always() is required here, not cosmetic: every step above stops
+      # the job outright on a genuine contract violation (a real audit found
+      # this step had no `if:` guard at all, so a real failure skipped it
+      # entirely -- no gate-record JSON was ever written for the exact case
+      # this gate exists to catch, and its own "failed" branch was dead
+      # code). Written defensively so a step that failed before producing
+      # public-api-summary.tsv at all (not just "produced it with
+      # passed = FALSE") still yields an accurate "failed" record instead of
+      # erroring inside this step too.
       - name: Write public_api_contract gate record
+        if: always()
         run: |
           Rscript -e '
             source("inst/scripts/release_candidate_gate_record.R")
-            summary_table <- read.delim("artifacts/public-api-contract/public-api-summary.tsv", stringsAsFactors = FALSE)
-            passed <- isTRUE(as.logical(summary_table$passed[[1L]]))
+            root <- "artifacts/public-api-contract"
+            dir.create(root, recursive = TRUE, showWarnings = FALSE)
+            summary_path <- file.path(root, "public-api-summary.tsv")
+            findings_path <- file.path(root, "public-api-findings.tsv")
+            if (file.exists(summary_path)) {
+              summary_table <- read.delim(summary_path, stringsAsFactors = FALSE)
+              passed <- isTRUE(as.logical(summary_table$passed[[1L]]))
+              summary_text <- sprintf(
+                "public-api-contract.yml canonical baseline verification: %d entries, %d blocking finding(s), %d advisory finding(s).",
+                summary_table$entries[[1L]], summary_table$blocking_findings[[1L]], summary_table$advisory_findings[[1L]]
+              )
+            } else {
+              passed <- FALSE
+              summary_text <- "public-api-contract.yml failed before the contract summary could be generated -- see the job log for the failing step."
+            }
             write_release_candidate_gate_record(
               gate_id = "public_api_contract",
               status = if (passed) "passed" else "failed",
-              summary = sprintf(
-                "public-api-contract.yml canonical baseline verification: %d entries, %d blocking finding(s), %d advisory finding(s).",
-                summary_table$entries[[1L]], summary_table$blocking_findings[[1L]], summary_table$advisory_findings[[1L]]
-              ),
-              artifact_paths = c(
-                "artifacts/public-api-contract/public-api-summary.tsv",
-                "artifacts/public-api-contract/public-api-findings.tsv"
-              ),
-              root = "artifacts/public-api-contract",
-              output_path = "artifacts/public-api-contract/public_api_contract-gate-record.json"
+              summary = summary_text,
+              artifact_paths = Filter(file.exists, c(summary_path, findings_path)),
+              root = root,
+              output_path = file.path(root, "public_api_contract-gate-record.json")
             )
           '
 

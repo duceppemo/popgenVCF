@@ -50,4 +50,12 @@ Resume validates the checkpoint against the current registry and rejects plan or
 contract drift. Only modules recorded as successful are reused. Failed, blocked,
 or otherwise unfinished modules are rerun through the normal execution engine
 and remain subject to result, artifact, and dependency validation.
+
+\strong{Security:} the SHA-256 sidecar detects accidental corruption only, not
+deliberate tampering -- anyone able to replace the checkpoint file can equally
+replace its matching sidecar. \code{read_execution_checkpoint()} calls base R's
+\code{readRDS()}, which can execute arbitrary code embedded in a maliciously
+crafted file the moment it is deserialized. Only resume from a checkpoint
+directory produced by a run you trust; never one downloaded, received from a
+collaborator, or restored from storage you do not fully control.
 }
