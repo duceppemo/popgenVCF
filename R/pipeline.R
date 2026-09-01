@@ -236,10 +236,24 @@ finalize_pipeline_analysis <- function(analysis, registry, cfg, dirs) {
   utils::capture.output(utils::sessionInfo(), file = file.path(dirs$root, "sessionInfo.txt"))
   if (isTRUE(cfg$report$enabled)) {
     t0 <- proc.time()[["elapsed"]]
+    # render_report() only needs the results_rds path, not the live
+    # `analysis` object -- but the object (every module's retained
+    # results: DAPC replicate fits, admixture/faststructure/snmf output,
+    # trees, clonality, ...) was still resident here during a real
+    # production report-rendering crash (303 figures, process killed with
+    # no error logged -- SIGKILL bypasses run_stage()'s tryCatch). The
+    # sequential-rendering guard in render_report() only avoids the
+    # concurrent HTML+PDF memory doubling; it does not free this. Dropped
+    # here and reloaded from the RDS just written above (already reflects
+    # everything up to this point) so PDF rendering isn't stacking its own
+    # memory use on top of the full pipeline state.
+    rm(analysis)
+    gc()
     run_stage("manuscript report", render_report(
       results_rds, dirs$report, cfg$report$title, cfg$report$author,
       max_concurrent_figures = cfg$report$max_concurrent_figures
     ))
+    analysis <- readRDS(results_rds)
     analysis <- record_analysis_timing(analysis, "manuscript report", proc.time()[["elapsed"]] - t0)
     analysis <- record_analysis_message(analysis, "SUCCESS", "manuscript report", "completed")
   }
