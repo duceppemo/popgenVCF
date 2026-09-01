@@ -53,6 +53,39 @@ test_that("standard report inventory selects one browser-friendly figure per ste
   expect_identical(pdf_inventory$format, "pdf")
 })
 
+test_that("PDF report inventory falls back to PNG for a pathologically large vector PDF", {
+  root <- tempfile("oversized-pdf-report-")
+  dir.create(file.path(root, "figures"), recursive = TRUE)
+  results <- file.path(root, "analysis_results.rds")
+  saveRDS(minimal_standard_report_result(), results)
+
+  small_stem <- "07_PCA_PC1_PC2"
+  big_stem <- "15_DAPC_loadings_manhattan_K10"
+  for (stem in c(small_stem, big_stem)) {
+    grDevices::png(file.path(root, "figures", paste0(stem, ".png")), width = 320, height = 240)
+    graphics::plot(1:2, 1:2)
+    grDevices::dev.off()
+    grDevices::pdf(file.path(root, "figures", paste0(stem, ".pdf")))
+    graphics::plot(1:2, 1:2)
+    grDevices::dev.off()
+  }
+  # Pad the big stem's on-disk PDF past the default 2MB threshold, standing
+  # in for a real dense Manhattan-style vector PDF (tens of thousands of
+  # points) without needing to actually plot that many. Content doesn't need
+  # to be a valid PDF -- report_figure_inventory() only inspects extension
+  # and file size, never parses it.
+  big_pdf_path <- file.path(root, "figures", paste0(big_stem, ".pdf"))
+  con <- file(big_pdf_path, "ab")
+  writeBin(as.raw(rep(0L, 3 * 1024^2)), con)
+  close(con)
+  expect_gt(file.size(big_pdf_path), 2 * 1024^2)
+
+  pdf_inventory <- popgenVCF:::report_figure_inventory(results, target = "pdf")
+  pdf_inventory <- pdf_inventory[order(pdf_inventory$stem), ]
+  expect_identical(pdf_inventory$stem, c(small_stem, big_stem))
+  expect_identical(pdf_inventory$format, c("pdf", "png"))
+})
+
 test_that("report figure inventory orders embedded K numbers naturally, not lexicographically", {
   root <- tempfile("k-order-report-")
   dir.create(file.path(root, "figures"), recursive = TRUE)

@@ -7,7 +7,8 @@ report_figure_caption <- function(stem) {
   paste0(toupper(substr(caption, 1L, 1L)), substring(caption, 2L))
 }
 
-report_figure_inventory <- function(results_rds, target = c("html", "pdf")) {
+report_figure_inventory <- function(results_rds, target = c("html", "pdf"),
+                                     max_pdf_figure_bytes = 2 * 1024^2) {
   target <- match.arg(target)
   results_rds <- normalizePath(results_rds, mustWork = TRUE)
   figure_dir <- file.path(dirname(results_rds), "figures")
@@ -36,6 +37,22 @@ report_figure_inventory <- function(results_rds, target = c("html", "pdf")) {
     c("svg", "png", "webp", "jpg", "jpeg", "pdf")
   }
   preference <- match(format, preferred_formats)
+  # A vector PDF draws one path/point object per plotted point -- fine for a
+  # typical figure, but a dense per-locus/per-K scatter (Manhattan-style
+  # loadings plots, allelic richness across a genome-wide marker set) can
+  # carry tens of thousands of points, and pdflatex/xelatex just concatenates
+  # each \includegraphics'd PDF's content stream as-is (no recompression).
+  # Confirmed directly against a real production report: nine such figures
+  # alone (11MB-126MB each) accounted for ~915MB of a 954MB report PDF, while
+  # their PNG counterparts (identical visual content, rasterized) were
+  # 0.5-30MB. Any on-disk PDF above this threshold is deprioritized below its
+  # PNG sibling here so the report embeds the raster version instead --
+  # legitimate vector figures (axes, bars, lines, sparse points) stay well
+  # under it, so only the pathological cases are affected.
+  if (identical(target, "pdf")) {
+    oversized_pdf <- format == "pdf" & file.size(files) > max_pdf_figure_bytes
+    preference[oversized_pdf] <- length(preferred_formats) + 1L
+  }
   inventory <- data.frame(
     stem = stem,
     caption = vapply(stem, report_figure_caption, character(1L)),
