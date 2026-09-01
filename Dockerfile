@@ -12,7 +12,7 @@ LABEL org.opencontainers.image.title="popgenVCF" \
       org.opencontainers.image.version="${VERSION}"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    texlive-xetex lmodern \
+    texlive-xetex lmodern ghostscript \
     && rm -rf /var/lib/apt/lists/*
 
 COPY inst/conda/environment.yml /tmp/popgenvcf-environment.yml

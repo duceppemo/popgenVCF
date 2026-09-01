@@ -3,7 +3,7 @@ FROM rocker/r-ver:4.5.2
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libcurl4-openssl-dev libssl-dev libxml2-dev libgit2-dev \
     libfontconfig1-dev libfreetype6-dev libharfbuzz-dev libfribidi-dev \
-    libpng-dev libtiff5-dev libjpeg-dev pandoc texlive-xetex lmodern build-essential \
+    libpng-dev libtiff5-dev libjpeg-dev pandoc texlive-xetex lmodern ghostscript build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . /src/popgenVCF

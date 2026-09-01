@@ -77,6 +77,57 @@ report_latex_engine <- function() {
   if (length(available)) available[[1L]] else NULL
 }
 
+# The PDF-target raster fallback in report_figure_inventory() above keeps any
+# single figure from ballooning the report, but the sum of dozens of
+# raster-embedded figures at their source 600 DPI still adds up (real
+# production report: ~148MB of embedded figures even after that fallback) --
+# too large to email. Ghostscript's pdfwrite device recompresses/downsamples
+# a finished PDF's embedded raster images in place and leaves genuine vector
+# content (text, paths, the smaller figures report_figure_inventory() left as
+# vector PDF) untouched, so it's applied here as a final pass over the
+# assembled report rather than reworking every figure-generating function.
+# Preset chosen by direct comparison on the two largest real production
+# figures (Manhattan-style DAPC/PCA loadings plots): /screen (72 DPI) and
+# /ebook (150 DPI) both left dense multi-panel axis labels illegible;
+# /printer (300 DPI) kept them legible while still compressing a 44MB
+# 2-figure worst-case prototype to 1.1MB.
+compress_report_pdf <- function(path) {
+  gs <- Sys.which("gs")
+  if (!nzchar(gs)) {
+    log_msg(
+      "ghostscript (gs) not found; report PDF was not compressed and may be too large to email",
+      level = "WARNING"
+    )
+    return(invisible(path))
+  }
+  compressed <- tempfile(fileext = ".pdf")
+  on.exit(unlink(compressed), add = TRUE)
+  status <- system2(
+    gs,
+    c(
+      "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.4", "-dPDFSETTINGS=/printer",
+      "-dNOPAUSE", "-dQUIET", "-dBATCH", "-dSAFER",
+      paste0("-sOutputFile=", compressed), path
+    ),
+    stdout = FALSE, stderr = FALSE
+  )
+  if (!identical(status, 0L) || !file.exists(compressed) || file.size(compressed) <= 0) {
+    log_msg("Report PDF compression failed; keeping the uncompressed PDF", level = "WARNING")
+    return(invisible(path))
+  }
+  before <- file.size(path)
+  after <- file.size(compressed)
+  if (after >= before) {
+    return(invisible(path))
+  }
+  file.copy(compressed, path, overwrite = TRUE)
+  log_msg(sprintf(
+    "Compressed report PDF from %.1f MB to %.1f MB (%.0f%% reduction)",
+    before / 1024^2, after / 1024^2, 100 * (1 - after / before)
+  ), level = "SUCCESS")
+  invisible(path)
+}
+
 # Two real LaTeX layout defects, both found only by rendering a report from a
 # realistic real-data analysis (many figures, many-column tables) rather than
 # the small fixtures used elsewhere:
@@ -179,6 +230,7 @@ render_standard_report_format <- function(template, results_rds, output_dir,
   )
   final_path <- file.path(output_dir, output_file)
   file.copy(file.path(render_output_dir, output_file), final_path, overwrite = TRUE)
+  if (identical(format, "pdf")) compress_report_pdf(final_path)
   final_path
 }
 

@@ -86,6 +86,51 @@ test_that("PDF report inventory falls back to PNG for a pathologically large vec
   expect_identical(pdf_inventory$format, c("pdf", "png"))
 })
 
+test_that("compress_report_pdf skips gracefully when ghostscript is unavailable", {
+  local_mocked_bindings(Sys.which = function(...) c(gs = ""), .package = "base")
+  path <- tempfile(fileext = ".pdf")
+  grDevices::pdf(path); graphics::plot(1:2, 1:2); grDevices::dev.off()
+  before <- file.size(path)
+
+  expect_output(
+    result <- popgenVCF:::compress_report_pdf(path),
+    "ghostscript"
+  )
+  expect_identical(result, path)
+  expect_identical(file.size(path), before)
+})
+
+test_that("compress_report_pdf shrinks a real PDF's embedded raster image without corrupting it", {
+  skip_if_not(nzchar(Sys.which("gs")), "ghostscript is not available")
+
+  root <- tempfile("compress-pdf-")
+  dir.create(root)
+  path <- file.path(root, "report.pdf")
+  # A smooth gradient, oversampled well past the /printer preset's ~450 DPI
+  # downsample threshold on this small a page (1200px over 2in = 600 DPI),
+  # gives ghostscript real, predictable recompression work to do -- unlike a
+  # bare vector plot (what a real small report figure already is, and what
+  # compress_report_pdf() is expected to leave untouched).
+  x <- seq(0, 1, length.out = 1200)
+  gradient <- outer(x, x, function(a, b) (a + b) / 2)
+  raster <- array(0, dim = c(1200, 1200, 3))
+  raster[, , 1] <- gradient
+  raster[, , 2] <- 1 - gradient
+  raster[, , 3] <- 0.5
+  grDevices::pdf(path, width = 2, height = 2)
+  grid::grid.raster(raster)
+  grDevices::dev.off()
+  before <- file.size(path)
+
+  result <- popgenVCF:::compress_report_pdf(path)
+
+  expect_identical(result, path)
+  expect_true(file.exists(path))
+  expect_lt(file.size(path), before)
+  header <- readBin(path, "raw", 5L)
+  expect_identical(rawToChar(header), "%PDF-")
+})
+
 test_that("report figure inventory orders embedded K numbers naturally, not lexicographically", {
   root <- tempfile("k-order-report-")
   dir.create(file.path(root, "figures"), recursive = TRUE)
