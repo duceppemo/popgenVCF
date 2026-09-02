@@ -507,22 +507,27 @@ plot_dapc_eigenvalues <- function(model, k, n_pca, cfg, dirs, profile) {
   # Every bar shown is already retained (see comment above) -- the
   # right-most one is highlighted as a "this many, total" boundary marker,
   # the same role plot_dapc_xval()'s dotted vline plays for its own
-  # selected-PC-count callout, not a claim that the other bars were not.
+  # selected-PC-count callout, not a claim that the other bars were not. A
+  # real K=10 model's own right-most axis carried a 0.0% contribution --
+  # confirmed directly, a fill-colour highlight alone is invisible on a bar
+  # that short, so the same axis's own %-label is also coloured, which stays
+  # visible regardless of bar height.
   df$retained_marker <- as.integer(df$axis) == n_da
   base_colour <- unname(expand_figure_palette(profile, 1L, "fills"))
   highlight_colour <- "#B2182B"
   p <- ggplot2::ggplot(df, ggplot2::aes(x = axis, y = eigenvalue, fill = retained_marker)) +
     ggplot2::geom_col(width = 0.72, show.legend = FALSE) +
     ggplot2::geom_text(
-      ggplot2::aes(label = sprintf("%.1f%%", contribution_pct)),
-      vjust = -0.35, size = 3
+      ggplot2::aes(label = sprintf("%.1f%%", contribution_pct), colour = retained_marker),
+      vjust = -0.35, size = 3, fontface = "bold", show.legend = FALSE
     ) +
     ggplot2::scale_fill_manual(values = c(`FALSE` = base_colour, `TRUE` = highlight_colour)) +
+    ggplot2::scale_colour_manual(values = c(`FALSE` = "black", `TRUE` = highlight_colour)) +
     ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.12))) +
     ggplot2::labs(
       title = sprintf("DA eigenvalues (K = %s)", k),
       subtitle = wrap_plot_subtitle(sprintf(
-        "%d discriminant axis/axes retained (right-most bar highlighted); %s",
+        "%d discriminant axis/axes retained (right-most bar and label highlighted); %s",
         n_da,
         if (length(n_pca) && is.finite(n_pca)) {
           sprintf("%d PCA axis/axes retained for this model.", n_pca)

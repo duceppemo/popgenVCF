@@ -167,7 +167,10 @@ test_that("plot_dapc_eigenvalues draws the standard barplot(dapc$eig, ...) diagn
   expect_equal(p$data$eigenvalue, model$eig)
   expect_identical(p$labels$x, "Discriminant axis")
   expect_identical(p$labels$y, "Eigenvalue")
-  expect_match(p$labels$subtitle, "15 PCA axis/axes retained", fixed = TRUE)
+  expect_match(
+    gsub("\\s+", " ", p$labels$subtitle), "15 PCA axis/axes retained",
+    fixed = TRUE
+  )
   expect_true(file.exists(file.path(dirs$figures, "12c_DAPC_eigenvalues_K3.pdf")))
 })
 
