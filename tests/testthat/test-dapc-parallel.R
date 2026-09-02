@@ -151,6 +151,79 @@ test_that("run_dapc_k_task's xvalDapc call never requests boot::boot()'s paralle
   expect_null(captured[[1L]]$ncpus)
 })
 
+test_that("DAPC's cross-validation fallback n.pca uses 10% of sample count, not 80%", {
+  # Real production regression: xvalDapc() was silently failing on every K
+  # (see the missing-genotype test below), so every model fell back to this
+  # formula. It used to be floor(n_samples * 0.8) -- confirmed directly
+  # against a real 50-sample report, that put 40 PCA axes into a DAPC with
+  # as few as 2 groups, and the LD1/LD2 scatter showed the classic
+  # over-fitting signature (nearly every sample collapsing onto one point).
+  fixture <- dapc_parallel_fixture()
+  result <- popgenVCF:::run_dapc_analysis(
+    fixture$genotype, fixture$sample_ids, fixture$metadata,
+    k_values = 2L, seed = 42L, cross_validate = FALSE,
+    replicate_seeds = 42L, threads = 1L
+  )
+  expect_equal(result$diagnostics$n_pca[[1L]], 2)
+  expect_lt(result$diagnostics$n_pca[[1L]], floor(length(fixture$sample_ids) * .8))
+})
+
+test_that("DAPC cross-validation runs on a mean-imputed matrix, tolerating missing genotypes that would otherwise crash xvalDapc's own PCA step", {
+  # Real production bug: adegenet::xvalDapc() (unlike glPca(), used
+  # everywhere else in this file) calls ade4::dudi.pca() directly on
+  # whatever it's given, which hard-errors on any NA ("na entries in
+  # table"). A real QC-passing marker set legitimately contains missing
+  # calls (QC bounds missingness, it doesn't eliminate it), so every K's
+  # cross-validation was failing -- confirmed directly by reproducing the
+  # exact error against real production data.
+  fixture <- dapc_parallel_fixture()
+  fixture$genotype[1L, 1L] <- NA_integer_
+  gl <- popgenVCF:::genlight_from_gds(fixture$genotype, fixture$sample_ids, fixture$metadata)
+  # tab()'s own default (NA.method = "mean") already imputes -- "asis" is
+  # needed to see that the raw genlight really does carry the NA through.
+  expect_true(anyNA(adegenet::tab(gl, NA.method = "asis")))
+
+  captured_x <- NULL
+  local_mocked_bindings(
+    xvalDapc = function(x, ...) {
+      captured_x <<- x
+      list(
+        `Number of PCs Achieving Highest Mean Success` = "2",
+        `Mean Successful Assignment by Number of PCs of PCA` = c(`2` = 0.8)
+      )
+    },
+    .package = "adegenet"
+  )
+  result <- popgenVCF:::run_dapc_analysis(
+    fixture$genotype, fixture$sample_ids, fixture$metadata,
+    k_values = 2L, seed = 42L, cross_validate = TRUE,
+    replicate_seeds = 42L, threads = 1L
+  )
+
+  expect_false(is.null(captured_x))
+  expect_false(anyNA(captured_x))
+  expect_false(is.null(result$models[["2"]]$cv))
+})
+
+test_that("a DAPC cross-validation failure is logged with the real error, not silently swallowed", {
+  fixture <- dapc_parallel_fixture()
+  local_mocked_bindings(
+    xvalDapc = function(...) stop("simulated xvalDapc failure"),
+    .package = "adegenet"
+  )
+
+  expect_output(
+    result <- popgenVCF:::run_dapc_analysis(
+      fixture$genotype, fixture$sample_ids, fixture$metadata,
+      k_values = 2L, seed = 42L, cross_validate = TRUE,
+      replicate_seeds = 42L, threads = 1L
+    ),
+    "DAPC cross-validation failed for K.*2.*simulated xvalDapc failure"
+  )
+  expect_null(result$models[["2"]]$cv)
+  expect_equal(result$diagnostics$n_pca[[1L]], 2)
+})
+
 test_that("single-replicate DAPC records unestimated RMSE as missing", {
   fixture <- dapc_parallel_fixture()
   result <- popgenVCF:::run_dapc_analysis(

@@ -59,10 +59,26 @@ compute_dapc_shared_pca <- function(gl, max_pca) {
 
 run_dapc_k_task <- function(k, gl, shared_pca, max_pca, sample_ids,
                             public_ids, metadata, truth, cross_validate,
-                            replicate_seeds, chromosome = NULL, position = NULL) {
+                            replicate_seeds, chromosome = NULL, position = NULL,
+                            xval_x = NULL) {
   reps <- list()
   primary <- NULL
   cv_success <- numeric()
+  n_da <- max(1L, min(k - 1L, 10L))
+  # A genuinely validated n.pca (below) is always preferred; this fallback
+  # only fires when cross-validation is disabled or fails outright. Kept
+  # deliberately conservative -- 0.1, not the 0.8 an earlier version used
+  # here -- because it is not a safety margin, it is the actual number of
+  # retained axes on a real production report whose cross-validation was
+  # silently failing (see the tryCatch below): every K showed exactly
+  # floor(0.8 * n_samples) PCs retained, ~8x more axes than groups on a
+  # 50-sample, up-to-10-group dataset, and the DAPC scatter for those
+  # models showed the classic over-fit signature (nearly every sample
+  # collapsed onto one point) -- confirmed directly, reported by a real
+  # user reading the report.
+  n_pca <- min(max_pca, max(2L, floor(length(sample_ids) * .1)))
+  cv <- NULL
+  cv_computed <- FALSE
   for (rep_seed in unique(as.integer(replicate_seeds))) {
     set.seed(rep_seed + k)
     cluster_fit <- adegenet::find.clusters(
@@ -70,10 +86,17 @@ run_dapc_k_task <- function(k, gl, shared_pca, max_pca, sample_ids,
       glPca = shared_pca
     )
     grp <- cluster_fit$grp
-    n_da <- max(1L, min(k - 1L, 10L))
-    n_pca <- min(max_pca, max(2L, floor(length(sample_ids) * .8)))
-    cv <- NULL
-    if (cross_validate) {
+    # Cross-validation selects n.pca once per K, from the first replicate's
+    # clustering -- not once per reproducibility replicate. It used to run
+    # inside this loop unconditionally, once per seed, each with its own
+    # n.rep = 30 internal resampling: structure.replicates-fold more
+    # xvalDapc cost than necessary (confirmed on real production data: a
+    # single call took minutes on the real marker set), and it let
+    # different replicates of the *same* K silently fit at different n.pca
+    # values, mixing cross-validation's own sampling variability into the
+    # replicate-membership reproducibility metrics below on top of
+    # clustering's.
+    if (cross_validate && !cv_computed) {
       # adegenet::xvalDapc() does forward `...` down into boot::boot()'s own
       # native parallel = "multicore"/ncpus (via its internal .get.prop.pred()
       # helper) -- the mechanism the widely-used "Population Genetics in R"
@@ -89,17 +112,36 @@ run_dapc_k_task <- function(k, gl, shared_pca, max_pca, sample_ids,
       # byte-identical regardless of thread count; this one cannot be
       # without reimplementing xvalDapc's own resampling loop, so it stays
       # serial.
+      #
+      # xval_x (a mean-imputed genotype table, run_dapc_analysis() below),
+      # not the raw genlight `gl`, is passed as xvalDapc()'s data argument --
+      # confirmed directly, real production data: xvalDapc() internally
+      # calls ade4::dudi.pca() on its input as-is, which hard-errors on any
+      # missing genotype ("na entries in table"), unlike adegenet::glPca()
+      # (used everywhere else in this file), which mean-imputes internally.
+      # A real 50-sample/561,767-SNP QC-passing marker set (which legally
+      # contains missing calls -- QC only bounds missingness, it doesn't
+      # eliminate it) hit this on every single K, always erroring, always
+      # silently caught below, and was the root cause of the n.pca = 0.8 *
+      # n_samples symptom above: cross-validation never actually ran.
       cv <- tryCatch(adegenet::xvalDapc(
-        gl, grp, n.pca.max = n_pca, training.set = .9,
+        xval_x %||% gl, grp, n.pca.max = n_pca, training.set = .9,
         result = "groupMean", center = TRUE, scale = FALSE,
         n.pca = NULL, n.rep = 30, xval.plot = FALSE
-      ), error = function(e) NULL)
+      ), error = function(e) {
+        log_msg(
+          "DAPC cross-validation failed for K = ", k, ": ", conditionMessage(e),
+          "; falling back to n.pca = ", n_pca, level = "WARNING"
+        )
+        NULL
+      })
       if (!is.null(cv)) {
         selected <- suppressWarnings(as.integer(
           cv$`Number of PCs Achieving Highest Mean Success`
         ))
         if (length(selected) && is.finite(selected)) n_pca <- selected
       }
+      cv_computed <- TRUE
     }
     cv_success <- c(cv_success, dapc_cross_validation_success(cv))
     model <- adegenet::dapc(
@@ -200,6 +242,12 @@ run_dapc_analysis <- function(geno, sample_ids, metadata, k_values, seed,
   gl <- genlight_from_gds(geno, sample_ids, metadata, snp_ids = snp_ids)
   max_pca <- max(2L, min(nrow(geno) - 1L, 100L))
   shared_pca <- compute_dapc_shared_pca(gl, max_pca)
+  # xvalDapc()'s own PCA step (unlike glPca(), used everywhere else here)
+  # cannot handle missing genotypes at all -- computed once and shared
+  # across every K/replicate, the same reasoning as shared_pca above, since
+  # it depends only on gl, never on a specific K's grp. See run_dapc_k_task()
+  # for the real error this fixes.
+  xval_x <- if (isTRUE(cross_validate)) adegenet::tab(gl, NA.method = "mean") else NULL
   truth <- metadata$population[match(sample_ids, metadata$sample)]
   workers <- fork_worker_count(length(valid_k), threads)
   log_msg(
@@ -212,7 +260,8 @@ run_dapc_analysis <- function(geno, sample_ids, metadata, k_values, seed,
     metadata = metadata, truth = truth,
     cross_validate = cross_validate,
     replicate_seeds = replicate_seeds,
-    chromosome = chromosome, position = position
+    chromosome = chromosome, position = position,
+    xval_x = xval_x
   )
   results <- execute_dapc_k_tasks(valid_k, task, workers)
   keys <- vapply(results, `[[`, character(1L), "key")
