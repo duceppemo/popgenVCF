@@ -162,6 +162,21 @@ figure_base_size <- function(cfg = NULL) {
   size
 }
 
+# ggplot2 never wraps a plot.subtitle -- a long one (e.g. the DAPC
+# reproducibility annotation, which can carry both an RMSE and a minimum
+# cluster correlation clause) just overflows the plot width and gets
+# silently clipped by the device canvas, confirmed directly on a real
+# production report ("...minimum cluster correlation = 1 (t" cut off
+# mid-word). strwrap() is applied per pre-existing line (not to the whole
+# string at once) so an already-deliberate break -- the unstable-annotation
+# text's own "\n" before "Avoid interpreting these assignments." -- is
+# preserved rather than being merged back into one paragraph.
+wrap_plot_subtitle <- function(text, width = 90L) {
+  if (is.null(text) || !length(text) || is.na(text) || !nzchar(text)) return(text)
+  lines <- strsplit(text, "\n", fixed = TRUE)[[1L]]
+  paste(unlist(lapply(lines, strwrap, width = width)), collapse = "\n")
+}
+
 # Splits a string into alternating digit/non-digit runs and zero-pads the
 # digit runs so a plain lexicographic sort orders embedded numbers
 # numerically (K2 before K10, chromosome 2 before chromosome 10) instead of

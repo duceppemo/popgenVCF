@@ -170,10 +170,10 @@ test_that("plot_dapc_loading_manhattan and plot_dapc_loading_ranked facet axes n
   profile <- popgenVCF:::figure_style_profile("accessibility-first")
   cfg <- list(output = list(figure_formats = "png", dpi = 100))
 
-  p1 <- popgenVCF:::plot_dapc_loading_manhattan(loadings, "10", cfg, dirs, profile)
+  p1 <- popgenVCF:::plot_dapc_loading_manhattan(loadings, "10", 15L, cfg, dirs, profile)
   expect_identical(levels(p1$data$axis), c("LD2", "LD9", "LD10"))
 
-  p2 <- popgenVCF:::plot_dapc_loading_ranked(loadings, "10", cfg, dirs, profile)
+  p2 <- popgenVCF:::plot_dapc_loading_ranked(loadings, "10", 15L, cfg, dirs, profile)
   expect_identical(levels(p2$data$axis), c("LD2", "LD9", "LD10"))
 })
 
@@ -191,7 +191,7 @@ test_that("plot_dapc_loading_manhattan renders facet panels in natural-sort orde
   profile <- popgenVCF:::figure_style_profile("accessibility-first")
   cfg <- list(output = list(figure_formats = "png", dpi = 100))
 
-  p <- popgenVCF:::plot_dapc_loading_manhattan(loadings, "10", cfg, dirs, profile)
+  p <- popgenVCF:::plot_dapc_loading_manhattan(loadings, "10", 15L, cfg, dirs, profile)
   built <- ggplot2::ggplot_build(p)
   panel_axis_order <- as.character(built$layout$layout$axis[order(built$layout$layout$PANEL)])
   expect_identical(panel_axis_order, c("LD2", "LD9", "LD10"))

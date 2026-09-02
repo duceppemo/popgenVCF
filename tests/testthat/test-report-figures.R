@@ -176,6 +176,50 @@ test_that("report displays the popgenVCF version when present, and omits it sile
   expect_no_match(html_without, "popgenVCF v", fixed = TRUE)
 })
 
+test_that("PDF report tables paginate a tall table without losing rows and wrap a long message instead of shrinking the whole table illegibly", {
+  skip_if_not(rmarkdown::pandoc_available())
+  skip_if_not(nzchar(popgenVCF:::report_latex_engine() %||% ""), "no LaTeX engine available")
+  skip_if(Sys.which("pdftotext") == "", "pdftotext is not available")
+
+  root <- tempfile("pdf-table-layout-")
+  dir.create(file.path(root, "figures"), recursive = TRUE)
+  results_path <- file.path(root, "analysis_results.rds")
+  result <- minimal_standard_report_result()
+  # Tall enough that it cannot possibly fit on one page at any font size --
+  # a real production report silently lost this exact shape of table's tail
+  # rows past the physical page bottom before longtable pagination was
+  # added to report_kable().
+  result$qc$sequential <- data.frame(
+    step = sprintf("step_%03d", 1:80),
+    variants = 1:80
+  )
+  result$messages <- data.frame(
+    stage = "kinship", level = "WARNING",
+    message = paste(
+      "This is a deliberately long pipeline-notice message meant to force",
+      "wrapping instead of shrinking the whole table illegibly to fit one line."
+    )
+  )
+  saveRDS(result, results_path)
+
+  rendered <- render_report(
+    results_path, file.path(root, "report"), title = "Layout test",
+    formats = "pdf"
+  )
+  text <- system2("pdftotext", c("-layout", rendered[["pdf"]], "-"), stdout = TRUE)
+  text <- paste(text, collapse = "\n")
+
+  expect_match(text, "step_001", fixed = TRUE)
+  expect_match(text, "step_080", fixed = TRUE)
+  expect_match(text, "deliberately long pipeline-notice message", fixed = TRUE)
+
+  if (nzchar(Sys.which("pdfinfo"))) {
+    info <- system2("pdfinfo", rendered[["pdf"]], stdout = TRUE)
+    pages <- as.integer(sub("^Pages:\\s*", "", grep("^Pages:", info, value = TRUE)))
+    expect_gt(pages, 1L)
+  }
+})
+
 test_that("standard HTML report embeds figures without requiring an RDS viewer", {
   skip_if_not(rmarkdown::pandoc_available())
   root <- tempfile("standard-report-render-")

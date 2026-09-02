@@ -250,15 +250,26 @@ dapc_reproducibility_annotation <- function(dapc, k, cfg) {
   } else {
     NA_real_
   }
+  n_pca <- if (nrow(row) && "n_pca" %in% names(row)) {
+    suppressWarnings(as.integer(row$n_pca[[1L]]))
+  } else {
+    NA_integer_
+  }
+  n_pca_line <- if (length(n_pca) && is.finite(n_pca)) {
+    sprintf("%d PCA axis/axes retained for this model.", n_pca)
+  } else {
+    NA_character_
+  }
   estimated <- !is.null(dapc$models[[as.character(k)]]$reproducibility)
 
   if (!estimated || !length(rmse) || !is.finite(rmse)) {
+    text <- sprintf(
+      "Replicate membership RMSE not estimated (stability threshold = %.4g).",
+      rmse_threshold
+    )
     return(list(
-      text = sprintf(
-        "Replicate membership RMSE not estimated (stability threshold = %.4g).",
-        rmse_threshold
-      ),
-      unstable = FALSE
+      text = paste(stats::na.omit(c(text, n_pca_line)), collapse = "\n"),
+      unstable = FALSE, n_pca = n_pca
     ))
   }
   rmse_unstable <- rmse > rmse_threshold
@@ -274,15 +285,16 @@ dapc_reproducibility_annotation <- function(dapc, k, cfg) {
     } else {
       sprintf("minimum cluster correlation = %.4g < %.4g", min_corr, corr_threshold)
     }
-    return(list(
-      text = sprintf(
-        paste0(
-          "WARNING: DAPC replicate membership is unstable ",
-          "(%s).\nAvoid interpreting these assignments."
-        ),
-        detail
+    text <- sprintf(
+      paste0(
+        "WARNING: DAPC replicate membership is unstable ",
+        "(%s).\nAvoid interpreting these assignments."
       ),
-      unstable = TRUE
+      detail
+    )
+    return(list(
+      text = paste(stats::na.omit(c(text, n_pca_line)), collapse = "\n"),
+      unstable = TRUE, n_pca = n_pca
     ))
   }
   text <- if (is.finite(min_corr)) {
@@ -296,10 +308,13 @@ dapc_reproducibility_annotation <- function(dapc, k, cfg) {
       rmse, rmse_threshold
     )
   }
-  list(text = text, unstable = FALSE)
+  list(
+    text = paste(stats::na.omit(c(text, n_pca_line)), collapse = "\n"),
+    unstable = FALSE, n_pca = n_pca
+  )
 }
 
-plot_dapc_loading_manhattan <- function(loadings, k, cfg, dirs, profile) {
+plot_dapc_loading_manhattan <- function(loadings, k, n_pca, cfg, dirs, profile) {
   layout <- manhattan_layout(loadings$chromosome, loadings$position)
   bp_breaks <- manhattan_bp_breaks(loadings$chromosome, loadings$position, layout$offset)
   loadings <- data.table::copy(loadings)
@@ -315,6 +330,11 @@ plot_dapc_loading_manhattan <- function(loadings, k, cfg, dirs, profile) {
     ggplot2::facet_wrap(~axis, ncol = 1, scales = "free_y") +
     ggplot2::labs(
       title = sprintf("Discriminant analysis SNP loadings (K = %s)", k),
+      subtitle = if (length(n_pca) && is.finite(n_pca)) {
+        sprintf("%d PCA axis/axes retained for this model.", n_pca)
+      } else {
+        NULL
+      },
       x = "Chromosome position", y = "Contribution to discriminant function"
     ) + theme_publication(base_size) +
     ggplot2::theme(panel.spacing = ggplot2::unit(1, "lines"))
@@ -332,7 +352,7 @@ plot_dapc_loading_manhattan <- function(loadings, k, cfg, dirs, profile) {
   invisible(p)
 }
 
-plot_dapc_loading_ranked <- function(loadings, k, cfg, dirs, profile) {
+plot_dapc_loading_ranked <- function(loadings, k, n_pca, cfg, dirs, profile) {
   ranked <- data.table::copy(loadings)
   ranked[, axis := factor(axis, levels = natural_sort_levels(axis))]
   data.table::setorder(ranked, axis, -contribution)
@@ -343,6 +363,11 @@ plot_dapc_loading_ranked <- function(loadings, k, cfg, dirs, profile) {
     ggplot2::facet_wrap(~axis, ncol = 1, scales = "free_y") +
     ggplot2::labs(
       title = sprintf("Discriminant analysis SNP loadings, ranked (K = %s)", k),
+      subtitle = if (length(n_pca) && is.finite(n_pca)) {
+        sprintf("%d PCA axis/axes retained for this model.", n_pca)
+      } else {
+        NULL
+      },
       x = "SNP rank (descending contribution)", y = "Contribution to discriminant function"
     ) + theme_publication(figure_base_size(cfg)) +
     ggplot2::theme(panel.spacing = ggplot2::unit(1, "lines"))
@@ -467,16 +492,44 @@ plot_dapc_xval <- function(cv, k, cfg, dirs, profile) {
 # from them) carry little real separating power -- a second, independent
 # way to sanity-check the retained axis count alongside plot_dapc_xval()'s
 # PC-count curve above (that one validates n.pca going into dapc(), this
-# one validates n.da coming out of it).
-plot_dapc_eigenvalues <- function(model, k, cfg, dirs, profile) {
+# one validates n.da coming out of it). Rendered once, for the highest K
+# only (plot_dapc() below) -- the same shape of diagnostic repeated once per
+# K added little beyond report length, since every K's eig vector already
+# has exactly n.da = min(K - 1, 10) entries (adegenet::dapc() only ever
+# returns the retained discriminant eigenvalues, not a larger discarded
+# pool), so there is nothing K-specific to compare across panels.
+plot_dapc_eigenvalues <- function(model, k, n_pca, cfg, dirs, profile) {
   eig <- model$eig
   if (is.null(eig) || !length(eig)) return(invisible(NULL))
+  n_da <- length(eig)
   df <- data.frame(axis = factor(seq_along(eig)), eigenvalue = as.numeric(eig))
-  colour <- unname(expand_figure_palette(profile, 1L, "fills"))
-  p <- ggplot2::ggplot(df, ggplot2::aes(x = axis, y = eigenvalue)) +
-    ggplot2::geom_col(fill = colour, width = 0.72) +
+  df$contribution_pct <- 100 * df$eigenvalue / sum(df$eigenvalue)
+  # Every bar shown is already retained (see comment above) -- the
+  # right-most one is highlighted as a "this many, total" boundary marker,
+  # the same role plot_dapc_xval()'s dotted vline plays for its own
+  # selected-PC-count callout, not a claim that the other bars were not.
+  df$retained_marker <- as.integer(df$axis) == n_da
+  base_colour <- unname(expand_figure_palette(profile, 1L, "fills"))
+  highlight_colour <- "#B2182B"
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = axis, y = eigenvalue, fill = retained_marker)) +
+    ggplot2::geom_col(width = 0.72, show.legend = FALSE) +
+    ggplot2::geom_text(
+      ggplot2::aes(label = sprintf("%.1f%%", contribution_pct)),
+      vjust = -0.35, size = 3
+    ) +
+    ggplot2::scale_fill_manual(values = c(`FALSE` = base_colour, `TRUE` = highlight_colour)) +
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.12))) +
     ggplot2::labs(
       title = sprintf("DA eigenvalues (K = %s)", k),
+      subtitle = wrap_plot_subtitle(sprintf(
+        "%d discriminant axis/axes retained (right-most bar highlighted); %s",
+        n_da,
+        if (length(n_pca) && is.finite(n_pca)) {
+          sprintf("%d PCA axis/axes retained for this model.", n_pca)
+        } else {
+          "PCA axis/axes retained not available."
+        }
+      )),
       x = "Discriminant axis", y = "Eigenvalue"
     ) + theme_publication(figure_base_size(cfg))
   save_plot(
@@ -512,7 +565,7 @@ plot_dapc <- function(dapc, cfg, dirs) {
         ggplot2::scale_shape_manual(values = cluster_shapes) +
         ggplot2::labs(
           title = sprintf("Discriminant analysis of principal components (K = %s)", k),
-          subtitle = annotation$text, x = axes[1], y = axes[2],
+          subtitle = wrap_plot_subtitle(annotation$text), x = axes[1], y = axes[2],
           colour = "Population", shape = "DAPC cluster"
         ) + theme_publication(figure_base_size(cfg))
       if (isTRUE(annotation$unstable)) {
@@ -523,7 +576,6 @@ plot_dapc <- function(dapc, cfg, dirs) {
       save_plot(p, sprintf("11_DAPC_K%s", k), dirs, cfg$output$figure_formats, 8, 6, cfg$output$dpi)
     }
     plot_dapc_xval(dapc$models[[k]]$cv, k, cfg, dirs, profile)
-    plot_dapc_eigenvalues(dapc$models[[k]]$model, k, cfg, dirs, profile)
     membership <- dapc$models[[k]]$membership
     q <- data.table::as.data.table(membership)
     q[, sample := rownames(membership)]
@@ -535,15 +587,27 @@ plot_dapc <- function(dapc, cfg, dirs) {
         "Discriminant analysis of principal components membership probabilities (K = %s)",
         k
       ),
-      subtitle = annotation$text,
+      subtitle = wrap_plot_subtitle(annotation$text),
       subtitle_is_warning = annotation$unstable,
       y_label = "Posterior membership probability"
     )
     loadings <- dapc$models[[k]]$loadings
     if (!is.null(loadings) && nrow(loadings)) {
-      plot_dapc_loading_manhattan(loadings, k, cfg, dirs, profile)
-      plot_dapc_loading_ranked(loadings, k, cfg, dirs, profile)
+      plot_dapc_loading_manhattan(loadings, k, annotation$n_pca, cfg, dirs, profile)
+      plot_dapc_loading_ranked(loadings, k, annotation$n_pca, cfg, dirs, profile)
     }
+  }
+  # plot_dapc_eigenvalues() only for the highest K: every K's eig vector
+  # already has exactly n.da entries (see that function's own comment), so
+  # there is nothing K-specific to compare across a full set of per-K
+  # panels -- the highest K alone (the most discriminant axes fit) already
+  # summarizes the diagnostic.
+  if (length(dapc$models)) {
+    max_k <- as.character(max(as.integer(names(dapc$models))))
+    max_k_annotation <- dapc_reproducibility_annotation(dapc, max_k, cfg)
+    plot_dapc_eigenvalues(
+      dapc$models[[max_k]]$model, max_k, max_k_annotation$n_pca, cfg, dirs, profile
+    )
   }
   plot_structure_k_selection(
     dapc$k_selection, cfg, dirs,

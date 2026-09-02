@@ -41,34 +41,145 @@ html_escape <- function(x) {
   x <- gsub('"', "&quot;", x, fixed = TRUE)
   x
 }
+# kable(..., longtable = TRUE) alone does not repeat its header on later
+# pages (that needs \endfirsthead/\endhead, which base knitr's longtable
+# support doesn't add) -- inserted here by hand at the one \midrule that
+# always immediately follows the single header row kable() emits, valid
+# minimal longtable syntax (everything above \endhead repeats as the page
+# header; omitting \endfirsthead just reuses it for the first page too).
+report_kable_repeat_header <- function(rendered) {
+  lines <- strsplit(rendered, "\n", fixed = TRUE)[[1L]]
+  idx <- which(lines == "\\midrule")[1L]
+  if (is.na(idx)) return(rendered)
+  paste(append(lines, "\\endhead", after = idx), collapse = "\n")
+}
+
+# A long free-text column (e.g. a pipeline-notice message) forced every
+# other column in the same row down to an illegibly tiny \resizebox scale on
+# a real production report -- confirmed directly. LaTeX tabular/longtable
+# cells never wrap on their own; kable() has already produced correctly
+# escaped, correctly rounded cell text by this point, so this only performs
+# a surgical column-position substitution on kable()'s own trusted data-row
+# lines (between the \endhead inserted above and \bottomrule), wrapping each
+# long column's already-escaped content in \parbox rather than
+# re-implementing kable's formatting.
+report_kable_wrap_long_columns <- function(rendered, table, threshold = 40L, width_frac = 0.55) {
+  wrap_idx <- which(vapply(seq_along(table), function(i) {
+    col <- table[[i]]
+    (is.character(col) || is.factor(col)) &&
+      any(nchar(as.character(col)) > threshold, na.rm = TRUE)
+  }, logical(1L)))
+  if (!length(wrap_idx)) return(rendered)
+  lines <- strsplit(rendered, "\n", fixed = TRUE)[[1L]]
+  head_end <- which(lines == "\\endhead")[1L]
+  foot_start <- which(lines == "\\bottomrule")[1L]
+  if (is.na(head_end) || is.na(foot_start) || head_end >= foot_start - 1L) return(rendered)
+  width_expr <- sprintf("%.2f\\textwidth", width_frac / length(wrap_idx))
+  ncol <- length(table)
+  for (i in seq(head_end + 1L, foot_start - 1L)) {
+    line <- lines[[i]]
+    if (!grepl("\\\\\\\\[ \t]*$", line)) next
+    body <- sub("\\\\\\\\[ \t]*$", "", line)
+    cells <- strsplit(body, " & ", fixed = TRUE)[[1L]]
+    if (length(cells) != ncol) next
+    for (j in wrap_idx) cells[[j]] <- sprintf("\\parbox[t]{%s}{%s}", width_expr, cells[[j]])
+    lines[[i]] <- paste0(paste(cells, collapse = " & "), "\\\\")
+  }
+  paste(lines, collapse = "\n")
+}
+
+# \resizebox can perfectly, continuously scale a table down to exactly fit
+# \textwidth -- but it can't wrap a longtable at all (resizebox measures one
+# finished box; a longtable's whole point is breaking across an unknown
+# number of pages, which can't be pre-measured as one box). Confirmed
+# directly: a discrete font-size fallback alone (no resizebox) still let
+# very wide tables (a real DAPC/PCA-scores-shaped 10-32 numeric-column
+# table) overflow \textwidth even at \scriptsize, a real regression against
+# the original \resizebox behaviour for exactly the common case (a table
+# that fits on one page but has many columns) that behaviour was written
+# for. So the choice is made per table, by \sbox-measuring a throwaway
+# plain-tabular copy of the exact same (already wrapped) cell content: a
+# table whose natural height already exceeds most of a page cannot use
+# \resizebox regardless (it needs to paginate) and gets longtable with the
+# coarser discrete-size fallback; everything else -- the large majority of
+# real result tables -- keeps the original, exact-fit \resizebox behaviour,
+# completely unchanged from before longtable existed here.
+report_kable_render <- function(longtable_body) {
+  lines <- strsplit(longtable_body, "\n", fixed = TRUE)[[1L]]
+  tabular_lines <- lines[lines != "\\endhead"]
+  # Located by content, not a fixed index -- kable()'s own output carries a
+  # leading blank line before \begin{longtable}, which a fixed-position
+  # substitution silently missed (confirmed directly: produced a
+  # \begin{longtable}...\end{tabular} mismatch, a hard LaTeX compile error).
+  begin_idx <- grep("^\\\\begin\\{longtable\\}", tabular_lines)[1L]
+  end_idx <- grep("^\\\\end\\{longtable\\}$", tabular_lines)[1L]
+  if (!is.na(begin_idx)) {
+    tabular_lines[begin_idx] <- sub("^\\\\begin\\{longtable\\}", "\\\\begin{tabular}", tabular_lines[begin_idx])
+  }
+  if (!is.na(end_idx)) {
+    tabular_lines[end_idx] <- sub("^\\\\end\\{longtable\\}$", "\\\\end{tabular}", tabular_lines[end_idx])
+  }
+  tabular_body <- paste(tabular_lines, collapse = "\n")
+  # A raw-LaTeX line whose very first character is a bare "{" or "}" (not
+  # attached to a preceding backslash command) is not recognized by
+  # pandoc's raw-tex passthrough inside a results='asis' chunk -- confirmed
+  # directly: it rendered as a literal, visible brace character in the
+  # compiled PDF instead of functioning as TeX grouping. \begingroup/
+  # \endgroup (both backslash commands, like every other line here) give
+  # the same scoping without ever starting a line with a bare brace.
+  paste0(
+    "\\sbox{\\pgvcftablebox}{\\begingroup\n", tabular_body, "\n\\endgroup}\n",
+    # \ht alone is only the box's height above its own reference point, not
+    # its full visual extent -- confirmed directly on a real 80-row table,
+    # \ht came in just under the threshold (531pt vs. a 533pt cutoff) while
+    # \ht+\dp (1058pt) was unambiguously over it, sending an 80-row table
+    # down the non-paginating \resizebox branch instead and silently
+    # dropping every row past where it overflowed the page, the exact
+    # defect this whole function exists to prevent. Every real caller of
+    # this box (pandoc's own image-scaling macro included) uses \ht+\dp for
+    # the same reason.
+    "\\ifdim\\dimexpr\\ht\\pgvcftablebox+\\dp\\pgvcftablebox\\relax>0.82\\textheight\n",
+    "\\ifdim\\wd\\pgvcftablebox>1.5\\textwidth\n\\def\\pgvcftablesize{\\scriptsize}\n",
+    "\\else\\ifdim\\wd\\pgvcftablebox>1.15\\textwidth\n\\def\\pgvcftablesize{\\footnotesize}\n",
+    "\\else\\ifdim\\wd\\pgvcftablebox>\\textwidth\n\\def\\pgvcftablesize{\\small}\n",
+    "\\else\n\\def\\pgvcftablesize{\\normalsize}\n",
+    "\\fi\\fi\\fi\n",
+    "\\begingroup\\pgvcftablesize\n", longtable_body, "\n\\endgroup\n",
+    "\\else\n",
+    "\\ifdim\\wd\\pgvcftablebox>\\textwidth\n",
+    "\\resizebox{\\textwidth}{!}{\\begingroup\n", tabular_body, "\n\\endgroup}\n",
+    "\\else\n",
+    "\\begingroup\n", tabular_body, "\n\\endgroup\n",
+    "\\fi\n",
+    "\\fi\n"
+  )
+}
+
 report_kable <- function(table, digits = NULL) {
   # kable()'s default ("pipe") output is pandoc markdown, meant to be
   # converted by pandoc's own markdown-to-LaTeX pass -- fine standalone, but
-  # NOT valid content inside a raw \sbox{}{...} LaTeX command (which pandoc
-  # never re-processes for embedded markdown table syntax). LaTeX output
-  # explicitly requests format="latex" so kable() itself emits real
-  # \begin{tabular}...\end{tabular} source, safe to measure/wrap directly.
+  # NOT valid content inside raw LaTeX (which pandoc never re-processes for
+  # embedded markdown table syntax). LaTeX output explicitly requests
+  # format="latex" so kable() itself emits real longtable source, safe to
+  # measure/wrap directly. longtable (not a plain, page-bound tabular) is
+  # required so a table taller than one page paginates instead of silently
+  # overflowing past the physical page and losing rows -- confirmed
+  # directly on a real production report (a >100-row table's tail simply
+  # never appeared anywhere in the rendered PDF).
   latex <- knitr::is_latex_output()
   args <- list(x = table, format = if (latex) "latex" else "pipe")
   if (!is.null(digits)) args$digits <- digits
-  if (latex) args$booktabs <- TRUE
+  if (latex) args <- c(args, list(booktabs = TRUE, longtable = TRUE))
   rendered <- do.call(knitr::kable, args)
-  if (latex) {
-    # Shrink only if the table is actually wider than the page (real result
-    # tables can have 10+ columns); a naturally narrow table is left at its
-    # own size, never stretched to fill the line.
-    cat("\\sbox{\\pgvcftablebox}{\n")
-    cat(rendered, sep = "\n")
-    cat("\n}\n")
-    cat("\\ifdim\\wd\\pgvcftablebox>\\textwidth\n")
-    cat("\\resizebox{\\textwidth}{!}{\\usebox{\\pgvcftablebox}}\n")
-    cat("\\else\n")
-    cat("\\usebox{\\pgvcftablebox}\n")
-    cat("\\fi\n\n")
-  } else {
+  if (!latex) {
     cat(rendered, sep = "\n")
     cat("\n\n")
+    return(invisible(TRUE))
   }
+  rendered <- report_kable_repeat_header(rendered)
+  rendered <- report_kable_wrap_long_columns(rendered, table)
+  cat(report_kable_render(rendered))
+  cat("\n")
   invisible(TRUE)
 }
 

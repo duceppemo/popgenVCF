@@ -58,6 +58,37 @@ test_that("plot_qc_reports keeps the sequential SNP retention bars in filtering 
   )
 })
 
+test_that("sample-missingness y-axis labels shrink to fit when there are many samples, and stay at the normal size otherwise", {
+  plots <- list()
+  local_mocked_bindings(
+    save_plot = function(p, stem, ...) { plots[[stem]] <<- p; invisible(TRUE) },
+    .package = "popgenVCF"
+  )
+  cfg <- default_config()
+  reports <- list(
+    variant = data.table::data.table(maf = 0.1, missing_rate = 0.01),
+    sequential = data.table::data.table(step = "Input", variants = 10L)
+  )
+
+  few <- data.table::data.table(
+    sample = paste0("s", 1:3), population = "A", missing_rate = c(0.01, 0.02, 0.03)
+  )
+  plot_qc_reports(reports, few, cfg, list(figures = tempdir()))
+  few_size <- plots[["03_sample_missingness"]]$theme$axis.text.y$size
+
+  # A real 50-sample production report showed visibly overlapping labels at
+  # the theme's normal fixed size -- confirmed directly.
+  many <- data.table::data.table(
+    sample = paste0("s", 1:50), population = "A", missing_rate = runif(50L)
+  )
+  plot_qc_reports(reports, many, cfg, list(figures = tempdir()))
+  many_size <- plots[["03_sample_missingness"]]$theme$axis.text.y$size
+
+  expect_equal(few_size, popgenVCF:::figure_base_size(cfg) - 1)
+  expect_lt(many_size, few_size)
+  expect_gte(many_size, 4)
+})
+
 test_that("requested population plots use accessible colors and expanded titles", {
   plots <- list()
   local_mocked_bindings(

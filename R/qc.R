@@ -215,6 +215,19 @@ plot_qc_reports <- function(reports, sample_qc, cfg, dirs) {
       x = "Missing genotype rate", y = "Number of variants"
     ) + theme_publication(figure_base_size(cfg))
   save_plot(p2, "02_variant_missingness", dirs, fmts, 7, 5, dpi)
+  # A fixed axis.text size (theme_publication()'s default, same as every
+  # other figure) overlaps once enough samples are packed into the
+  # height-scaled canvas below -- confirmed directly on a real 50-sample
+  # production report (labels visibly overlapping). Sized to the actual
+  # vertical budget per bar instead: 72.27pt/in, a fraction (not the full
+  # budget, so bars keep visible gutters between labels) of that per-sample
+  # allowance, capped at the normal theme size so a small sample count is
+  # never enlarged past its usual look.
+  sample_height_in <- max(5, nrow(sample_qc) * 0.14)
+  sample_label_pt <- min(
+    figure_base_size(cfg) - 1,
+    max(4, 0.62 * sample_height_in * 72.27 / nrow(sample_qc))
+  )
   p3 <- ggplot2::ggplot(sample_qc, ggplot2::aes(stats::reorder(sample, missing_rate), missing_rate, fill = population)) +
     ggplot2::geom_col(width = 0.78) +
     ggplot2::coord_flip() +
@@ -233,8 +246,9 @@ plot_qc_reports <- function(reports, sample_qc, cfg, dirs) {
         100 * cfg$qc$max_sample_missing
       ),
       x = NULL, y = "Missing genotype rate", fill = "Population"
-    ) + theme_publication(figure_base_size(cfg))
-  save_plot(p3, "03_sample_missingness", dirs, fmts, 8, max(5, nrow(sample_qc) * 0.12), dpi)
+    ) + theme_publication(figure_base_size(cfg)) +
+    ggplot2::theme(axis.text.y = ggplot2::element_text(size = sample_label_pt))
+  save_plot(p3, "03_sample_missingness", dirs, fmts, 8, sample_height_in, dpi)
   # step is plain character in reports$sequential; ggplot2 would otherwise
   # sort a discrete character axis alphabetically ("After LD pruning" before
   # "Input biallelic"), scrambling the actual filtering order qc_reports()

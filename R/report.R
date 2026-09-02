@@ -147,23 +147,52 @@ compress_report_pdf <- function(path) {
 # 2. Wide result tables (e.g. the population diversity summary or PCA scores,
 #    each 10+ columns on real data) overflow \textwidth in the PDF, rendering
 #    as illegible overlapping text -- knitr::kable() alone does not know the
-#    page width. report_table_section() (skeleton.Rmd) wraps LaTeX-output
-#    tables in a \sbox measured against \textwidth, shrinking with
-#    \resizebox only when the table is actually too wide (never stretching a
-#    naturally narrow table to fill the page). \pgvcftablebox is declared
-#    once here so it can be reused (via \sbox, not \newsavebox) across every
-#    report_table_section() call in the document. This requires
-#    knitr::kable(..., format = "latex") to actually emit LaTeX tabular
-#    source instead of its default pandoc-markdown table syntax (report_kable()
-#    in skeleton.Rmd) -- raw \sbox{}{...} content is never re-processed by
-#    pandoc's own markdown-to-LaTeX pass, unlike a normal chunk's output --
-#    and booktabs, which pandoc would otherwise auto-load only when it detects
-#    its own native table syntax in the source, which this raw LaTeX bypasses.
+#    page width. A tall table (e.g. LD decay's per-bin table, 100+ rows) is a
+#    separate, worse problem: a plain (non-longtable) tabular block cannot
+#    paginate at all, so its rows past the physical page bottom simply never
+#    render anywhere -- confirmed directly on a real production report,
+#    silently missing rows, not an error. report_kable() (skeleton.Rmd) always
+#    builds the table via kable(..., longtable = TRUE) (with \endhead
+#    inserted by hand so the header repeats on every page -- base knitr's
+#    longtable support doesn't add that on its own), but only *displays* it
+#    that way when the table's own \sbox-measured height exceeds ~82% of
+#    \textheight -- \resizebox can't wrap a longtable at all (each page would
+#    need independent measurement), so a genuinely tall table falls back to a
+#    coarser discrete font size (\normalsize down to \scriptsize) picked
+#    against \textwidth instead of \resizebox's continuous scaling. Every
+#    other table (the common case) is displayed as a plain tabular, wrapped
+#    in \resizebox exactly as before longtable existed here -- an
+#    always-longtable-only earlier version of this function regressed that:
+#    discrete sizing alone still let a real 10-32-numeric-column table
+#    overflow \textwidth even at \scriptsize, where \resizebox had scaled it
+#    to fit exactly. The height check itself must compare against
+#    \ht\pgvcftablebox + \dp\pgvcftablebox, not \ht alone -- confirmed
+#    directly: \ht alone came in just under the cutoff for a real 80-row
+#    table (531pt vs. a 533pt threshold) while the combined height (1058pt)
+#    was unambiguously over it, sending that table down the non-paginating
+#    \resizebox branch and silently dropping its rows past the page bottom,
+#    the exact defect this whole mechanism exists to prevent (pandoc's own
+#    image-scaling macro also uses \ht+\dp, for the same reason).
+#    \pgvcftablebox is declared once here so it can be reused (via \sbox, not
+#    \newsavebox) across every report_table_section() call in the document.
+#    This requires knitr::kable(..., format = "latex") to actually emit
+#    LaTeX tabular/longtable source instead of its default pandoc-markdown
+#    table syntax (report_kable() in skeleton.Rmd) -- raw \sbox{}{...}/
+#    longtable content is never re-processed by pandoc's own
+#    markdown-to-LaTeX pass, unlike a normal chunk's output -- and
+#    booktabs/longtable, which pandoc would otherwise auto-load only when it
+#    detects its own native table syntax in the source, which this raw LaTeX
+#    bypasses. Also note: a raw-LaTeX line whose first character is a bare
+#    "{" or "}" is not recognized by pandoc's raw-tex passthrough either --
+#    confirmed directly, it rendered as a literal visible brace in the
+#    compiled PDF -- so report_kable_render() (skeleton.Rmd) scopes with
+#    \begingroup/\endgroup instead of a bare "{...}" group throughout.
 report_pdf_preamble <- function() {
   path <- tempfile(fileext = ".tex")
   writeLines(c(
     "\\usepackage{float}",
     "\\usepackage{booktabs}",
+    "\\usepackage{longtable}",
     "\\let\\oldfigure\\figure",
     "\\let\\endoldfigure\\endfigure",
     "\\renewenvironment{figure}[1][2]{",

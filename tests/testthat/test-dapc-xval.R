@@ -159,7 +159,7 @@ test_that("plot_dapc_eigenvalues draws the standard barplot(dapc$eig, ...) diagn
   cfg <- list(output = list(figure_formats = "pdf", dpi = 150L))
   dirs <- list(figures = withr::local_tempdir())
 
-  p <- popgenVCF:::plot_dapc_eigenvalues(model, "3", cfg, dirs, profile)
+  p <- popgenVCF:::plot_dapc_eigenvalues(model, "3", 15L, cfg, dirs, profile)
 
   expect_s3_class(p, "ggplot")
   expect_identical(nrow(p$data), 4L)
@@ -167,7 +167,20 @@ test_that("plot_dapc_eigenvalues draws the standard barplot(dapc$eig, ...) diagn
   expect_equal(p$data$eigenvalue, model$eig)
   expect_identical(p$labels$x, "Discriminant axis")
   expect_identical(p$labels$y, "Eigenvalue")
+  expect_match(p$labels$subtitle, "15 PCA axis/axes retained", fixed = TRUE)
   expect_true(file.exists(file.path(dirs$figures, "12c_DAPC_eigenvalues_K3.pdf")))
+})
+
+test_that("plot_dapc_eigenvalues highlights the right-most (retained-count) bar and labels each with its % contribution", {
+  model <- list(eig = c(12.4, 5.1, 1.8, 0.3))
+  profile <- popgenVCF:::figure_style_profile("accessibility-first")
+  cfg <- list(output = list(figure_formats = "pdf", dpi = 150L))
+  dirs <- list(figures = withr::local_tempdir())
+
+  p <- popgenVCF:::plot_dapc_eigenvalues(model, "3", 15L, cfg, dirs, profile)
+
+  expect_identical(p$data$retained_marker, c(FALSE, FALSE, FALSE, TRUE))
+  expect_equal(p$data$contribution_pct, 100 * model$eig / sum(model$eig))
 })
 
 test_that("plot_dapc_eigenvalues does nothing when the model has no eigenvalues", {
@@ -175,16 +188,16 @@ test_that("plot_dapc_eigenvalues does nothing when the model has no eigenvalues"
   cfg <- list(output = list(figure_formats = "pdf", dpi = 150L))
   dirs <- list(figures = withr::local_tempdir())
 
-  expect_null(popgenVCF:::plot_dapc_eigenvalues(NULL, "3", cfg, dirs, profile))
-  expect_null(popgenVCF:::plot_dapc_eigenvalues(list(eig = numeric()), "3", cfg, dirs, profile))
+  expect_null(popgenVCF:::plot_dapc_eigenvalues(NULL, "3", 15L, cfg, dirs, profile))
+  expect_null(popgenVCF:::plot_dapc_eigenvalues(list(eig = numeric()), "3", 15L, cfg, dirs, profile))
   expect_length(list.files(dirs$figures), 0L)
 })
 
-test_that("plot_dapc calls plot_dapc_eigenvalues once per K using each model's own fitted dapc object", {
+test_that("plot_dapc calls plot_dapc_eigenvalues once, for the highest K, using that model's own fitted dapc object", {
   calls <- list()
   local_mocked_bindings(
     plot_dapc_xval = function(...) invisible(NULL),
-    plot_dapc_eigenvalues = function(model, k, cfg, dirs, profile) {
+    plot_dapc_eigenvalues = function(model, k, n_pca, cfg, dirs, profile) {
       calls[[k]] <<- model
       NULL
     },
@@ -219,4 +232,52 @@ test_that("plot_dapc calls plot_dapc_eigenvalues once per K using each model's o
 
   expect_identical(names(calls), "2")
   expect_identical(calls[["2"]], fitted_model)
+})
+
+test_that("plot_dapc skips plot_dapc_eigenvalues for every K but the highest one, across several K values", {
+  calls <- list()
+  local_mocked_bindings(
+    plot_dapc_xval = function(...) invisible(NULL),
+    plot_dapc_eigenvalues = function(model, k, n_pca, cfg, dirs, profile) {
+      calls[[k]] <<- model
+      NULL
+    },
+    save_plot = function(...) invisible(NULL),
+    plot_q_matrix_views = function(...) invisible(NULL),
+    .package = "popgenVCF"
+  )
+  model_for <- function(k) {
+    coordinates <- data.table::data.table(
+      sample = c("sample_1", "sample_2", "sample_3", "sample_4"),
+      population = c("A", "A", "B", "B"),
+      cluster = c("1", "1", "2", "2"),
+      LD1 = c(-2, -1, 1, 2),
+      LD2 = c(-0.5, 0.5, -0.5, 0.5)
+    )
+    membership <- matrix(
+      c(0.9, 0.1, 0.8, 0.2, 0.2, 0.8, 0.1, 0.9),
+      nrow = 4L, byrow = TRUE,
+      dimnames = list(coordinates$sample, c("cluster_1", "cluster_2"))
+    )
+    list(
+      model = list(eig = seq_len(k - 1L)), coordinates = coordinates,
+      membership = membership, reproducibility = NULL, loadings = NULL, cv = NULL
+    )
+  }
+  # Deliberately out of numeric order in names() -- as.integer(names(...))
+  # must be used for "highest", not the last list element or a character sort
+  # (which would put "9" after "10").
+  fixture <- list(
+    models = list(`9` = model_for(9L), `2` = model_for(2L), `4` = model_for(4L)),
+    diagnostics = data.table::data.table(
+      K = c(9L, 2L, 4L), replicate_max_rmse = c(NA_real_, NA_real_, NA_real_)
+    )
+  )
+  cfg <- list(output = list(figure_formats = "pdf", dpi = 150L, figure_style = "accessibility-first"),
+              analyses = list(structure = list(reproducibility_rmse = 0.05)))
+
+  popgenVCF:::plot_dapc(fixture, cfg, list(figures = withr::local_tempdir()))
+
+  expect_identical(names(calls), "9")
+  expect_identical(calls[["9"]], fixture$models[["9"]]$model)
 })
