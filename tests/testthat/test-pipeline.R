@@ -76,6 +76,12 @@ test_that("run_pipeline executes end to end and writes the documented artifacts"
   )
   expect_true(all(loadings[, .N, by = axis]$N <= cfg$analyses$dapc_loading_top_n))
   expect_true(all(loadings[, min(rank) == 1L && all(diff(rank) == 1L), by = axis]$V1))
+  # DAPC now analyzes the LD-pruned marker set, like every other module
+  # (kinship, IBS, population assignment, ...) -- it used the full
+  # QC-passing set until a real production report showed this made
+  # xvalDapc()'s cross-validation ~9x more expensive than necessary.
+  ld_pruned_snps <- data.table::fread(file.path(root, "tables/08_LD_pruned_SNPs.tsv"))$snp_id
+  expect_true(all(loadings$snp_id %in% ld_pruned_snps))
 
   pca_loadings <- data.table::fread(file.path(root, "tables/31_PCA_loadings.tsv"))
   expect_setequal(

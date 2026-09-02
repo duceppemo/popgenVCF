@@ -223,14 +223,28 @@ run_module_dapc <- function(analysis, context) {
   structure_cfg <- cfg$analyses$structure
   seeds <- structure_cfg$seeds
   if (is.null(seeds)) seeds <- cfg$compute$seed + seq_len(structure_cfg$replicates) - 1L
-  chromosome <- context$ids$chromosome[match(context$qc_snps, context$ids$snp)]
-  position <- context$ids$position[match(context$qc_snps, context$ids$snp)]
-  dapc <- run_dapc_analysis(div$genotype, context$sample_ids, context$metadata,
+  # LD-pruned, like every other module here (kinship, IBS, population
+  # assignment, ...) -- DAPC used the full QC-passing marker set until a
+  # real production report's cross-validation was found to be silently
+  # failing (see run_dapc_k_task()): once fixed, cross-validation alone
+  # took ~20 minutes per K on that 561,767-SNP set (n.rep = 30), ~9x more
+  # than the 54,052-SNP LD-pruned set needs, on top of the same inflation
+  # for every replicate's own model fit. div$genotype's columns correspond
+  # positionally to context$qc_snps (run_module_diversity()'s
+  # compute_diversity() call), and final_snps is always a subset of
+  # qc_snps (ld_prune_exact() only ever removes ids), so this match() is a
+  # safe positional lookup, never NA -- the same pattern already used by
+  # run_module_clonality() above for its own LD-pruned marker set.
+  ld_idx <- match(context$final_snps, context$qc_snps)
+  ld_genotype <- div$genotype[, ld_idx, drop = FALSE]
+  chromosome <- context$ids$chromosome[match(context$final_snps, context$ids$snp)]
+  position <- context$ids$position[match(context$final_snps, context$ids$snp)]
+  dapc <- run_dapc_analysis(ld_genotype, context$sample_ids, context$metadata,
                             parse_int_range(cfg$analyses$dapc_k), cfg$compute$seed,
                             cfg$analyses$dapc_cross_validation,
                             replicate_seeds = seeds,
                             threads = cfg$compute$threads,
-                            snp_ids = context$qc_snps,
+                            snp_ids = context$final_snps,
                             chromosome = chromosome, position = position)
   analysis <- set_analysis_result(analysis, "dapc", dapc)
   write_tsv(dapc$diagnostics, file.path(dirs$tables, "21_DAPC_diagnostics.tsv"))
