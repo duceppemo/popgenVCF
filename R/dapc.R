@@ -124,8 +124,17 @@ run_dapc_k_task <- function(k, gl, shared_pca, max_pca, sample_ids,
       # eliminate it) hit this on every single K, always erroring, always
       # silently caught below, and was the root cause of the n.pca = 0.8 *
       # n_samples symptom above: cross-validation never actually ran.
+      # n.pca.max = max_pca here (the real, generous cap), NOT n_pca (the
+      # small fallback default) -- a real bug, found via a user question
+      # about why the xval curve never showed a decline past its peak: it
+      # can't, if the search ceiling and the winning value are the same
+      # number by construction. Confirmed directly: K=3's search only ever
+      # covered n.pca 1-5 and "5" (the ceiling itself) came back as best,
+      # meaning a better value above 5 was never even tested. n_pca (the
+      # fallback) must stay conservative for when cross-validation doesn't
+      # run at all; the search itself must not be capped by it.
       cv <- tryCatch(adegenet::xvalDapc(
-        xval_x %||% gl, grp, n.pca.max = n_pca, training.set = .9,
+        xval_x %||% gl, grp, n.pca.max = max_pca, training.set = .9,
         result = "groupMean", center = TRUE, scale = FALSE,
         n.pca = NULL, n.rep = 30, xval.plot = FALSE
       ), error = function(e) {
@@ -541,12 +550,12 @@ plot_dapc_xval <- function(cv, k, cfg, dirs, profile) {
 # from them) carry little real separating power -- a second, independent
 # way to sanity-check the retained axis count alongside plot_dapc_xval()'s
 # PC-count curve above (that one validates n.pca going into dapc(), this
-# one validates n.da coming out of it). Rendered once, for the highest K
-# only (plot_dapc() below) -- the same shape of diagnostic repeated once per
-# K added little beyond report length, since every K's eig vector already
-# has exactly n.da = min(K - 1, 10) entries (adegenet::dapc() only ever
-# returns the retained discriminant eigenvalues, not a larger discarded
-# pool), so there is nothing K-specific to compare across panels.
+# one validates n.da coming out of it). Rendered once per K (plot_dapc()
+# below): every K's eig vector has exactly n.da = min(K - 1, 10) entries,
+# since adegenet::dapc() silently clips any n.da request above K - 1 (the
+# between-group covariance matrix's rank) rather than returning a larger
+# discarded pool -- confirmed directly -- so this is already the complete,
+# non-degenerate spectrum for that K, not a truncated view of a longer one.
 plot_dapc_eigenvalues <- function(model, k, n_pca, cfg, dirs, profile) {
   eig <- model$eig
   if (is.null(eig) || !length(eig)) return(invisible(NULL))
@@ -630,6 +639,7 @@ plot_dapc <- function(dapc, cfg, dirs) {
       save_plot(p, sprintf("11_DAPC_K%s", k), dirs, cfg$output$figure_formats, 8, 6, cfg$output$dpi)
     }
     plot_dapc_xval(dapc$models[[k]]$cv, k, cfg, dirs, profile)
+    plot_dapc_eigenvalues(dapc$models[[k]]$model, k, annotation$n_pca, cfg, dirs, profile)
     membership <- dapc$models[[k]]$membership
     q <- data.table::as.data.table(membership)
     q[, sample := rownames(membership)]
@@ -650,18 +660,6 @@ plot_dapc <- function(dapc, cfg, dirs) {
       plot_dapc_loading_manhattan(loadings, k, annotation$n_pca, cfg, dirs, profile)
       plot_dapc_loading_ranked(loadings, k, annotation$n_pca, cfg, dirs, profile)
     }
-  }
-  # plot_dapc_eigenvalues() only for the highest K: every K's eig vector
-  # already has exactly n.da entries (see that function's own comment), so
-  # there is nothing K-specific to compare across a full set of per-K
-  # panels -- the highest K alone (the most discriminant axes fit) already
-  # summarizes the diagnostic.
-  if (length(dapc$models)) {
-    max_k <- as.character(max(as.integer(names(dapc$models))))
-    max_k_annotation <- dapc_reproducibility_annotation(dapc, max_k, cfg)
-    plot_dapc_eigenvalues(
-      dapc$models[[max_k]]$model, max_k, max_k_annotation$n_pca, cfg, dirs, profile
-    )
   }
   plot_structure_k_selection(
     dapc$k_selection, cfg, dirs,

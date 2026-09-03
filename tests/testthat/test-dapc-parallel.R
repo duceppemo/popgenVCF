@@ -151,6 +151,41 @@ test_that("run_dapc_k_task's xvalDapc call never requests boot::boot()'s paralle
   expect_null(captured[[1L]]$ncpus)
 })
 
+test_that("xvalDapc's search ceiling is the real max_pca, not the small no-cross-validation fallback", {
+  # Real bug: n.pca.max was set to the same conservative fallback value
+  # (0.1 * n_samples) meant only for when cross-validation doesn't run at
+  # all -- confirmed directly on real production data, this made the
+  # cross-validation search cover only n.pca 1-5 for a 50-sample K=3 model,
+  # and "5" (the search ceiling itself) came back as the winner: a better
+  # value above 5 was never even tested, and the resulting xval curve had
+  # no room to show a decline past its own peak.
+  fixture <- dapc_parallel_fixture()
+  gl <- popgenVCF:::genlight_from_gds(fixture$genotype, fixture$sample_ids, fixture$metadata)
+  public_ids <- popgenVCF:::public_sample_ids(fixture$metadata, fixture$sample_ids)
+  shared_pca <- popgenVCF:::compute_dapc_shared_pca(gl, 10L)
+  truth <- fixture$metadata$population[match(fixture$sample_ids, fixture$metadata$sample)]
+  stub_cv <- list(
+    `Number of PCs Achieving Highest Mean Success` = "5",
+    `Mean Successful Assignment by Number of PCs of PCA` = c(`5` = 0.8)
+  )
+  captured <- list()
+  local_mocked_bindings(
+    xvalDapc = function(...) {
+      captured[[length(captured) + 1L]] <<- list(...)
+      stub_cv
+    },
+    .package = "adegenet"
+  )
+
+  popgenVCF:::run_dapc_k_task(
+    2L, gl = gl, shared_pca = shared_pca, max_pca = 10L,
+    sample_ids = fixture$sample_ids, public_ids = public_ids,
+    metadata = fixture$metadata, truth = truth,
+    cross_validate = TRUE, replicate_seeds = 42L
+  )
+  expect_identical(captured[[1L]]$n.pca.max, 10L)
+})
+
 test_that("DAPC's cross-validation fallback n.pca uses 10% of sample count, not 80%", {
   # Real production regression: xvalDapc() was silently failing on every K
   # (see the missing-genotype test below), so every model fell back to this
