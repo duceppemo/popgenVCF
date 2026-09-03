@@ -153,58 +153,64 @@ test_that("plot_dapc calls plot_dapc_xval once per K using each model's own reta
   expect_identical(calls[["2"]], dapc_xval_fixture())
 })
 
-test_that("plot_dapc_eigenvalues draws the standard barplot(dapc$eig, ...) diagnostic as a ggplot2 bar chart", {
+test_that("dapc_eigenvalues_inset builds a minimal ggplot bar chart with no axis titles, no legend, and each bar's % contribution", {
   model <- list(eig = c(12.4, 5.1, 1.8, 0.3))
   profile <- popgenVCF:::figure_style_profile("accessibility-first")
-  cfg <- list(output = list(figure_formats = "pdf", dpi = 150L))
-  dirs <- list(figures = withr::local_tempdir())
 
-  p <- popgenVCF:::plot_dapc_eigenvalues(model, "3", 15L, cfg, dirs, profile)
+  p <- popgenVCF:::dapc_eigenvalues_inset(model, profile)
 
   expect_s3_class(p, "ggplot")
   expect_identical(nrow(p$data), 4L)
   expect_identical(as.character(p$data$axis), as.character(1:4))
   expect_equal(p$data$eigenvalue, model$eig)
-  expect_identical(p$labels$x, "Discriminant axis")
-  expect_identical(p$labels$y, "Eigenvalue")
-  expect_match(
-    gsub("\\s+", " ", p$labels$subtitle), "15 PCA axis/axes retained",
-    fixed = TRUE
-  )
-  expect_true(file.exists(file.path(dirs$figures, "12c_DAPC_eigenvalues_K3.pdf")))
-})
-
-test_that("plot_dapc_eigenvalues highlights the right-most (retained-count) bar and labels each with its % contribution", {
-  model <- list(eig = c(12.4, 5.1, 1.8, 0.3))
-  profile <- popgenVCF:::figure_style_profile("accessibility-first")
-  cfg <- list(output = list(figure_formats = "pdf", dpi = 150L))
-  dirs <- list(figures = withr::local_tempdir())
-
-  p <- popgenVCF:::plot_dapc_eigenvalues(model, "3", 15L, cfg, dirs, profile)
-
-  expect_identical(p$data$retained_marker, c(FALSE, FALSE, FALSE, TRUE))
   expect_equal(p$data$contribution_pct, 100 * model$eig / sum(model$eig))
+  # theme_void() base -- no axis titles/text/ticks at inset size.
+  expect_true(inherits(p$theme$axis.title, "element_blank"))
+  expect_true(inherits(p$theme$axis.text, "element_blank"))
 })
 
-test_that("plot_dapc_eigenvalues does nothing when the model has no eigenvalues", {
+test_that("dapc_eigenvalues_inset returns NULL when the model has no eigenvalues", {
   profile <- popgenVCF:::figure_style_profile("accessibility-first")
-  cfg <- list(output = list(figure_formats = "pdf", dpi = 150L))
-  dirs <- list(figures = withr::local_tempdir())
-
-  expect_null(popgenVCF:::plot_dapc_eigenvalues(NULL, "3", 15L, cfg, dirs, profile))
-  expect_null(popgenVCF:::plot_dapc_eigenvalues(list(eig = numeric()), "3", 15L, cfg, dirs, profile))
-  expect_length(list.files(dirs$figures), 0L)
+  expect_null(popgenVCF:::dapc_eigenvalues_inset(NULL, profile))
+  expect_null(popgenVCF:::dapc_eigenvalues_inset(list(eig = numeric()), profile))
 })
 
-test_that("plot_dapc calls plot_dapc_eigenvalues once per K, using each K's own fitted dapc object", {
+test_that("add_dapc_eigenvalues_inset places the inset in whichever quadrant has the fewest points", {
+  inset <- ggplot2::ggplot()
+  # Points in top-left, top-right, and bottom-right (2 each); bottom-left is
+  # the only unambiguously empty quadrant (a diagonal line of points, tried
+  # first, ties two corners at 0 and doesn't pin down which one is picked).
+  x <- c(-7, -6, 7, 8, 7, 8); y <- c(7, 8, 7, 8, -7, -8)
+  p <- ggplot2::ggplot(data.frame(x = x, y = y), ggplot2::aes(x, y)) + ggplot2::geom_point()
+
+  result <- popgenVCF:::add_dapc_eigenvalues_inset(p, inset, x, y)
+  built <- ggplot2::ggplot_build(result)
+  custom_layer <- Filter(function(l) inherits(l$geom, "GeomCustomAnn"), result$layers)
+  expect_length(custom_layer, 1L)
+  grob_params <- custom_layer[[1L]]$geom_params
+  xmid <- mean(range(x)); ymid <- mean(range(y))
+  # bottom-left of the data range: xmax/ymax should sit at or below the
+  # midpoint (allowing for the inset's own small size), not above it.
+  expect_lt(grob_params$xmin, xmid)
+  expect_lt(grob_params$ymin, ymid)
+})
+
+test_that("add_dapc_eigenvalues_inset returns the original plot unchanged when there is no inset or no finite coordinates", {
+  p <- ggplot2::ggplot(data.frame(x = 1, y = 1), ggplot2::aes(x, y)) + ggplot2::geom_point()
+  expect_identical(popgenVCF:::add_dapc_eigenvalues_inset(p, NULL, 1, 1), p)
+  expect_identical(
+    popgenVCF:::add_dapc_eigenvalues_inset(p, ggplot2::ggplot(), NA_real_, NA_real_), p
+  )
+})
+
+test_that("plot_dapc embeds each K's eigenvalues inset into its own saved scatter plot", {
   calls <- list()
   local_mocked_bindings(
     plot_dapc_xval = function(...) invisible(NULL),
-    plot_dapc_eigenvalues = function(model, k, n_pca, cfg, dirs, profile) {
-      calls[[k]] <<- model
-      NULL
+    save_plot = function(p, stem, ...) {
+      calls[[stem]] <<- p
+      invisible(NULL)
     },
-    save_plot = function(...) invisible(NULL),
     plot_q_matrix_views = function(...) invisible(NULL),
     .package = "popgenVCF"
   )
@@ -237,8 +243,12 @@ test_that("plot_dapc calls plot_dapc_eigenvalues once per K, using each K's own 
 
   popgenVCF:::plot_dapc(fixture, cfg, list(figures = withr::local_tempdir()))
 
-  expect_setequal(names(calls), c("9", "2", "4"))
-  for (k in names(calls)) {
-    expect_identical(calls[[k]], fixture$models[[k]]$model)
+  for (k in c("9", "2", "4")) {
+    p <- calls[[sprintf("11_DAPC_K%s", k)]]
+    custom_layer <- Filter(function(l) inherits(l$geom, "GeomCustomAnn"), p$layers)
+    expect_length(custom_layer, 1L)
   }
+  # No more standalone 12c_DAPC_eigenvalues_K<k> figure.
+  expect_false(any(grepl("^12c_DAPC_eigenvalues", names(calls))))
+  expect_setequal(names(calls), c("11_DAPC_K9", "11_DAPC_K2", "11_DAPC_K4"))
 })

@@ -71,6 +71,11 @@ analyses:
   # frequency classes spanning 0 to 0.5.
   bottleneck_n_bins: 10
   pca: true
+  # A fixed integer (>= 2), or "auto" to select the number of PCA axes via
+  # the sequential Tracy-Widom test (Patterson, Price & Reich 2006 --
+  # the same test EIGENSOFT's smartpca uses), which distinguishes real
+  # population-structure axes from noise instead of retaining a fixed
+  # count regardless of the data. Requires the LEA package.
   n_pcs: 10
   pca_loading_top_n: 20
   # Extra PCA panel per other metadata column with enough samples per value

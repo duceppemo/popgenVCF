@@ -241,7 +241,16 @@ validate_config <- function(cfg) {
   }
   cfg$analyses$hwe_alpha <- as.numeric(cfg$analyses$hwe_alpha)
   cfg$analyses$bottleneck_n_bins <- as.integer(cfg$analyses$bottleneck_n_bins)
-  cfg$analyses$n_pcs <- as.integer(cfg$analyses$n_pcs)
+  if (is.character(cfg$analyses$n_pcs)) {
+    if (!identical(cfg$analyses$n_pcs, "auto")) {
+      stopf(
+        "analyses.n_pcs must be \"auto\" or an integer >= 2; got %s",
+        cfg$analyses$n_pcs
+      )
+    }
+  } else {
+    cfg$analyses$n_pcs <- as.integer(cfg$analyses$n_pcs)
+  }
   cfg$analyses$pca_loading_top_n <- as.integer(cfg$analyses$pca_loading_top_n)
   cfg$analyses$pca_metadata_color_min_group <- as.integer(cfg$analyses$pca_metadata_color_min_group)
   cfg$analyses$pca_metadata_color_max_levels <- as.integer(cfg$analyses$pca_metadata_color_max_levels)
@@ -291,7 +300,10 @@ validate_config <- function(cfg) {
   }
   if (!is.finite(cfg$analyses$hwe_alpha) || cfg$analyses$hwe_alpha <= 0 || cfg$analyses$hwe_alpha >= 1) stop("analyses.hwe_alpha must be between zero and one", call. = FALSE)
   if (!is.finite(cfg$analyses$bottleneck_n_bins) || cfg$analyses$bottleneck_n_bins < 2L) stop("analyses.bottleneck_n_bins must be >= 2", call. = FALSE)
-  if (!is.finite(cfg$analyses$n_pcs) || cfg$analyses$n_pcs < 2L) stop("analyses.n_pcs must be >= 2", call. = FALSE)
+  if (!identical(cfg$analyses$n_pcs, "auto") &&
+      (!is.finite(cfg$analyses$n_pcs) || cfg$analyses$n_pcs < 2L)) {
+    stop("analyses.n_pcs must be >= 2 or \"auto\"", call. = FALSE)
+  }
   if (!is.finite(cfg$analyses$pca_loading_top_n) || cfg$analyses$pca_loading_top_n < 1L) stop("analyses.pca_loading_top_n must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$pca_metadata_color_min_group) || cfg$analyses$pca_metadata_color_min_group < 1L) stop("analyses.pca_metadata_color_min_group must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$pca_metadata_color_max_levels) || cfg$analyses$pca_metadata_color_max_levels < 2L) stop("analyses.pca_metadata_color_max_levels must be >= 2", call. = FALSE)

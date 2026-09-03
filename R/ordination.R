@@ -1,12 +1,22 @@
 pca_component_count <- function(n_pcs, sample_ids, snp_ids) {
-  n_pcs <- as.integer(n_pcs)[1L]
-  if (is.na(n_pcs) || n_pcs < 2L) {
-    stop("n_pcs must request at least two PCA components", call. = FALSE)
-  }
   n_samples <- length(sample_ids)
   n_snps <- length(snp_ids)
   available <- min(n_samples - 1L, n_snps)
-  requested <- min(n_pcs, available)
+  if (identical(n_pcs, "auto")) {
+    # The Tracy-Widom test (pca_significant_component_count() below) needs
+    # the full eigenvalue spectrum to test against, not just a handful --
+    # request the same generous cap run_dapc_analysis() already uses for
+    # its own shared PCA (100, or fewer if the data can't support that
+    # many), then run_pca() trims down to the significant count once the
+    # eigenvalues are in hand.
+    requested <- min(available, 100L)
+  } else {
+    n_pcs <- as.integer(n_pcs)[1L]
+    if (is.na(n_pcs) || n_pcs < 2L) {
+      stop("n_pcs must be \"auto\" or request at least two PCA components", call. = FALSE)
+    }
+    requested <- min(n_pcs, available)
+  }
   if (requested < 2L) {
     stop(
       sprintf(
@@ -20,6 +30,66 @@ pca_component_count <- function(n_pcs, sample_ids, snp_ids) {
     )
   }
   requested
+}
+
+# How many leading PCA eigenvalues represent real structure rather than
+# noise, via the sequential Tracy-Widom test from Patterson, Price & Reich
+# (2006) "Population Structure and Eigenanalysis" -- the same test
+# EIGENSOFT's smartpca uses for its own automatic PC-count selection.
+# Reimplementing Patterson et al.'s effective-marker-count-adjusted
+# normalization from scratch would risk a scientifically wrong result with
+# no easy way to catch it; instead this calls the Bioconductor LEA
+# package's own compiled Tracy-Widom routine directly (LEA is already an
+# optional dependency here, for the LEA/sNMF ancestry backend), bypassing
+# its pcaProject file-based wrapper (tied to LEA's own PCA workflow, not
+# ours) -- confirmed directly against LEA's own tutorial dataset that this
+# produces identical statistics to its own pca()+tracy.widom() workflow.
+pca_significant_component_count <- function(eigenvalues, alpha = 0.05) {
+  if (!requireNamespace("LEA", quietly = TRUE)) {
+    stop(
+      "analyses.n_pcs = \"auto\" requires the LEA package (for its Tracy-Widom ",
+      "eigenvalue significance test, Patterson, Price & Reich 2006); install it ",
+      "or set analyses.n_pcs to a fixed integer instead",
+      call. = FALSE
+    )
+  }
+  eigenvalues <- as.numeric(eigenvalues)
+  eigenvalues <- eigenvalues[is.finite(eigenvalues) & eigenvalues > 0]
+  if (length(eigenvalues) < 2L) {
+    stop("Tracy-Widom auto-selection needs at least two positive eigenvalues", call. = FALSE)
+  }
+  in_file <- tempfile(fileext = ".eigenvalues")
+  out_file <- sub("[.]eigenvalues$", ".tracywidom", in_file)
+  on.exit(unlink(c(in_file, out_file)), add = TRUE)
+  writeLines(format(eigenvalues, scientific = FALSE, trim = TRUE), in_file)
+  # LEA's own C routine writes a "summary of the options" banner straight to
+  # stdout (not through an R connection) -- sink() still redirects it since
+  # it shares the process's real stdout file descriptor, keeping pipeline
+  # logs free of a third-party tool's own console banner.
+  sink_con <- file(tempfile(), open = "wt")
+  sink(sink_con, type = "output")
+  status <- tryCatch({
+    .C("R_tracyWidom", as.character(in_file), as.character(out_file), PACKAGE = "LEA")
+    TRUE
+  }, error = function(e) e)
+  sink(type = "output")
+  close(sink_con)
+  if (!isTRUE(status)) {
+    stop(sprintf("LEA's Tracy-Widom routine failed: %s", conditionMessage(status)), call. = FALSE)
+  }
+  if (!file.exists(out_file)) {
+    stop("LEA's Tracy-Widom routine did not produce an output file", call. = FALSE)
+  }
+  result <- utils::read.table(out_file, header = TRUE)
+  # Sequential test: stop at the first eigenvalue whose p-value is no
+  # longer significant, matching smartpca's own "number of significant
+  # PCs" convention -- eigenvalue significance in this test is only
+  # meaningful from the top down (later p-values can look significant
+  # again by chance once the leading signal has already been exhausted;
+  # that is not a second, independent block of structure).
+  first_nonsignificant <- which(result$pvalues >= alpha)[1L]
+  n_significant <- if (is.na(first_nonsignificant)) nrow(result) else first_nonsignificant - 1L
+  max(2L, n_significant)
 }
 
 pca_eigensystem_is_finite <- function(pca, requested_components) {
@@ -106,6 +176,7 @@ pca_loading_table <- function(loading, ids) {
 }
 
 run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads, ids = NULL) {
+  auto_pcs <- identical(n_pcs, "auto")
   requested_components <- pca_component_count(n_pcs, sample_ids, snp_ids)
   run_snprelate <- function(need_genmat = FALSE) {
     SNPRelate::snpgdsPCA(
@@ -172,7 +243,18 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads, ids = NU
   available_components <- which(
     seq_along(eig$values) <= ncol(z$eigenvect) & eig$values > 0
   )
-  npc <- min(requested_components, length(available_components))
+  retain <- if (auto_pcs) {
+    significant <- pca_significant_component_count(eig$values[available_components])
+    log_msg(
+      "PCA auto component selection (Tracy-Widom, Patterson/Price/Reich 2006): ",
+      significant, " of ", length(available_components), " computed component(s) significant",
+      level = "INFO"
+    )
+    significant
+  } else {
+    requested_components
+  }
+  npc <- min(retain, length(available_components))
   if (npc < 2L) {
     stop(
       sprintf(

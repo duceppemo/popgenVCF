@@ -543,63 +543,60 @@ plot_dapc_xval <- function(cv, k, cfg, dirs, profile) {
   invisible(p)
 }
 
-# The standard base-R DAPC diagnostic (barplot(dapc$eig, ...)) as a proper
-# ggplot2 figure: how much between-group variance each retained
-# discriminant axis explains. A steep drop after the first one or two axes
-# is the usual signal that later axes (and the LD scatterplot panels built
-# from them) carry little real separating power -- a second, independent
-# way to sanity-check the retained axis count alongside plot_dapc_xval()'s
-# PC-count curve above (that one validates n.pca going into dapc(), this
-# one validates n.da coming out of it). Rendered once per K (plot_dapc()
-# below): every K's eig vector has exactly n.da = min(K - 1, 10) entries,
-# since adegenet::dapc() silently clips any n.da request above K - 1 (the
-# between-group covariance matrix's rank) rather than returning a larger
-# discarded pool -- confirmed directly -- so this is already the complete,
-# non-degenerate spectrum for that K, not a truncated view of a longer one.
-plot_dapc_eigenvalues <- function(model, k, n_pca, cfg, dirs, profile) {
+# The standard base-R DAPC diagnostic (barplot(dapc$eig, ...)), as a compact
+# ggplot2 inset rather than its own standalone figure -- matching
+# adegenet's own scatter.dapc() convention (a small eigenvalue barplot in
+# the scatter's corner), requested directly in place of the earlier
+# standalone-figure-per-K version. Every K's eig vector already has exactly
+# n.da = min(K - 1, 10) entries (adegenet::dapc() silently clips any n.da
+# request above K - 1, the between-group covariance matrix's rank, rather
+# than returning a larger discarded pool -- confirmed directly), so this is
+# already the complete, non-degenerate spectrum for that K: no highlighting
+# is needed since every bar shown is already retained, and no axis
+# titles/text at inset size, just the bars and each one's % contribution.
+dapc_eigenvalues_inset <- function(model, profile) {
   eig <- model$eig
-  if (is.null(eig) || !length(eig)) return(invisible(NULL))
-  n_da <- length(eig)
+  if (is.null(eig) || !length(eig)) return(NULL)
   df <- data.frame(axis = factor(seq_along(eig)), eigenvalue = as.numeric(eig))
   df$contribution_pct <- 100 * df$eigenvalue / sum(df$eigenvalue)
-  # Every bar shown is already retained (see comment above) -- the
-  # right-most one is highlighted as a "this many, total" boundary marker,
-  # the same role plot_dapc_xval()'s dotted vline plays for its own
-  # selected-PC-count callout, not a claim that the other bars were not. A
-  # real K=10 model's own right-most axis carried a 0.0% contribution --
-  # confirmed directly, a fill-colour highlight alone is invisible on a bar
-  # that short, so the same axis's own %-label is also coloured, which stays
-  # visible regardless of bar height.
-  df$retained_marker <- as.integer(df$axis) == n_da
-  base_colour <- unname(expand_figure_palette(profile, 1L, "fills"))
-  highlight_colour <- "#B2182B"
-  p <- ggplot2::ggplot(df, ggplot2::aes(x = axis, y = eigenvalue, fill = retained_marker)) +
-    ggplot2::geom_col(width = 0.72, show.legend = FALSE) +
+  colour <- unname(expand_figure_palette(profile, 1L, "fills"))
+  ggplot2::ggplot(df, ggplot2::aes(x = axis, y = eigenvalue)) +
+    ggplot2::geom_col(fill = colour, width = 0.72) +
     ggplot2::geom_text(
-      ggplot2::aes(label = sprintf("%.1f%%", contribution_pct), colour = retained_marker),
-      vjust = -0.35, size = 3, fontface = "bold", show.legend = FALSE
+      ggplot2::aes(label = sprintf("%.0f%%", contribution_pct)),
+      vjust = -0.35, size = 1.9
     ) +
-    ggplot2::scale_fill_manual(values = c(`FALSE` = base_colour, `TRUE` = highlight_colour)) +
-    ggplot2::scale_colour_manual(values = c(`FALSE` = "black", `TRUE` = highlight_colour)) +
-    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.12))) +
-    ggplot2::labs(
-      title = sprintf("DA eigenvalues (K = %s)", k),
-      subtitle = wrap_plot_subtitle(sprintf(
-        "%d discriminant axis/axes retained (right-most bar and label highlighted); %s",
-        n_da,
-        if (length(n_pca) && is.finite(n_pca)) {
-          sprintf("%d PCA axis/axes retained for this model.", n_pca)
-        } else {
-          "PCA axis/axes retained not available."
-        }
-      )),
-      x = "Discriminant axis", y = "Eigenvalue"
-    ) + theme_publication(figure_base_size(cfg))
-  save_plot(
-    p, sprintf("12c_DAPC_eigenvalues_K%s", k), dirs,
-    cfg$output$figure_formats, 7, 5, cfg$output$dpi
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.18))) +
+    ggplot2::theme_void(base_size = 6) +
+    ggplot2::theme(
+      plot.background = ggplot2::element_rect(fill = "white", colour = "#B3B3B3", linewidth = 0.3),
+      plot.margin = ggplot2::margin(3, 3, 3, 3)
+    )
+}
+
+# Places `inset` (a ggplot) inside `main`'s panel, in whichever quadrant of
+# the plotted (x, y) data has the fewest points -- so it never lands on top
+# of a cluster of dots -- sized as a fraction of that panel's own data
+# range so it scales sensibly regardless of the main plot's axis units.
+add_dapc_eigenvalues_inset <- function(main, inset, x, y, size_frac = 0.34) {
+  if (is.null(inset)) return(main)
+  x <- x[is.finite(x)]; y <- y[is.finite(y)]
+  if (!length(x) || !length(y)) return(main)
+  xr <- range(x); yr <- range(y)
+  xmid <- mean(xr); ymid <- mean(yr)
+  counts <- c(
+    topleft = sum(x <= xmid & y >= ymid), topright = sum(x > xmid & y >= ymid),
+    bottomleft = sum(x <= xmid & y < ymid), bottomright = sum(x > xmid & y < ymid)
   )
-  invisible(p)
+  corner <- names(counts)[which.min(counts)]
+  xpad <- diff(xr) * 0.04; ypad <- diff(yr) * 0.04
+  w <- diff(xr) * size_frac; h <- diff(yr) * size_frac
+  xmin <- if (grepl("left", corner)) xr[1] + xpad else xr[2] - xpad - w
+  ymin <- if (grepl("bottom", corner)) yr[1] + ypad else yr[2] - ypad - h
+  main + ggplot2::annotation_custom(
+    grob = ggplot2::ggplotGrob(inset),
+    xmin = xmin, xmax = xmin + w, ymin = ymin, ymax = ymin + h
+  )
 }
 
 plot_dapc <- function(dapc, cfg, dirs) {
@@ -636,10 +633,13 @@ plot_dapc <- function(dapc, cfg, dirs) {
           plot.subtitle = ggplot2::element_text(colour = "#B2182B", face = "bold")
         )
       }
+      p <- add_dapc_eigenvalues_inset(
+        p, dapc_eigenvalues_inset(dapc$models[[k]]$model, profile),
+        d[[axes[1]]], d[[axes[2]]]
+      )
       save_plot(p, sprintf("11_DAPC_K%s", k), dirs, cfg$output$figure_formats, 8, 6, cfg$output$dpi)
     }
     plot_dapc_xval(dapc$models[[k]]$cv, k, cfg, dirs, profile)
-    plot_dapc_eigenvalues(dapc$models[[k]]$model, k, annotation$n_pca, cfg, dirs, profile)
     membership <- dapc$models[[k]]$membership
     q <- data.table::as.data.table(membership)
     q[, sample := rownames(membership)]
