@@ -176,7 +176,17 @@ plot_q_matrix <- function(q, k, cfg, dirs, prefix = "ADMIXTURE_Q",
       panel.border = ggplot2::element_rect(
         colour = "#4D4D4D", fill = NA, linewidth = 0.45
       ),
-      strip.text = ggplot2::element_text(size = strip_text_size)
+      strip.text = ggplot2::element_text(size = strip_text_size),
+      # strip_text_size above already removes most of the risk, but an
+      # estimated fit (character-width heuristic against an approximate
+      # per-facet pixel budget) is not exact, and a genuinely 1-sample
+      # facet can still be narrower than even its own shortest legible
+      # size -- confirmed directly: a real single-sample "Ro2-3" facet
+      # still clipped to "o2-" after the dynamic sizing above. strip.clip
+      # (ggplot2 >= 3.5) is the actual fix for that residual case: letting
+      # the label spill visibly into neighbouring space beats silently
+      # losing characters, which is what clipping (the default) does.
+      strip.clip = "off"
     )
   if (length(cluster_boundaries)) {
     p <- p + ggplot2::geom_vline(

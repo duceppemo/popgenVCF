@@ -230,6 +230,32 @@ test_that("population-organized membership plots shrink the facet strip text so 
   expect_s3_class(captured$theme$strip.text, "element_text")
   expect_lt(captured$theme$strip.text$size, popgenVCF:::figure_base_size(default_config()))
   expect_gte(captured$theme$strip.text$size, 4)
+  # Belt and braces: the size above already narrows the gap, but a real
+  # single-sample facet (below) proved the dynamic sizing alone isn't
+  # always enough -- strip.clip = "off" is what actually stops any
+  # remaining overflow from being silently cut instead of just visible.
+  expect_identical(captured$theme$strip.clip, "off")
+
+  # Reproduces the exact real case: a single-sample population, which
+  # stayed clipped ("o2-" for "Ro2-3") even after the dynamic sizing
+  # above -- confirming strip.clip = "off", not sizing alone, is what
+  # actually fixes this residual case.
+  solo_captured <- NULL
+  local_mocked_bindings(
+    save_plot = function(p, ...) {
+      solo_captured <<- p
+      invisible(TRUE)
+    },
+    .package = "popgenVCF"
+  )
+  q_solo <- data.table::data.table(
+    sample = c(sprintf("wide_%02d", 1:99), "solo"),
+    population = c(rep("MostlyThisPopulation", 99L), "Ro2-3"),
+    cluster_1 = c(rep(0.9, 99L), 0.1),
+    cluster_2 = c(rep(0.1, 99L), 0.9)
+  )
+  popgenVCF:::plot_q_matrix(q_solo, 2L, default_config(), list(figures = tempdir()))
+  expect_identical(solo_captured$theme$strip.clip, "off")
 
   # Control: evenly-sized, generously-wide populations need no shrinking --
   # the strip text stays at the theme's own base size.

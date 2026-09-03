@@ -38,7 +38,7 @@ Imports:
     data.table,
     digest,
     gdsfmt,
-    ggplot2,
+    ggplot2 (>= 3.5.0),
     ggrepel,
     grid,
     igraph,
