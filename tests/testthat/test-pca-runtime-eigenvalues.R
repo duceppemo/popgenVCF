@@ -80,7 +80,7 @@ test_that("PCA and downstream SNPRelate calls pin runtime-sensitive arguments", 
   fst_body <- paste(deparse(body(popgenVCF:::run_fst)), collapse = "\n")
   fst_pair_body <- paste(deparse(body(popgenVCF:::fst_pair)), collapse = "\n")
 
-  expect_match(pca_body, "eigen.cnt = requested_components", fixed = TRUE)
+  expect_match(pca_body, "eigen.cnt = eigen_cnt", fixed = TRUE)
   expect_match(pca_body, "missing.rate = NaN", fixed = TRUE)
   expect_match(pca_body, "need.genmat = need_genmat", fixed = TRUE)
   expect_match(pca_body, "recover_pca_eigensystem", fixed = TRUE)

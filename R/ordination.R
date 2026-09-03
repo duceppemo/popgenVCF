@@ -185,9 +185,21 @@ pca_loading_table <- function(loading, ids) {
   out
 }
 
-run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads, ids = NULL) {
+run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads, ids = NULL,
+                    always_tracy_widom = FALSE) {
   auto_pcs <- identical(n_pcs, "auto")
   requested_components <- pca_component_count(n_pcs, sample_ids, snp_ids)
+  compute_tracy_widom <- auto_pcs || isTRUE(always_tracy_widom)
+  # A fixed n_pcs only asks SNPRelate to compute exactly that many
+  # eigenvalues -- fine for the retained scores/loadings, but too narrow a
+  # spectrum to meaningfully judge where the real-structure/noise boundary
+  # falls. When a Tracy-Widom comparison was requested (auto selection, or
+  # a fixed n_pcs wanting the "how close is my choice to the data-driven
+  # one" comparison figure), widen the eigendecomposition to the same
+  # generous cap `pca_component_count()`'s own "auto" branch uses, without
+  # changing how many components are actually retained for a fixed n_pcs.
+  available <- min(length(sample_ids) - 1L, length(snp_ids))
+  eigen_cnt <- if (compute_tracy_widom) max(requested_components, min(available, 100L)) else requested_components
   run_snprelate <- function(need_genmat = FALSE) {
     SNPRelate::snpgdsPCA(
       gds,
@@ -197,7 +209,7 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads, ids = NU
       remove.monosnp = TRUE,
       maf = NaN,
       missing.rate = NaN,
-      eigen.cnt = requested_components,
+      eigen.cnt = eigen_cnt,
       num.thread = threads,
       need.genmat = need_genmat,
       verbose = FALSE
@@ -225,7 +237,7 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads, ids = NU
       "recovering from the genetic covariance matrix",
       level = "WARNING"
     )
-    z <- recover_pca_eigensystem(run_snprelate(TRUE), requested_components)
+    z <- recover_pca_eigensystem(run_snprelate(TRUE), eigen_cnt)
     eigensystem_source <- "covariance_eigendecomposition"
   }
 
@@ -254,18 +266,46 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads, ids = NU
     seq_along(eig$values) <= ncol(z$eigenvect) & eig$values > 0
   )
   tracy_widom <- NULL
+  tracy_widom_significant <- NULL
   tracy_widom_alpha <- 0.05
-  retain <- if (auto_pcs) {
+  retain <- requested_components
+  if (auto_pcs) {
+    # Auto-selection cannot proceed without this -- let a missing/failed
+    # Tracy-Widom test raise its own clear error rather than silently
+    # falling back to some other component count.
     tracy_widom <- pca_tracy_widom_table(eig$values[available_components])
-    significant <- pca_tracy_widom_significant_count(tracy_widom, tracy_widom_alpha)
+    tracy_widom_significant <- pca_tracy_widom_significant_count(tracy_widom, tracy_widom_alpha)
     log_msg(
       "PCA auto component selection (Tracy-Widom, Patterson/Price/Reich 2006): ",
-      significant, " of ", length(available_components), " computed component(s) significant",
+      tracy_widom_significant, " of ", length(available_components),
+      " computed component(s) significant",
       level = "INFO"
     )
-    significant
-  } else {
-    requested_components
+    retain <- tracy_widom_significant
+  } else if (isTRUE(always_tracy_widom)) {
+    # Purely a comparison for the user's own benefit here -- a fixed n_pcs
+    # is retained exactly as requested either way, so a missing LEA
+    # installation or any other failure degrades to simply not drawing the
+    # comparison figure, not to an error.
+    tracy_widom <- tryCatch(
+      pca_tracy_widom_table(eig$values[available_components]),
+      error = function(e) {
+        log_msg(
+          "Skipping the Tracy-Widom significance comparison figure: ", conditionMessage(e),
+          level = "WARNING"
+        )
+        NULL
+      }
+    )
+    if (!is.null(tracy_widom)) {
+      tracy_widom_significant <- pca_tracy_widom_significant_count(tracy_widom, tracy_widom_alpha)
+      log_msg(
+        "PCA component significance (Tracy-Widom, Patterson/Price/Reich 2006): ",
+        tracy_widom_significant, " of ", length(available_components),
+        " computed component(s) significant (", requested_components, " requested)",
+        level = "INFO"
+      )
+    }
   }
   npc <- min(retain, length(available_components))
   if (npc < 2L) {
@@ -329,9 +369,10 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads, ids = NU
     eigensystem_source = eigensystem_source,
     raw_nonfinite_eigenvalues = raw_nonfinite_eigenvalues,
     requested_components = requested_components,
+    retained_components = npc,
     loadings = loadings,
     tracy_widom = tracy_widom,
-    tracy_widom_significant = if (auto_pcs) retain else NULL,
+    tracy_widom_significant = tracy_widom_significant,
     tracy_widom_alpha = tracy_widom_alpha
   )
 }
@@ -470,34 +511,57 @@ plot_pca_by_metadata <- function(pca, metadata, column, cfg, dirs, style) {
   invisible(p)
 }
 
-# Scree-style Tracy-Widom significance plot, only produced when
-# `analyses.n_pcs = "auto"` triggered the test (`pca$tracy_widom` is only
-# populated in that case) -- percent of total variance vs. component
-# index, styled after LEA's own tracy.widom() example plot, with every
-# retained (significant) component highlighted against the discarded tail.
-plot_pca_tracy_widom <- function(tw, significant, alpha, cfg, dirs, profile) {
+# Scree-style Tracy-Widom significance plot -- percent of total variance vs.
+# component index, styled after LEA's own tracy.widom() example plot, with
+# every Tracy-Widom-significant component highlighted against the discarded
+# tail. Produced whenever `pca$tracy_widom` is populated: always for
+# `analyses.n_pcs = "auto"`, and best-effort for a fixed n_pcs too (see
+# run_pca()'s `always_tracy_widom` argument) -- for a fixed n_pcs, `retained`
+# (what was actually kept) and `significant` (Tracy-Widom's own
+# recommendation) are independent numbers, so a second reference line marks
+# `retained` whenever it differs, letting the user directly compare their
+# chosen component count against the data-driven one.
+plot_pca_tracy_widom <- function(tw, significant, alpha, retained, cfg, dirs, profile) {
   if (is.null(tw) || !nrow(tw)) return(invisible(NULL))
   df <- data.frame(
     index = tw$N,
     percent = 100 * tw$percentage,
-    retained = tw$N <= significant
+    retained_significant = tw$N <= significant
   )
   highlight <- unname(expand_figure_palette(profile, 1L, "colours"))
   muted <- "#B3B3B3"
+  show_retained_line <- !is.null(retained) && !identical(as.integer(retained), as.integer(significant))
+  subtitle <- sprintf(
+    "%d of %d computed component(s) significant at alpha = %.2f (Patterson, Price & Reich 2006)",
+    significant, nrow(tw), alpha
+  )
+  subtitle <- if (show_retained_line) {
+    paste0(subtitle, sprintf("; %d retained (dotted line)", retained))
+  } else if (!is.null(retained)) {
+    paste0(subtitle, sprintf("; %d retained, matching the significant count", retained))
+  } else {
+    subtitle
+  }
   p <- ggplot2::ggplot(df, ggplot2::aes(x = index, y = percent)) +
     ggplot2::geom_line(colour = muted, linewidth = 0.4) +
     ggplot2::geom_vline(
       xintercept = significant + 0.5, linetype = "dashed",
       colour = "#666666", linewidth = 0.4
+    )
+  if (show_retained_line) {
+    p <- p + ggplot2::geom_vline(
+      xintercept = retained + 0.5, linetype = "dotted",
+      colour = "#CC5500", linewidth = 0.5
+    )
+  }
+  p <- p +
+    ggplot2::geom_point(
+      ggplot2::aes(colour = retained_significant), size = 2.4, show.legend = FALSE
     ) +
-    ggplot2::geom_point(ggplot2::aes(colour = retained), size = 2.4, show.legend = FALSE) +
     ggplot2::scale_colour_manual(values = c(`TRUE` = highlight, `FALSE` = muted)) +
     ggplot2::labs(
       title = "PCA component significance (Tracy-Widom test)",
-      subtitle = sprintf(
-        "%d of %d computed component(s) significant at alpha = %.2f (Patterson, Price & Reich 2006)",
-        significant, nrow(tw), alpha
-      ),
+      subtitle = subtitle,
       x = "Principal component", y = "Percent of total variance explained (%)"
     ) + theme_publication(figure_base_size(cfg))
   save_plot(p, "06b_PCA_Tracy_Widom_test", dirs, cfg$output$figure_formats, 8, 5, cfg$output$dpi)
@@ -513,7 +577,8 @@ plot_pca <- function(pca, cfg, dirs, metadata = NULL) {
   profile <- figure_style_profile(style)
   if (!is.null(pca$tracy_widom)) {
     plot_pca_tracy_widom(
-      pca$tracy_widom, pca$tracy_widom_significant, pca$tracy_widom_alpha, cfg, dirs, profile
+      pca$tracy_widom, pca$tracy_widom_significant, pca$tracy_widom_alpha,
+      pca$retained_components, cfg, dirs, profile
     )
   }
   pal <- if (has_population) {

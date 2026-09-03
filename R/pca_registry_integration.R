@@ -3,12 +3,15 @@ run_module_pca <- function(analysis, context) {
   pca <- run_pca(
     context$gds, context$sample_ids, context$final_snps,
     context$metadata, cfg$analyses$n_pcs, cfg$compute$threads,
-    ids = context$ids
+    ids = context$ids, always_tracy_widom = TRUE
   )
   context$pca <- pca
   analysis <- set_analysis_result(
     analysis, "pca",
-    pca[c("scores", "variance", "loadings", "tracy_widom", "tracy_widom_significant", "tracy_widom_alpha")]
+    pca[c(
+      "scores", "variance", "loadings", "retained_components",
+      "tracy_widom", "tracy_widom_significant", "tracy_widom_alpha"
+    )]
   )
   write_tsv(pca$scores, file.path(dirs$tables, "12_PCA_scores.tsv"))
   write_tsv(pca$variance, file.path(dirs$tables, "13_PCA_variance.tsv"))

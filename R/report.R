@@ -23,6 +23,20 @@ report_figure_inventory <- function(results_rds, target = c("html", "pdf"),
     pattern = "\\.(svg|png|jpe?g|webp|pdf)$",
     full.names = TRUE, ignore.case = TRUE
   )
+  # Every figure this package's own save_plot() call sites write uses a
+  # numbered stem (e.g. "07_PCA_PC1_PC2", "24b_ROH_FROH_by_length_class") --
+  # this is what determines both report inclusion and report ordering.
+  # write_pca_publication_artifacts() (and its IBS/ancestry counterparts)
+  # write a separate, un-numbered, publication-ready copy of the same
+  # figure (e.g. "PCA_PC1_PC2.png") into this same directory, for a user to
+  # pull directly into a manuscript -- confirmed directly against a real
+  # production report: that duplicate PCA scatter plot, effectively
+  # identical to the numbered one already in the report, was getting swept
+  # into the report a second time, sorted to the very end (no numeric
+  # prefix to place it by). Excluding un-numbered stems here keeps the
+  # publication copies on disk (still reachable directly, or via the
+  # written artifact manifest) without embedding them again.
+  files <- files[grepl("^[0-9]{2}[[:alpha:]]?_", basename(files))]
   if (!length(files)) {
     return(data.frame(
       stem = character(), caption = character(), path = character(),

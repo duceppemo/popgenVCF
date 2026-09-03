@@ -53,6 +53,34 @@ test_that("standard report inventory selects one browser-friendly figure per ste
   expect_identical(pdf_inventory$format, "pdf")
 })
 
+test_that("standard report inventory excludes the un-numbered publication-ready figure copies write_pca_publication_artifacts() (and friends) write into the same figures directory", {
+  # Reported directly against a real production report: a redundant PCA
+  # scatter plot appeared at the very end of the report (no numeric prefix
+  # to place it earlier) -- write_pca_publication_artifacts() writes its
+  # own standalone "PCA_PC1_PC2.png/.pdf/.svg" (for a user to pull directly
+  # into a manuscript) into the exact same figures/ directory this
+  # inventory scans, alongside plot_pca()'s own numbered "07_PCA_PC1_PC2".
+  root <- tempfile("standard-report-")
+  dir.create(file.path(root, "figures"), recursive = TRUE)
+  results <- file.path(root, "analysis_results.rds")
+  saveRDS(minimal_standard_report_result(), results)
+
+  grDevices::png(file.path(root, "figures", "07_PCA_PC1_PC2.png"), width = 320, height = 240)
+  graphics::plot(1:2, 1:2)
+  grDevices::dev.off()
+  # The un-numbered publication-ready duplicate, exactly as
+  # write_pca_publication_artifacts() names it.
+  grDevices::png(file.path(root, "figures", "PCA_PC1_PC2.png"), width = 320, height = 240)
+  graphics::plot(1:2, 1:2)
+  grDevices::dev.off()
+  grDevices::svg(file.path(root, "figures", "PCA_PC1_PC2.svg"))
+  graphics::plot(1:2, 1:2)
+  grDevices::dev.off()
+
+  inventory <- popgenVCF:::report_figure_inventory(results)
+  expect_identical(inventory$stem, "07_PCA_PC1_PC2")
+})
+
 test_that("PDF report inventory falls back to PNG for a pathologically large vector PDF", {
   root <- tempfile("oversized-pdf-report-")
   dir.create(file.path(root, "figures"), recursive = TRUE)
