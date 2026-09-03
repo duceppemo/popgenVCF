@@ -441,7 +441,18 @@ if (!is.null(r$dapc) && "replicate_max_rmse" %in% names(r$dapc$diagnostics)) {
   )
 }
 if (!is.null(r$faststructure$runs)) {
-  report_table_section("fastStructure", r$faststructure$runs, level = 2L)
+  # executable/log_file/q_file are long, space-free absolute paths -- unlike
+  # every other reproducibility table here (DAPC, sNMF), which already
+  # select only meaningful columns, this one previously dumped the full raw
+  # runs table: those path columns cannot wrap at a word boundary (no
+  # spaces to break on) and overflowed the table, reported directly against
+  # a real production report. executable is also identical on every row.
+  # Full paths remain available in analysis_results.rds regardless.
+  faststructure_runs <- r$faststructure$runs[
+    , intersect(c("K", "exit_status", "marginal_likelihood"), names(r$faststructure$runs)),
+    with = FALSE
+  ]
+  report_table_section("fastStructure", faststructure_runs, digits = 4, level = 2L)
 }
 if (!is.null(r$snmf$diagnostics)) {
   report_table_section(

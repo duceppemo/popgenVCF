@@ -320,9 +320,10 @@ test_that("populated reproducibility sections render mixed-type tables", {
   populated$faststructure <- list(runs = data.table::data.table(
     K = 2L,
     exit_status = 0L,
-    executable = "structure.py",
-    log_file = "faststructure_K2.log",
-    q_file = "faststructure_K2.meanQ"
+    executable = "/home/example/miniconda3/envs/popgenvcf/bin/structure.py",
+    log_file = "/home/example/output/structure/fastStructure_K2.log",
+    q_file = "/home/example/output/structure/fastStructure.2.meanQ",
+    marginal_likelihood = -0.7989195
   ))
   populated$snmf <- list(diagnostics = data.table::data.table(
     K = 2L, run = 1L, cross_entropy = 0.5
@@ -342,7 +343,17 @@ test_that("populated reproducibility sections render mixed-type tables", {
   expect_match(
     html, 'id="sparse-non-negative-matrix-factorization"', fixed = TRUE
   )
-  expect_match(html, "structure.py", fixed = TRUE)
+  # Reported directly against a real production report: the fastStructure
+  # reproducibility table used to dump the full raw runs table, including
+  # long, space-free absolute paths (executable/log_file/q_file) that
+  # cannot wrap at a word boundary and overflowed the table -- executable
+  # is also identical on every K row, adding nothing per-row. The table now
+  # keeps only K/exit_status/marginal_likelihood; the path columns are
+  # dropped from the report entirely (still available in
+  # analysis_results.rds for anyone who needs them).
+  expect_no_match(html, "structure.py", fixed = TRUE)
+  expect_no_match(html, "fastStructure_K2.log", fixed = TRUE)
+  expect_match(html, "-0.7989", fixed = TRUE)
 })
 
 test_that("standard PDF report uses compact vector figure sources", {
