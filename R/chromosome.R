@@ -7,7 +7,8 @@ run_chromosome_analyses <- function(gds, qc_snps, final_snps, ids, sample_ids, m
     q <- chr_qc[[chr]] %||% character(); l <- chr_ld[[chr]] %||% character()
     if (length(q) < cfg$analyses$chromosome_min_snps || length(l) < 2L) next
     fst <- run_fst(gds, q, metadata)
-    pca <- run_pca(gds, sample_ids, l, metadata, min(3L, cfg$analyses$n_pcs), cfg$compute$threads)
+    chr_n_pcs <- if (identical(cfg$analyses$n_pcs, "auto")) 3L else min(3L, cfg$analyses$n_pcs)
+    pca <- run_pca(gds, sample_ids, l, metadata, chr_n_pcs, cfg$compute$threads)
     out[[chr]] <- list(summary = data.table::data.table(chromosome = chr, qc_snps = length(q), ld_snps = length(l),
                                                         global_fst = fst$global, pc1_percent = pca$variance$percent[1]),
                        fst = fst$long, pca = pca$scores)

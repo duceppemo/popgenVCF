@@ -6,7 +6,10 @@ run_module_pca <- function(analysis, context) {
     ids = context$ids
   )
   context$pca <- pca
-  analysis <- set_analysis_result(analysis, "pca", pca[c("scores", "variance", "loadings")])
+  analysis <- set_analysis_result(
+    analysis, "pca",
+    pca[c("scores", "variance", "loadings", "tracy_widom", "tracy_widom_significant", "tracy_widom_alpha")]
+  )
   write_tsv(pca$scores, file.path(dirs$tables, "12_PCA_scores.tsv"))
   write_tsv(pca$variance, file.path(dirs$tables, "13_PCA_variance.tsv"))
   if (!is.null(pca$loadings) && nrow(pca$loadings)) {

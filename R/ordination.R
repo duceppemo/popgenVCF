@@ -44,7 +44,7 @@ pca_component_count <- function(n_pcs, sample_ids, snp_ids) {
 # its pcaProject file-based wrapper (tied to LEA's own PCA workflow, not
 # ours) -- confirmed directly against LEA's own tutorial dataset that this
 # produces identical statistics to its own pca()+tracy.widom() workflow.
-pca_significant_component_count <- function(eigenvalues, alpha = 0.05) {
+pca_tracy_widom_table <- function(eigenvalues) {
   if (!requireNamespace("LEA", quietly = TRUE)) {
     stop(
       "analyses.n_pcs = \"auto\" requires the LEA package (for its Tracy-Widom ",
@@ -80,16 +80,26 @@ pca_significant_component_count <- function(eigenvalues, alpha = 0.05) {
   if (!file.exists(out_file)) {
     stop("LEA's Tracy-Widom routine did not produce an output file", call. = FALSE)
   }
-  result <- utils::read.table(out_file, header = TRUE)
-  # Sequential test: stop at the first eigenvalue whose p-value is no
-  # longer significant, matching smartpca's own "number of significant
-  # PCs" convention -- eigenvalue significance in this test is only
-  # meaningful from the top down (later p-values can look significant
-  # again by chance once the leading signal has already been exhausted;
-  # that is not a second, independent block of structure).
-  first_nonsignificant <- which(result$pvalues >= alpha)[1L]
-  n_significant <- if (is.na(first_nonsignificant)) nrow(result) else first_nonsignificant - 1L
+  # Columns: N (1-based component index), eigenvalues, twstats, pvalues,
+  # effectn, percentage (fraction of total variance, 0-1, not 0-100).
+  data.table::as.data.table(utils::read.table(out_file, header = TRUE))
+}
+
+# Sequential test: stop at the first eigenvalue whose p-value is no longer
+# significant, matching smartpca's own "number of significant PCs"
+# convention -- eigenvalue significance in this test is only meaningful
+# from the top down (later p-values can look significant again by chance
+# once the leading signal has already been exhausted; that is not a
+# second, independent block of structure).
+pca_tracy_widom_significant_count <- function(tw, alpha = 0.05) {
+  first_nonsignificant <- which(tw$pvalues >= alpha)[1L]
+  n_significant <- if (is.na(first_nonsignificant)) nrow(tw) else first_nonsignificant - 1L
   max(2L, n_significant)
+}
+
+pca_significant_component_count <- function(eigenvalues, alpha = 0.05) {
+  tw <- pca_tracy_widom_table(eigenvalues)
+  pca_tracy_widom_significant_count(tw, alpha)
 }
 
 pca_eigensystem_is_finite <- function(pca, requested_components) {
@@ -243,8 +253,11 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads, ids = NU
   available_components <- which(
     seq_along(eig$values) <= ncol(z$eigenvect) & eig$values > 0
   )
+  tracy_widom <- NULL
+  tracy_widom_alpha <- 0.05
   retain <- if (auto_pcs) {
-    significant <- pca_significant_component_count(eig$values[available_components])
+    tracy_widom <- pca_tracy_widom_table(eig$values[available_components])
+    significant <- pca_tracy_widom_significant_count(tracy_widom, tracy_widom_alpha)
     log_msg(
       "PCA auto component selection (Tracy-Widom, Patterson/Price/Reich 2006): ",
       significant, " of ", length(available_components), " computed component(s) significant",
@@ -316,7 +329,10 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads, ids = NU
     eigensystem_source = eigensystem_source,
     raw_nonfinite_eigenvalues = raw_nonfinite_eigenvalues,
     requested_components = requested_components,
-    loadings = loadings
+    loadings = loadings,
+    tracy_widom = tracy_widom,
+    tracy_widom_significant = if (auto_pcs) retain else NULL,
+    tracy_widom_alpha = tracy_widom_alpha
   )
 }
 
@@ -454,6 +470,40 @@ plot_pca_by_metadata <- function(pca, metadata, column, cfg, dirs, style) {
   invisible(p)
 }
 
+# Scree-style Tracy-Widom significance plot, only produced when
+# `analyses.n_pcs = "auto"` triggered the test (`pca$tracy_widom` is only
+# populated in that case) -- percent of total variance vs. component
+# index, styled after LEA's own tracy.widom() example plot, with every
+# retained (significant) component highlighted against the discarded tail.
+plot_pca_tracy_widom <- function(tw, significant, alpha, cfg, dirs, profile) {
+  if (is.null(tw) || !nrow(tw)) return(invisible(NULL))
+  df <- data.frame(
+    index = tw$N,
+    percent = 100 * tw$percentage,
+    retained = tw$N <= significant
+  )
+  highlight <- unname(expand_figure_palette(profile, 1L, "colours"))
+  muted <- "#B3B3B3"
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = index, y = percent)) +
+    ggplot2::geom_line(colour = muted, linewidth = 0.4) +
+    ggplot2::geom_vline(
+      xintercept = significant + 0.5, linetype = "dashed",
+      colour = "#666666", linewidth = 0.4
+    ) +
+    ggplot2::geom_point(ggplot2::aes(colour = retained), size = 2.4, show.legend = FALSE) +
+    ggplot2::scale_colour_manual(values = c(`TRUE` = highlight, `FALSE` = muted)) +
+    ggplot2::labs(
+      title = "PCA component significance (Tracy-Widom test)",
+      subtitle = sprintf(
+        "%d of %d computed component(s) significant at alpha = %.2f (Patterson, Price & Reich 2006)",
+        significant, nrow(tw), alpha
+      ),
+      x = "Principal component", y = "Percent of total variance explained (%)"
+    ) + theme_publication(figure_base_size(cfg))
+  save_plot(p, "06b_PCA_Tracy_Widom_test", dirs, cfg$output$figure_formats, 8, 5, cfg$output$dpi)
+  invisible(p)
+}
+
 plot_pca <- function(pca, cfg, dirs, metadata = NULL) {
   fmts <- cfg$output$figure_formats; dpi <- cfg$output$dpi
   label <- cfg$output$label_samples
@@ -461,6 +511,11 @@ plot_pca <- function(pca, cfg, dirs, metadata = NULL) {
   has_population <- "population" %in% names(pca$scores) && any(!is.na(pca$scores$population))
   style <- figure_style_name(cfg)
   profile <- figure_style_profile(style)
+  if (!is.null(pca$tracy_widom)) {
+    plot_pca_tracy_widom(
+      pca$tracy_widom, pca$tracy_widom_significant, pca$tracy_widom_alpha, cfg, dirs, profile
+    )
+  }
   pal <- if (has_population) {
     population_palette(pca$scores$population, style)
   } else NULL

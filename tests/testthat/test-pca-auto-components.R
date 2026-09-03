@@ -81,6 +81,115 @@ test_that("run_pca(n_pcs = \"auto\") trims the reported components to the Tracy-
   expect_lte(expected_n, 19L)
 })
 
+test_that("pca_tracy_widom_table returns the full LEA statistics table, and run_pca(n_pcs = \"auto\") carries it through with a matching significant count", {
+  skip_if_not(requireNamespace("LEA", quietly = TRUE), "LEA is not installed")
+
+  eig <- c(2000, 1500, rep(10, 30))
+  tw <- popgenVCF:::pca_tracy_widom_table(eig)
+  expect_s3_class(tw, "data.table")
+  expect_identical(nrow(tw), length(eig))
+  expect_true(all(c("N", "eigenvalues", "twstats", "pvalues", "effectn", "percentage") %in% names(tw)))
+  expect_identical(tw$N, seq_along(eig))
+  expect_equal(sum(tw$percentage), 1, tolerance = 1e-3)
+
+  significant <- popgenVCF:::pca_tracy_widom_significant_count(tw)
+  expect_identical(significant, popgenVCF:::pca_significant_component_count(eig))
+
+  set.seed(5L)
+  n_samples <- 20L; n_snps <- 300L
+  sample_id <- paste0("s", seq_len(n_samples))
+  snp_id <- seq_len(n_snps)
+  genmat <- matrix(
+    sample(0:2, n_samples * n_snps, replace = TRUE, prob = c(0.25, 0.5, 0.25)),
+    nrow = n_samples, ncol = n_snps
+  )
+  gds_path <- tempfile(fileext = ".gds")
+  SNPRelate::snpgdsCreateGeno(
+    gds_path, genmat = genmat, sample.id = sample_id, snp.id = snp_id,
+    snp.chromosome = rep(1L, n_snps), snp.position = seq_len(n_snps),
+    snp.allele = rep("A/G", n_snps), snpfirstdim = FALSE
+  )
+  gds <- SNPRelate::snpgdsOpen(gds_path)
+  on.exit(SNPRelate::snpgdsClose(gds), add = TRUE)
+  metadata <- popgenVCF:::normalize_sample_aliases(data.table::data.table(
+    sample = sample_id, population = rep("PopA", n_samples)
+  ))
+
+  auto <- popgenVCF:::run_pca(gds, sample_id, snp_id, metadata, "auto", 1L)
+  expect_s3_class(auto$tracy_widom, "data.table")
+  expect_identical(auto$tracy_widom_significant, nrow(auto$variance))
+  expect_identical(auto$tracy_widom_alpha, 0.05)
+
+  fixed <- popgenVCF:::run_pca(gds, sample_id, snp_id, metadata, 10L, 1L)
+  expect_null(fixed$tracy_widom)
+  expect_null(fixed$tracy_widom_significant)
+})
+
+test_that("plot_pca_tracy_widom draws percent-of-variance vs. component index, highlighting the retained (significant) components", {
+  tw <- data.table::data.table(
+    N = 1:6, eigenvalues = c(50, 40, 30, 9, 9, 9),
+    twstats = c(4.3, 7.2, 13.8, NaN, NaN, NaN),
+    pvalues = c(1e-4, 1e-7, 1e-8, 1, 1, 1),
+    effectn = rep(100, 6), percentage = c(0.30, 0.24, 0.18, 0.10, 0.10, 0.08)
+  )
+  profile <- popgenVCF:::figure_style_profile("accessibility-first")
+  cfg <- list(output = list(figure_formats = "pdf", dpi = 150L))
+  dirs <- list(figures = withr::local_tempdir())
+
+  p <- popgenVCF:::plot_pca_tracy_widom(tw, 3L, 0.05, cfg, dirs, profile)
+
+  expect_s3_class(p, "ggplot")
+  expect_identical(p$data$index, 1:6)
+  expect_identical(p$data$retained, c(TRUE, TRUE, TRUE, FALSE, FALSE, FALSE))
+  expect_identical(p$labels$x, "Principal component")
+  expect_identical(p$labels$y, "Percent of total variance explained (%)")
+  expect_match(p$labels$subtitle, "3 of 6 computed component")
+  expect_true(file.exists(file.path(dirs$figures, "06b_PCA_Tracy_Widom_test.pdf")))
+})
+
+test_that("plot_pca_tracy_widom is a no-op when there is no Tracy-Widom result to show", {
+  cfg <- list(output = list(figure_formats = "pdf", dpi = 150L))
+  dirs <- list(figures = withr::local_tempdir())
+  expect_null(popgenVCF:::plot_pca_tracy_widom(NULL, NULL, 0.05, cfg, dirs, popgenVCF:::figure_style_profile("accessibility-first")))
+  expect_identical(list.files(dirs$figures), character())
+})
+
+test_that("plot_pca() only writes the Tracy-Widom figure when auto component selection actually ran", {
+  skip_if_not(requireNamespace("LEA", quietly = TRUE), "LEA is not installed")
+  set.seed(7L)
+  n_samples <- 20L; n_snps <- 300L
+  sample_id <- paste0("s", seq_len(n_samples))
+  snp_id <- seq_len(n_snps)
+  genmat <- matrix(
+    sample(0:2, n_samples * n_snps, replace = TRUE, prob = c(0.25, 0.5, 0.25)),
+    nrow = n_samples, ncol = n_snps
+  )
+  gds_path <- tempfile(fileext = ".gds")
+  SNPRelate::snpgdsCreateGeno(
+    gds_path, genmat = genmat, sample.id = sample_id, snp.id = snp_id,
+    snp.chromosome = rep(1L, n_snps), snp.position = seq_len(n_snps),
+    snp.allele = rep("A/G", n_snps), snpfirstdim = FALSE
+  )
+  gds <- SNPRelate::snpgdsOpen(gds_path)
+  on.exit(SNPRelate::snpgdsClose(gds), add = TRUE)
+  metadata <- popgenVCF:::normalize_sample_aliases(data.table::data.table(
+    sample = sample_id, population = rep("PopA", n_samples)
+  ))
+  cfg <- list(output = list(
+    figure_formats = "pdf", dpi = 150L, label_samples = "auto"
+  ), analyses = list(pca_metadata_color = FALSE))
+
+  auto <- popgenVCF:::run_pca(gds, sample_id, snp_id, metadata, "auto", 1L)
+  dirs_auto <- list(figures = withr::local_tempdir())
+  popgenVCF:::plot_pca(auto, cfg, dirs_auto, metadata)
+  expect_true(file.exists(file.path(dirs_auto$figures, "06b_PCA_Tracy_Widom_test.pdf")))
+
+  fixed <- popgenVCF:::run_pca(gds, sample_id, snp_id, metadata, 10L, 1L)
+  dirs_fixed <- list(figures = withr::local_tempdir())
+  popgenVCF:::plot_pca(fixed, cfg, dirs_fixed, metadata)
+  expect_false(file.exists(file.path(dirs_fixed$figures, "06b_PCA_Tracy_Widom_test.pdf")))
+})
+
 test_that("validate_config accepts analyses.n_pcs = \"auto\" and rejects other strings", {
   cfg <- popgenVCF::default_config()
   cfg$input$vcf <- tempfile(fileext = ".vcf")
