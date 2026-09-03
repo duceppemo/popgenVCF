@@ -116,6 +116,23 @@ plot_q_matrix <- function(q, k, cfg, dirs, prefix = "ADMIXTURE_Q",
   plot_width <- min(48, max(10, nrow(x) * 0.08))
   points_per_sample <- plot_width * 72 / nrow(x)
   axis_label_size <- max(1, min(7, points_per_sample * 0.8))
+  # facet_grid(~population, space = "free_x") below gives each population's
+  # strip exactly its own panel's width (proportional to its sample count) --
+  # a population with very few samples gets a narrow strip with no room for
+  # its own label, and ggplot2 clips overflowing strip text rather than
+  # wrapping or shrinking it (confirmed directly against a real production
+  # report: a 2-sample "Ro2-3" population's strip rendered as just "o2").
+  # Sized the same way axis_label_size above already is: from the tightest
+  # constraint across every population's own (sample count, label length)
+  # pair, floored to stay legible and capped at the theme's own base size so
+  # a plot with only large, evenly-sized populations isn't affected.
+  strip_text_size <- if (identical(order_mode, "population") && "population" %in% names(x)) {
+    pop_sizes <- x[, .N, by = population]
+    fits <- (pop_sizes$N * points_per_sample) / (pmax(1L, nchar(as.character(pop_sizes$population))) * 0.62)
+    max(4, min(figure_base_size(cfg), min(fits)))
+  } else {
+    figure_base_size(cfg)
+  }
   id_vars <- c("sample", "sample_label", "order")
   if ("population" %in% names(x)) id_vars <- c(id_vars, "population")
   long <- data.table::melt(x, id.vars = id_vars, measure.vars = clusters,
@@ -158,7 +175,8 @@ plot_q_matrix <- function(q, k, cfg, dirs, prefix = "ADMIXTURE_Q",
       axis.ticks.x = ggplot2::element_line(colour = "grey40"),
       panel.border = ggplot2::element_rect(
         colour = "#4D4D4D", fill = NA, linewidth = 0.45
-      )
+      ),
+      strip.text = ggplot2::element_text(size = strip_text_size)
     )
   if (length(cluster_boundaries)) {
     p <- p + ggplot2::geom_vline(

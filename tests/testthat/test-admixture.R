@@ -199,6 +199,65 @@ test_that("large membership figures retain labels within device limits", {
   expect_gt(captured$theme$axis.text.x$size, 0)
 })
 
+test_that("population-organized membership plots shrink the facet strip text so a small population's own label isn't clipped by its narrow panel", {
+  # Reported directly against a real production report: facet_grid(...,
+  # space = "free_x") gives each population's strip exactly its own
+  # panel's width, proportional to its sample count -- a 2-sample
+  # population's strip rendered as just "o2" instead of its real label
+  # "Ro2-3", silently clipped rather than wrapped or shrunk.
+  captured <- NULL
+  local_mocked_bindings(
+    save_plot = function(p, ...) {
+      captured <<- p
+      invisible(TRUE)
+    },
+    .package = "popgenVCF"
+  )
+  # plot_width floors at 10in for any total sample count under ~125
+  # (min(48, max(10, n * 0.08))), so points-per-sample -- and thus how
+  # binding a small population's own strip really is -- only drops to a
+  # realistic level once the total sample count is large enough (as in a
+  # real multi-population cohort); a too-small fixture stays comfortably
+  # within the floor's slack and never reproduces the clipping.
+  q <- data.table::data.table(
+    sample = c(sprintf("wide_%02d", 1:97), sprintf("narrow_%d", 1:3)),
+    population = c(rep("MostlyThisPopulation", 97L), rep("Ro2-3", 3L)),
+    cluster_1 = c(rep(0.9, 97L), rep(0.1, 3L)),
+    cluster_2 = c(rep(0.1, 97L), rep(0.9, 3L))
+  )
+  popgenVCF:::plot_q_matrix(q, 2L, default_config(), list(figures = tempdir()))
+
+  expect_s3_class(captured$theme$strip.text, "element_text")
+  expect_lt(captured$theme$strip.text$size, popgenVCF:::figure_base_size(default_config()))
+  expect_gte(captured$theme$strip.text$size, 4)
+
+  # Control: evenly-sized, generously-wide populations need no shrinking --
+  # the strip text stays at the theme's own base size.
+  even_captured <- NULL
+  local_mocked_bindings(
+    save_plot = function(p, ...) {
+      even_captured <<- p
+      invisible(TRUE)
+    },
+    .package = "popgenVCF"
+  )
+  q_even <- data.table::data.table(
+    sample = sprintf("s_%02d", 1:20),
+    population = rep(c("north", "south"), each = 10L),
+    cluster_1 = rep(c(0.9, 0.1), each = 10L),
+    cluster_2 = rep(c(0.1, 0.9), each = 10L)
+  )
+  popgenVCF:::plot_q_matrix(q_even, 2L, default_config(), list(figures = tempdir()))
+  expect_equal(even_captured$theme$strip.text$size, popgenVCF:::figure_base_size(default_config()))
+
+  # data_driven mode has no population facet at all -- strip text size is
+  # simply irrelevant there, confirmed by not erroring.
+  local_mocked_bindings(save_plot = function(...) invisible(TRUE), .package = "popgenVCF")
+  expect_no_error(popgenVCF:::plot_q_matrix(
+    q, 2L, default_config(), list(figures = tempdir()), order_mode = "data_driven"
+  ))
+})
+
 test_that("population_ancestry_similarity_order clusters similar populations adjacent, not alphabetically", {
   # A_pop and C_pop share a near-identical, cluster-1-dominant ancestry
   # profile; B_pop is the opposite (cluster-2-dominant). Alphabetical order
