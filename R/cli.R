@@ -72,7 +72,16 @@ parse_cli <- function(args) {
 write_default_config <- function(path) {
   if (file.exists(path)) stopf("Refusing to overwrite existing file: %s", path)
   ensure_dir(dirname(normalizePath(path, mustWork = FALSE)))
-  yaml::write_yaml(template_config(), path)
+  # Copies the package's own bundled, fully-commented reference config
+  # rather than serializing default_config() from scratch: the latter has
+  # no comments at all (an R list carries no comment metadata), and the two
+  # had already drifted apart on a real, non-cosmetic field
+  # (analyses.bootstrap.enabled) before this file became the single source
+  # of truth here -- copying it directly makes that drift structurally
+  # impossible going forward, and gives every user inline documentation
+  # for every option instead of a bare value dump.
+  template <- system.file("example_config.yml", package = "popgenVCF", mustWork = TRUE)
+  file.copy(template, path)
   cat(sprintf("Wrote default configuration: %s\n", normalizePath(path)))
   invisible(path)
 }

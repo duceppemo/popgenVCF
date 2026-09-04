@@ -107,15 +107,33 @@ test_that("cli_main with no config or write-config routes through cli_usage and 
   expect_match(res$stdout, "Usage:", fixed = TRUE)
 })
 
-test_that("write_default_config writes a loadable template and refuses to overwrite", {
+test_that("write_default_config copies the package's own fully-commented reference config, not a bare serialized dump", {
+  # Requested directly: --write-config used to serialize template_config()
+  # (an R list with no comment metadata) from scratch via yaml::write_yaml(),
+  # producing a bare, uncommented file -- a completely separate artifact
+  # from inst/example_config.yml, the package's real, hand-documented
+  # reference config. The two had already drifted apart on a real,
+  # non-cosmetic field (analyses.bootstrap.enabled) before this test's own
+  # investigation caught it. Copying the reference file directly instead
+  # makes that drift structurally impossible and gives every user inline
+  # documentation for every option.
   path <- withr::local_tempfile(fileext = ".yml")
 
   result <- popgenVCF:::write_default_config(path)
 
   expect_true(file.exists(path))
   expect_equal(normalizePath(result), normalizePath(path))
+  reference <- system.file("example_config.yml", package = "popgenVCF", mustWork = TRUE)
+  expect_identical(
+    readLines(path, warn = FALSE), readLines(reference, warn = FALSE)
+  )
+  # The comments are the whole point -- confirm the written file actually
+  # has them, not just that it matches the reference file byte-for-byte.
+  expect_true(any(grepl("^\\s*#", readLines(path, warn = FALSE))))
+
   written <- yaml::read_yaml(path)
-  expect_equal(written, popgenVCF:::template_config())
+  expect_true(isTRUE(written$analyses$bootstrap$enabled))
+  expect_identical(written$analyses$sex_check_y_chromosome_names, c("Y", "chrY"))
 
   expect_error(
     popgenVCF:::write_default_config(path),

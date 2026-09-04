@@ -70,25 +70,6 @@ default_config <- function() {
   )
 }
 
-template_config <- function() {
-  # Population/geography-gated analyses (everything analysis_capability_table()
-  # classifies as a population_module or coordinate_module) used to be forced
-  # off here specifically for the generated --write-config template, even
-  # though default_config() already enables them. That was redundant: the
-  # capability gate already skips each one automatically, with a WARNING and
-  # an analysis_capabilities.tsv record, whenever the required metadata is
-  # actually absent -- so leaving them "enabled: true" in the template is
-  # never unsafe, and lets a user who *does* have complete metadata get the
-  # full analysis without having to find and flip each flag on individually.
-  # ml_tree and the ancestry backends (admixture/faststructure/snmf) are
-  # unrelated to this and stay off by default in default_config() itself:
-  # they are not metadata-gated (ancestry backends are unsupervised and run
-  # fine with no population metadata at all), they need an external
-  # tool/executable that may not be installed, and/or are deliberately
-  # opt-in for cost or hard-failure-on-purpose reasons.
-  default_config()
-}
-
 merge_lists <- function(x, y) {
   for (nm in names(y)) {
     if (is.list(y[[nm]]) && is.list(x[[nm]])) x[[nm]] <- merge_lists(x[[nm]], y[[nm]]) else x[[nm]] <- y[[nm]]

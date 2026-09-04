@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "policy_id": "popgenvcf-0.10.0-release-candidate",
   "target_release": "v1.0.8",
-  "package_version": "1.0.8",
+  "package_version": "1.0.8.9000",
   "allowed_modes": [
     "rehearsal",
     "production"

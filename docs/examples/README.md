@@ -40,7 +40,9 @@ cfg <- popgenVCF::default_config()
 cfg$input$vcf <- paths$vcf
 cfg$input$metadata <- paths$metadata
 cfg$output$directory <- tempfile("popgenvcf-quickstart-")
-cfg$compute$threads <- max(1L, parallel::detectCores() - 1L)
+# cfg$compute$threads/memory_mb are already auto-detected with headroom
+# reserved (one thread spared, memory capped at 85% of what's available) --
+# no manual override needed.
 cfg$report$enabled <- TRUE
 cfg$report$title <- "popgenVCF quickstart example: chromosome 22 subset (160 samples, 8 populations)"
 cfg$report$author <- "popgenVCF"

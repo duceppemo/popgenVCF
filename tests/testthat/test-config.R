@@ -465,12 +465,18 @@ test_that("system resource helpers understand container limits", {
 })
 
 test_that("generated configuration lists every analysis, metadata-dependent ones enabled since the capability gate skips them safely", {
-  # template_config() no longer force-disables population/geography-gated
-  # analyses (see its own definition in R/config.R): the capability gate
-  # already skips each one automatically, with a WARNING, whenever the
-  # metadata it needs is actually absent, so there is nothing unsafe about
-  # shipping them enabled in the generated template. Ancestry backends stay
-  # off by default for unrelated reasons (external tool, not metadata).
+  # write_default_config() copies the package's own bundled, fully-commented
+  # inst/example_config.yml rather than serializing default_config() from
+  # scratch (see its own definition in R/cli.R): the capability gate already
+  # skips each metadata-dependent module automatically, with a WARNING,
+  # whenever the metadata it needs is actually absent, so there is nothing
+  # unsafe about shipping them enabled in the written template. Ancestry
+  # backends stay off by default for unrelated reasons (external tool, not
+  # metadata). compute.threads/memory_mb are fixed, portable example values
+  # in the reference file, not this machine's own auto-detected resources
+  # (which default_config() itself uses at runtime when no config is
+  # supplied) -- a generated template showing whatever hardware happened to
+  # write it would be confusing to read and non-portable to share.
   path <- tempfile(fileext = ".yml")
   popgenVCF:::write_default_config(path)
   cfg <- yaml::read_yaml(path)
@@ -490,8 +496,8 @@ test_that("generated configuration lists every analysis, metadata-dependent ones
   expect_false(cfg$analyses$admixture$enabled)
   expect_false(cfg$analyses$faststructure$enabled)
   expect_false(cfg$analyses$snmf$enabled)
-  expect_equal(cfg$compute$threads, popgenVCF:::detect_available_threads())
-  expect_equal(cfg$compute$memory_mb, popgenVCF:::detect_available_memory_mb())
+  expect_true(is.numeric(cfg$compute$threads) && cfg$compute$threads >= 1)
+  expect_true(is.numeric(cfg$compute$memory_mb) && cfg$compute$memory_mb >= 1)
 })
 
 test_that("auto ancestry threads resolve from the compute budget", {
@@ -606,20 +612,18 @@ test_that("input.sample_column/population_column default to NULL and validate as
   expect_error(popgenVCF::validate_config(cfg), "input.sample_column")
 })
 
-test_that("template analysis toggles drive registry enablement", {
-  # template_config() now matches default_config() exactly: population/
-  # geography-gated analyses stay enabled in the generated template since
-  # the capability gate (analysis_capability_table()) already skips each one
-  # automatically -- with a WARNING and an analysis_capabilities.tsv record
-  # -- whenever the metadata it actually needs is absent. Only ml_tree and
-  # the ancestry backends (admixture/faststructure/snmf) stay off by
-  # default, for reasons unrelated to metadata (see template_config()).
+test_that("default analysis toggles drive registry enablement", {
+  # Population/geography-gated analyses stay enabled in default_config()
+  # since the capability gate (analysis_capability_table()) already skips
+  # each one automatically -- with a WARNING and an analysis_capabilities.tsv
+  # record -- whenever the metadata it actually needs is absent. Only
+  # ml_tree and the ancestry backends (admixture/faststructure/snmf) stay
+  # off by default, for reasons unrelated to metadata.
   registry <- popgenVCF::default_analysis_registry()
-  cfg <- popgenVCF:::template_config()
+  cfg <- popgenVCF::default_config()
   enabled <- names(registry$modules)[vapply(
     registry$modules, popgenVCF:::module_is_enabled, logical(1L), config = cfg
   )]
-  expect_identical(cfg, popgenVCF::default_config())
   expect_identical(enabled, c(
     "diversity", "bottleneck", "pca", "ibs", "kinship", "sex_check", "roh", "tree",
     "population_tree", "population_assignment", "fst", "genome_scan", "pcadapt",

@@ -171,12 +171,10 @@ test_that("sexbias is gated behind population metadata, like clonality/amova/bot
   expect_false(row$available)
 })
 
-test_that("sexbias is enabled by default in template_config(), same as default_config()", {
-  # template_config() no longer force-disables population/geography-gated
-  # analyses (see its own definition in R/config.R); sexbias correctly
-  # skips itself at runtime, via the capability gate above, whenever the
-  # metadata `sex` column it actually needs is absent.
-  cfg <- popgenVCF:::template_config()
+test_that("sexbias is enabled by default in default_config()", {
+  # sexbias correctly skips itself at runtime, via the capability gate
+  # above, whenever the metadata `sex` column it actually needs is absent.
+  cfg <- popgenVCF::default_config()
   expect_true(cfg$analyses$sexbias)
 })
 

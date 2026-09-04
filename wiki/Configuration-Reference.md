@@ -6,13 +6,12 @@ Generate the version-matched default instead of copying a stale configuration:
 Rscript -e 'popgenVCF::cli_main(c("--write-config", "analysis.yml"))'
 ```
 
-The canonical example is
+`--write-config` writes an exact copy of
 [`inst/example_config.yml`](https://github.com/duceppemo/popgenVCF/blob/main/inst/example_config.yml) --
 every key this version supports, each with an inline comment explaining what
-it does. `--write-config` writes the same keys with the same defaults, just
-without the comments (plain `yaml::write_yaml()` cannot preserve them). Copy
-the canonical example when you want the commentary; use `--write-config` when
-you just want a version-matched starting point to edit.
+it does. There is only one canonical example; `--write-config` is simply the
+version-matched way to get it without hunting down the installed package's
+own copy by hand.
 
 ## Input
 

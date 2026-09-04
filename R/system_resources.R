@@ -71,7 +71,12 @@ detect_available_threads <- function() {
 
   candidates <- candidates[is.finite(candidates) & candidates >= 1]
   if (!length(candidates)) return(1L)
-  max(1L, as.integer(floor(min(candidates))))
+  # Reserve one thread for the OS, orchestrating process, and anything else
+  # sharing the machine -- an analysis that pegs every available core can
+  # starve the system it's running on. Floored at 1, so a single-core
+  # machine or a cgroup limited to exactly one CPU still gets a usable
+  # (if fully serial) thread count rather than 0.
+  max(1L, as.integer(floor(min(candidates))) - 1L)
 }
 
 memory_value_bytes <- function(x) {
@@ -114,7 +119,12 @@ detect_available_memory_mb <- function() {
   }
 
   if (!length(candidates)) return(Inf)
-  max(1, floor(min(candidates) / 1024^2))
+  # Cap at 85% of detected total/limit -- leaves headroom for the OS, page
+  # cache, and any other process on the same machine/container instead of
+  # letting a single analysis claim every last byte and risk an OOM kill
+  # (the exact failure mode this package's own --resume feature exists to
+  # recover from).
+  max(1, floor(min(candidates) / 1024^2 * 0.85))
 }
 
 detect_system_resources <- function() {

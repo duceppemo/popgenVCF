@@ -1,8 +1,14 @@
 schema_version: "1.0"
 input:
-  vcf: /path/to/cohort_filtered.vcf.gz
+  # Paths are container-side: the popgenVCF Docker/Apptainer image bind-mounts
+  # the directory you run it from onto /data (see "Understanding container
+  # paths" in docs/user/container-images.md), so a file at ./cohort.vcf.gz on
+  # the host is /data/cohort.vcf.gz here, not its real host path. Running
+  # directly from an R/Rscript install instead (no container) can use real
+  # paths as usual.
+  vcf: /data/cohort.vcf.gz
   # Optional headered TSV: sample must match VCF; alias is display-only.
-  metadata: /path/to/pop_map.tsv
+  metadata: /data/pop_map.tsv
   metadata_header: auto
   # Override the built-in sample/population column-name detection (sample,
   # sample_id, id, individual; population, pop) to treat a differently
@@ -13,7 +19,7 @@ input:
   # Signed decimal degrees, latitude first; use NA for missing pairs.
   geographic_columns: [latitude, longitude]
 output:
-  directory: /path/to/popgen_results
+  directory: /data/output
   figure_formats: [pdf, png]
   dpi: 600
   # accessibility-first, grayscale-safe, or standard-color
@@ -21,6 +27,12 @@ output:
   base_font_size: 11
   label_samples: auto
 compute:
+  # Fixed example values for a modest machine -- replace with real numbers
+  # for your own hardware. Omitting either field entirely (rather than
+  # setting a fixed number here) falls back to popgenVCF's own runtime
+  # auto-detection instead, which already reserves one thread for the OS
+  # and caps memory at 85% of what's detected/allowed, so an analysis
+  # doesn't starve the machine it runs on or risk an OOM kill.
   threads: 8
   memory_mb: 32768
   seed: 42
@@ -98,7 +110,7 @@ analyses:
   # Chromosome-Y call rate, a corroborating second signal alongside X:
   # confident X/Y disagreement is reported as "discordant" rather than
   # silently resolved.
-  sex_check_y_chromosome_names: [Y, chrY]
+  sex_check_y_chromosome_names: ["Y", chrY]
   sex_check_y_male_call_rate_threshold: 0.5
   sex_check_y_female_call_rate_threshold: 0.1
   roh: true
@@ -218,7 +230,7 @@ analyses:
   chromosome_specific: true
   chromosome_min_snps: 100
   bootstrap:
-    enabled: false
+    enabled: true
     replicates: 500
     unit: chromosome
   # Despite the name, this governs DAPC's own reproducibility replicates
