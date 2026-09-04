@@ -5,9 +5,9 @@
   "citation_title": "popgenVCF: Population Genomics Toolkit for VCF Data",
   "version": "1.0.8",
   "citation_year": 2026,
-  "release_status": "development",
-  "date_released": null,
-  "doi": null,
+  "release_status": "released",
+  "date_released": "2026-09-04",
+  "doi": "10.5281/zenodo.22289055",
   "description": "A modular R package and command-line toolkit for reproducible population-genomic analysis of diploid, biallelic SNP data stored in VCF files.",
   "author": {
     "given_name": "Marc-Olivier",
