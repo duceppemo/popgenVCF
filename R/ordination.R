@@ -561,7 +561,7 @@ plot_pca_tracy_widom <- function(tw, significant, alpha, retained, cfg, dirs, pr
     ggplot2::scale_colour_manual(values = c(`TRUE` = highlight, `FALSE` = muted)) +
     ggplot2::labs(
       title = "PCA component significance (Tracy-Widom test)",
-      subtitle = subtitle,
+      subtitle = wrap_plot_subtitle(subtitle),
       x = "Principal component", y = "Percent of total variance explained (%)"
     ) + theme_publication(figure_base_size(cfg))
   save_plot(p, "06b_PCA_Tracy_Widom_test", dirs, cfg$output$figure_formats, 8, 5, cfg$output$dpi)

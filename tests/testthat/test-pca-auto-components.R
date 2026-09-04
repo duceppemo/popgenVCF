@@ -207,6 +207,30 @@ test_that("plot_pca_tracy_widom draws percent-of-variance vs. component index, h
   expect_true(file.exists(file.path(dirs_fixed$figures, "06b_PCA_Tracy_Widom_test.pdf")))
 })
 
+test_that("plot_pca_tracy_widom wraps its subtitle instead of letting it run off the plot", {
+  # Reported directly against a real production figure: the subtitle
+  # ("15 of 100 computed component(s) significant at alpha = 0.05
+  # (Patterson, Price & Reich 2006); 10 retained (dotted line)", ~120
+  # characters) was never passed through wrap_plot_subtitle() -- the same
+  # fix already applied to the DAPC reproducibility annotation and the ROH
+  # length-class subtitle earlier -- so it ran off the plot uncorrected.
+  tw <- data.table::data.table(
+    N = 1:100, eigenvalues = c(50, 40, rep(1, 98)),
+    twstats = c(4.3, 7.2, rep(NaN, 98)),
+    pvalues = c(1e-4, 1e-7, rep(1, 98)),
+    effectn = rep(100, 100), percentage = c(0.30, 0.24, rep(0.0046, 98))
+  )
+  profile <- popgenVCF:::figure_style_profile("accessibility-first")
+  cfg <- list(output = list(figure_formats = "pdf", dpi = 150L))
+  dirs <- list(figures = withr::local_tempdir())
+
+  p <- popgenVCF:::plot_pca_tracy_widom(tw, 15L, 0.05, 10L, cfg, dirs, profile)
+
+  expect_match(p$labels$subtitle, "\n", fixed = TRUE)
+  longest_line <- max(nchar(strsplit(p$labels$subtitle, "\n", fixed = TRUE)[[1]]))
+  expect_lte(longest_line, 90L)
+})
+
 test_that("plot_pca_tracy_widom is a no-op when there is no Tracy-Widom result to show", {
   cfg <- list(output = list(figure_formats = "pdf", dpi = 150L))
   dirs <- list(figures = withr::local_tempdir())
