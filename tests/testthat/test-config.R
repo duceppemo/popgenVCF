@@ -500,6 +500,35 @@ test_that("generated configuration lists every analysis, metadata-dependent ones
   expect_true(is.numeric(cfg$compute$memory_mb) && cfg$compute$memory_mb >= 1)
 })
 
+test_that("inst/example_config.yml -- the literal file --write-config now ships -- passes validate_config() end to end", {
+  # Requested directly: is there a step that checks every line of this file
+  # is actually valid? There wasn't -- existing coverage only spot-checked
+  # individual fields (test-autosome-filtering.R's YAML-boolean-corruption
+  # check, and the two specific bugs this session already found and fixed
+  # in test-cli.R above), never the whole file through the real validator.
+  # Both of those bugs (analyses.bootstrap.enabled drifted from the real
+  # default; sex_check_y_chromosome_names' unquoted "Y" silently parsing as
+  # a YAML boolean) were only caught by hand. This is the general guard: it
+  # exercises every field validate_config() actually inspects, not just the
+  # two already known to have been wrong, so a future edit to this file
+  # that breaks something else fails a test instead of shipping silently.
+  # Only the three fields that are legitimately user-specific placeholders
+  # (input.vcf, input.metadata, output.directory) are substituted with real
+  # stand-ins first; everything else is validated exactly as shipped.
+  path <- system.file("example_config.yml", package = "popgenVCF", mustWork = TRUE)
+  cfg <- popgenVCF::read_config(path)
+
+  cfg$input$vcf <- tempfile(fileext = ".vcf")
+  file.create(cfg$input$vcf)
+  cfg$input$metadata <- tempfile(fileext = ".tsv")
+  file.create(cfg$input$metadata)
+  cfg$output$directory <- tempfile("popgenvcf-output-")
+
+  validated <- expect_no_error(popgenVCF::validate_config(cfg))
+  expect_true(validated$analyses$bootstrap$enabled)
+  expect_identical(validated$analyses$sex_check_y_chromosome_names, c("Y", "chrY"))
+})
+
 test_that("auto ancestry threads resolve from the compute budget", {
   cfg <- popgenVCF::default_config()
   cfg$input$vcf <- tempfile(fileext = ".vcf")
