@@ -421,7 +421,7 @@ run_module_clonality <- function(analysis, context) {
     if (isTRUE(result$poppr_failed)) {
       analysis <- record_analysis_message(
         analysis, "WARNING", "clonality",
-        "poppr::poppr()'s Ia/rbarD diversity summary crashed (a known 32-bit overflow in poppr's compiled pairdiffs routine at large sample x locus counts) and was skipped; MLG duplicate-group detection and the genotype accumulation curve, which do not depend on that call, are unaffected"
+        "poppr::poppr()'s Ia/rbarD diversity summary crashed (a known 32-bit overflow in poppr's compiled pairdiffs routine at large sample x locus counts); recovered per-population and pooled rbarD via poppr::bitwise.ia() instead, a separate overflow-safe routine, but raw Ia and both permutation p-values remain unavailable through that fallback. MLG duplicate-group detection and the genotype accumulation curve, which do not depend on either poppr call, are unaffected"
       )
     }
     if (isTRUE(result$msn_failed)) {

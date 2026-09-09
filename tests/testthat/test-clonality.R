@@ -247,7 +247,7 @@ test_that("clonality_run_poppr_isolated returns NULL, not an error, when the wra
   expect_null(out)
 })
 
-test_that("run_clonality falls back to an empty, well-typed summary and sets poppr_failed when poppr::poppr() cannot be run", {
+test_that("run_clonality falls back to poppr::bitwise.ia()-derived rbarD, well-typed, and sets poppr_failed when poppr::poppr() cannot be run", {
   geno <- clonality_fixture_genotype()
   metadata <- data.table::data.table(
     sample = rownames(geno), population = rep(c("A", "B"), each = 10)
@@ -257,14 +257,23 @@ test_that("run_clonality falls back to an empty, well-typed summary and sets pop
   )
   res <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 5)
   expect_true(res$poppr_failed)
-  expect_identical(nrow(res$summary), 0L)
   expect_identical(names(res$summary), names(popgenVCF:::clonality_empty_summary()))
-  expect_true(is.na(res$n_mlg_total))
+  # One row per recorded population plus the pooled "Total" row -- real
+  # information recovered via the bitwise.ia() fallback, not an empty table.
+  expect_setequal(res$summary$population, c("A", "B", "Total"))
+  expect_true(all(is.finite(res$summary$rbard)))
+  # Raw Ia and both permutation p-values are NOT available through this
+  # fallback (see clonality_bitwise_fallback_summary()'s own comment for why).
+  expect_true(all(is.na(res$summary$ia)))
+  expect_true(all(is.na(res$summary$ia_p_value)))
+  expect_true(all(is.na(res$summary$rbard_p_value)))
+  expect_true(all(is.na(res$summary$mlg)))
+  expect_true(is.na(res$n_mlg_total)) # mlg is unavailable, so this stays NA too
   # groups/curve don't depend on poppr::poppr() and should be unaffected
   expect_true(is.data.frame(res$groups))
 })
 
-test_that("validate_clonality_result accepts the poppr-failed empty-summary fallback without error", {
+test_that("validate_clonality_result accepts the poppr-failed bitwise.ia() fallback without error", {
   geno <- clonality_fixture_genotype()
   metadata <- data.table::data.table(
     sample = rownames(geno), population = rep(c("A", "B"), each = 10)
@@ -275,6 +284,38 @@ test_that("validate_clonality_result accepts the poppr-failed empty-summary fall
   res <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 5)
   ok <- popgenVCF:::validate_clonality_result(res, NULL, NULL)
   expect_true(ok$valid)
+})
+
+test_that("clonality_genlight_from_matrix builds a diploid genlight directly from a dosage matrix", {
+  geno <- matrix(c(0, 1, 2, NA, 0, 2), nrow = 2, dimnames = list(c("A", "B"), c("s1", "s2", "s3")))
+  gl <- popgenVCF:::clonality_genlight_from_matrix(geno)
+  expect_s4_class(gl, "genlight")
+  expect_identical(adegenet::nInd(gl), 2L)
+  expect_identical(adegenet::nLoc(gl), 3L)
+  expect_true(all(adegenet::ploidy(gl) == 2L))
+})
+
+test_that("clonality_bitwise_fallback_summary recovers rbarD for every population and the pooled Total, with NA for a group too small to compute", {
+  geno <- clonality_fixture_genotype(n = 12L, l = 30L, seed = 3L)
+  population <- c(rep("A", 6L), rep("B", 5L), "C") # C has only one member
+  fb <- popgenVCF:::clonality_bitwise_fallback_summary(geno, population)
+  expect_setequal(fb$population, c("A", "B", "C", "Total"))
+  expect_identical(fb$n[fb$population == "A"], 6L)
+  expect_identical(fb$n[fb$population == "Total"], 12L)
+  expect_true(is.finite(fb$rbard[fb$population == "A"]))
+  expect_true(is.finite(fb$rbard[fb$population == "B"]))
+  # A single-member population has no pairs to compare -- rbarD is
+  # genuinely undefined, not silently coerced to 0 or an error.
+  expect_true(is.na(fb$rbard[fb$population == "C"]))
+})
+
+test_that("clonality_run_bitwise_ia_isolated returns NA, not an error, when the wrapped call itself errors", {
+  # Mirrors clonality_run_poppr_isolated's own NA/NULL-on-failure contract
+  # test: a real segfault can't be simulated safely inside the test suite,
+  # so this exercises the same degrade-gracefully path via an ordinary
+  # R-level error instead.
+  out <- popgenVCF:::clonality_run_bitwise_ia_isolated(structure(list(), class = "not_a_genlight"))
+  expect_true(is.na(out))
 })
 
 test_that("clonality_module_spec is registered, requires diversity, and is enabled by default", {

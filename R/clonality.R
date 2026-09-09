@@ -329,6 +329,87 @@ clonality_run_poppr_isolated <- function(gc, ia_permutations) {
   if (is.null(result) || inherits(result, "try-error")) NULL else result
 }
 
+# A 0/1/2-dosage matrix (samples x loci, NA for missing -- the same shape
+# `genotype`/`ld_genotype` already carry throughout this file) is exactly
+# what adegenet's genlight constructor accepts directly; no intermediate
+# genind/df2genind() round trip needed the way clonality_encode_genind()
+# requires for poppr::poppr()'s own genind-only input path.
+clonality_genlight_from_matrix <- function(genotype) {
+  gl <- methods::new("genlight", genotype)
+  adegenet::ploidy(gl) <- 2L
+  gl
+}
+
+# poppr::bitwise.ia() (a separate, actively-maintained compiled routine --
+# bitwise SNP comparison on a genlight object, not the genind-based
+# pair_diffs() path poppr::poppr() uses) is run isolated in a forked child
+# the same way clonality_run_poppr_isolated() above runs poppr::poppr(),
+# even though it has not been observed to crash here: it is still compiled
+# C code operating on real, unbounded production data, and the whole reason
+# for isolating the primary call is that a segfault cannot be caught by
+# tryCatch. Costs nothing when it succeeds, and keeps the same
+# crash-containment guarantee if some future dataset ever defeats this path
+# too.
+clonality_run_bitwise_ia_isolated <- function(gl) {
+  call_bitwise <- function() poppr::bitwise.ia(gl)
+  if (!identical(.Platform$OS.type, "unix")) {
+    return(tryCatch(call_bitwise(), error = function(e) NA_real_))
+  }
+  job <- parallel::mcparallel(call_bitwise())
+  result <- suppressWarnings(parallel::mccollect(job, wait = TRUE))[[1L]]
+  if (is.null(result) || inherits(result, "try-error") || !is.numeric(result)) {
+    NA_real_
+  } else {
+    result
+  }
+}
+
+# When poppr::poppr()'s isolated Ia/rbarD computation crashes (a real
+# 32-bit overflow in poppr's own compiled pairdiffs routine --
+# clonality_run_poppr_isolated() above), the whole forked call is lost,
+# discarding even the per-population values that individually would have
+# stayed safely under the overflow threshold (the overflow is in the
+# flattened pairs-by-locus index space, so it can be triggered by a large
+# locus count at a comparatively modest sample count too, not only by a
+# large sample count alone -- confirmed directly against a real production
+# report: 50 samples but ~52,000 LD-pruned loci was enough to crash it).
+# poppr::bitwise.ia() avoids that same 32-bit index entirely -- confirmed
+# empirically well past the crash threshold (600 samples x 20,000 loci,
+# ~3.6 billion pairs*loci, no crash, ~34 seconds). Its own C source
+# (poppr's bitwise_distance.c) documents the exact formula it returns --
+# Vo, Ve, and a final value of (Ve - Vo) / (2 * sum of sqrt(var_i * var_j)
+# over all locus pairs) -- which is the standardized index of association,
+# rbarD (Agapow & Burt 2001), not raw Ia. This fallback recovers rbarD (the
+# more widely reported, locus-count-comparable statistic of the two: raw
+# Ia's absolute scale grows with the number of loci analyzed, which is
+# exactly why rbarD exists) for every population plus the pooled "Total"
+# row. Raw Ia and both permutation p-values remain unavailable through this
+# fallback -- poppr does not expose the internal Vo/Ve components
+# bitwise.ia() needs them from, and replicating the significance test would
+# mean reimplementing poppr's own locus-shuffling permutation scheme
+# independently, a materially larger undertaking than this fallback.
+clonality_bitwise_fallback_summary <- function(ld_genotype, population) {
+  levels <- c(sort(unique(population)), "Total")
+  rows <- lapply(levels, function(lvl) {
+    idx <- if (identical(lvl, "Total")) seq_along(population) else which(population == lvl)
+    n <- length(idx)
+    rbard <- if (n >= 2L) {
+      gl <- clonality_genlight_from_matrix(ld_genotype[idx, , drop = FALSE])
+      clonality_run_bitwise_ia_isolated(gl)
+    } else {
+      NA_real_
+    }
+    data.table::data.table(
+      population = lvl, n = n, mlg = NA_integer_, emlg = NA_real_,
+      emlg_se = NA_real_, shannon_h = NA_real_, stoddart_taylor_g = NA_real_,
+      simpson_lambda = NA_real_, evenness_e5 = NA_real_,
+      expected_heterozygosity = NA_real_, ia = NA_real_, rbard = rbard,
+      ia_p_value = NA_real_, rbard_p_value = NA_real_
+    )
+  })
+  data.table::rbindlist(rows)
+}
+
 run_clonality <- function(genotype, ld_genotype, sample_ids, metadata, seed,
                           curve_replicates = 100L, ia_permutations = 0L) {
   matched <- match(sample_ids, metadata$sample)
@@ -382,7 +463,13 @@ run_clonality <- function(genotype, ld_genotype, sample_ids, metadata, seed,
     clonality_run_poppr_isolated(gc_ld, ia_permutations)
   } else NULL
   poppr_failed <- is.null(summary_raw)
-  summary_dt <- if (poppr_failed) clonality_empty_summary() else clonality_rename_summary(summary_raw)
+  summary_dt <- if (!poppr_failed) {
+    clonality_rename_summary(summary_raw)
+  } else if (ld_pruned_usable) {
+    clonality_bitwise_fallback_summary(ld_genotype, population)
+  } else {
+    clonality_empty_summary()
+  }
   curve_result <- if (ld_pruned_usable) {
     clonality_curve_summary(gc_ld, as.integer(curve_replicates))
   } else {
