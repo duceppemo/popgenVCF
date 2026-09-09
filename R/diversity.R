@@ -289,11 +289,11 @@ plot_diversity <- function(div, ci, cfg, dirs) {
     ) +
     ggplot2::labs(
       title = "Population genetic diversity", x = "Population",
-      subtitle = if (any(is.finite(long$lower) & is.finite(long$upper))) {
+      subtitle = wrap_plot_text(if (any(is.finite(long$lower) & is.finite(long$upper))) {
         "Points are estimates; error bars are 95% chromosome-block bootstrap intervals"
       } else {
         "Points are population estimates; confidence intervals were not available"
-      },
+      }),
       y = "Heterozygosity", fill = "Statistic",
       colour = "Statistic", shape = "Statistic"
     ) +
@@ -326,7 +326,7 @@ plot_diversity <- function(div, ci, cfg, dirs) {
       ggplot2::facet_wrap(~population) +
       ggplot2::labs(
         title = "Hardy-Weinberg equilibrium exact-test p-values",
-        subtitle = sprintf("Dashed line: significance threshold (alpha = %.3g); monomorphic-within-population loci excluded", hwe_alpha),
+        subtitle = wrap_plot_text(sprintf("Dashed line: significance threshold (alpha = %.3g); monomorphic-within-population loci excluded", hwe_alpha)),
         x = "Exact-test p-value", y = "Number of loci"
       ) + theme_publication(figure_base_size(cfg))
     save_plot(p3, "19_HWE_pvalues", dirs, fmts, 8, 5, dpi)
@@ -367,10 +367,10 @@ plot_diversity <- function(div, ci, cfg, dirs) {
       ggplot2::scale_colour_manual(values = population_colours) +
       ggplot2::labs(
         title = "Allelic richness by population",
-        subtitle = sprintf(
+        subtitle = wrap_plot_text(sprintf(
           "Rarefied to %s allele copies (hierfstat::allelic.richness())",
           scales::comma(div$allelic_richness_min_alleles)
-        ),
+        )),
         x = "Population", y = "Allelic richness"
       ) +
       theme_publication(figure_base_size(cfg)) +

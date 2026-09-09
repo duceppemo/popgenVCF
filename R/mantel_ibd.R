@@ -89,7 +89,7 @@ plot_ibd <- function(x, cfg, dirs) {
     ) +
     ggplot2::labs(
       title = "Isolation by distance",
-      subtitle = if (is.finite(x$summary$partial_mantel_r)) {
+      subtitle = wrap_plot_text(if (is.finite(x$summary$partial_mantel_r)) {
         sprintf(
           "Mantel r = %.3f, p = %.4f (partial, controlling for population: r = %.3f, p = %.4f)",
           x$summary$mantel_r, x$summary$mantel_p,
@@ -97,11 +97,11 @@ plot_ibd <- function(x, cfg, dirs) {
         )
       } else {
         sprintf("Mantel r = %.3f, p = %.4f", x$summary$mantel_r, x$summary$mantel_p)
-      },
-      caption = sprintf(
+      }),
+      caption = wrap_plot_text(sprintf(
         "Curve: linear model of genetic distance on log(1 + geographic distance); %s pairwise comparisons.",
         scales::comma(nrow(x$pairs))
-      ),
+      )),
       x = "Geographic distance (km)", y = "IBS-derived genetic distance"
     ) +
     theme_publication(figure_base_size(cfg))

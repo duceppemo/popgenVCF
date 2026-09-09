@@ -435,10 +435,10 @@ plot_clonality <- function(result, cfg, dirs) {
     ggplot2::labs(
       title = "Genotype accumulation curve",
       subtitle = "Distinct multilocus genotypes resolved when subsampling LD-pruned, polymorphic loci",
-      caption = sprintf(
+      caption = wrap_plot_text(sprintf(
         "Mean and 95%% envelope across %s replicates; dashed line: %s MLGs with the full LD-pruned, polymorphic marker set (58c_monomorphic_loci_dropped.csv lists loci excluded before this curve)",
         scales::comma(result$curve_replicates), scales::comma(result$n_mlg_total)
-      ),
+      )),
       x = "Number of LD-pruned, polymorphic loci sampled", y = "Multilocus genotypes (MLG)"
     ) + theme_publication(figure_base_size(cfg))
   save_plot(p, "58_genotype_accumulation_curve", dirs, fmts, 8, 5.5, dpi)

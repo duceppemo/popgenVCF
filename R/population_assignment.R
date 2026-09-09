@@ -167,14 +167,14 @@ plot_population_assignment <- function(result, cfg, dirs) {
     ggplot2::coord_equal() +
     ggplot2::labs(
       title = "Population assignment test",
-      subtitle = if (n_scored > 0L) {
+      subtitle = wrap_plot_text(if (n_scored > 0L) {
         sprintf(
           "%s / %s samples (%.1f%%) assign to their recorded population",
           n_match, n_scored, 100 * n_match / n_scored
         )
       } else {
         "No samples could be scored"
-      },
+      }),
       x = "Assigned population", y = "Recorded population"
     ) +
     theme_publication(figure_base_size(cfg)) +

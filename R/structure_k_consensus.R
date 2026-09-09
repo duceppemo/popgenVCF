@@ -295,12 +295,12 @@ plot_structure_k_selection <- function(selection, cfg, dirs, stem, title) {
       labels = scales::label_percent(accuracy = 1)
     ) +
     ggplot2::labs(
-      title = title,
-      subtitle = sprintf(
+      title = wrap_plot_text(title),
+      subtitle = wrap_plot_text(sprintf(
         "Consensus number of clusters = %d; %d of %d method votes agree",
         selection$consensus_k, selection$consensus$winning_votes,
         selection$consensus$total_votes
-      ),
+      )),
       x = "Number of clusters (K)", y = "Relative support"
     ) +
     theme_publication(figure_base_size(cfg))

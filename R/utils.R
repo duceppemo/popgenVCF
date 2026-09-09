@@ -162,16 +162,23 @@ figure_base_size <- function(cfg = NULL) {
   size
 }
 
-# ggplot2 never wraps a plot.subtitle -- a long one (e.g. the DAPC
-# reproducibility annotation, which can carry both an RMSE and a minimum
-# cluster correlation clause) just overflows the plot width and gets
-# silently clipped by the device canvas, confirmed directly on a real
-# production report ("...minimum cluster correlation = 1 (t" cut off
-# mid-word). strwrap() is applied per pre-existing line (not to the whole
-# string at once) so an already-deliberate break -- the unstable-annotation
-# text's own "\n" before "Avoid interpreting these assignments." -- is
-# preserved rather than being merged back into one paragraph.
-wrap_plot_subtitle <- function(text, width = 90L) {
+# ggplot2 never wraps a plot.title, plot.subtitle, or plot.caption -- a long
+# one (e.g. the DAPC reproducibility annotation, which can carry both an RMSE
+# and a minimum cluster correlation clause; a "<analysis> (K = N) -
+# data-driven cluster order" title; an isolation-by-distance caption with an
+# interpolated pairwise-comparison count) just overflows the plot width and
+# gets silently clipped by the device canvas, confirmed directly on a real
+# production report both for a subtitle ("...minimum cluster correlation = 1
+# (t" cut off mid-word) and, separately, for titles and a caption built the
+# same dynamic (sprintf()/paste0()) way. Originally named wrap_plot_subtitle()
+# when only plot.subtitle sites needed it; renamed once titles and a caption
+# needed the identical treatment -- the wrapping logic itself never depended
+# on which aesthetic the text was destined for. strwrap() is applied per
+# pre-existing line (not to the whole string at once) so an already-deliberate
+# break -- the unstable-annotation text's own "\n" before "Avoid interpreting
+# these assignments." -- is preserved rather than being merged back into one
+# paragraph.
+wrap_plot_text <- function(text, width = 90L) {
   if (is.null(text) || !length(text) || is.na(text) || !nzchar(text)) return(text)
   lines <- strsplit(text, "\n", fixed = TRUE)[[1L]]
   paste(unlist(lapply(lines, strwrap, width = width)), collapse = "\n")

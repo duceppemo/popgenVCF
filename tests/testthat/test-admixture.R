@@ -111,6 +111,36 @@ test_that("membership figures label every bar with its public sample name", {
   expect_match(captured$labels$title, "Sparse non-negative matrix factorization", fixed = TRUE)
 })
 
+test_that("plot_q_matrix wraps a long title instead of letting it run off the plot", {
+  # Reported directly against a real production HTML report: both the DAPC
+  # membership-probabilities title ("Discriminant analysis of principal
+  # components membership probabilities (K = N)") and the sNMF
+  # data-driven-order title ("Sparse non-negative matrix factorization
+  # ancestry coefficients (K = N) - data-driven cluster order") ran off the
+  # plot uncorrected -- plot_title here was never passed through
+  # wrap_plot_text(), unlike plot.subtitle elsewhere in this package.
+  captured <- NULL
+  local_mocked_bindings(
+    save_plot = function(p, ...) {
+      captured <<- p
+      invisible(TRUE)
+    },
+    .package = "popgenVCF"
+  )
+  q <- data.table::data.table(
+    sample = c("raw_a", "raw_b", "raw_c"),
+    population = c("north", "north", "south"),
+    cluster_1 = c(0.9, 0.7, 0.2),
+    cluster_2 = c(0.1, 0.3, 0.8)
+  )
+  popgenVCF:::plot_q_matrix(
+    q, 10L, default_config(), list(figures = tempdir()),
+    prefix = "sNMF_Q", order_mode = "data_driven"
+  )
+  expect_match(captured$labels$title, "\n", fixed = TRUE)
+  expect_true(all(nchar(strsplit(captured$labels$title, "\n", fixed = TRUE)[[1L]]) <= 90))
+})
+
 test_that("membership output includes a population-free data-driven view", {
   plots <- list()
   local_mocked_bindings(

@@ -192,7 +192,7 @@ plot_qc_reports <- function(reports, sample_qc, cfg, dirs) {
     ) +
     ggplot2::labs(
       title = "Minor allele frequency",
-      subtitle = sprintf("Dashed line: retention threshold (MAF \u2265 %.2f)", cfg$qc$maf),
+      subtitle = wrap_plot_text(sprintf("Dashed line: retention threshold (MAF \u2265 %.2f)", cfg$qc$maf)),
       x = "Minor allele frequency", y = "Number of variants"
     ) + theme_publication(figure_base_size(cfg))
   save_plot(p1, "01_MAF", dirs, fmts, 7, 5, dpi)
@@ -241,10 +241,10 @@ plot_qc_reports <- function(reports, sample_qc, cfg, dirs) {
     ggplot2::scale_y_continuous(labels = scales::label_percent(accuracy = 1)) +
     ggplot2::labs(
       title = "Per-sample missingness",
-      subtitle = sprintf(
+      subtitle = wrap_plot_text(sprintf(
         "Dashed line: exclusion threshold (%.0f%%)",
         100 * cfg$qc$max_sample_missing
-      ),
+      )),
       x = NULL, y = "Missing genotype rate", fill = "Population"
     ) + theme_publication(figure_base_size(cfg)) +
     ggplot2::theme(axis.text.y = ggplot2::element_text(size = sample_label_pt))

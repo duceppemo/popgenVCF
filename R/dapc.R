@@ -387,9 +387,9 @@ plot_dapc_loading_manhattan <- function(loadings, k, n_pca, cfg, dirs, profile) 
     ggplot2::scale_x_continuous(breaks = bp_breaks$x, labels = bp_breaks$label) +
     ggplot2::facet_wrap(~axis, ncol = 1, scales = "free_y") +
     ggplot2::labs(
-      title = sprintf("Discriminant analysis SNP loadings (K = %s)", k),
+      title = wrap_plot_text(sprintf("Discriminant analysis SNP loadings (K = %s)", k)),
       subtitle = if (length(n_pca) && is.finite(n_pca)) {
-        sprintf("%d PCA axis/axes retained for this model.", n_pca)
+        wrap_plot_text(sprintf("%d PCA axis/axes retained for this model.", n_pca))
       } else {
         NULL
       },
@@ -420,9 +420,9 @@ plot_dapc_loading_ranked <- function(loadings, k, n_pca, cfg, dirs, profile) {
     ggplot2::geom_point(size = 1, alpha = .75, colour = colour) +
     ggplot2::facet_wrap(~axis, ncol = 1, scales = "free_y") +
     ggplot2::labs(
-      title = sprintf("Discriminant analysis SNP loadings, ranked (K = %s)", k),
+      title = wrap_plot_text(sprintf("Discriminant analysis SNP loadings, ranked (K = %s)", k)),
       subtitle = if (length(n_pca) && is.finite(n_pca)) {
-        sprintf("%d PCA axis/axes retained for this model.", n_pca)
+        wrap_plot_text(sprintf("%d PCA axis/axes retained for this model.", n_pca))
       } else {
         NULL
       },
@@ -528,9 +528,9 @@ plot_dapc_xval <- function(cv, k, cfg, dirs, profile) {
   p <- p +
     ggplot2::scale_y_continuous(labels = scales::percent) +
     ggplot2::labs(
-      title = sprintf("DAPC PC-count cross-validation (K = %s)", k),
+      title = wrap_plot_text(sprintf("DAPC PC-count cross-validation (K = %s)", k)),
       subtitle = if (is.finite(selected)) {
-        sprintf("Selected %d PC(s) by highest mean assignment success", selected)
+        wrap_plot_text(sprintf("Selected %d PC(s) by highest mean assignment success", selected))
       } else {
         NULL
       },
@@ -625,7 +625,7 @@ plot_dapc <- function(dapc, cfg, dirs) {
         ggplot2::scale_shape_manual(values = cluster_shapes) +
         ggplot2::labs(
           title = sprintf("Discriminant analysis of principal components (K = %s)", k),
-          subtitle = wrap_plot_subtitle(annotation$text), x = axes[1], y = axes[2],
+          subtitle = wrap_plot_text(annotation$text), x = axes[1], y = axes[2],
           colour = "Population", shape = "DAPC cluster"
         ) + theme_publication(figure_base_size(cfg))
       if (isTRUE(annotation$unstable)) {
@@ -651,7 +651,7 @@ plot_dapc <- function(dapc, cfg, dirs) {
         "Discriminant analysis of principal components membership probabilities (K = %s)",
         k
       ),
-      subtitle = wrap_plot_subtitle(annotation$text),
+      subtitle = wrap_plot_text(annotation$text),
       subtitle_is_warning = annotation$unstable,
       y_label = "Posterior membership probability"
     )

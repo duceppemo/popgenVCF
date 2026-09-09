@@ -80,12 +80,12 @@ plot_sexbias <- function(result, cfg, dirs) {
     ggplot2::scale_fill_manual(values = palette, drop = FALSE, guide = "none") +
     ggplot2::labs(
       title = "Sex-biased dispersal test",
-      subtitle = sprintf("%s test: statistic = %.3f, p = %.4f", result$test, result$statistic, result$p_value),
-      caption = sprintf(
+      subtitle = wrap_plot_text(sprintf("%s test: statistic = %.3f, p = %.4f", result$test, result$statistic, result$p_value)),
+      caption = wrap_plot_text(sprintf(
         "Assignment index (AIc, Favre et al. 1997) by recorded sex; n = %d female, %d male%s",
         result$n_female, result$n_male,
         if (result$permutations > 0L) sprintf(", %d permutations", result$permutations) else ""
-      ),
+      )),
       x = NULL, y = "Assignment index (AIc)"
     ) + theme_publication(figure_base_size(cfg))
   save_plot(p, "60_sexbias_AIc_by_sex", dirs, fmts, 7, 5.5, dpi)

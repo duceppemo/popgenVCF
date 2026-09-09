@@ -211,9 +211,10 @@ test_that("plot_pca_tracy_widom wraps its subtitle instead of letting it run off
   # Reported directly against a real production figure: the subtitle
   # ("15 of 100 computed component(s) significant at alpha = 0.05
   # (Patterson, Price & Reich 2006); 10 retained (dotted line)", ~120
-  # characters) was never passed through wrap_plot_subtitle() -- the same
-  # fix already applied to the DAPC reproducibility annotation and the ROH
-  # length-class subtitle earlier -- so it ran off the plot uncorrected.
+  # characters) was never passed through wrap_plot_text() (named
+  # wrap_plot_subtitle() at the time) -- the same fix already applied to the
+  # DAPC reproducibility annotation and the ROH length-class subtitle
+  # earlier -- so it ran off the plot uncorrected.
   tw <- data.table::data.table(
     N = 1:100, eigenvalues = c(50, 40, rep(1, 98)),
     twstats = c(4.3, 7.2, rep(NaN, 98)),

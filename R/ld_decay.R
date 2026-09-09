@@ -66,10 +66,10 @@ plot_ld_decay <- function(result, cfg, dirs) {
     ggplot2::scale_y_continuous(limits = c(0, NA)) +
     ggplot2::labs(
       title = "Linkage disequilibrium decay",
-      subtitle = sprintf(
+      subtitle = wrap_plot_text(sprintf(
         "Mean r^2 by physical distance between SNP pairs (%s pairs across %s SNPs)",
         scales::comma(result$n_pairs), scales::comma(result$n_snps)
-      ),
+      )),
       x = "Distance between SNP pair (bp)", y = expression(paste("Mean ", italic(r)^2))
     ) + theme_publication(figure_base_size(cfg))
   save_plot(p, "43_LD_decay", dirs, fmts, 8, 5, dpi)

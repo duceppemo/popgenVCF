@@ -296,7 +296,7 @@ plot_roh_length_class <- function(result, cfg, dirs) {
     ggplot2::scale_fill_manual(values = class_colours, labels = class_labels[class_levels], name = "Run length class") +
     ggplot2::labs(
       title = expression(paste("Runs of homozygosity: ", italic(F)[ROH], " by run-length class")),
-      subtitle = wrap_plot_subtitle(
+      subtitle = wrap_plot_text(
         "Short: background LD; intermediate: distant common ancestors; long: recent close inbreeding"
       ),
       caption = "Length-class convention: Ceballos et al. 2018",

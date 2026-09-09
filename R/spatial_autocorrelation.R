@@ -128,10 +128,10 @@ plot_spatial_autocorrelation <- function(result, cfg, dirs) {
     ggplot2::labs(
       title = "Spatial autocorrelation correlogram",
       subtitle = "Shaded band: 95% permutation envelope under no spatial structure",
-      caption = sprintf(
+      caption = wrap_plot_text(sprintf(
         "Smouse and Peakall (1999); %s equal-width geographic-distance classes, upper bound shown.",
         nrow(result)
-      ),
+      )),
       x = "Geographic distance (km, upper bound of class)", y = "Autocorrelation r"
     ) +
     theme_publication(figure_base_size(cfg))

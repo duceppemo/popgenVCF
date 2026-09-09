@@ -1,0 +1,14 @@
+/* report_kable()'s HTML branch renders knitr::kable(format = "pipe") output
+   through pandoc's default markdown-table conversion, which emits a bare
+   <table> with no class attribute -- none of the bootstrap theme's own
+   `.table` styling (borders, header rule) applies to it, so every table in
+   the HTML report rendered with no visible border at all, unlike the PDF
+   report's booktabs top/bottom rules (knitr::kable(..., booktabs = TRUE)).
+   Confirmed directly against a real production report: 30 <table> tags, all
+   bare, no class. This restores the same top/bottom-rule convention for the
+   HTML report without adding a kableExtra dependency just for table
+   borders. */
+table {
+  border-top: 2px solid #333333;
+  border-bottom: 2px solid #333333;
+}

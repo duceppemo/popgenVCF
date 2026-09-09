@@ -158,11 +158,11 @@ plot_pcadapt <- function(result, cfg, dirs) {
     ggplot2::scale_x_continuous(breaks = bp_breaks$x, labels = bp_breaks$label) +
     ggplot2::labs(
       title = "pcadapt outlier scan",
-      subtitle = sprintf(
+      subtitle = wrap_plot_text(sprintf(
         "Robust Mahalanobis distance test (K = %d); highlighted points: %s significant at q < %s (Benjamini-Hochberg FDR)",
         result$k, scales::comma(result$n_outliers), format(cfg$analyses$pcadapt_fdr_alpha)
-      ),
-      caption = sprintf("Genomic inflation factor (gif) = %.3f", result$gif),
+      )),
+      caption = wrap_plot_text(sprintf("Genomic inflation factor (gif) = %.3f", result$gif)),
       x = "Chromosome position", y = expression(-log[10](italic(p)))
     ) + theme_publication(figure_base_size(cfg))
   p <- manhattan_chromosome_row(

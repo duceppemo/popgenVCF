@@ -46,7 +46,7 @@ plot_population_specific_fst <- function(result, cfg, dirs) {
     ggplot2::scale_fill_manual(values = population_colours, guide = "none") +
     ggplot2::labs(
       title = "Population-specific FST (Weir and Goudet 2017)",
-      subtitle = sprintf("Dashed line: overall population FST (beta_W = %.4f)", result$overall),
+      subtitle = wrap_plot_text(sprintf("Dashed line: overall population FST (beta_W = %.4f)", result$overall)),
       x = "Population", y = expression(beta[i])
     ) +
     theme_publication(figure_base_size(cfg)) +

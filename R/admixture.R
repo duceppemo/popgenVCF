@@ -153,6 +153,7 @@ plot_q_matrix <- function(q, k, cfg, dirs, prefix = "ADMIXTURE_Q",
   if (identical(order_mode, "data_driven")) {
     plot_title <- paste0(plot_title, " - data-driven cluster order")
   }
+  plot_title <- wrap_plot_text(plot_title)
   cluster_colours <- cluster_palette(clusters, figure_style_name(cfg))
   p <- ggplot2::ggplot(
     long, ggplot2::aes(order, ancestry, fill = cluster)
@@ -168,7 +169,7 @@ plot_q_matrix <- function(q, k, cfg, dirs, prefix = "ADMIXTURE_Q",
     ggplot2::scale_x_continuous(breaks = x$order, labels = x$sample_label, expand = c(0,0)) +
     ggplot2::labs(
       title = plot_title,
-      subtitle = subtitle, x = NULL, y = y_label
+      subtitle = wrap_plot_text(subtitle), x = NULL, y = y_label
     ) +
     theme_publication(figure_base_size(cfg)) + ggplot2::theme(
       axis.text.x = ggplot2::element_text(angle = 90, hjust = 1, vjust = 0.5, size = axis_label_size),

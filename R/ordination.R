@@ -502,7 +502,7 @@ plot_pca_by_metadata <- function(pca, metadata, column, cfg, dirs, style) {
     ggplot2::scale_colour_manual(values = pal) +
     ggplot2::scale_shape_manual(values = shapes) +
     ggplot2::labs(
-      title = sprintf("Principal component analysis, coloured by %s", tolower(label_name)),
+      title = wrap_plot_text(sprintf("Principal component analysis, coloured by %s", tolower(label_name))),
       x = sprintf("%s (%.2f%%)", x, pca$variance$percent[1]),
       y = sprintf("%s (%.2f%%)", y, pca$variance$percent[2]),
       colour = label_name, shape = label_name
@@ -561,7 +561,7 @@ plot_pca_tracy_widom <- function(tw, significant, alpha, retained, cfg, dirs, pr
     ggplot2::scale_colour_manual(values = c(`TRUE` = highlight, `FALSE` = muted)) +
     ggplot2::labs(
       title = "PCA component significance (Tracy-Widom test)",
-      subtitle = wrap_plot_subtitle(subtitle),
+      subtitle = wrap_plot_text(subtitle),
       x = "Principal component", y = "Percent of total variance explained (%)"
     ) + theme_publication(figure_base_size(cfg))
   save_plot(p, "06b_PCA_Tracy_Widom_test", dirs, cfg$output$figure_formats, 8, 5, cfg$output$dpi)

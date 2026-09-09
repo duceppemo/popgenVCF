@@ -227,7 +227,7 @@ render_standard_report_format <- function(template, results_rds, output_dir,
   output_format <- if (identical(format, "html")) {
     rmarkdown::html_document(
       toc = TRUE, toc_float = TRUE, number_sections = TRUE,
-      self_contained = TRUE
+      self_contained = TRUE, css = file.path(dirname(template), "report.css")
     )
   } else {
     rmarkdown::pdf_document(

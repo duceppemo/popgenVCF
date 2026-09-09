@@ -127,3 +127,36 @@ test_that("plot_ibd's subtitle includes the partial Mantel result when available
   popgenVCF:::plot_ibd(x_without_partial, cfg, dirs2)
   expect_true(file.exists(file.path(dirs2$figures, "12_isolation_by_distance.png")))
 })
+
+test_that("plot_ibd wraps its caption instead of letting it run off the plot", {
+  # Reported directly against a real production HTML report: the bottom
+  # "Curve: linear model of genetic distance on log(1 + geographic
+  # distance); N pairwise comparisons." caption ran off the plot uncorrected
+  # -- it was never passed through wrap_plot_text(), unlike plot.subtitle
+  # elsewhere in this package.
+  captured <- NULL
+  local_mocked_bindings(
+    save_plot = function(p, ...) {
+      captured <<- p
+      invisible(TRUE)
+    },
+    .package = "popgenVCF"
+  )
+  n <- 2000L
+  fx <- data.table::data.table(
+    genetic_distance = runif(n), geographic_distance_km = runif(n, 1, 1000)
+  )
+  x <- list(
+    pairs = fx,
+    summary = data.table::data.table(
+      mantel_r = 0.5, mantel_p = 0.01, slope = 1, r_squared = 0.25,
+      partial_mantel_r = NA_real_, partial_mantel_p = NA_real_
+    )
+  )
+  cfg <- popgenVCF::default_config()
+  popgenVCF:::plot_ibd(x, cfg, list(figures = tempdir()))
+  unwrapped <- gsub("\n", " ", captured$labels$caption, fixed = TRUE)
+  expect_match(unwrapped, "2,000 pairwise comparisons", fixed = TRUE)
+  expect_match(captured$labels$caption, "\n", fixed = TRUE)
+  expect_true(all(nchar(strsplit(captured$labels$caption, "\n", fixed = TRUE)[[1L]]) <= 90))
+})
