@@ -23,7 +23,7 @@ From: condaforge/miniforge3:25.3.0-3
     set -eu
     df -h / || true
     apt-get update
-    apt-get install -y --no-install-recommends texlive-xetex lmodern
+    apt-get install -y --no-install-recommends texlive-xetex texlive-fonts-recommended lmodern ghostscript
     apt-get clean
     rm -rf /var/lib/apt/lists/*
     df -h / || true
