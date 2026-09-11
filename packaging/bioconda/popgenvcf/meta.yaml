@@ -1,0 +1,118 @@
+{% set version = "1.0.12" %}
+{% set sha256 = "09b6cb0e886f20ee1186d429ff3903fd9c71f9a495e66da2328a1a8da3b6e0fb" %}
+
+# This recipe targets the v1.0.12 GitHub Release tarball as a known-good
+# example. Before actually submitting to bioconda/bioconda-recipes, re-pin
+# `version` and `sha256` to the release the submission is meant to ship --
+# ideally the first release cut *after* commit 5110c76 (which shrank the
+# built source tarball from 64.7 MB to 22.0 MB by downsampling
+# vignettes/figures/*.png; v1.0.12 itself still carries the larger
+# pre-fix tarball). Get the sha256 for any release from its own
+# release-SHA256SUMS.txt asset, not by hashing a manually-downloaded copy.
+
+package:
+  name: r-popgenvcf
+  version: {{ version }}
+
+source:
+  url: https://github.com/duceppemo/popgenVCF/releases/download/v{{ version }}/popgenVCF_{{ version }}.tar.gz
+  sha256: {{ sha256 }}
+
+build:
+  number: 0
+  rpaths:
+    - lib/R/lib/
+    - lib/
+  run_exports:
+    - {{ pin_subpackage("r-popgenvcf", max_pin="x.x") }}
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - {{ compiler('fortran') }}
+    - make
+    - pkg-config
+  host:
+    - r-base >=4.3
+    - r-ade4
+    - r-adegenet
+    - r-ape
+    - r-data.table
+    - r-digest
+    - bioconductor-gdsfmt
+    - r-ggplot2 >=3.5.0
+    - r-ggrepel
+    - r-igraph
+    - r-jsonlite
+    - r-openssl
+    - r-poppr
+    - r-processx
+    - r-rmarkdown
+    - r-scales
+    - bioconductor-snprelate
+    - r-vegan
+    - r-yaml
+  run:
+    - r-base >=4.3
+    - r-ade4
+    - r-adegenet
+    - r-ape
+    - r-data.table
+    - r-digest
+    - bioconductor-gdsfmt
+    - r-ggplot2 >=3.5.0
+    - r-ggrepel
+    - r-igraph
+    - r-jsonlite
+    - r-openssl
+    - r-poppr
+    - r-processx
+    - r-rmarkdown
+    - r-scales
+    - bioconductor-snprelate
+    - r-vegan
+    - r-yaml
+    # Required at runtime, not just build time: VCF sorting, BGZF
+    # compression, indexing, and runs-of-homozygosity detection all shell
+    # out to these (DESCRIPTION's SystemRequirements). Deliberately NOT
+    # included: admixture and faststructure, both genuinely optional
+    # (only used by the ancestry backends when explicitly configured) and
+    # each a heavyweight compiled tool in its own right -- a user who
+    # wants them installs them separately the same way the container image
+    # documents, keeping this recipe's own dependency footprint minimal.
+    - bcftools
+    - htslib
+    # Used by every report-rendering code path (R/report.R); without it,
+    # the core "produce a manuscript report" feature silently degrades to
+    # HTML-only or fails outright rather than being a true optional extra.
+    - pandoc
+
+test:
+  commands:
+    # Import test: the standard bioconda smoke test for an R package.
+    - $R -e "library('popgenVCF')"
+    # CLI smoke test: confirms the installed wrapper script actually runs
+    # popgenVCF::cli_main() end to end, not just that the library loads.
+    - popgenVCF --help
+
+about:
+  home: https://github.com/duceppemo/popgenVCF
+  license: MIT
+  license_file: LICENSE
+  summary: Population genomics toolkit for VCF data
+  description: |
+    A modular R package and command-line toolkit for reproducible
+    population-genomic analysis of diploid, biallelic SNP data stored in
+    VCF files: quality control, PCA, IBS/MDS, diversity, FST, kinship,
+    genetic sex check, runs of homozygosity, sliding-window genome scans,
+    DAPC, AMOVA, population structure, spatial genetics, and
+    manuscript-oriented publication reports.
+  dev_url: https://github.com/duceppemo/popgenVCF
+  doc_url: https://duceppemo.github.io/popgenVCF/
+
+extra:
+  recipe-maintainers:
+    - duceppemo
+  identifiers:
+    - doi:10.5281/zenodo.21747067
