@@ -136,13 +136,23 @@ analyses:
     # parallel across compute.threads workers.
     replicates: 100
   ml_tree:
-    # Off by default: a genuine maximum-likelihood tree (GTR+Gamma, Lewis
-    # 2001 ascertainment-bias correction, via the optional phangorn package)
-    # for the individual-level tree, complementary to the always-on NJ tree
-    # from IBS distance above. Opt in when a likelihood-based topology and
-    # its own bootstrap support matter more than NJ's speed.
+    # Off by default: a genuine maximum-likelihood tree (default GTR+Gamma,
+    # Lewis 2001 ascertainment-bias correction, via the optional phangorn
+    # package) for the individual-level tree, complementary to the always-on
+    # NJ tree from IBS distance above. Opt in when a likelihood-based
+    # topology and its own bootstrap support matter more than NJ's speed.
     enabled: false
     bootstrap_replicates: 100
+    # Nucleotide substitution model passed to phangorn::optim.pml(). GTR
+    # (General Time-Reversible, six free rate parameters and free base
+    # frequencies) is the most general model phangorn supports and the
+    # default here; gamma-rate heterogeneity (4 categories) and the
+    # ascertainment-bias correction are always applied regardless of this
+    # choice, since this is a SNP-only alignment with no invariant sites.
+    # Valid values, from fewest to most free parameters: JC, F81, K80, HKY,
+    # TrNe, TrN, TPM1, K81, TPM1u, TPM2, TPM2u, TPM3, TPM3u, TIM1e, TIM1,
+    # TIM2e, TIM2, TIM3e, TIM3, TVMe, TVM, SYM, GTR.
+    model: GTR
   # Frequency-based self-assignment test (Paetkau et al. 1995, 2004): does
   # each sample's genotype fit its own recorded population's allele
   # frequencies best, or a different one (a candidate migrant or metadata

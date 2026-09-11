@@ -159,6 +159,30 @@ test_that("run_ml_tree errors clearly with too few usable SNPs", {
   )
 })
 
+test_that("run_ml_tree's substitution model is configurable, not hardcoded", {
+  # Real gap found on request: model = "GTR" was hardcoded in three separate
+  # places (the main optim.pml() fit, the bootstrap.pml() replicates, and
+  # the returned result$model label) with no config knob at all.
+  skip_if_not_installed("phangorn")
+  fx <- ml_tree_genotype_fixture()
+  result <- popgenVCF:::run_ml_tree(
+    fx$geno, fx$ref, fx$alt, fx$sample_ids, seed = 3L, threads = 1L,
+    bootstrap_replicates = 0L, model = "HKY"
+  )
+  expect_identical(result$model, "HKY+Gamma+ASC")
+  expect_s3_class(result$tree, "phylo")
+  expect_true(is.finite(result$log_likelihood))
+})
+
+test_that("run_ml_tree rejects a substitution model phangorn does not support", {
+  skip_if_not_installed("phangorn")
+  fx <- ml_tree_genotype_fixture()
+  expect_error(
+    popgenVCF:::run_ml_tree(fx$geno, fx$ref, fx$alt, fx$sample_ids, seed = 1L, model = "bogus"),
+    "'arg' should be one of"
+  )
+})
+
 test_that("ml_tree_module_spec is registered, disabled by default, and enables via config", {
   registry <- popgenVCF::default_analysis_registry()
   expect_true("ml_tree" %in% names(registry$modules))

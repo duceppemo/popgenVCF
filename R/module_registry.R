@@ -128,9 +128,10 @@ run_module_ml_tree <- function(analysis, context) {
   result <- run_ml_tree(
     genotype, ref, alt, public_sample_ids(context$metadata, context$sample_ids),
     seed = cfg$compute$seed, threads = cfg$compute$threads,
-    bootstrap_replicates = cfg$analyses$ml_tree$bootstrap_replicates
+    bootstrap_replicates = cfg$analyses$ml_tree$bootstrap_replicates,
+    model = cfg$analyses$ml_tree$model
   )
-  ape::write.tree(result$tree, file.path(dirs$trees, "ML_GTR_gamma_ASC.nwk"))
+  ape::write.tree(result$tree, file.path(dirs$trees, "ML_tree_gamma_ASC.nwk"))
   write_tsv(
     data.table::data.table(
       model = result$model, log_likelihood = result$log_likelihood,
@@ -142,7 +143,7 @@ run_module_ml_tree <- function(analysis, context) {
   analysis <- set_analysis_result(analysis, "ml_tree", result)
   plot_nj_tree(
     result$tree, context$metadata, cfg, dirs, "55_ML_tree",
-    "Maximum-likelihood tree (GTR+Gamma, ascertainment-bias corrected)"
+    sprintf("Maximum-likelihood tree (%s+Gamma, ascertainment-bias corrected)", cfg$analyses$ml_tree$model)
   )
   if (result$n_snps_dropped > 0L) {
     analysis <- record_analysis_message(

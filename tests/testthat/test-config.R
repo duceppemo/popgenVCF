@@ -175,6 +175,32 @@ test_that("sexbias_test and sexbias_permutations are coerced and validated", {
   expect_silent(popgenVCF::validate_config(cfg))
 })
 
+test_that("ml_tree.model defaults to GTR, is coerced, and is validated against phangorn's supported models", {
+  cfg <- popgenVCF::default_config()
+  cfg$input$vcf <- tempfile(fileext = ".vcf")
+  cfg$output$directory <- tempfile("popgenvcf-output-")
+  file.create(cfg$input$vcf)
+
+  expect_identical(cfg$analyses$ml_tree$model, "GTR")
+
+  cfg$analyses$ml_tree$model <- "HKY"
+  expect_silent(popgenVCF::validate_config(cfg))
+  cfg$analyses$ml_tree$model <- factor("JC")
+  validated <- popgenVCF::validate_config(cfg)
+  expect_identical(validated$analyses$ml_tree$model, "JC")
+
+  cfg$analyses$ml_tree$model <- "bogus"
+  expect_error(popgenVCF::validate_config(cfg), "ml_tree.model")
+
+  # A lowercase or otherwise miscased model name is a real, plausible user
+  # mistake (config authors are used to case-insensitive YAML elsewhere in
+  # this file) but is not silently accepted -- phangorn's own model names
+  # are case-sensitive, and guessing at case-folding here would risk
+  # silently running a different model than the one requested.
+  cfg$analyses$ml_tree$model <- "gtr"
+  expect_error(popgenVCF::validate_config(cfg), "ml_tree.model")
+})
+
 test_that("amova_permutations and mantel_permutations are coerced and validated, and require >= 1", {
   # Real gap found in a pre-release audit: run_module_amova()/run_module_ibd()
   # (R/module_registry.R) hardcoded 999L with no config knob at all, unlike

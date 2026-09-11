@@ -1,5 +1,5 @@
-# Genuine maximum-likelihood individual-level tree (GTR+Gamma, Lewis (2001)
-# ascertainment-bias correction) -- distinct from, and complementary to, the
+# Genuine maximum-likelihood individual-level tree (default GTR+Gamma, Lewis
+# (2001) ascertainment-bias correction) -- distinct from, and complementary to, the
 # existing "tree" module's neighbour-joining tree from IBS distance. Applies
 # only to the individual-level tree: ML nucleotide substitution models
 # operate on per-taxon sequence characters, and there is no standard,
@@ -18,6 +18,26 @@
 # dataset (160 samples, 357 LD-pruned SNPs) takes ~2.5 seconds; 100 bootstrap
 # replicates (phangorn::bootstrap.pml()'s own native parallel support)
 # extrapolate to well under a minute with a few cores.
+#
+# The substitution model itself (GTR by default) is configurable
+# (analyses.ml_tree.model) -- gamma-rate heterogeneity (k = 4), the
+# ascertainment-bias correction, and the NNI topology search stay fixed,
+# since those are architectural choices this SNP-only alignment always
+# needs, not alternatives a user would trade off the way they would a
+# substitution model.
+
+# The complete list of nucleotide substitution models phangorn::optim.pml()
+# accepts (phangorn:::.dnamodels, mirrored here since that list is internal
+# and not part of phangorn's own exported API) -- from the fewest free
+# parameters (JC, equal rates/frequencies) to the most (GTR, this module's
+# default, six free rate parameters and free base frequencies).
+ml_tree_allowed_models <- function() {
+  c(
+    "JC", "F81", "K80", "HKY", "TrNe", "TrN", "TPM1", "K81", "TPM1u",
+    "TPM2", "TPM2u", "TPM3", "TPM3u", "TIM1e", "TIM1", "TIM2e", "TIM2",
+    "TIM3e", "TIM3", "TVMe", "TVM", "SYM", "GTR"
+  )
+}
 
 ml_tree_iupac_heterozygote <- c(
   AG = "R", GA = "R", CT = "Y", TC = "Y", GC = "S", CG = "S",
@@ -59,10 +79,11 @@ ml_tree_encode_dna <- function(genotype, ref, alt) {
 # returns a plain list of ape::phylo replicate trees -- the identical input
 # shape that helper already consumes for the NJ trees.
 run_ml_tree <- function(genotype, ref, alt, sample_ids, seed,
-                        threads = 1L, bootstrap_replicates = 100L) {
+                        threads = 1L, bootstrap_replicates = 100L, model = "GTR") {
   if (!requireNamespace("phangorn", quietly = TRUE)) {
     stop("The maximum-likelihood tree module requires the optional 'phangorn' package", call. = FALSE)
   }
+  model <- match.arg(model, ml_tree_allowed_models())
   rownames(genotype) <- sample_ids
   encoded <- ml_tree_encode_dna(genotype, ref, alt)
   # GTR (5 free rate parameters) + a gamma shape parameter + 2n-3 branch
@@ -91,12 +112,25 @@ run_ml_tree <- function(genotype, ref, alt, sample_ids, seed,
   fit <- phangorn::pml(starting_tree, pd, ASC = TRUE, k = 4)
 
   set.seed(as.integer(seed))
+  # do.call(), not a direct phangorn::optim.pml(..., model = model) call:
+  # optim.pml() internally calls update.pml(), which -- like R's own
+  # lm()/glm() and much other S3 modeling code -- stores its *unevaluated*
+  # call (via match.call()) on the returned object for later re-fitting.
+  # With a bare `model = model` argument, that stored call captures the
+  # symbol `model`, not its value -- confirmed directly: bootstrap.pml()
+  # (which re-evaluates a stored call per resampled replicate, several
+  # frames removed from this function's own local `model` variable) then
+  # fails with "object 'model' not found" on every replicate, silently
+  # degrading every bootstrap run to "failed" rather than erroring loudly.
+  # do.call() constructs the call from already-evaluated argument values,
+  # so the stored call captures the literal model string instead of a
+  # symbol that goes out of scope.
   fit_opt <- tryCatch(
-    phangorn::optim.pml(
-      fit, model = "GTR", optNni = TRUE, optBf = TRUE, optQ = TRUE,
+    do.call(phangorn::optim.pml, list(
+      object = fit, model = model, optNni = TRUE, optBf = TRUE, optQ = TRUE,
       optGamma = TRUE, optEdge = TRUE, rearrangement = "NNI",
       control = phangorn::pml.control(trace = 0)
-    ),
+    )),
     error = function(e) {
       stop(
         "Maximum-likelihood tree optimization failed to converge (", conditionMessage(e), "); ",
@@ -135,11 +169,11 @@ run_ml_tree <- function(genotype, ref, alt, sample_ids, seed,
     # confidence measure would be disproportionate, so this degrades to "no
     # bootstrap support computed" instead of propagating the error.
     bs_trees <- tryCatch(
-      phangorn::bootstrap.pml(
-        fit_opt, bs = bootstrap_replicates, optNni = TRUE, model = "GTR",
+      do.call(phangorn::bootstrap.pml, list(
+        x = fit_opt, bs = bootstrap_replicates, optNni = TRUE, model = model,
         multicore = threads > 1L, mc.cores = max(1L, threads),
         control = phangorn::pml.control(trace = 0)
-      ),
+      )),
       error = function(e) NULL
     )
     support <- if (!is.null(bs_trees)) bootstrap_tree_support(tree, bs_trees) else NULL
@@ -155,7 +189,7 @@ run_ml_tree <- function(genotype, ref, alt, sample_ids, seed,
   list(
     tree = tree,
     log_likelihood = as.numeric(fit_opt$logLik),
-    model = "GTR+Gamma+ASC",
+    model = paste0(model, "+Gamma+ASC"),
     n_snps_used = encoded$n_used,
     n_snps_dropped = encoded$n_dropped,
     bootstrap_failed = bootstrap_failed

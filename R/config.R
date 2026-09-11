@@ -35,7 +35,7 @@ default_config <- function() {
                     roh_length_class_long_min_bp = 2000000L,
                     tree = TRUE, population_tree = TRUE,
                     tree_bootstrap = list(enabled = TRUE, replicates = 100L),
-                    ml_tree = list(enabled = FALSE, bootstrap_replicates = 100L),
+                    ml_tree = list(enabled = FALSE, bootstrap_replicates = 100L, model = "GTR"),
                     population_assignment = TRUE, fst = TRUE,
                     genome_scan = TRUE, genome_scan_window_bp = 50000L,
                     genome_scan_step_bp = 50000L, genome_scan_min_snps = 5L,
@@ -167,6 +167,7 @@ validate_config <- function(cfg) {
     "analyses.bootstrap.replicates" = cfg$analyses$bootstrap$replicates,
     "analyses.tree_bootstrap.replicates" = cfg$analyses$tree_bootstrap$replicates,
     "analyses.ml_tree.bootstrap_replicates" = cfg$analyses$ml_tree$bootstrap_replicates,
+    "analyses.ml_tree.model" = cfg$analyses$ml_tree$model,
     "analyses.structure.replicates" = cfg$analyses$structure$replicates,
     "analyses.structure.reproducibility_rmse" = cfg$analyses$structure$reproducibility_rmse,
     "analyses.structure.minimum_cluster_correlation" = cfg$analyses$structure$minimum_cluster_correlation,
@@ -268,6 +269,7 @@ validate_config <- function(cfg) {
   cfg$analyses$bootstrap$replicates <- as.integer(cfg$analyses$bootstrap$replicates)
   cfg$analyses$tree_bootstrap$replicates <- as.integer(cfg$analyses$tree_bootstrap$replicates)
   cfg$analyses$ml_tree$bootstrap_replicates <- as.integer(cfg$analyses$ml_tree$bootstrap_replicates)
+  cfg$analyses$ml_tree$model <- as.character(cfg$analyses$ml_tree$model)
   cfg$analyses$structure$replicates <- as.integer(cfg$analyses$structure$replicates)
   cfg$analyses$snmf$repetitions <- as.integer(cfg$analyses$snmf$repetitions)
   if (!is.finite(cfg$compute$threads) || cfg$compute$threads < 1L) stop("compute.threads must be >= 1", call. = FALSE)
@@ -328,6 +330,12 @@ validate_config <- function(cfg) {
   if (!is.finite(cfg$analyses$bootstrap$replicates) || cfg$analyses$bootstrap$replicates < 0L) stop("bootstrap.replicates must be >= 0", call. = FALSE)
   if (!is.finite(cfg$analyses$tree_bootstrap$replicates) || cfg$analyses$tree_bootstrap$replicates < 0L) stop("tree_bootstrap.replicates must be >= 0", call. = FALSE)
   if (!is.finite(cfg$analyses$ml_tree$bootstrap_replicates) || cfg$analyses$ml_tree$bootstrap_replicates < 0L) stop("ml_tree.bootstrap_replicates must be >= 0", call. = FALSE)
+  if (!cfg$analyses$ml_tree$model %in% ml_tree_allowed_models()) {
+    stopf(
+      "ml_tree.model must be one of: %s",
+      paste(ml_tree_allowed_models(), collapse = ", ")
+    )
+  }
 
   allowed_formats <- c("pdf", "png", "svg")
   cfg$output$figure_formats <- unique(tolower(as.character(cfg$output$figure_formats)))
