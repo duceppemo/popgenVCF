@@ -342,6 +342,17 @@ jobs:
       - name: Publish GitHub Release
         if: steps.identity.outputs.publish == 'true'
         shell: bash
+        env:
+          # A release created with the default GITHUB_TOKEN is subject to
+          # GitHub's anti-recursion protection: it will not trigger other
+          # workflows, so container.yml's `on: release: published` never
+          # fires. RELEASE_TOKEN is a fine-grained PAT (Contents: Read and
+          # write only, scoped to this repo) that is not subject to that
+          # restriction -- see docs/developer/release-archival-readiness.md.
+          # Every release from v1.0.0 through v1.0.12 hit this and needed a
+          # manual delete/recreate with a personal token to unblock the
+          # container publish; this makes that step unnecessary going forward.
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           set -euo pipefail
           tag="${{ steps.identity.outputs.release_id }}"

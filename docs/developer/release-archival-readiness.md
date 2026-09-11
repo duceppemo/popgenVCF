@@ -28,6 +28,12 @@ source, SBOM, metadata archive, validation evidence, provenance
 
 OCI image evidence remains a separate distribution identity. The container workflow publishes the exact image digest, BuildKit SPDX SBOM attestation, and maximum SLSA provenance attestation for the same release tag and Git commit. It fires on every published GitHub Release, not only tagged final releases; a release marked as a GitHub pre-release only builds and smoke-tests the image and does not push it to GHCR, so publishing evidence-carrying pre-releases (for example, to unblock benchmark-trend comparisons before a scientifically complete release exists) does not also publish a container image.
 
+### RELEASE_TOKEN: required for the container image to actually publish
+
+`tagged-source-release.yml`'s "Publish GitHub Release" step uses the repository secret `RELEASE_TOKEN` (a fine-grained personal access token, scoped to this repository only, with the `Contents: Read and write` permission and nothing broader) instead of the workflow's default `GITHUB_TOKEN`. This is not optional decoration: a release created with `GITHUB_TOKEN` is subject to GitHub Actions' anti-recursion protection, which silently prevents that release's `published` event from triggering `container.yml` -- the tag, GitHub Release, and every source-release asset all still publish correctly, but the OCI image never does, and `container.yml`'s own `workflow_dispatch` fallback can only produce a scoped `sha-<commit>` tag, never the real `latest`/semver tags. Every release from `v1.0.0` through `v1.0.12` hit this and needed a manual delete-and-recreate of the GitHub Release with a personal token to unblock the container publish, before `RELEASE_TOKEN` was added to close the gap permanently.
+
+If `RELEASE_TOKEN` is ever missing, expired, or revoked, the "Publish GitHub Release" step will fail authentication outright (a loud, immediate CI failure) rather than silently reintroducing this bug -- do not work around such a failure by falling back to `GITHUB_TOKEN`; rotate `RELEASE_TOKEN` instead.
+
 ## Rehearse without publishing
 
 Run **Actions → Tagged source-package release → Run workflow** with publication disabled. Download the resulting workflow artifact and verify its contents before creating a tag.
