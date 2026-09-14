@@ -1,22 +1,28 @@
-# bioconda recipe (draft)
+# bioconda recipe
 
-`popgenvcf/meta.yaml` and `popgenvcf/build.sh` are a maintained draft for
-submitting popgenVCF to [bioconda](https://bioconda.github.io/), so `conda
+`r-popgenvcf/meta.yaml` and `r-popgenvcf/build.sh` are the maintained source
+of the recipe submitted to [bioconda](https://bioconda.github.io/), so `conda
 install r-popgenvcf` / `mamba install r-popgenvcf` becomes possible. They are
-not part of the R package build (excluded via `.Rbuildignore`) and are not
-picked up by conda-build until copied into an actual PR against
-[bioconda/bioconda-recipes](https://github.com/bioconda/bioconda-recipes).
+not part of the R package build (excluded via `.Rbuildignore`); the copy
+actually built by bioconda's CI lives in the PR below, under
+[bioconda/bioconda-recipes](https://github.com/bioconda/bioconda-recipes)'s
+own `recipes/r-popgenvcf/`, not in this repository.
 
 ## Status
 
-Drafted, not yet submitted, and not yet linted or built against real
-bioconda-utils tooling (not installed in this environment -- `bioconda-utils
-lint`/`build` requires the actual bioconda-recipes CI image). Treat this as a
-structurally-checked starting point, not a validated recipe: the YAML parses
-correctly after Jinja rendering and every listed dependency was confirmed to
-resolve on `bioconda`/`conda-forge` today (`mamba search`), but conda-build's
-own linter, a real build, and the recipe's `test:` commands have not actually
-been run.
+**Submitted**: [bioconda/bioconda-recipes#69238](https://github.com/bioconda/bioconda-recipes/pull/69238)
+(2026-09-14), targeting `v1.0.13` (the first release built from the shrunk
+source tarball, commit `5110c76`: 64.7 MB -> 22.0 MB). Linted clean with the
+real `bioconda-utils lint` (bioconda-utils 2.14.0, "All checks OK") before
+submission -- not just structurally checked. Review and merge timing is up to
+external bioconda maintainers, not this repository.
+
+Once merged and built, the real install command is `mamba install
+r-popgenvcf` (bioconda's naming convention for a non-CRAN/Bioconductor R
+package), not literally `mamba install popgenVCF`; the recipe folder itself
+must also be named `r-popgenvcf` to match (`bioconda-utils lint`'s
+`folder_and_package_name_must_match` check caught this before submission --
+the original `popgenvcf/` folder name here was renamed to match).
 
 ## Every dependency already has a proven working path
 
@@ -26,27 +32,16 @@ so every `r-*`/`bioconductor-*` package this recipe lists is already known to
 resolve and install correctly through the same `bioconda`/`conda-forge`
 channels.
 
-## Before actually submitting
+## If a new release needs re-pinning
 
-1. **Re-pin `version` and `sha256`** in `meta.yaml` to whichever release is
-   actually being submitted -- ideally the first release cut after commit
-   `5110c76` (which shrank the built source tarball from 64.7 MB to 22.0 MB;
-   `v1.0.12` itself still carries the larger, pre-fix tarball). Get the
-   sha256 from that release's own `release-SHA256SUMS.txt` asset, never by
-   hashing a manually re-downloaded copy.
-2. **Install `bioconda-utils`** (see bioconda's own contributor docs) and run
-   its linter and a real local build against this recipe. Fix anything it
-   flags before opening a PR -- this has not been done yet.
-3. **Fork `bioconda/bioconda-recipes`**, copy `popgenvcf/` under its
-   `recipes/` directory, and open a PR there. Review is by external bioconda
-   maintainers on their own timeline, not something this repository
-   controls. They may ask why the package isn't on CRAN/Bioconductor first --
-   worth having an answer ready (this toolkit's hard runtime dependency on
-   BCFtools/HTSlib as external system binaries is a real fit for bioconda,
-   less so for CRAN's self-containment expectations).
-4. Once merged and built, the real install command is `mamba install
-   r-popgenvcf` (bioconda's naming convention for a non-CRAN/Bioconductor R
-   package), not literally `mamba install popgenVCF`.
+`meta.yaml`'s `version`/`sha256` will need re-pinning if bioconda review asks
+for an update to a newer release before merging, or for any future version
+bump after this one lands. Get the sha256 from that release's own
+`release-SHA256SUMS.txt` asset (and independently re-verify by hashing a
+freshly downloaded copy of the actual tarball, not just trusting the
+manifest), then push the update to the same PR branch
+(`duceppemo/bioconda-recipes`, branch `add-r-popgenvcf`) if the PR is still
+open, or open a new `update r-popgenvcf` PR once it has merged.
 
 ## Deliberately lighter than the container image
 
@@ -60,3 +55,11 @@ documents. BCFtools, HTSlib, and Pandoc stay as required `run` dependencies:
 DESCRIPTION's own `SystemRequirements` lists the first two as required (VCF
 sorting, BGZF compression, indexing, ROH detection), and Pandoc is exercised
 by every report-rendering code path, not a true optional extra.
+
+## `run_exports`
+
+Pins the major version only (`max_pin="x"`), matching bioconda's own
+guidance for a package on real semantic versioning (not a 0.x.x series):
+popgenVCF's public-API-contract check (`inst/api-contract/`) re-verifies its
+exported R API on every release, patch included, with zero drift ever
+recorded -- API/ABI/CLI breakage is reserved for major-version bumps.

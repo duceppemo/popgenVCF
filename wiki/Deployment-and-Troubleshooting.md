@@ -20,21 +20,21 @@ Full container guidance:
 
 ## Conda or Mamba
 
-### bioconda package (coming soon)
+### bioconda package (pending review)
 
-A draft recipe (`packaging/bioconda/` in the repository) is prepared for
-submission to [bioconda](https://bioconda.github.io/), which would make
-installation as simple as:
+Submitted for review: [bioconda/bioconda-recipes#69238](https://github.com/bioconda/bioconda-recipes/pull/69238)
+(2026-09-14; recipe source: `packaging/bioconda/r-popgenvcf/` in this
+repository). Once merged and built, installation will be:
 
 ```bash
 mamba install -c bioconda -c conda-forge r-popgenvcf
 ```
 
-**Not yet available.** The recipe has not been submitted, reviewed, or
-merged into `bioconda-recipes`, so this command does not work today --
-check [bioconda's own package search](https://bioconda.github.io/recipes.html)
-to confirm before relying on it. Use the development-environment path below
-until then.
+**Not yet available.** Review and merge timing is up to external bioconda
+maintainers, not this repository -- check the PR link above or
+[bioconda's own package search](https://bioconda.github.io/recipes.html)
+to confirm before relying on this command. Use the development-environment
+path below until then.
 
 ### Development environment (available today)
 
