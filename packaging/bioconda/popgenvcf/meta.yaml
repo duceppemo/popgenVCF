@@ -10,6 +10,14 @@
 # pre-fix tarball). Get the sha256 for any release from its own
 # release-SHA256SUMS.txt asset, not by hashing a manually-downloaded copy.
 
+# Named r-popgenvcf, not popgenvcf: bioconda convention prefixes every R
+# package with `r-` (lowercase, like the package name itself), regardless
+# of whether it originates on CRAN, Bioconductor, or -- as here -- only on
+# GitHub. Bioconductor-hosted dependencies get `bioconductor-` instead
+# (see bioconductor-gdsfmt/bioconductor-snprelate below). The real install
+# command once/if this is accepted is `mamba install r-popgenvcf`, not
+# `mamba install popgenVCF`; popgenVCF's own name/DESCRIPTION/GitHub
+# identity are unaffected -- only this conda channel entry is prefixed.
 package:
   name: r-popgenvcf
   version: {{ version }}
