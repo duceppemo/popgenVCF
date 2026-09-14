@@ -111,16 +111,33 @@ jobs:
             benchmark-release "${{ steps.baseline.outputs.path }}"
 
       - name: Package archive
+        # Runs even when the preceding R script failed its regression/budget
+        # gate checks: those stop() calls fire *after* the report and
+        # continuous-benchmark evidence files are already written to disk
+        # (see build_release_benchmark_archive.R), so the diagnostic files a
+        # failure needs to actually be root-caused already exist -- they were
+        # just never packaged or uploaded before, meaning every real check
+        # failure discarded its own evidence and had to be reproduced by hand
+        # from scratch. `|| true` on each tar call tolerates the rarer case
+        # where the R script crashed early enough that some of these files
+        # genuinely don't exist yet, so this step's own failure never masks
+        # the real one already recorded by the previous step.
+        if: always()
         shell: bash
         run: |
           tar -czf scientific-benchmark-archive.tar.gz \
-            -C benchmark-release archive
+            -C benchmark-release archive || true
           tar -czf scientific-regression-report.tar.gz \
-            -C benchmark-release report release_benchmark_summary.tsv
+            -C benchmark-release report release_benchmark_summary.tsv || true
           sha256sum scientific-benchmark-archive.tar.gz \
-            scientific-regression-report.tar.gz > scientific-release-SHA256SUMS.txt
+            scientific-regression-report.tar.gz > scientific-release-SHA256SUMS.txt || true
 
       - name: Upload workflow artifacts
+        # Also runs on failure, for the same reason as "Package archive"
+        # above -- if-no-files-found is "warn", not "error", so a genuinely
+        # early crash with nothing to upload doesn't add a second, unrelated
+        # failure on top of the real one.
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: scientific-release-${{ steps.identity.outputs.value }}
@@ -132,7 +149,9 @@ jobs:
             benchmark-release/report/regression_report.html
             benchmark-release/report/regression_report.qmd
             benchmark-release/report/release_comparison.tsv
-          if-no-files-found: error
+            benchmark-release/archive/continuous_benchmarks.tsv
+            benchmark-release/archive/continuous_benchmark_summary.md
+          if-no-files-found: warn
           retention-days: 90
 
       - name: Attach assets to GitHub Release
