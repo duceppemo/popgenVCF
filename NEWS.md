@@ -1,3 +1,5 @@
+# popgenVCF 1.0.13.9000 development
+
 # popgenVCF 1.0.13
 
 popgenVCF 1.0.13 is released. DOI [10.5281/zenodo.22754452](https://doi.org/10.5281/zenodo.22754452) (concept DOI [10.5281/zenodo.21747067](https://doi.org/10.5281/zenodo.21747067)), 2026-09-14. Published under the maintainer's own GitHub account directly, the first release since the `RELEASE_TOKEN` fix (see the 1.0.12 entry below): `container.yml` fired automatically on the real `release: published` event without the manual delete-and-recreate dance every prior release since `v1.0.0` needed, and Zenodo's GitHub integration deposited this release exactly once (no orphaned duplicate DOI, unlike `v1.0.10`-`v1.0.12`). Verified independently the same way as every prior release (raw Zenodo record API JSON matches `.zenodo.json`; both the version and concept DOIs resolve via real `doi.org` redirects). Reconciled the real DOI and publication date across `inst/metadata/software-identity.json`, `CITATION.cff`, `codemeta.json`, `.zenodo.json`, and `README.md`; `release_status` transitions from `development` to `released`.
