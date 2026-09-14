@@ -29,8 +29,14 @@ build:
   rpaths:
     - lib/R/lib/
     - lib/
+  # Real semantic versioning, not 0.x.x: popgenVCF's own public-API-contract
+  # check (inst/api-contract/) pins and re-verifies its exported R API on
+  # every single release, patch included, with zero drift across every
+  # release this project has ever cut -- API/ABI/CLI breakage is reserved
+  # for major-version bumps, matching the "semantic versioning" row of
+  # bioconda's own run_exports guidance table, not the "0.x.x" row.
   run_exports:
-    - {{ pin_subpackage("r-popgenvcf", max_pin="x.x") }}
+    - {{ pin_subpackage("r-popgenvcf", max_pin="x") }}
 
 requirements:
   build:
