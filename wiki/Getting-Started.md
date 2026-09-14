@@ -41,7 +41,9 @@ cd popgenVCF
 Rscript install_popgenVCF.R
 ```
 
-For Conda/Mamba or HPC, use [Deployment and Troubleshooting](Deployment-and-Troubleshooting).
+For Conda/Mamba or HPC, use [Deployment and Troubleshooting](Deployment-and-Troubleshooting)
+(a one-line `mamba install r-popgenvcf` via bioconda is planned but not yet
+available; a working Conda-based development-environment install is).
 
 ## 2. Prepare input
 

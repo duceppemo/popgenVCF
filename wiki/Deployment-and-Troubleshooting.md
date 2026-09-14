@@ -20,6 +20,24 @@ Full container guidance:
 
 ## Conda or Mamba
 
+### bioconda package (coming soon)
+
+A draft recipe (`packaging/bioconda/` in the repository) is prepared for
+submission to [bioconda](https://bioconda.github.io/), which would make
+installation as simple as:
+
+```bash
+mamba install -c bioconda -c conda-forge r-popgenvcf
+```
+
+**Not yet available.** The recipe has not been submitted, reviewed, or
+merged into `bioconda-recipes`, so this command does not work today --
+check [bioconda's own package search](https://bioconda.github.io/recipes.html)
+to confirm before relying on it. Use the development-environment path below
+until then.
+
+### Development environment (available today)
+
 ```bash
 conda config --set channel_priority strict
 mamba env create --file inst/conda/environment.yml
