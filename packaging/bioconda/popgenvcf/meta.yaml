@@ -1,14 +1,12 @@
-{% set version = "1.0.12" %}
-{% set sha256 = "09b6cb0e886f20ee1186d429ff3903fd9c71f9a495e66da2328a1a8da3b6e0fb" %}
+{% set version = "1.0.13" %}
+{% set sha256 = "1b15263af74ee40794367952a4306c92ae4638635140e1292555bac512b4c0e9" %}
 
-# This recipe targets the v1.0.12 GitHub Release tarball as a known-good
-# example. Before actually submitting to bioconda/bioconda-recipes, re-pin
-# `version` and `sha256` to the release the submission is meant to ship --
-# ideally the first release cut *after* commit 5110c76 (which shrank the
-# built source tarball from 64.7 MB to 22.0 MB by downsampling
-# vignettes/figures/*.png; v1.0.12 itself still carries the larger
-# pre-fix tarball). Get the sha256 for any release from its own
-# release-SHA256SUMS.txt asset, not by hashing a manually-downloaded copy.
+# v1.0.13 is the first release built from the shrunk source tarball
+# (commit 5110c76 downsampled vignettes/figures/*.png; 64.7 MB -> 22.0 MB).
+# sha256 taken from v1.0.13's own release-SHA256SUMS.txt asset and
+# independently re-verified by downloading popgenVCF_1.0.13.tar.gz itself
+# and hashing it directly -- both matched exactly
+# (1b15263af74ee40794367952a4306c92ae4638635140e1292555bac512b4c0e9).
 
 # Named r-popgenvcf, not popgenvcf: bioconda convention prefixes every R
 # package with `r-` (lowercase, like the package name itself), regardless
