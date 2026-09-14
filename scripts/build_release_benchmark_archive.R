@@ -147,6 +147,7 @@ write_regression_report(archive, report_dir, comparison = comparison, render = T
 # observation (and, when a matching prior exists, one comparison) is built
 # per requested dataset_tier.
 continuous_status <- "not-run"
+gating_continuous_status <- "not-run"
 git_sha_valid <- grepl("^[0-9a-f]{40}$", git_sha)
 if (git_sha_valid) {
   prior_continuous_path <- if (!is.na(baseline_dir) && dir.exists(baseline_dir)) {
@@ -205,6 +206,28 @@ if (git_sha_valid) {
   )
   status_rank <- c(passed = 1L, `no-baseline` = 2L, `insufficient-evidence` = 3L, failed = 4L)
   continuous_status <- names(status_rank)[max(status_rank[tier_status])]
+  # The "synthetic" tier's absolute runtime is sub-second (see
+  # release_performance_budget_for_tier()'s own comment on its already-loosened
+  # 1.5x/1.25x ratios), and confirmed in production to still occasionally hit
+  # noise well beyond even that margin on a shared GitHub Actions runner (a
+  # v1.0.13 release-cut run measured a ~7x runtime ratio against its own
+  # baseline with zero R code changed between the two releases -- reproduced
+  # locally on identical code for both releases, ruling out a real
+  # regression). It is excluded here from the release-gating decision for
+  # exactly the same reason new_performance_benchmark_spec() already sets
+  # gating = FALSE for its own (separate) golden/performance comparison of
+  # this identical measurement -- a sub-second wall-clock timing on shared CI
+  # infrastructure is not a sound basis to block a release. It still
+  # contributes to `continuous_status`/the written evidence above for
+  # visibility and trend history; only the stop()-triggering decision below
+  # excludes it. canonical/medium/large tiers run seconds-scale work where
+  # CI noise is proportionally negligible and keep gating normally.
+  gating_tier_status <- tier_status[setdiff(names(tier_status), "synthetic")]
+  gating_continuous_status <- if (length(gating_tier_status)) {
+    names(status_rank)[max(status_rank[gating_tier_status])]
+  } else {
+    "passed"
+  }
 } else {
   message("Skipping continuous_benchmarks evidence: git_sha is not a full Git SHA (", git_sha, ")")
 }
@@ -231,6 +254,6 @@ if (!is.null(golden) && identical(golden$status, "failed")) {
 if (!is.null(comparison) && identical(comparison$status, "failed")) {
   stop("release regression comparison failed", call. = FALSE)
 }
-if (identical(continuous_status, "failed")) {
+if (identical(gating_continuous_status, "failed")) {
   stop("continuous release benchmark comparison failed", call. = FALSE)
 }
