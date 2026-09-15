@@ -32,16 +32,28 @@ so every `r-*`/`bioconductor-*` package this recipe lists is already known to
 resolve and install correctly through the same `bioconda`/`conda-forge`
 channels.
 
-## If a new release needs re-pinning
+## Re-pinning to a new release
 
-`meta.yaml`'s `version`/`sha256` will need re-pinning if bioconda review asks
-for an update to a newer release before merging, or for any future version
-bump after this one lands. Get the sha256 from that release's own
-`release-SHA256SUMS.txt` asset (and independently re-verify by hashing a
-freshly downloaded copy of the actual tarball, not just trusting the
-manifest), then push the update to the same PR branch
-(`duceppemo/bioconda-recipes`, branch `add-r-popgenvcf`) if the PR is still
-open, or open a new `update r-popgenvcf` PR once it has merged.
+`meta.yaml`'s `version`/`sha256` needs re-pinning for every release after the
+one it currently targets -- easy to forget, since it's an out-of-band step
+`scripts/bump_release_version.R` cannot do inline (the new release's real
+GitHub Release assets don't exist yet at bump time). Two safeguards:
+
+1. **`scripts/bump_release_version.R` prints a loud reminder** on every
+   single version bump (cut or dev-resume) whenever this recipe's pinned
+   version has fallen behind the current release -- impossible to miss
+   without reading the script's own output, which the established release
+   process already requires reviewing for its self-check result.
+2. **`scripts/update_bioconda_recipe.R X.Y.Z`** does the actual re-pin once
+   that release's assets exist: fetches `release-SHA256SUMS.txt`,
+   independently re-verifies by downloading and hashing the real tarball
+   (never trusts the manifest alone), and rewrites only `meta.yaml`'s two
+   `{% set %}` lines. It deliberately does **not** touch the bioconda-recipes
+   fork or PR -- that stays a deliberate, reviewed action each time. After
+   running it: review the diff, re-lint if `bioconda-utils` is available,
+   commit this repository's copy, then push the update to the existing PR
+   branch (`duceppemo/bioconda-recipes`, branch `add-r-popgenvcf`) if still
+   open, or open a fresh `update r-popgenvcf` PR once it has merged.
 
 ## Deliberately lighter than the container image
 

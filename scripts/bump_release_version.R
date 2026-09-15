@@ -300,3 +300,36 @@ if (!identical(validate_status, 0L)) {
   stop("Self-check failed (scripts/validate_release_metadata.R exited ", validate_status, "); review the output above before committing.", call. = FALSE)
 }
 note("Self-check passed.")
+
+# --- bioconda recipe pin reminder -------------------------------------------
+# Deliberately a loud note, never a stop(): fixing a stale pin requires the
+# new release's real GitHub Release assets to exist (impossible before a
+# "cut" bump's own tag/build even runs) and requires re-reviewing/pushing an
+# external PR, neither of which this script should block an unrelated dev
+# cycle on. The point is to make forgetting the recipe genuinely hard, not
+# to force it to happen inline -- every single bump (cut or dev-resume) runs
+# this check, so a stale pin cannot pass silently through the release
+# process the way it briefly did before v1.0.13's own submission.
+bioconda_recipe_path <- at("packaging", "bioconda", "r-popgenvcf", "meta.yaml")
+if (file.exists(bioconda_recipe_path)) {
+  recipe_lines <- readLines(bioconda_recipe_path, warn = FALSE)
+  recipe_version_line <- grep('^\\{% set version = "[^"]*" %\\}$', recipe_lines, value = TRUE)
+  recipe_version <- if (length(recipe_version_line)) {
+    sub('^\\{% set version = "([^"]*)" %\\}$', "\\1", recipe_version_line[[1L]])
+  } else {
+    NA_character_
+  }
+  if (is.na(recipe_version) || !identical(recipe_version, stripped_version)) {
+    note(
+      paste0(
+        "\n*** bioconda recipe out of date: packaging/bioconda/r-popgenvcf/meta.yaml is pinned to %s, ",
+        "this release is %s. ***\n",
+        "  Once %s's real GitHub Release assets exist, run:\n",
+        "    Rscript scripts/update_bioconda_recipe.R %s\n",
+        "  then push the update to your bioconda-recipes PR (see packaging/bioconda/README.md)."
+      ),
+      if (is.na(recipe_version)) "(unparseable)" else recipe_version,
+      stripped_version, target_release, stripped_version
+    )
+  }
+}
