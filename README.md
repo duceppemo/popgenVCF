@@ -84,8 +84,8 @@ Rscript -e 'popgenVCF::cli_main(c("--write-config", "analysis.yml"))'
 Rscript -e 'popgenVCF::cli_main(c("--config", "analysis.yml"))'
 ```
 
-Conda/Mamba, Apptainer, HPC, ancestry-backend, and development installation
-paths are covered in the wiki.
+[Conda/Mamba](https://github.com/duceppemo/popgenVCF/wiki/Deployment-and-Troubleshooting#conda-or-mamba), [Apptainer](https://github.com/duceppemo/popgenVCF/wiki/Deployment-and-Troubleshooting#apptainer), [HPC](https://github.com/duceppemo/popgenVCF/wiki/Deployment-and-Troubleshooting#hpc),
+[ancestry-backend](https://github.com/duceppemo/popgenVCF/wiki/Deployment-and-Troubleshooting#ancestry-backends), and [development](https://github.com/duceppemo/popgenVCF/wiki/Developer-Guide#development-environment) installation paths are covered in the wiki.
 
 ## Documentation
 
