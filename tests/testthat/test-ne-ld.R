@@ -55,6 +55,48 @@ test_that("compute_ne_ld recovers a known true Ne from simulated drift, within a
   expect_gt(res$n_pairs, 0L)
 })
 
+test_that("ne_ld_one_population ignores NA pairs from a locus monomorphic within one population, instead of letting them poison the whole estimate", {
+  # Found on real production data: a locus can clear the pooled-cohort MAF
+  # filter yet still be fixed within one particular population subset, which
+  # makes snpgdsLDMat() return NA (correlation undefined, 0/0) for every
+  # cross-chromosome pair involving that locus in that population. Before
+  # this fix, mean(r2) with no na.rm turned any NA pairs into a single NaN
+  # for the *entire* population, discarding every valid pair's real signal
+  # and reporting Ne = Inf ("ok") -- a materially wrong result presented as
+  # valid, observed directly on real data where 18-84% of pairs were NA.
+  n <- 6L
+  n_loci <- 8L
+  set.seed(21L)
+  genmat <- matrix(sample(0:2, n * n_loci, replace = TRUE), nrow = n, ncol = n_loci)
+  genmat[, 1L] <- 0L # locus 1 fixed (homozygous reference) for every sample in this population
+
+  sample_id <- paste0("S", seq_len(n))
+  snp_id <- seq_len(n_loci)
+  gds_path <- tempfile(fileext = ".gds")
+  SNPRelate::snpgdsCreateGeno(
+    gds_path, genmat = genmat, sample.id = sample_id, snp.id = snp_id,
+    snp.chromosome = snp_id, snp.position = rep(1000L, n_loci),
+    snp.allele = rep("A/G", n_loci), snpfirstdim = FALSE
+  )
+  gds <- SNPRelate::snpgdsOpen(gds_path)
+  on.exit(SNPRelate::snpgdsClose(gds), add = TRUE)
+  ids <- popgenVCF:::get_gds_ids(gds)
+
+  res <- popgenVCF:::ne_ld_one_population(gds, sample_id, snp_id, ids, max_snps = 2000L, seed = 42L, min_pairs = 5L)
+
+  # The monomorphic locus contributes NA to every one of its 7 cross-locus
+  # pairs (each other locus is its own "chromosome" here); the fixed
+  # n_pairs must reflect only the valid, non-NA pairs actually averaged.
+  total_pairs <- choose(n_loci, 2L)
+  expect_lt(res$n_pairs, total_pairs)
+  expect_equal(res$n_pairs, total_pairs - (n_loci - 1L))
+  expect_true(is.finite(res$mean_r2))
+  expect_false(is.nan(res$mean_r2))
+  # harmonic_mean_n must be computed from the same pair set as mean_r2, not
+  # silently include the monomorphic locus's (also-NA) pair_n contribution.
+  expect_true(is.finite(res$harmonic_mean_n))
+})
+
 test_that("ne_ld_bias_correction matches the documented Waples (2006) piecewise formula", {
   expect_equal(popgenVCF:::ne_ld_bias_correction(20), 0.0018 + 0.907 / 20 + 4.44 / 20^2)
   expect_equal(popgenVCF:::ne_ld_bias_correction(50), 1 / 50)

@@ -66,11 +66,28 @@ ne_ld_one_population <- function(gds, pop_sample_ids, snp_ids, ids, max_snps, se
 
   cross_chromosome <- outer(chromosome_z, chromosome_z, `!=`)
   include <- cross_chromosome & upper.tri(z$LD)
-  n_pairs <- sum(include)
-  if (n_pairs < min_pairs) return(insufficient("too_few_unlinked_pairs"))
 
+  # snpgdsLDMat() returns NA for a pair where either locus is monomorphic
+  # within this specific population subset (the correlation is undefined,
+  # 0/0) -- routine for a real, structured population, not a fixture edge
+  # case: a locus can clear the pooled-cohort MAF filter yet still be fixed
+  # in one particular subgroup. Found on real production data where 18-84%
+  # of candidate pairs were NA across every population in the run, including
+  # a 32-sample one -- mean(r2) without na.rm silently turned that partial
+  # missingness into a single NaN, discarding every valid pair's real signal
+  # and reporting Ne = Inf ("ok") instead of the genuine finite estimate the
+  # valid pairs alone would have produced. harmonic_mean_n must be computed
+  # from the exact same pair set actually averaged into mean_r2, or the two
+  # quantities combined in the bias-correction formula below would no longer
+  # describe the same sample of pairs.
   r2 <- (z$LD[include])^2
   pair_n <- outer(n_called_z, n_called_z, pmin)[include]
+  valid <- !is.na(r2)
+  n_pairs <- sum(valid)
+  if (n_pairs < min_pairs) return(insufficient("too_few_unlinked_pairs"))
+  r2 <- r2[valid]
+  pair_n <- pair_n[valid]
+
   harmonic_mean_n <- length(pair_n) / sum(1 / pair_n)
   mean_r2 <- mean(r2)
   r2_drift <- mean_r2 - ne_ld_bias_correction(harmonic_mean_n)
