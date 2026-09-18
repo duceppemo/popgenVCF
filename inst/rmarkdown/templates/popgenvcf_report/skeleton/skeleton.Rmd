@@ -268,7 +268,7 @@ report_figure_family_catalog <- function() {
       "locus-resampling bootstrap support at each internal node ",
       "(Felsenstein 1985)."
     )),
-    list(pattern = "^(11_DAPC_K|12_DAPC_cluster_number_selection|12b_DAPC_xval|14_DAPC_membership|15_DAPC_loadings|16_DAPC_loadings|22e_DAPC_K_selection)", heading = "Discriminant analysis of principal components (DAPC)", note = paste0(
+    list(pattern = "^(11_DAPC_K|12_DAPC_cluster_number_selection|12b_DAPC_xval|14_DAPC_membership|15_DAPC_loadings|16_DAPC_loadings)", heading = "Discriminant analysis of principal components (DAPC)", note = paste0(
       "For a chosen number of clusters K, DAPC maximizes between-group ",
       "separation given the genotype data. Because the same data both ",
       "defines the groups and is then shown separated by them, strong ",
@@ -284,13 +284,13 @@ report_figure_family_catalog <- function() {
       "spatial process and can be sensitive to autocorrelation or ",
       "clustered sampling."
     )),
-    list(pattern = "^(13_ADMIXTURE_CV|13b_ADMIXTURE_cluster_number_selection|27b_ADMIXTURE_K_selection|14_ADMIXTURE_Q)", heading = "ADMIXTURE ancestry model", note = paste0(
+    list(pattern = "^(13_ADMIXTURE_CV|13b_ADMIXTURE_cluster_number_selection|14_ADMIXTURE_Q)", heading = "ADMIXTURE ancestry model", note = paste0(
       "K is a model index for the best-fitting number of mixture ",
       "components, not a literal count of ancestral populations -- colored ",
       "cluster components need independent evidence (geography, pedigree, ",
       "known biology) before being read as historical populations."
     )),
-    list(pattern = "^(13c_sNMF_cluster_number_selection|30b_sNMF_K_selection|14_sNMF_Q)", heading = "sNMF ancestry model", note = paste0(
+    list(pattern = "^(13c_sNMF_cluster_number_selection|14_sNMF_Q)", heading = "sNMF ancestry model", note = paste0(
       "A sparse non-negative matrix factorization fit, independent of ",
       "ADMIXTURE/fastStructure's likelihood model. K is a model index, not ",
       "a literal count of ancestral populations; the three ancestry ",
@@ -299,7 +299,7 @@ report_figure_family_catalog <- function() {
       "backends illustrate computational agreement, or its absence, not a ",
       "contradiction to resolve."
     )),
-    list(pattern = "^(13d_fastStructure_cluster_number_selection|29b_fastStructure_K_selection|14_fastStructure_Q)", heading = "fastStructure ancestry model", note = paste0(
+    list(pattern = "^(13d_fastStructure_cluster_number_selection|14_fastStructure_Q)", heading = "fastStructure ancestry model", note = paste0(
       "Fits the same underlying admixture model as ADMIXTURE via a ",
       "different optimizer. Agreement between the two on both K and ",
       "per-sample cluster membership is stronger evidence of real signal ",

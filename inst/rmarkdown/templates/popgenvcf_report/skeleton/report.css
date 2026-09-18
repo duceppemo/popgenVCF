@@ -102,15 +102,19 @@ table tbody tr:hover td {
 }
 /* Wide result tables (PCA scores, DAPC loadings) must scroll within
    themselves rather than forcing the whole report body to scroll
-   sideways. */
+   sideways. `display: block` on the table alone is enough for that --
+   an earlier version of this rule additionally set `display: table` on
+   thead/tbody/tr individually, which was wrong: that makes every <tr>
+   establish its own independent table-layout formatting context, so
+   column widths get computed per row instead of shared down the
+   column, and no two rows end up aligned. Confirmed directly
+   (headless-Chrome measurement) against a real 5-column table: header
+   cell widths and body-row cell widths did not match, on any row.
+   Removing the thead/tbody/tr rule keeps the single shared column
+   grid `table { display: block }` alone doesn't disturb. */
 table {
   display: block;
   overflow-x: auto;
-}
-thead, tbody, tr {
-  display: table;
-  width: 100%;
-  table-layout: auto;
 }
 
 /* report_note() (skeleton.Rmd) emits each section's "what this measures"
