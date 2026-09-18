@@ -205,6 +205,224 @@ report_note <- function(note) {
   invisible(TRUE)
 }
 
+# Groups the figure gallery's flat, numerically-ordered file list into the
+# same named modules the table sections above already explain, purely by
+# matching each figure's stem (report_figure_inventory()'s own caption
+# source) against a fixed, ordered pattern catalog -- first match wins, so
+# more specific patterns (e.g. the four per-backend ancestry-model families,
+# which all otherwise share a "14_..._Q_K<k>" shape) are listed before their
+# broader neighbours. Every stem pattern here is taken directly from the
+# real `save_plot()`/`sprintf()` call sites across R/*.R, not guessed, so a
+# renamed or newly added figure stem needs a matching catalog entry added
+# here too -- an unmatched stem is not an error, it simply gets no heading
+# or note (the same bare figure output this gallery already had before this
+# catalog existed), so a gap here never blocks the report from rendering.
+report_figure_family_catalog <- function() {
+  list(
+    list(pattern = "^0[1-4]_", heading = "Quality control", note = paste0(
+      "Sample and SNP counts, and the distributions behind the MAF and ",
+      "missingness thresholds, through each stage of filtering. A final ",
+      "retained count alone cannot show which rule removed what."
+    )),
+    list(pattern = "^(05_sample_heterozygosity|06_population_diversity|19_HWE_pvalues|44_allelic_richness)", heading = "Genetic diversity", note = paste0(
+      "Observed/expected heterozygosity, Hardy-Weinberg exact-test ",
+      "p-values, and rarefied allelic richness by population. A significant ",
+      "HWE deviation, or an imbalance between observed and expected ",
+      "heterozygosity, has many non-error causes (technical artifacts, ",
+      "substructure, inbreeding, selection) and is descriptive, not an ",
+      "automatic exclusion criterion."
+    )),
+    list(pattern = "^(06b_PCA_Tracy_Widom|07b?_PCA_PC|17_PCA_loadings|18_PCA_loadings)", heading = "Principal component analysis", note = paste0(
+      "Unsupervised ordination of the genotype matrix; each retained axis ",
+      "is a direction of maximal variance, not a population. Separation ",
+      "along an axis can reflect population history, relatedness, batch ",
+      "effects, geography, or sampling design -- corroborate with other ",
+      "structure-detecting results before drawing conclusions. Axis sign is ",
+      "arbitrary and can flip without changing the underlying solution."
+    )),
+    list(pattern = "^(08_IBS_MDS|09_IBS_heatmap|52_IBS_tree)", heading = "Identity-by-state and individual relationships", note = paste0(
+      "Identity-by-state (IBS) is a simpler, symmetric similarity measure ",
+      "than kinship below: the fraction of alleles shared between every ",
+      "pair of samples, with no explicit relatedness model behind it. These ",
+      "views describe overall similarity structure, not directional ",
+      "ancestry or a specific relatedness degree."
+    )),
+    list(pattern = "^55_ML_tree", heading = "Maximum-likelihood phylogenetic tree", note = paste0(
+      "A genuine maximum-likelihood alternative to the neighbour-joining ",
+      "tree above: GTR substitution rates, gamma-distributed among-site ",
+      "rate variation, and a Lewis (2001) ascertainment-bias correction for ",
+      "SNP-only data (no invariant sites are ever recorded in a VCF), ",
+      "jointly optimized with the topology. Bootstrap support at each node ",
+      "uses the same resampling procedure and interpretation as the NJ tree."
+    )),
+    list(pattern = "^(10_pairwise_FST|51_population_specific_fst)", heading = "Population differentiation (FST)", note = paste0(
+      "Weir-Cockerham FST, pairwise and population-specific (beta). FST ",
+      "depends on population definitions, sample size, marker ",
+      "ascertainment, missingness, and the genomic region analyzed -- state ",
+      "the estimator explicitly whenever a value here is reported elsewhere."
+    )),
+    list(pattern = "^53_population_tree", heading = "Population genetic distance and tree", note = paste0(
+      "Nei's (1972) standard genetic distance between populations, computed ",
+      "from allele frequencies -- a population-level counterpart to the ",
+      "individual-level IBS view above. The neighbour-joining tree carries ",
+      "locus-resampling bootstrap support at each internal node ",
+      "(Felsenstein 1985)."
+    )),
+    list(pattern = "^(11_DAPC_K|12_DAPC_cluster_number_selection|12b_DAPC_xval|14_DAPC_membership|15_DAPC_loadings|16_DAPC_loadings|22e_DAPC_K_selection)", heading = "Discriminant analysis of principal components (DAPC)", note = paste0(
+      "For a chosen number of clusters K, DAPC maximizes between-group ",
+      "separation given the genotype data. Because the same data both ",
+      "defines the groups and is then shown separated by them, strong ",
+      "visual separation is not independent confirmation that those groups ",
+      "are real populations -- corroborate with a model-based ancestry ",
+      "method or kinship before drawing that conclusion."
+    )),
+    list(pattern = "^12_isolation_by_distance", heading = "Mantel test and isolation by distance", note = paste0(
+      "Tests whether genetic distance increases with geographic distance ",
+      "(Mantel test, with a partial-Mantel variant controlling for ",
+      "population membership when metadata allows; Smouse, Long & Sokal ",
+      "1986). A significant association does not establish a causal ",
+      "spatial process and can be sensitive to autocorrelation or ",
+      "clustered sampling."
+    )),
+    list(pattern = "^(13_ADMIXTURE_CV|13b_ADMIXTURE_cluster_number_selection|27b_ADMIXTURE_K_selection|14_ADMIXTURE_Q)", heading = "ADMIXTURE ancestry model", note = paste0(
+      "K is a model index for the best-fitting number of mixture ",
+      "components, not a literal count of ancestral populations -- colored ",
+      "cluster components need independent evidence (geography, pedigree, ",
+      "known biology) before being read as historical populations."
+    )),
+    list(pattern = "^(13c_sNMF_cluster_number_selection|30b_sNMF_K_selection|14_sNMF_Q)", heading = "sNMF ancestry model", note = paste0(
+      "A sparse non-negative matrix factorization fit, independent of ",
+      "ADMIXTURE/fastStructure's likelihood model. K is a model index, not ",
+      "a literal count of ancestral populations; the three ancestry ",
+      "backends are run independently and are not averaged or otherwise ",
+      "reconciled by default -- differing consensus K values across ",
+      "backends illustrate computational agreement, or its absence, not a ",
+      "contradiction to resolve."
+    )),
+    list(pattern = "^(13d_fastStructure_cluster_number_selection|29b_fastStructure_K_selection|14_fastStructure_Q)", heading = "fastStructure ancestry model", note = paste0(
+      "Fits the same underlying admixture model as ADMIXTURE via a ",
+      "different optimizer. Agreement between the two on both K and ",
+      "per-sample cluster membership is stronger evidence of real signal ",
+      "than either result alone; K itself remains a model index, not a ",
+      "literal count of ancestral populations."
+    )),
+    list(pattern = "^20_private_alleles", heading = "Private alleles", note = paste0(
+      "Alleles observed in exactly one retained population. Presence here ",
+      "describes allele-frequency structure; it is not, by itself, ",
+      "evidence of adaptive significance or of any particular demographic ",
+      "history."
+    )),
+    list(pattern = "^(21_kinship_heatmap|22_kinship_IBS0)", heading = "Kinship", note = paste0(
+      "Pairwise relatedness (KING-robust kinship, Manichaikul et al. ",
+      "2010), specifically robust to population stratification. This is a ",
+      "continuous relatedness screen, not a certified pedigree or an ",
+      "exact-genotype-identity test -- see multilocus genotype diversity ",
+      "below for that stricter, independent check."
+    )),
+    list(pattern = "^(23_ROH|24b?_ROH)", heading = "Runs of homozygosity", note = paste0(
+      "Runs of homozygosity (`bcftools roh`, an HMM-based method; ",
+      "Narasimhan et al. 2016) -- a per-sample autozygosity/inbreeding ",
+      "signal, distinct from both the population-level inbreeding ",
+      "coefficient and pairwise kinship. `FROH` is scaled to the genomic ",
+      "footprint actually covered by the analyzed variants, not the whole ",
+      "genome -- never compare FROH across analyses covering different ",
+      "genomic spans."
+    )),
+    list(pattern = "^(25_genome_scan_FST|26b?_genome_scan)", heading = "Genome scans", note = paste0(
+      "Windowed FST, diversity, and Tajima's D along physical position -- a ",
+      "descriptive ranking, not a significance test: no permutation or null ",
+      "distribution is computed. A high-FST window is a candidate worth ",
+      "further investigation, not a confirmed selection signal, and ",
+      "Tajima's D is systematically biased upward by MAF filtering, which ",
+      "removes rare variants before this scan ever sees them."
+    )),
+    list(pattern = "^43_LD_decay", heading = "Linkage disequilibrium decay", note = paste0(
+      "Mean pairwise genotypic correlation (r-squared) between SNPs, ",
+      "binned by physical distance, computed on the unpruned marker set -- ",
+      "the LD-pruned set used elsewhere would systematically understate how ",
+      "far real LD extends."
+    )),
+    list(pattern = "^45_Ne_LD", heading = "LD-based effective population size", note = paste0(
+      "Contemporary effective population size per population, estimated ",
+      "from linkage disequilibrium between cross-chromosome, effectively ",
+      "unlinked SNP pairs (Waples 2006; Waples & Do 2008). A single point ",
+      "estimate carries real sampling variance -- read it as ",
+      "order-of-magnitude, not exact."
+    )),
+    list(pattern = "^47_population_assignment", heading = "Population assignment test", note = paste0(
+      "A frequency-based self-assignment test (Paetkau et al. 1995, 2004; ",
+      "Rannala & Mountain 1997 leave-one-out correction): each sample's ",
+      "genotype is scored against every population's own allele ",
+      "frequencies and assigned to whichever maximizes that likelihood. A ",
+      "sample whose assigned population differs from its recorded label is ",
+      "a candidate migrant or a metadata question, not an automatic ",
+      "correction of the record."
+    )),
+    list(pattern = "^48_site_frequency_spectrum", heading = "Site frequency spectrum and bottleneck screen", note = paste0(
+      "Bins each population's segregating loci by folded minor allele ",
+      "frequency; the accompanying mode-shift test (Luikart & Cornuet ",
+      "1998) flags a possible recent-bottleneck signature. This is a ",
+      "qualitative screen, not a confirmed bottleneck, and is sensitive to ",
+      "MAF filtering -- interpret it alongside the QC thresholds used for ",
+      "this run."
+    )),
+    list(pattern = "^50_spatial_autocorrelation", heading = "Spatial autocorrelation", note = paste0(
+      "Bins sample pairs into geographic-distance classes and reports a ",
+      "spatial-autocorrelation coefficient per class (Smouse & Peakall ",
+      "1999), with a permutation-based null envelope -- a ",
+      "distance-resolved complement to the single overall Mantel r above, ",
+      "showing whether an isolation-by-distance signal concentrates at ",
+      "particular spatial scales. Coarse or population-level-only ",
+      "coordinates can leave short distance classes empty or ",
+      "underpopulated; read those classes cautiously."
+    )),
+    list(pattern = "^59_pcadapt_manhattan", heading = "pcadapt outlier scan", note = paste0(
+      "A genuine per-locus statistical outlier test for local adaptation ",
+      "(Luu et al. 2016), computed on the full unpruned marker set and ",
+      "needing no population metadata. In strongly structured samples a ",
+      "large fraction of loci can appear significant from ordinary ",
+      "genome-wide drift alone, not necessarily localized selection -- ",
+      "check whether significant loci cluster into a handful of linked ",
+      "windows before over-interpreting the count."
+    )),
+    list(pattern = "^27_sex_check", heading = "Sex check", note = paste0(
+      "Genetic sex inferred from X-chromosome heterozygosity and ",
+      "Y-chromosome call rate, compared against any reported `sex` ",
+      "metadata. When both signals are available and agree, that is a ",
+      "high-confidence call; when they confidently disagree the combined ",
+      "status is `discordant` -- real, informative evidence, not noise to ",
+      "average away."
+    )),
+    list(pattern = "^(58_genotype_accumulation_curve|58b_MSN_network)", heading = "Multilocus genotype (MLG) and clonal diversity", note = paste0(
+      "Multilocus genotype identity and clonal-diversity statistics ",
+      "(`poppr`; Kamvar, Tabima & Grunwald 2014), computed on the full, ",
+      "unpruned QC-passing marker set for maximum discriminating power. ",
+      "Because it requires identity at every locus in a large marker ",
+      "panel, ordinary genotyping error can make even truly related or ",
+      "clonal individuals fail this exact match -- a sparse network or a ",
+      "flat accumulation curve does not by itself contradict a ",
+      "relatedness-based lineage signal found elsewhere in this report."
+    )),
+    list(pattern = "^60_sexbias_AIc", heading = "Sex-biased dispersal test", note = paste0(
+      "Tests whether one recorded sex disperses more than the other, using ",
+      "each individual's assignment index (AIc; Favre et al. 1997) -- how ",
+      "strongly their genotype matches their own recorded population, ",
+      "corrected for sample size (Goudet, Perrin & Waser 2002). This test ",
+      "was designed for single-species, dispersal-focused sampling with ",
+      "reproductive-age individuals genotyped at natal versus breeding ",
+      "location; a null result from data collected for another purpose is ",
+      "expected, not necessarily evidence against sex-biased dispersal."
+    ))
+  )
+}
+
+report_figure_family <- function(stem, catalog) {
+  for (entry in catalog) {
+    if (grepl(entry$pattern, stem)) return(entry)
+  }
+  NULL
+}
+
 report_table_section <- function(title, table, digits = NULL, level = 1L, note = NULL) {
   # A genuinely zero-column table (write_chromosome_results() returns a bare
   # data.table() when no chromosome met chromosome_min_snps) is not NULL,
@@ -596,11 +814,24 @@ vector PDF source for each figure. Original files remain available in the
 sibling `figures/` directory.
 
 ```{r figure-gallery, results='asis'}
+figure_family_catalog <- report_figure_family_catalog()
+current_figure_family <- NULL
+report_figure_family_heading <- function(stem) {
+  family <- report_figure_family(stem, figure_family_catalog)
+  key <- if (is.null(family)) NA_character_ else family$heading
+  if (identical(key, current_figure_family)) return(invisible(FALSE))
+  current_figure_family <<- key
+  if (is.null(family)) return(invisible(FALSE))
+  report_heading(family$heading, level = 2L)
+  report_note(family$note)
+  invisible(TRUE)
+}
 if (is.null(report_figures) || !nrow(report_figures)) {
   cat("No figure files were found. Configure `output.figure_formats` to include `pdf`, `png`, or `svg`, then regenerate the report.\n")
 } else if (knitr::is_html_output()) {
   for (i in seq_len(nrow(report_figures))) {
     figure <- report_figures[i, , drop = FALSE]
+    report_figure_family_heading(figure$stem[[1L]])
     caption <- html_escape(figure$caption[[1L]])
     filename <- html_escape(basename(figure$path[[1L]]))
     uri <- knitr::image_uri(figure$path[[1L]])
@@ -631,6 +862,7 @@ if (is.null(report_figures) || !nrow(report_figures)) {
 } else {
   for (i in seq_len(nrow(report_figures))) {
     figure <- report_figures[i, , drop = FALSE]
+    report_figure_family_heading(figure$stem[[1L]])
     caption <- figure$caption[[1L]]
     path <- gsub(" ", "%20", figure$path[[1L]], fixed = TRUE)
     cat(sprintf(
