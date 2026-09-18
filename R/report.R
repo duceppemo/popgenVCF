@@ -214,7 +214,33 @@ report_pdf_preamble <- function() {
     "}{",
     "  \\endoldfigure",
     "}",
-    "\\newsavebox{\\pgvcftablebox}"
+    "\\newsavebox{\\pgvcftablebox}",
+    # Cosmetic-only additions below, kept strictly separate from the table/
+    # figure hardening above: xcolor/titlesec/framed are common, widely
+    # available packages (already implicitly required alongside
+    # booktabs/longtable/float on any working popgenVCF PDF-rendering
+    # install) that only affect section-heading color/spacing and the
+    # report_note() (skeleton.Rmd) methods-callout box below -- neither
+    # touches page geometry in a way that could shift the \ht+\dp table
+    # height threshold report_kable_render() (skeleton.Rmd) measures
+    # against, since that threshold is relative to \textheight, not to
+    # preceding content.
+    "\\usepackage{xcolor}",
+    "\\definecolor{pgvcfaccent}{HTML}{2E5C4D}",
+    "\\definecolor{pgvcfnote}{HTML}{EEF3F7}",
+    "\\definecolor{pgvcfnoteline}{HTML}{9DB6C9}",
+    "\\usepackage{titlesec}",
+    "\\titleformat{\\section}{\\normalfont\\Large\\bfseries\\color{pgvcfaccent}}{\\thesection}{0.6em}{}",
+    "\\titleformat{\\subsection}{\\normalfont\\large\\bfseries\\color{pgvcfaccent}}{\\thesubsection}{0.6em}{}",
+    "\\usepackage{framed}",
+    "\\definecolor{shadecolor}{HTML}{EEF3F7}",
+    "\\let\\oldquote\\quote",
+    "\\let\\endoldquote\\endquote",
+    "\\renewenvironment{quote}{",
+    "  \\begin{shaded}\\itshape\\small\\oldquote",
+    "}{",
+    "  \\endoldquote\\end{shaded}",
+    "}"
   ), path)
   path
 }

@@ -1,14 +1,151 @@
+/* Layered on top of rmarkdown::html_document's default Bootstrap 3 theme
+   (toc_float, number_sections) -- never assume a bare page, only add to or
+   override specific Bootstrap rules, since removing the base theme would
+   also break the floating TOC's own JS-driven positioning. */
+
+:root {
+  --pgvcf-accent: #2e5c4d;
+  --pgvcf-accent-soft: #eaf1ec;
+  --pgvcf-ink: #22281f;
+  --pgvcf-ink-soft: #58604f;
+  --pgvcf-border: #dedcce;
+  --pgvcf-note-bg: #eef3f7;
+  --pgvcf-note-border: #9db6c9;
+  --pgvcf-note-ink: #33475a;
+}
+
+body {
+  font-family: "Helvetica Neue", Helvetica, Arial, "Segoe UI", sans-serif;
+  color: var(--pgvcf-ink);
+  line-height: 1.65;
+}
+
+#TOC {
+  font-size: 13px;
+}
+.tocify .tocify-header {
+  font-weight: 700;
+}
+.tocify-item > a {
+  color: var(--pgvcf-ink-soft);
+}
+.tocify-focus > a,
+.tocify-item > a:hover {
+  color: var(--pgvcf-accent);
+}
+
+h1.title {
+  font-weight: 700;
+  color: var(--pgvcf-accent);
+  border-bottom: 3px solid var(--pgvcf-accent);
+  padding-bottom: 0.3em;
+}
+.author, .date {
+  color: var(--pgvcf-ink-soft);
+}
+
+/* number_sections already prefixes headings with "1", "1.1", etc.; this
+   restyles those same headings rather than adding new numbering. */
+h1, h2, h3, h4 {
+  font-weight: 600;
+  color: var(--pgvcf-ink);
+}
+h1 {
+  margin-top: 2.2em;
+  padding-top: 0.4em;
+  border-top: 1px solid var(--pgvcf-border);
+  color: var(--pgvcf-accent);
+}
+h1:first-of-type {
+  border-top: none;
+}
+h2 {
+  color: var(--pgvcf-accent);
+}
+
 /* report_kable()'s HTML branch renders knitr::kable(format = "pipe") output
    through pandoc's default markdown-table conversion, which emits a bare
    <table> with no class attribute -- none of the bootstrap theme's own
    `.table` styling (borders, header rule) applies to it, so every table in
-   the HTML report rendered with no visible border at all, unlike the PDF
-   report's booktabs top/bottom rules (knitr::kable(..., booktabs = TRUE)).
-   Confirmed directly against a real production report: 30 <table> tags, all
-   bare, no class. This restores the same top/bottom-rule convention for the
-   HTML report without adding a kableExtra dependency just for table
-   borders. */
+   the HTML report previously rendered with no visible border at all, unlike
+   the PDF report's booktabs top/bottom rules (knitr::kable(...,
+   booktabs = TRUE)). Confirmed directly against a real production report:
+   30+ <table> tags, all bare, no class. This gives every table a
+   full, readable border/stripe/hover treatment without adding a
+   kableExtra dependency just for table styling. */
 table {
-  border-top: 2px solid #333333;
-  border-bottom: 2px solid #333333;
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0 1.6em;
+  font-size: 13.5px;
+}
+table th, table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--pgvcf-border);
+  text-align: left;
+}
+table th {
+  background: var(--pgvcf-accent-soft);
+  color: var(--pgvcf-accent);
+  font-weight: 700;
+  border-top: 2px solid var(--pgvcf-accent);
+  border-bottom: 2px solid var(--pgvcf-accent);
+}
+table tr:last-child td {
+  border-bottom: 2px solid var(--pgvcf-accent);
+}
+table tbody tr:nth-child(even) td {
+  background: rgba(0, 0, 0, 0.018);
+}
+table tbody tr:hover td {
+  background: var(--pgvcf-accent-soft);
+}
+/* Wide result tables (PCA scores, DAPC loadings) must scroll within
+   themselves rather than forcing the whole report body to scroll
+   sideways. */
+table {
+  display: block;
+  overflow-x: auto;
+}
+thead, tbody, tr {
+  display: table;
+  width: 100%;
+  table-layout: auto;
+}
+
+/* report_note() (skeleton.Rmd) emits each section's "what this measures"
+   text as a markdown blockquote specifically so it degrades sensibly in
+   the PDF report too (a LaTeX quote environment) -- restyled here as a
+   distinct callout so it reads as a methods note, not a quotation. */
+blockquote {
+  background: var(--pgvcf-note-bg);
+  border-left: 4px solid var(--pgvcf-note-border);
+  border-radius: 3px;
+  color: var(--pgvcf-note-ink);
+  padding: 0.7em 1.1em;
+  margin: 0.6em 0 1.4em;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+blockquote p {
+  margin: 0;
+}
+blockquote code {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+code {
+  color: #6a4a2c;
+  background: rgba(0, 0, 0, 0.045);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+figure, figcaption {
+  margin: 2em 0;
+}
+figcaption {
+  color: var(--pgvcf-ink-soft);
+  font-size: 13px;
 }

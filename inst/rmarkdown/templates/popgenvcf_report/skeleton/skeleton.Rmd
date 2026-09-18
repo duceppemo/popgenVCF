@@ -183,14 +183,37 @@ report_kable <- function(table, digits = NULL) {
   invisible(TRUE)
 }
 
-report_table_section <- function(title, table, digits = NULL, level = 1L) {
+report_heading <- function(title, level = 1L) {
+  cat(strrep("#", level), " ", title, "\n\n", sep = "")
+}
+
+# A single-paragraph, data-independent explanation of what a section's test
+# or statistic measures and what it does and doesn't support concluding --
+# the same kind of framing wiki/Results-and-Interpretation.md gives each
+# method, reused here so every rendered report carries it, not only the
+# wiki. Emitted as a markdown blockquote: portable to both html_document
+# (default Bootstrap already styles blockquote as an indented callout) and
+# pdf_document (a LaTeX quote environment; report_pdf_preamble() below adds
+# a left rule and muted color to match). `note` must be a single line (no
+# embedded "\n") -- markdown blockquote syntax requires each line of a
+# multi-line quote to carry its own leading "> ", which a raw embedded
+# newline would not have, silently breaking the quote into a separate
+# paragraph outside it.
+report_note <- function(note) {
+  if (is.null(note) || !nzchar(note)) return(invisible(FALSE))
+  cat("> ", note, "\n\n", sep = "")
+  invisible(TRUE)
+}
+
+report_table_section <- function(title, table, digits = NULL, level = 1L, note = NULL) {
   # A genuinely zero-column table (write_chromosome_results() returns a bare
   # data.table() when no chromosome met chromosome_min_snps) is not NULL,
   # but knitr::kable(format="latex") on it emits \begin{tabular}{} -- an
   # empty column spec that is invalid LaTeX and hard-crashes the PDF
   # compile. length() on a data.frame/data.table is its column count.
   if (is.null(table) || !length(table)) return(invisible(FALSE))
-  cat(strrep("#", level), " ", title, "\n\n", sep = "")
+  report_heading(title, level)
+  report_note(note)
   report_kable(table, digits)
   invisible(TRUE)
 }
@@ -223,8 +246,25 @@ if (!is.null(r$fst$global) && length(r$fst$global) &&
     r$fst$global[[1L]]
   ))
 }
-report_table_section("Quality control", r$qc$sequential, digits = 2)
-report_table_section("Genetic diversity", r$diversity$population, digits = 4)
+report_table_section(
+  "Quality control", r$qc$sequential, digits = 2,
+  note = paste0(
+    "Sample and SNP counts retained after each filtering stage, in sequence -- ",
+    "a final count alone cannot show which rule removed what. Filtering ",
+    "thresholds should be set before looking at population patterns, not ",
+    "fitted afterward to produce a preferred result."
+  )
+)
+report_table_section(
+  "Genetic diversity", r$diversity$population, digits = 4,
+  note = paste0(
+    "Per-population expected/observed heterozygosity and the inbreeding ",
+    "coefficient F. A negative or positive F does not identify a cause by ",
+    "itself -- technical artifacts, population substructure, inbreeding, and ",
+    "selection can all produce a similar signature; treat this table as a ",
+    "starting point for further investigation, not a conclusion."
+  )
+)
 private_alleles <- NULL
 if (!is.null(r$diversity$locus)) {
   pa <- r$diversity$locus[
@@ -234,11 +274,28 @@ if (!is.null(r$diversity$locus)) {
   ]
   if (nrow(pa)) private_alleles <- head(pa, 20)
 }
-report_table_section("Private alleles (up to 20 shown; see 32_private_alleles.tsv for the complete list)", private_alleles)
+report_table_section(
+  "Private alleles (up to 20 shown; see 32_private_alleles.tsv for the complete list)",
+  private_alleles,
+  note = paste0(
+    "Alleles observed in exactly one retained population. Presence here ",
+    "describes allele-frequency structure; it is not, by itself, evidence ",
+    "of adaptive significance or of any particular demographic history."
+  )
+)
 report_table_section(
   "Principal component analysis",
   if (!is.null(r$pca$scores)) head(r$pca$scores, 20) else NULL,
-  digits = 4
+  digits = 4,
+  note = paste0(
+    "Unsupervised ordination of the genotype matrix; each retained axis is a ",
+    "direction of maximal variance, not a population. Separation along an ",
+    "axis can reflect population history, relatedness, batch effects, ",
+    "geography, or sampling design -- corroborate with other ",
+    "structure-detecting results (kinship, clustering, FST) before drawing ",
+    "conclusions. Axis sign is arbitrary and can flip without changing the ",
+    "underlying solution."
+  )
 )
 pca_loadings_top <- NULL
 if (!is.null(r$pca$loadings) && nrow(r$pca$loadings)) {
@@ -246,9 +303,25 @@ if (!is.null(r$pca$loadings) && nrow(r$pca$loadings)) {
 }
 report_table_section(
   "PCA SNP loadings (top 20 by |loading|; see 31_PCA_loadings.tsv for the complete top-N list)",
-  pca_loadings_top, digits = 4
+  pca_loadings_top, digits = 4,
+  note = paste0(
+    "Ranks SNPs by how strongly they correlate with each retained PCA axis, ",
+    "by magnitude rather than raw value. A large loading identifies a marker ",
+    "associated with an axis, not a causal or functionally validated ",
+    "variant -- treat it as a lead for further investigation, not a conclusion."
+  )
 )
-report_table_section("Population differentiation", r$fst$long, digits = 4)
+report_table_section(
+  "Population differentiation", r$fst$long, digits = 4,
+  note = paste0(
+    "Weir-Cockerham FST, global and pairwise, with Wright's (1931) Nm ",
+    "gene-flow estimate alongside it as a direct transform of the same ",
+    "value. FST depends on population definitions, sample size, marker ",
+    "ascertainment, missingness, and the genomic region analyzed -- state ",
+    "the estimator explicitly whenever a value from this table is reported ",
+    "elsewhere."
+  )
+)
 population_distance_table <- NULL
 if (!is.null(r$population_tree$distance) && nrow(r$population_tree$distance)) {
   population_distance_table <- as.data.frame(r$population_tree$distance)
@@ -257,11 +330,26 @@ if (!is.null(r$population_tree$distance) && nrow(r$population_tree$distance)) {
 }
 report_table_section(
   "Nei's standard genetic distance between populations (see 46_population_genetic_distance.tsv; a neighbour-joining tree with bootstrap support at each node, alongside the individual-level IBS tree, is written and rendered as a figure when at least three populations are present -- see 52_IBS_tree and 53_population_tree)",
-  population_distance_table, digits = 4
+  population_distance_table, digits = 4,
+  note = paste0(
+    "Nei's (1972) standard genetic distance between populations, computed ",
+    "from allele frequencies -- a population-level counterpart to the ",
+    "individual-level IBS and kinship distances used elsewhere in this ",
+    "report. The accompanying neighbour-joining tree carries ",
+    "locus-resampling bootstrap support at each internal node (Felsenstein ",
+    "1985)."
+  )
 )
 report_table_section(
   "Genome scan FST outliers (top 20 windows by FST; see 39_genome_scan_fst.tsv for the complete list)",
-  r$genome_scan$outliers, digits = 4
+  r$genome_scan$outliers, digits = 4,
+  note = paste0(
+    "A descriptive ranking of the highest-FST genomic windows -- not a ",
+    "significance test, since no permutation or null distribution is ",
+    "computed. A high-FST window is a candidate worth further ",
+    "investigation, not a confirmed selection signal; always check a ",
+    "window's SNP count before treating its estimate as meaningful."
+  )
 )
 pcadapt_top <- NULL
 if (!is.null(r$pcadapt$table)) {
@@ -270,15 +358,45 @@ if (!is.null(r$pcadapt$table)) {
 }
 report_table_section(
   "pcadapt outlier scan (top 20 significant loci by q-value; see 59_pcadapt_outliers.tsv for the complete results and 59b_pcadapt_significant_outliers.tsv for the complete significant list)",
-  pcadapt_top, digits = 4
+  pcadapt_top, digits = 4,
+  note = paste0(
+    "A genuine per-locus statistical outlier test for local adaptation (Luu ",
+    "et al. 2016), distinct from the descriptive genome-scan ranking above: ",
+    "each locus's genotypes are regressed on the retained PCA axes and ",
+    "tested against a chi-squared null, with Benjamini-Hochberg FDR ",
+    "correction across all tested loci. It needs no population metadata. In ",
+    "strongly structured samples a large fraction of loci can appear ",
+    "significant from ordinary genome-wide drift alone, not necessarily ",
+    "localized selection -- check the genomic inflation factor and whether ",
+    "significant loci cluster into a handful of linked windows before ",
+    "over-interpreting the count."
+  )
 )
 report_table_section(
   "Linkage disequilibrium decay (mean r-squared by physical distance bin; see 43_LD_decay.tsv for the complete list)",
-  r$ld_decay$binned, digits = 4
+  r$ld_decay$binned, digits = 4,
+  note = paste0(
+    "Mean pairwise genotypic correlation (r-squared) between SNPs, binned ",
+    "by physical distance, computed on the unpruned marker set -- the ",
+    "LD-pruned set used elsewhere in this report would systematically ",
+    "understate how far real LD extends. A real decay curve falls off ",
+    "within a bounded distance rather than staying flat or noisy across the ",
+    "full range."
+  )
 )
 report_table_section(
   "LD-based effective population size (per population; see 45_Ne_LD.tsv for full diagnostics)",
-  r$ne_ld, digits = 4
+  r$ne_ld, digits = 4,
+  note = paste0(
+    "Contemporary effective population size per population, estimated from ",
+    "linkage disequilibrium between cross-chromosome, effectively unlinked ",
+    "SNP pairs (Waples 2006; Waples & Do 2008). A single point estimate ",
+    "carries real sampling variance -- read it as order-of-magnitude, not ",
+    "exact. `Inf` means no drift signal was detectable above sampling ",
+    "noise (a real, informative result); `NA` with status ",
+    "`below_formula_domain` means the implied size falls outside the ",
+    "estimator's valid range, i.e. smaller still."
+  )
 )
 close_relatives <- NULL
 if (!is.null(r$kinship$close_relatives) && nrow(r$kinship$close_relatives)) {
@@ -286,7 +404,14 @@ if (!is.null(r$kinship$close_relatives) && nrow(r$kinship$close_relatives)) {
 }
 report_table_section(
   "Close relatives (up to 20 shown; see 36_close_relatives.tsv for the complete list)",
-  close_relatives, digits = 4
+  close_relatives, digits = 4,
+  note = paste0(
+    "Pairwise relatedness (KING-robust kinship, Manichaikul et al. 2010), ",
+    "specifically robust to population stratification. This is a ",
+    "continuous relatedness screen, not a certified pedigree or an ",
+    "exact-genotype-identity test -- see the multilocus genotype table ",
+    "below for that stricter, independent check."
+  )
 )
 sex_check_top <- NULL
 if (!is.null(r$sex_check$table) && nrow(r$sex_check$table)) {
@@ -302,7 +427,14 @@ if (!is.null(r$sex_check$table) && nrow(r$sex_check$table)) {
 }
 report_table_section(
   "Sex check (reported vs inferred sex from X-chromosome heterozygosity and Y-chromosome call rate; up to 20 shown, discordant and ambiguous calls first; see 42_sex_check.tsv for the complete list)",
-  sex_check_top, digits = 4
+  sex_check_top, digits = 4,
+  note = paste0(
+    "Genetic sex inferred from X-chromosome heterozygosity and Y-chromosome ",
+    "call rate, compared against any reported `sex` metadata. When both ",
+    "signals are available and agree, that is a high-confidence call; when ",
+    "they confidently disagree the combined status is `discordant` -- real, ",
+    "informative evidence worth following up, not noise to average away."
+  )
 )
 roh_top <- NULL
 if (!is.null(r$roh$sample_summary) && nrow(r$roh$sample_summary)) {
@@ -310,12 +442,28 @@ if (!is.null(r$roh$sample_summary) && nrow(r$roh$sample_summary)) {
 }
 report_table_section(
   "Runs of homozygosity (highest FROH samples, up to 20 shown; see 38_ROH_sample_summary.tsv for the complete list)",
-  roh_top, digits = 4
+  roh_top, digits = 4,
+  note = paste0(
+    "Runs of homozygosity (`bcftools roh`, an HMM-based method; Narasimhan ",
+    "et al. 2016) -- a per-sample autozygosity/inbreeding signal, distinct ",
+    "from both the population-level inbreeding coefficient and the pairwise ",
+    "kinship above. `FROH` is scaled to the genomic footprint actually ",
+    "covered by the analyzed variants, not the whole genome -- never ",
+    "compare FROH values across analyses covering different genomic spans."
+  )
 )
 report_table_section(
   "Discriminant analysis of principal components",
   r$dapc$diagnostics,
-  digits = 4
+  digits = 4,
+  note = paste0(
+    "For a chosen number of clusters K, DAPC maximizes between-group ",
+    "separation given the genotype data. Because the same data both ",
+    "defines the groups and is then shown separated by them, strong visual ",
+    "separation is not independent confirmation that those groups are real ",
+    "populations -- corroborate with a model-based ancestry method or ",
+    "kinship before drawing that conclusion."
+  )
 )
 dapc_loadings_top <- NULL
 if (!is.null(r$dapc$models) && length(r$dapc$models)) {
@@ -332,10 +480,25 @@ if (!is.null(r$dapc$models) && length(r$dapc$models)) {
 }
 report_table_section(
   "DAPC SNP loadings (top 20 by contribution across all K; see 22f_DAPC_loadings_K<k>.tsv for the complete per-K top-N lists)",
-  dapc_loadings_top, digits = 4
+  dapc_loadings_top, digits = 4,
+  note = paste0(
+    "Ranks SNPs by their contribution to each DAPC discriminant axis, ",
+    "across all fitted K. As with PCA loadings, a large contribution ",
+    "identifies a marker associated with a discriminant axis, not a causal ",
+    "variant."
+  )
 )
 if (!is.null(r$amova)) {
-  cat("# Analysis of molecular variance\n\n")
+  report_heading("Analysis of molecular variance")
+  report_note(paste0(
+    "Partitions total genetic variance hierarchically among the supplied ",
+    "grouping (Excoffier et al. 1992), with each component tested by ",
+    "permutation. Phi-population-total is the same quantity as FST computed ",
+    "through variance partitioning rather than an allele-frequency ",
+    "estimator. A negative variance component is a real, expected estimator ",
+    "artifact -- typically driven by within-group relatedness exceeding the ",
+    "model's assumptions -- not an error to discard."
+  ))
   if (!is.null(r$amova$components)) {
     report_kable(r$amova$components, digits = 4)
   }
@@ -345,7 +508,16 @@ if (!is.null(r$amova)) {
 }
 report_table_section(
   "Multilocus genotype (MLG) and clonal diversity",
-  r$clonality$summary, digits = 4
+  r$clonality$summary, digits = 4,
+  note = paste0(
+    "Multilocus genotype identity and clonal-diversity statistics ",
+    "(`poppr`; Kamvar, Tabima & Grunwald 2014), computed on the full, ",
+    "unpruned QC-passing marker set -- deliberately more loci than the ",
+    "LD-pruned set used for kinship, for maximum discriminating power. The ",
+    "standardized index of association (rbarD; Agapow & Burt 2001) near ",
+    "zero indicates strong linkage among loci, consistent with clonal ",
+    "reproduction; it does not, alone, prove it."
+  )
 )
 clonality_groups <- NULL
 if (!is.null(r$clonality$groups) && nrow(r$clonality$groups)) {
@@ -353,10 +525,30 @@ if (!is.null(r$clonality$groups) && nrow(r$clonality$groups)) {
 }
 report_table_section(
   "Samples sharing an identical multilocus genotype (up to 20 groups shown; see 57_MLG_groups.tsv for the complete list)",
-  clonality_groups
+  clonality_groups,
+  note = paste0(
+    "Samples sharing an identical multilocus genotype at every analyzed ",
+    "locus -- a strict, exact-match test, deliberately stricter than the ",
+    "continuous relatedness threshold used for close relatives above. ",
+    "Because it requires identity at every locus in a large marker panel, ",
+    "ordinary genotyping error can make even truly related or clonal ",
+    "individuals fail this exact match; a small or empty result here does ",
+    "not by itself contradict a relatedness-based lineage signal found ",
+    "elsewhere in this report."
+  )
 )
 if (!is.null(r$sexbias)) {
-  cat("# Sex-biased dispersal test\n\n")
+  report_heading("Sex-biased dispersal test")
+  report_note(paste0(
+    "Tests whether one recorded sex disperses more than the other, using ",
+    "each individual's assignment index (AIc; Favre et al. 1997) -- how ",
+    "strongly their genotype matches their own recorded population, ",
+    "corrected for sample size (Goudet, Perrin & Waser 2002). This test was ",
+    "designed for single-species, dispersal-focused sampling with ",
+    "reproductive-age individuals genotyped at natal versus breeding ",
+    "location; a null result from data collected for another purpose is ",
+    "expected, not necessarily evidence against sex-biased dispersal."
+  ))
   cat(sprintf(
     "%s test: statistic = %.3f, p = %.4f (n = %d female, %d male%s). See 60_sexbias_AIc_by_sample.tsv for per-sample assignment indices.\n\n",
     r$sexbias$test, r$sexbias$statistic, r$sexbias$p_value,
@@ -365,13 +557,34 @@ if (!is.null(r$sexbias)) {
   ))
 }
 report_table_section(
-  "Mantel test and isolation by distance", r$ibd$summary, digits = 4
+  "Mantel test and isolation by distance", r$ibd$summary, digits = 4,
+  note = paste0(
+    "Tests whether genetic distance increases with geographic distance ",
+    "(Mantel test, with a partial-Mantel variant controlling for population ",
+    "membership when metadata allows; Smouse, Long & Sokal 1986). A ",
+    "significant association does not establish a causal spatial process ",
+    "and can be sensitive to autocorrelation or clustered sampling -- ",
+    "especially when the same populations are also compared by FST or PCA ",
+    "elsewhere in this report."
+  )
 )
 report_table_section(
-  "Admixture-model cross-validation", r$admixture_cv, digits = 6
+  "Admixture-model cross-validation", r$admixture_cv, digits = 6,
+  note = paste0(
+    "Cross-validation error by K for the ADMIXTURE ancestry model. K is a ",
+    "model index for the best-fitting number of mixture components, not a ",
+    "literal count of ancestral populations -- colored cluster components ",
+    "need independent evidence (geography, pedigree, known biology) before ",
+    "being read as historical populations."
+  )
 )
 report_table_section(
-  "Chromosome-specific results", r$chromosome_summary, digits = 4
+  "Chromosome-specific results", r$chromosome_summary, digits = 4,
+  note = paste0(
+    "Repeats the core summary statistics separately for each chromosome ",
+    "with enough QC-passing markers, so a signal concentrated on one ",
+    "chromosome can be distinguished from a genome-wide pattern."
+  )
 )
 ```
 
