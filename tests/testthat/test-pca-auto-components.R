@@ -81,6 +81,20 @@ test_that("run_pca(n_pcs = \"auto\") trims the reported components to the Tracy-
   expect_lte(expected_n, 19L)
 })
 
+test_that("pca_tracy_widom_significant_count treats a NA p-value as stopping the scan, not as significant", {
+  # which(tw$pvalues >= alpha) silently SKIPS an NA entry (which()
+  # returns indices of TRUE only, never NA) instead of treating it as
+  # non-significant -- so an NA p-value (LEA can emit these for a
+  # degenerate trailing eigenvalue) inside the leading significant run
+  # was silently counted as significant and the scan continued past it,
+  # inflating the count. A real p < alpha at position 4 makes the count
+  # keep going a further step if NA is wrongly skipped (5) instead of
+  # correctly stopping at position 3 (an indeterminate value cannot be
+  # confirmed significant).
+  tw <- data.table::data.table(pvalues = c(0.001, 0.002, NA_real_, 0.001, 0.9, 0.9))
+  expect_identical(popgenVCF:::pca_tracy_widom_significant_count(tw), 2L)
+})
+
 test_that("pca_tracy_widom_table returns the full LEA statistics table, and run_pca(n_pcs = \"auto\") carries it through with a matching significant count", {
   skip_if_not(requireNamespace("LEA", quietly = TRUE), "LEA is not installed")
 

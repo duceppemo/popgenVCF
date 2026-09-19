@@ -172,6 +172,70 @@ test_that("defined chromosome bounds retain the direct SNPRelate path", {
   expect_true(popgenVCF:::inspect_plink_bundle(prefix, samples, snps)$valid)
 })
 
+test_that("the chromosome-option-failure fallback is locale-independent, not just English-locale-dependent", {
+  # Classifying the failure by matching conditionMessage() text is
+  # locale-fragile: base R's own error messages are translated under a
+  # non-English LANGUAGE setting -- confirmed directly ("valeur manquante
+  # là où TRUE / FALSE est requis" under LANGUAGE=fr). Under such a
+  # locale, this grepl() would silently fail to match, re-throwing
+  # instead of falling back to the portable PED-to-BED path this file
+  # exists to provide for exactly these non-human-chromosome users.
+  old_language <- Sys.getenv("LANGUAGE", unset = NA)
+  Sys.setenv(LANGUAGE = "fr")
+  on.exit(if (is.na(old_language)) Sys.unsetenv("LANGUAGE") else Sys.setenv(LANGUAGE = old_language), add = TRUE)
+
+  root <- tempfile("locale-plink-")
+  dir.create(root)
+  prefix <- file.path(root, "cohort")
+  samples <- c("sample_1", "sample_2")
+  snps <- 1:3
+  ped_called <- FALSE
+
+  direct_converter <- function(...) {
+    # Reproduces the real chromosome-option failure's underlying R
+    # condition (not a hand-written stop() string) so the translation
+    # actually happens the same way it would in a real SNPRelate call.
+    if (NA) TRUE
+  }
+  ped_converter <- function(gdsobj, ped.fn, sample.id, snp.id,
+                            use.snp.rsid = FALSE, format = "A/G/C/T",
+                            verbose = FALSE) {
+    ped_called <<- TRUE
+    writeLines("synthetic PED", paste0(ped.fn, ".ped"))
+    writeLines("synthetic MAP", paste0(ped.fn, ".map"))
+    invisible(NULL)
+  }
+  command_runner <- function(command, args, stdout, stderr) {
+    out_index <- match("--out", args)
+    out_prefix <- gsub("^'(.*)'$", "\\1", args[[out_index + 1L]])
+    writeBin(as.raw(c(0x6c, 0x1b, 0x01, 0x00)), paste0(out_prefix, ".bed"))
+    data.table::fwrite(
+      data.table::data.table(V1 = 0, V2 = samples, V3 = 0, V4 = 0, V5 = 0, V6 = -9),
+      paste0(out_prefix, ".fam"), sep = "\t", col.names = FALSE
+    )
+    data.table::fwrite(
+      data.table::data.table(V1 = 1, V2 = snps, V3 = 0, V4 = seq_along(snps), V5 = "A", V6 = "C"),
+      paste0(out_prefix, ".bim"), sep = "\t", col.names = FALSE
+    )
+    "synthetic PLINK success"
+  }
+
+  expect_invisible(
+    popgenVCF:::portable_gds_to_bed(
+      gdsobj = NULL,
+      bed.fn = prefix,
+      sample.id = samples,
+      snp.id = snps,
+      option_reader = function(gds) list(autosome.start = 1L, autosome.end = 6L),
+      direct_converter = direct_converter,
+      ped_converter = ped_converter,
+      plink_locator = function(executable) "/usr/bin/plink",
+      command_runner = command_runner
+    )
+  )
+  expect_true(ped_called)
+})
+
 test_that("ancestry modules inject the portable converter", {
   admixture_body <- paste(
     deparse(body(popgenVCF:::run_module_admixture)), collapse = "\n"

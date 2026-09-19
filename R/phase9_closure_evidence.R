@@ -62,13 +62,22 @@ phase9_assemble_closure <- function(
     acknowledged_risks = c(
       "legacy compatibility remains governed by explicit rollback records"
     )) {
+  # c() flattens four separate scalar arguments into one plain atomic
+  # vector -- lengths() on an atomic vector reports 1 for every element
+  # unconditionally, so `any(lengths(scalar_ids) != 1L)` could never
+  # actually catch a caller passing a non-scalar id (it silently
+  # flattens into scalar_ids's own extra positions instead of being
+  # rejected). Checking length(scalar_ids) against the expected total
+  # count first (the same compensating pattern phase9_closure_review()
+  # already uses for its own required_ids) catches exactly that.
   scalar_ids <- c(
     release_readiness_id,
     migration_registry_id,
     deprecation_portfolio_id,
     ci_evidence_id
   )
-  if (any(!is.character(scalar_ids)) || any(lengths(scalar_ids) != 1L) ||
+  if (length(scalar_ids) != 4L ||
+      any(!is.character(scalar_ids)) || any(lengths(scalar_ids) != 1L) ||
       any(!nzchar(scalar_ids))) {
     stop("All closure assembly identities are required.", call. = FALSE)
   }

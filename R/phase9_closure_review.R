@@ -90,8 +90,19 @@ phase9_closure_review <- function(
     closure_approved = isTRUE(closure_approved)
   )
 
-  record$fingerprint <- fingerprint %||%
-    phase9_closure_fingerprint(record)
+  # A caller-supplied `fingerprint` was previously accepted verbatim via
+  # `%||%` with no verification against the record's own actual content
+  # -- an arbitrary or stale fingerprint could be stamped onto the
+  # record, defeating the whole point of a fingerprint as a self-
+  # consistency check. Recomputing unconditionally and, when a caller
+  # did supply one, verifying it matches (erroring otherwise) closes
+  # that gap while still letting a caller assert their own expected
+  # fingerprint as a sanity check.
+  computed_fingerprint <- phase9_closure_fingerprint(record)
+  if (!is.null(fingerprint) && !identical(fingerprint, computed_fingerprint)) {
+    stop("Supplied fingerprint does not match the closure review's own content.", call. = FALSE)
+  }
+  record$fingerprint <- computed_fingerprint
   class(record) <- c("phase9_closure_review", "list")
   record
 }
@@ -104,8 +115,19 @@ phase9_roadmap_handoff <- function(
     dependency_ids,
     entry_criteria,
     fingerprint = NULL) {
+  # c() flattens four separate scalar arguments into one plain atomic
+  # vector -- lengths() on an atomic vector reports 1 for every element
+  # unconditionally, so `any(lengths(scalar_ids) != 1L)` could never
+  # actually catch a caller passing e.g. closure_review_id = c("a", "b")
+  # (a length-2 vector): it silently flattens into scalar_ids's own
+  # first two positions instead of being rejected. Checking
+  # length(scalar_ids) against the expected total count first (the same
+  # compensating pattern already used a few lines above for
+  # required_ids) catches exactly that: a too-long or too-short input
+  # changes the flattened total length.
   scalar_ids <- c(closure_review_id, next_phase_id, goal, scope_boundary)
-  if (any(!is.character(scalar_ids)) ||
+  if (length(scalar_ids) != 4L ||
+      any(!is.character(scalar_ids)) ||
       any(lengths(scalar_ids) != 1L) ||
       any(!nzchar(scalar_ids))) {
     stop("Closure, phase, goal, and scope identities are required.",
@@ -133,8 +155,14 @@ phase9_roadmap_handoff <- function(
     entry_criteria = entry_criteria
   )
 
-  record$fingerprint <- fingerprint %||%
-    phase9_closure_fingerprint(record)
+  # See phase9_closure_review()'s own identical fix above: a
+  # caller-supplied fingerprint must be verified against the record's
+  # real content, not accepted verbatim.
+  computed_fingerprint <- phase9_closure_fingerprint(record)
+  if (!is.null(fingerprint) && !identical(fingerprint, computed_fingerprint)) {
+    stop("Supplied fingerprint does not match the roadmap handoff's own content.", call. = FALSE)
+  }
+  record$fingerprint <- computed_fingerprint
   class(record) <- c("phase9_roadmap_handoff", "list")
   record
 }

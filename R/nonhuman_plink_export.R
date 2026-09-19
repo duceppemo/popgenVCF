@@ -18,6 +18,21 @@ portable_gds_to_bed <- function(gdsobj, bed.fn, sample.id, snp.id,
   fallback_reason <- NULL
 
   if (gds_autosome_bounds_defined(gdsobj, option_reader)) {
+    # Classifying the failure by matching conditionMessage() text is
+    # locale-fragile: base R's own error messages ("missing value where
+    # TRUE/FALSE needed", "argument is of length zero") are translated
+    # under a non-English LANGUAGE setting -- confirmed directly, e.g.
+    # "valeur manquante là où TRUE / FALSE est requis" under
+    # LANGUAGE=fr -- so this grepl() would silently fail to match on
+    # such a system, re-throwing instead of falling back to the portable
+    # PED-to-BED path this file exists to provide for exactly these
+    # non-human-chromosome users. Forcing LANGUAGE=en for the duration of
+    # the direct-converter call (R's translation lookup is checked
+    # dynamically per call, not fixed at session startup -- confirmed
+    # directly) makes the classification deterministic regardless of the
+    # user's actual locale.
+    old_language <- Sys.getenv("LANGUAGE", unset = NA)
+    Sys.setenv(LANGUAGE = "en")
     direct_error <- tryCatch(
       {
         direct_converter(
@@ -31,6 +46,7 @@ portable_gds_to_bed <- function(gdsobj, bed.fn, sample.id, snp.id,
       },
       error = function(e) e
     )
+    if (is.na(old_language)) Sys.unsetenv("LANGUAGE") else Sys.setenv(LANGUAGE = old_language)
     if (is.null(direct_error)) return(invisible(NULL))
 
     direct_message <- conditionMessage(direct_error)

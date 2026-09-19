@@ -92,7 +92,18 @@ pca_tracy_widom_table <- function(eigenvalues) {
 # once the leading signal has already been exhausted; that is not a
 # second, independent block of structure).
 pca_tracy_widom_significant_count <- function(tw, alpha = 0.05) {
-  first_nonsignificant <- which(tw$pvalues >= alpha)[1L]
+  # `which(tw$pvalues >= alpha)` silently SKIPS an NA p-value (LEA can
+  # emit these for a degenerate trailing eigenvalue) rather than treating
+  # it as non-significant: `NA >= alpha` is NA, and which() only returns
+  # indices of TRUE, never NA -- so an NA p-value inside the leading run
+  # was silently counted as significant and the sequential scan continued
+  # past it, potentially inflating the significant-PC count with noise
+  # PCs under n_pcs = "auto". An indeterminate p-value cannot be
+  # confirmed significant, so it must stop the scan at that position, the
+  # same conservative treatment a genuinely non-significant p-value gets.
+  pvalues <- tw$pvalues
+  pvalues[is.na(pvalues)] <- 1
+  first_nonsignificant <- which(pvalues >= alpha)[1L]
   n_significant <- if (is.na(first_nonsignificant)) nrow(tw) else first_nonsignificant - 1L
   max(2L, n_significant)
 }
@@ -875,7 +886,17 @@ ibs_bootstrap_distance <- function(geno_subset) {
 bootstrap_nj_ibs_tree <- function(reference_tree, gds, sample_ids, snp_ids, metadata,
                                   replicates, workers, seed) {
   if (replicates <= 0L || length(snp_ids) < 2L) return(NULL)
-  geno <- SNPRelate::snpgdsGetGeno(gds, sample.id = sample_ids, snp.id = snp_ids, verbose = FALSE)
+  # Every other snpgdsGetGeno() call site in this package pins
+  # snpfirstdim = FALSE explicitly (ne_ld.R, diversity.R, io.R,
+  # module_registry.R) -- this was the one exception, left at
+  # SNPRelate's own default (GDS storage order). The rest of this
+  # function assumes sample-major output (rownames assigned below,
+  # geno[, idx, drop = FALSE] indexes columns as SNPs, ncol() as SNP
+  # count in ibs_bootstrap_distance()) -- safe today only because this
+  # package's own snpgdsVCF2GDS() call always writes sample-major GDS
+  # files; pinning explicitly removes the dependence on that convention
+  # holding, matching every other call site.
+  geno <- SNPRelate::snpgdsGetGeno(gds, sample.id = sample_ids, snp.id = snp_ids, snpfirstdim = FALSE, verbose = FALSE)
   rownames(geno) <- public_sample_ids(metadata, sample_ids)
   n_snps <- ncol(geno)
   seeds <- tree_bootstrap_replicate_seeds(seed, replicates)
