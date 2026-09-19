@@ -184,9 +184,10 @@ Bootstrap support (Felsenstein 1985; `analyses.tree_bootstrap`, on by
 default, 100 replicates) is shown at each internal node: loci are resampled
 with replacement, the tree rebuilt from each resampled set, and the
 percentage of replicates agreeing with each split in the original tree
-reported -- interpret it exactly like PCA's percent-variance-explained: a
-measure of how much confidence *this specific dataset* supports *this
-specific split*, not a universal truth about the populations involved.
+reported. Support is a statement about this dataset's marker panel -- how
+consistently these loci recover this split under resampling -- not a
+probability the split is historically true; low support on a small panel
+means "unresolved here", not "refuted".
 
 ![Individual-level neighbour-joining tree from IBS distance, quickstart example, tips coloured by population, bootstrap support at internal nodes](figures/52_IBS_tree.png)
 
@@ -205,8 +206,9 @@ whole-genome VCF would show substantially higher support throughout.
 ### Maximum-likelihood tree (optional)
 
 `analyses.ml_tree` (off by default; needs the optional `phangorn` package)
-builds a genuine maximum-likelihood alternative to the NJ tree above: GTR
-substitution rates, gamma-distributed among-site rate variation, and Lewis
+builds a genuine maximum-likelihood alternative to the NJ tree above: a
+configurable nucleotide substitution model (`analyses.ml_tree.model`,
+default `GTR`), gamma-distributed among-site rate variation, and Lewis
 (2001) ascertainment-bias correction, jointly optimized together with the
 topology. The correction matters specifically because this is SNP-only data
 -- a VCF records no invariant sites at all, and an uncorrected substitution
@@ -383,7 +385,11 @@ subject to this ceiling.
 Report the estimator, locus filters, missing-data handling, sample sizes, and
 uncertainty. Negative or positive FIS does not identify a cause by itself;
 technical artifacts, substructure, inbreeding, selection, and sample design can
-produce similar summaries.
+produce similar summaries. `11_diversity_bootstrap_CI.tsv` provides that
+uncertainty as 95% bootstrap intervals from resampling whole chromosomes as
+blocks (`analyses.bootstrap`, 500 replicates by default); as with the FST
+bootstrap CI below, a single-chromosome dataset yields no interval and a
+genome with few chromosomes gives coarse, unstable ones.
 
 `hwe_pvalue` is a per-population exact test (Wigginton et al. 2005); it is
 reporting-only and does not filter any SNP. A significant deviation has many
@@ -406,7 +412,7 @@ red flag by itself. A population with an unusually heavy concentration of
 loci just below the threshold, rather than this uniform scatter, is the
 pattern worth investigating further.
 
-![Observed heterozygosity by population from the quickstart example](figures/05_sample_heterozygosity.png)
+![Observed heterozygosity by sample from the quickstart example, grouped by population](figures/05_sample_heterozygosity.png)
 
 The sample-level view above complements a population-level one: observed
 heterozygosity averaged per population against its Hardy-Weinberg
@@ -483,7 +489,15 @@ low or zero `qc.maf`.
 State the estimator explicitly. Global and pairwise values depend on population
 definitions, sample size, marker ascertainment, missingness, and the genomic
 region. A small numerical value can be statistically precise, while a larger
-one can be uncertain.
+one can be uncertain. `20_pairwise_FST_bootstrap_CI.tsv` reports 95%
+bootstrap intervals from resampling whole chromosomes as blocks
+(`analyses.bootstrap`, 500 replicates by default) -- report this alongside
+the point estimate rather than the bare FST value alone. Block resampling
+respects within-chromosome LD, but it also means a single-chromosome
+dataset (including the quickstart example used throughout this page)
+produces no CI at all, and a genome with only a few chromosomes gives
+coarse, unstable intervals; check the `replicates` column and the number of
+contributing chromosomes before quoting an interval.
 
 ![Pairwise Weir-Cockerham FST from the quickstart example](figures/10_pairwise_FST.png)
 
@@ -498,7 +512,13 @@ same FST value, not a new independent measurement, so it is not shown as a
 separate figure. On the quickstart example, global Nm = 2.48; the pairwise
 minimum (ITU-STU, FST = 0.0052) gives Nm = 48.3 and the pairwise maximum
 (PEL-YRI, FST = 0.180) gives Nm = 1.14 -- consistent with FST = 0 giving
-infinite (unrestricted) gene flow and FST = 1 giving zero gene flow.
+infinite (unrestricted) gene flow and FST = 1 giving zero gene flow. Treat
+Nm as a rescaled FST for readers who think in island-model units, not as a
+measured number of migrants per generation: the formula assumes an
+equilibrium island model (equal deme sizes, symmetric migration, no
+selection) that real populations violate, and Nm inherits every
+ascertainment and sampling caveat of the FST it was derived from (Whitlock
+and McCue 1999).
 
 The same tables also carry Jost's (2008) D (`global_jost_d`, `jost_d` on
 `18_pairwise_FST.tsv`, and a `19b_pairwise_jost_d_matrix.tsv`) -- a
@@ -517,7 +537,14 @@ statistics agree overall without being interchangeable in fine detail.
 The same tables also carry Nei's (1987) Dxy, absolute nucleotide divergence
 (`global_dxy`, `dxy` on `18_pairwise_FST.tsv`, and a
 `19c_pairwise_dxy_matrix.tsv`) -- a third differentiation measure, and the
-one genuinely unnormalized member of the group. FST, Nm, and Jost's D are
+one genuinely unnormalized member of the group. Dxy here is averaged over
+the analyzed segregating SNPs only, not per base pair of sequence --
+literature Dxy values (typically ~0.001/bp for humans) include invariant
+sites and are not comparable to this number, and MAF filtering raises it
+further. Like FROH, never compare Dxy across analyses with different marker
+sets or filters; use it only to rank pairs within this one run.
+`global_dxy` is simply the mean of the pairwise matrix, not a separate
+multi-population estimator. FST, Nm, and Jost's D are
 all scaled by within-population diversity, so identical low values can mask
 two different demographic histories: recent divergence with ongoing gene
 flow (low Dxy) versus an older split that still shares a lot of ancestral
@@ -541,8 +568,13 @@ from the panel as a whole." Population-specific FST / beta (Weir and Goudet
 gap: a per-population value using a common ("global") kinship reference
 rather than a pairwise one, on `51_population_specific_fst.tsv`. On the
 quickstart example, the overall weighted mean (`global_beta_fst`) is
-0.0915 -- agreeing with `global_fst` to 9 significant figures, an expected
-internal-consistency check rather than a coincidence. Per-population beta
+0.0915 -- agreeing with `global_fst` to 9 significant figures here, an
+internal-consistency check that holds this exactly because every
+population in the quickstart has the same sample size. Weir-Cockerham
+theta and Weir-Goudet beta are different estimators; with unequal sample
+sizes or missingness they weight populations differently and can
+legitimately diverge -- a modest difference on your own data is not an
+error. Per-population beta
 ranges from ITU (0.0446, least distinct from the rest of the panel) to PEL
 (0.1558, most distinct); PEL standing out as the most differentiated
 population matches this package's own Nei's-distance and population-
@@ -550,6 +582,28 @@ assignment results elsewhere in this report, an independent third
 confirmation of the same real population-structure pattern.
 
 ![Population-specific FST (beta) from the quickstart example](figures/51_population_specific_fst.png)
+
+## Per-chromosome summaries
+
+`analyses.chromosome_specific` (on by default) re-runs global FST and a
+short (up to 3-PC) PCA independently on each chromosome/contig, writing one
+row per chromosome to `chromosome_summary.tsv` (`qc_snps`, `ld_snps`,
+`global_fst`, `pc1_percent`) plus a full pairwise-FST table and PCA scores
+table per chromosome under the `chromosomes/` output directory. A
+chromosome contributing fewer than `analyses.chromosome_min_snps` (100 by
+default) QC-passing SNPs, or fewer than 2 LD-pruned SNPs, is silently
+excluded from the summary entirely -- a short contig or an unplaced
+scaffold missing from `chromosome_summary.tsv` is expected, not a bug.
+
+Read this table as a heterogeneity check, not a second, independent
+analysis: one chromosome's `global_fst` or `pc1_percent` standing out from
+the rest is first a marker-density or chromosome-length question (fewer
+SNPs give noisier per-chromosome estimates, and a short chromosome
+naturally carries fewer SNPs) and only then a biology question (a sex
+chromosome, an inversion, or a region under strong local selection can
+genuinely differentiate populations more than the genome-wide average).
+Compare the standout chromosome's `qc_snps`/`ld_snps` counts against the
+others before reading anything biological into it.
 
 ## Population genetic distance and tree
 
@@ -649,8 +703,10 @@ locus's genotypes are regressed on the K retained PC scores to get a
 vector of z-scores, and a robust, genomic-control-corrected Mahalanobis
 distance of that vector is tested against a chi-squared distribution with
 K degrees of freedom, giving a real p-value per locus. Benjamini-Hochberg
-FDR correction (`stats::p.adjust`, the base-R equivalent of Storey's
-q-value) controls the false-discovery rate across all tested loci;
+FDR correction (`stats::p.adjust(method = "BH")` -- a slightly more
+conservative stand-in for the Storey q-values the pcadapt tutorials use,
+since BH assumes all loci could be null) controls the false-discovery rate
+across all tested loci;
 `59b_pcadapt_significant_outliers.tsv` lists loci significant at
 `analyses.pcadapt_fdr_alpha` (default q < 0.05). Unlike almost every other
 module in this report, **pcadapt does not require population metadata at
@@ -874,9 +930,11 @@ to each other in the panel instead of being scattered apart by their name.
 ![ADMIXTURE cross-validation error by K from the quickstart example](figures/13_ADMIXTURE_CV.png)
 
 ADMIXTURE's own native cross-validation error curve above is one of the
-raw diagnostics the consensus figure below combines with others (BIC,
-elbow, parsimony); showing it directly lets a reader judge how sharp or
-flat the minimum really is before trusting a single derived number.
+raw diagnostics the consensus figure below combines with others (the raw
+cross-validation-error optimum, its elbow, and the parsimonious plateau /
+one-standard-error choice); showing it directly lets a reader judge how
+sharp or flat the minimum really is before trusting a single derived
+number.
 
 ![ADMIXTURE cluster-number selection from the quickstart example](figures/13b_ADMIXTURE_cluster_number_selection.png)
 
