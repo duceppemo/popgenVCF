@@ -377,3 +377,12 @@ test_that("membership figures reject ambiguous sample labels", {
     "unique and non-empty"
   )
 })
+
+test_that("parse_admixture_cv tolerates more than one CV line and reads the last one", {
+  log <- c("Summary:", "CV error (K=3): 0.61000", "restarting", "CV error (K=3): 0.52000")
+  x <- popgenVCF:::parse_admixture_cv(log)
+  expect_equal(nrow(x), 1L)
+  expect_equal(x$K, 3L)
+  expect_equal(x$cv_error, 0.52)
+  expect_null(popgenVCF:::parse_admixture_cv(c("no", "match")))
+})

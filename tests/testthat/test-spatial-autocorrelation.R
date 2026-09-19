@@ -20,11 +20,19 @@ test_that("spatial_autocorrelation_r matches PopGenReport::spautocor() on a synt
 
   res <- popgenVCF:::spatial_autocorrelation_r(gd, ed, bins = 8L)
 
-  expect_equal(res$bin_upper, c(13.42, 26.84, 40.26, 53.68, 67.10, 80.52, 93.94, 107.36), tolerance = 1e-6)
-  expect_equal(res$n_pairs, c(55L, 107L, 134L, 126L, 130L, 126L, 74L, 25L))
+  # Classes 1-7 are pinned to the reference. The last class deliberately
+  # differs: spautocor() sizes its classes from the distance range
+  # (max - min) but starts them at 0, so its 8 classes end at 107.36 while
+  # the farthest pair is 108.96 apart -- it silently drops the 3 farthest
+  # pairs (25 of 28; reference r = 0.01564820 for those 25). Here the last
+  # class is open-ended, so all choose(40, 2) = 780 pairs are classified.
+  expect_equal(res$bin_upper[1:7], c(13.42, 26.84, 40.26, 53.68, 67.10, 80.52, 93.94), tolerance = 1e-6)
+  expect_equal(res$bin_upper[[8L]], max(ed), tolerance = 1e-9)
+  expect_equal(res$n_pairs, c(55L, 107L, 134L, 126L, 130L, 126L, 74L, 28L))
+  expect_equal(sum(res$n_pairs), choose(n_ind, 2L))
   expect_equal(
     res$r,
-    c(-0.01598388, -0.02780897, -0.03707642, -0.02242104, -0.03679230, -0.01282461, -0.03275641, 0.01564820),
+    c(-0.01598388, -0.02780897, -0.03707642, -0.02242104, -0.03679230, -0.01282461, -0.03275641, 0.00943635),
     tolerance = 1e-6
   )
 })
@@ -237,4 +245,39 @@ test_that("spatial_autocorrelation_module_spec is registered, gated on coordinat
   expect_true(spec$enabled(cfg))
   cfg$analyses$spatial_autocorrelation <- FALSE
   expect_false(spec$enabled(cfg))
+})
+
+test_that("spatial_autocorrelation_r keeps co-located (zero-distance) pairs and the farthest pairs", {
+  # Population-level coordinates put every within-site pair at distance 0;
+  # the strict `> 0` lower bound inherited from PopGenReport::spautocor()
+  # dropped all of them, and signif()-rounded class widths could leave the
+  # farthest pairs above the last class's upper bound.
+  set.seed(12)
+  site <- rep(1:3, each = 5L)
+  genotype <- matrix(rbinom(15L * 30L, 2, c(0.1, 0.5, 0.9)[site]), nrow = 15L)
+  xy <- cbind(c(0, 12.003, 33.337)[site], 0)
+  gd <- as.matrix(stats::dist(genotype))^2
+  ed <- as.matrix(stats::dist(xy))
+
+  res <- popgenVCF:::spatial_autocorrelation_r(gd, ed, bins = 3L)
+  expect_equal(sum(res$n_pairs), choose(15L, 2L))
+  expect_equal(res$n_pairs[[1L]], 3L * choose(5L, 2L))
+  expect_gt(res$r[[1L]], 0)
+})
+
+test_that("run_spatial_autocorrelation's permutation p-values are never exactly zero", {
+  set.seed(3)
+  cluster <- rep(c("A", "B"), each = 15L)
+  genotype <- matrix(rbinom(30L * 40L, 2, c(A = 0.1, B = 0.9)[cluster]), nrow = 30L)
+  sample_id <- paste0("S", seq_len(30L))
+  rownames(genotype) <- sample_id
+  metadata <- data.table::data.table(
+    sample = sample_id, latitude = ifelse(cluster == "A", 10, 60), longitude = 10
+  )
+  res <- popgenVCF:::run_spatial_autocorrelation(
+    genotype, sample_id, metadata, c("latitude", "longitude"), bins = 2L, permutations = 99L
+  )
+  expect_equal(res$n_pairs[[1L]], 2L * choose(15L, 2L))
+  expect_equal(res$p_value[[1L]], 1 / 100)
+  expect_true(all(res$p_value[!is.na(res$p_value)] > 0))
 })

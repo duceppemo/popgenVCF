@@ -25,7 +25,15 @@ run_bottleneck_analysis <- function(locus_table, n_bins = 10L) {
   spectrum <- data.table::rbindlist(lapply(populations, function(p) {
     poly <- locus_table[population == p & polymorphic == TRUE & is.finite(maf) & maf > 0]
     bin <- if (nrow(poly)) {
-      pmin(pmax(ceiling(poly$maf / bin_width), 1L), n_bins)
+      # round() before ceiling(): maf is computed as pmin(p, 1 - p), and
+      # 1 - 0.7 is 0.30000000000000004 in floating point, so an unrounded
+      # ceiling(0.30000000000000004 / 0.05) = 7 put a locus sitting exactly
+      # on the 0.30 class boundary in (0.30, 0.35] instead of the documented
+      # right-closed (0.25, 0.30]. Boundary values are common, not rare, at
+      # small sample sizes (n = 10 diploids: every MAF is a multiple of
+      # 0.05), where this could move the modal class and with it the
+      # mode-shift call.
+      pmin(pmax(ceiling(round(poly$maf / bin_width, 9L)), 1L), n_bins)
     } else integer()
     counts <- tabulate(bin, nbins = n_bins)
     data.table::data.table(

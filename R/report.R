@@ -142,7 +142,16 @@ compress_report_pdf <- function(path) {
   if (after >= before) {
     return(invisible(path))
   }
-  file.copy(compressed, path, overwrite = TRUE)
+  # Copy beside the target, then rename over it: file.copy(overwrite = TRUE)
+  # truncates `path` before writing, so a failed copy (full disk) used to
+  # leave a corrupt report behind a "Compressed report PDF" success message.
+  staged <- paste0(path, ".compressed-", Sys.getpid())
+  on.exit(unlink(staged, force = TRUE), add = TRUE)
+  if (!isTRUE(file.copy(compressed, staged, overwrite = TRUE)) ||
+      !isTRUE(file.size(staged) == after) || !file.rename(staged, path)) {
+    log_msg("Report PDF compression could not be installed; keeping the uncompressed PDF", level = "WARNING")
+    return(invisible(path))
+  }
   log_msg(sprintf(
     "Compressed report PDF from %.1f MB to %.1f MB (%.0f%% reduction)",
     before / 1024^2, after / 1024^2, 100 * (1 - after / before)

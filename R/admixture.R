@@ -1,6 +1,12 @@
 parse_admixture_cv <- function(text) {
   hit <- regmatches(text, regexpr("CV error \\(K=[0-9]+\\):[[:space:]]*[0-9.eE+-]+", text))
-  if (!length(hit) || !nzchar(hit)) return(NULL)
+  # `||` needs a length-1 operand: more than one "CV error" line in `text`
+  # (e.g. a log holding a restarted run's output as well) used to make
+  # `!nzchar(hit)` length > 1 and error outright. The last line is the run
+  # that actually completed.
+  hit <- hit[nzchar(hit)]
+  if (!length(hit)) return(NULL)
+  hit <- hit[[length(hit)]]
   k <- as.integer(sub(".*K=([0-9]+).*", "\\1", hit))
   value <- as.numeric(sub(".*:[[:space:]]*", "", hit))
   data.table::data.table(K = k, cv_error = value)

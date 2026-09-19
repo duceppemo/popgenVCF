@@ -1217,11 +1217,16 @@ documented *population-level* representative coordinates (individual
 sample locations are never published for de-identified 1000 Genomes data),
 so 21% of sample pairs (same population, or populations sharing one
 representative point) sit at exactly zero geographic distance, and the
-smallest *nonzero* distance jumps straight to 3,503 km -- leaving the two
-shortest distance classes completely empty. The correlogram therefore
-mostly resolves differences between population collection sites, not the
-fine-grained, continuous within-population spatial structure this method
-was designed to detect. Treat the quickstart values as a demonstration of
+smallest *nonzero* distance jumps straight to 3,503 km. Those 2,720
+co-located pairs form the first distance class (which includes distance 0)
+and show the expected positive autocorrelation (r = 0.084, p = 0.001);
+the second class is empty, and every later class compares different
+collection sites. The correlogram therefore contrasts "same site" with
+"different sites" rather than resolving the fine-grained, continuous
+within-population spatial structure this method was designed to detect.
+Permutation p-values use the (b + 1)/(m + 1) convention, so the smallest
+reportable value with the default 999 permutations is 0.001, never 0.
+Treat the quickstart values as a demonstration of
 the analysis running correctly, not as a finding about within-population
 spatial genetic structure.
 

@@ -49,9 +49,25 @@ spatial_autocorrelation_r <- function(gd, ed, bins) {
   diag(ed2) <- NA_real_
   steps <- signif(diff(range(ed2, na.rm = TRUE)) / bins, 4)
   bin_upper <- steps * seq_len(bins)
+  # Class width comes from the distance RANGE (max - min) but classes start
+  # at 0, so bins * steps falls short of the maximum distance by the minimum
+  # one; the last class is open-ended (below) and labelled with the true
+  # maximum it covers.
+  bin_upper[bins] <- max(bin_upper[bins], max(ed2, na.rm = TRUE))
   r <- rep(NA_real_, bins); n_pairs <- integer(bins)
   for (d in seq_len(bins)) {
-    idx <- which(ed2 <= d * steps & ed2 > (d - 1) * steps, arr.ind = TRUE)
+    # Classes are (lower, upper], except that the first also takes distance
+    # exactly 0 and the last has no upper limit. PopGenReport::spautocor()'s
+    # strict `> 0` lower bound, copied here originally, silently drops every
+    # co-located pair -- for population-level coordinates (one representative
+    # point per sampling site, the usual case) that is every
+    # within-population pair, the shortest-distance class the correlogram
+    # exists to show. `steps` is rounded (signif, 4 digits), so
+    # `bins * steps` can also fall just short of the true maximum distance,
+    # which dropped the farthest pairs the same way.
+    lower_ok <- if (d == 1L) ed2 >= 0 else ed2 > (d - 1) * steps
+    upper_ok <- if (d == bins) TRUE else ed2 <= d * steps
+    idx <- which(lower_ok & upper_ok, arr.ind = TRUE)
     n_pairs[d] <- nrow(idx)
     if (!nrow(idx)) next
     # na.rm = TRUE, matching rs/sgd above: gd (and therefore cd, which
@@ -129,7 +145,13 @@ run_spatial_autocorrelation <- function(genotype, sample_ids, metadata, geograph
   }
   observed[, p_value := vapply(seq_len(bins), function(b) {
     if (is.na(r[b])) return(NA_real_)
-    mean(abs(null_r[, b]) >= abs(r[b]), na.rm = TRUE)
+    # (b + 1) / (m + 1), counting the observed arrangement as one of the
+    # permutations (Phipson and Smyth 2010; the convention vegan::mantel()
+    # already uses for the ibd module). The bare proportion b / m reported
+    # p = 0 whenever no permuted value reached the observed one -- a
+    # probability no finite permutation test can support.
+    null_b <- null_r[, b][!is.na(null_r[, b])]
+    (sum(abs(null_b) >= abs(r[b])) + 1) / (length(null_b) + 1)
   }, numeric(1L))]
   observed[, null_lower := apply(null_r, 2, stats::quantile, probs = 0.025, na.rm = TRUE)]
   observed[, null_upper := apply(null_r, 2, stats::quantile, probs = 0.975, na.rm = TRUE)]

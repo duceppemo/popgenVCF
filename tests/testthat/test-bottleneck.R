@@ -147,3 +147,17 @@ test_that("bottleneck_module_spec is registered, requires diversity, and is enab
   cfg$analyses$bottleneck <- FALSE
   expect_false(spec$enabled(cfg))
 })
+
+test_that("a MAF sitting exactly on a class boundary is binned right-closed despite floating-point error", {
+  # 1 - 0.7 = 0.30000000000000004: unrounded, ceiling(maf / 0.05) gave class
+  # 7, not the right-closed class 6, (0.25, 0.30].
+  maf <- pmin(0.7, 1 - 0.7)
+  expect_gt(maf / 0.05, 6)
+  locus <- data.table::data.table(
+    population = "A", snp_id = 1:3, polymorphic = TRUE, maf = c(maf, 0.30, 0.05)
+  )
+  res <- popgenVCF:::run_bottleneck_analysis(locus, n_bins = 10L)
+  expect_equal(res$spectrum[bin == 6L, n_loci], 2L)
+  expect_equal(res$spectrum[bin == 7L, n_loci], 0L)
+  expect_equal(res$spectrum[bin == 1L, n_loci], 1L)
+})

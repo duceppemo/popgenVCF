@@ -536,7 +536,7 @@ subtitle above.
 knitr::include_graphics("figures/50_spatial_autocorrelation.png")
 ```
 
-Read this one with real caution: the quickstart metadata uses population-level representative coordinates, not per-individual GPS, so 21% of sample pairs sit at exactly zero geographic distance and the smallest nonzero distance jumps to 3,503 km, leaving the shortest distance classes empty. The correlogram mostly resolves population-site-to-site differences here, not fine-grained within-population spatial structure -- treat the quickstart values as a demonstration that the analysis runs correctly, not as a spatial-structure finding.
+Read this one with real caution: the quickstart metadata uses population-level representative coordinates, not per-individual GPS, so 21% of sample pairs sit at exactly zero geographic distance and the smallest nonzero distance jumps to 3,503 km. Those 2,720 co-located pairs form the first distance class (which includes distance 0) and show the expected positive autocorrelation (r = 0.084, p = 0.001); the second class is empty and every later class compares different collection sites. The correlogram contrasts "same site" with "different sites" here rather than resolving fine-grained within-population spatial structure. Permutation p-values use the (b + 1)/(m + 1) convention, so with the default 999 permutations the smallest reportable value is 0.001, never 0 -- treat the quickstart values as a demonstration that the analysis runs correctly, not as a spatial-structure finding.
 
 ## Integrating analyses
 

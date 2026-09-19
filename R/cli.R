@@ -90,7 +90,7 @@ write_default_config <- function(path) {
   # impossible going forward, and gives every user inline documentation
   # for every option instead of a bare value dump.
   template <- system.file("example_config.yml", package = "popgenVCF", mustWork = TRUE)
-  file.copy(template, path)
+  if (!isTRUE(file.copy(template, path))) stopf("Could not write default configuration: %s", path)
   cat(sprintf("Wrote default configuration: %s\n", normalizePath(path)))
   invisible(path)
 }
