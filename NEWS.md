@@ -1,5 +1,19 @@
 # popgenVCF 1.0.14 development
 
+- **A Fable 5 review of the results/interpretation documentation (`wiki/Results-and-Interpretation.md`, `vignettes/interpreting-results.Rmd`), cross-checked against the actual R source, found several places where the guidance could lead a user to a wrong scientific conclusion or was simply missing -- since applied to both documents and, where the same explanatory text is duplicated into the actual HTML/PDF report (`inst/rmarkdown/templates/popgenvcf_report/skeleton/skeleton.Rmd`), there too:**
+
+  - Dxy was presented as "absolute nucleotide divergence" with no caveat that it's an average over segregating SNPs only, not per base pair -- off by ~300x from literature values a user might compare against (wiki/vignette only; the report's own FST table note never went into this level of detail).
+  - Wright's Nm had no caveat that it's a rescaled FST, not a literal migrant count (the formula's island-model assumptions are routinely violated in real data) -- fixed in the wiki, the vignette, and the report's own "Population differentiation" table note.
+  - The pipeline's own bootstrap CI outputs (FST and diversity) were never mentioned in the wiki/vignette, despite both telling users to report confidence intervals; added, along with the single-chromosome-dataset caveat.
+  - "(BIC, elbow, parsimony)" for ADMIXTURE K-selection was wrong in the wiki/vignette -- there is no BIC there, just the CV-error optimum, elbow, and plateau/one-SE choice.
+  - "Interpret bootstrap support exactly like PCA's percent-variance-explained" was a misleading analogy in the wiki/vignette (a stability measure is not a variance decomposition).
+  - The per-chromosome analysis module (on by default) had no interpretation guidance at all in the wiki/vignette; added a new section to both. The report's own "Chromosome-specific results" table note existed but omitted the same marker-density-first caveat and the silent `chromosome_min_snps` exclusion; strengthened to match.
+  - The Weir-Cockerham/Weir-Goudet FST "agreement to 9 significant figures" was framed in the wiki/vignette as generally expected; it's an artifact of the quickstart's perfectly balanced design, not a general property.
+  - The wiki called BH-FDR correction "the base-R equivalent of Storey's q-value" -- it isn't equivalent (BH is more conservative).
+  - The wiki claimed the ML tree fixedly uses GTR; it's actually configurable (the vignette already had this right) -- the report's own figure-family note for the ML tree had the same fixed-GTR claim, fixed the same way.
+  - The vignette's ROH section forward-referenced an FIS discussion that was never written; added it.
+  - Wiki alt text mislabeled a per-sample heterozygosity figure as "by population".
+
 - **"fix the remaining findings too" — the lower-severity items from the Fable 5 review, starting with three more shell/path-safety gaps in the same family as the two already-fixed security findings.**
 
   - **`report.R`**: `compress_report_pdf()`'s `system2(gs, ...)` call passed the report's own output path unquoted -- the same `system2()` args-are-not-shell-quoted gap already fixed in `run_external_command()`, here affecting the user/config-controlled output directory. Fixed with `shQuote()` on both the ghostscript output path and the input PDF path. Also hardened `render_standard_report_format()`'s own `file.copy()` return value being silently ignored (a failed copy -- full disk, permissions, `output_dir` removed mid-render -- previously returned a path to a report that was never actually written).

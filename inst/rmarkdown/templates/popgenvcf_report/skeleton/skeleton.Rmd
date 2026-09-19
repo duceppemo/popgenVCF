@@ -249,7 +249,8 @@ report_figure_family_catalog <- function() {
     )),
     list(pattern = "^55_ML_tree", heading = "Maximum-likelihood phylogenetic tree", note = paste0(
       "A genuine maximum-likelihood alternative to the neighbour-joining ",
-      "tree above: GTR substitution rates, gamma-distributed among-site ",
+      "tree above: a configurable nucleotide substitution model ",
+      "(analyses.ml_tree.model, default GTR), gamma-distributed among-site ",
       "rate variation, and a Lewis (2001) ascertainment-bias correction for ",
       "SNP-only data (no invariant sites are ever recorded in a VCF), ",
       "jointly optimized with the topology. Bootstrap support at each node ",
@@ -534,10 +535,14 @@ report_table_section(
   note = paste0(
     "Weir-Cockerham FST, global and pairwise, with Wright's (1931) Nm ",
     "gene-flow estimate alongside it as a direct transform of the same ",
-    "value. FST depends on population definitions, sample size, marker ",
-    "ascertainment, missingness, and the genomic region analyzed -- state ",
-    "the estimator explicitly whenever a value from this table is reported ",
-    "elsewhere."
+    "value -- treat Nm as a rescaled FST, not a measured number of ",
+    "migrants per generation: the formula assumes an equilibrium ",
+    "island model (equal deme sizes, symmetric migration, no selection) ",
+    "that real populations violate, and it inherits every caveat of the ",
+    "FST it was derived from. FST depends on population definitions, ",
+    "sample size, marker ascertainment, missingness, and the genomic ",
+    "region analyzed -- state the estimator explicitly whenever a value ",
+    "from this table is reported elsewhere."
   )
 )
 population_distance_table <- NULL
@@ -799,9 +804,13 @@ report_table_section(
 report_table_section(
   "Chromosome-specific results", r$chromosome_summary, digits = 4,
   note = paste0(
-    "Repeats the core summary statistics separately for each chromosome ",
-    "with enough QC-passing markers, so a signal concentrated on one ",
-    "chromosome can be distinguished from a genome-wide pattern."
+    "Repeats FST and a short PCA separately for each chromosome with ",
+    "enough QC-passing markers (below analyses.chromosome_min_snps is ",
+    "silently excluded), so a signal concentrated on one chromosome can ",
+    "be distinguished from a genome-wide pattern. Read a standout value ",
+    "as a marker-density or chromosome-length question first (fewer SNPs ",
+    "give noisier per-chromosome estimates) and a biology question only ",
+    "after comparing its qc_snps/ld_snps counts against the others."
   )
 )
 ```
