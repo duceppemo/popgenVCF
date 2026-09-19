@@ -373,9 +373,11 @@ report_figure_family_catalog <- function() {
       "1999), with a permutation-based null envelope -- a ",
       "distance-resolved complement to the single overall Mantel r above, ",
       "showing whether an isolation-by-distance signal concentrates at ",
-      "particular spatial scales. Coarse or population-level-only ",
-      "coordinates can leave short distance classes empty or ",
-      "underpopulated; read those classes cautiously."
+      "particular spatial scales. The first class includes co-located ",
+      "pairs (distance 0). With population-level-only coordinates it ",
+      "holds every within-site pair and the correlogram contrasts same ",
+      "site with different sites rather than resolving fine-scale ",
+      "structure; intermediate classes can be empty."
     )),
     list(pattern = "^59_pcadapt_manhattan", heading = "pcadapt outlier scan", note = paste0(
       "A genuine per-locus statistical outlier test for local adaptation ",
