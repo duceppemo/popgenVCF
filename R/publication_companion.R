@@ -190,5 +190,14 @@ set_project_publication_bundle <- function(project, bundle) {
   project$provenance$publication <- list(title = bundle$title, style = bundle$style$name,
                                          project_digest = bundle$project_digest)
   project$component_digests$publication_bundle <- digest::digest(bundle, algo = "sha256", serialize = TRUE)
+  # set_project_artifact_lineage() (project_artifact_lineage.R) already
+  # recomputes component_digests$artifacts after mutating
+  # project$artifacts -- this sibling function mutates the very same
+  # project$artifacts (adding $publication_bundle) but was missing the
+  # matching recomputation, leaving component_digests$artifacts stale
+  # (still describing project$artifacts as it was before this call).
+  # Any downstream digest-based change comparison would see no change
+  # in $artifacts despite this real one.
+  project$component_digests$artifacts <- project_component_digests(project$artifacts)
   project
 }

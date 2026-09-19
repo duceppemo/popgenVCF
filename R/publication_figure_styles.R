@@ -63,7 +63,10 @@ new_publication_figure_style_profile <- function(
   linetypes <- as.character(linetypes)
   shapes <- as.integer(shapes)
   .publication_hex_rgb(c(colours, fills, background, foreground))
-  if (!length(linetypes) || !length(shapes) || anyNA(shapes)) {
+  # shapes was checked for NA but linetypes was not, despite the same
+  # "non-empty deterministic palettes" validation being asserted for
+  # both in the one error message below.
+  if (!length(linetypes) || !length(shapes) || anyNA(shapes) || anyNA(linetypes)) {
     stop("linetypes and shapes must be non-empty deterministic palettes.", call. = FALSE)
   }
   if (!is.numeric(min_contrast) || length(min_contrast) != 1L || is.na(min_contrast) || min_contrast < 1) {

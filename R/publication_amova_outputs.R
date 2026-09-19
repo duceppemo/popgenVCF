@@ -99,7 +99,16 @@ new_publication_amova_output <- function(
       stop("AMOVA component values must be finite.", call. = FALSE)
     }
   }
-  variance_components <- variance_components[order(sources), , drop = FALSE]
+  # Real AMOVA variance-source labels are hierarchical, not alphabetical
+  # ("Between population", "Between samples within population", "Within
+  # samples", "Total variations" -- run_amova_analysis()'s own real
+  # poppr::poppr.amova() output, R/amova.R). Sorting them alphabetically
+  # here moved "Total variations" to the very FRONT of the published
+  # table (its leading "T" sorts before every "Variations..." row's
+  # leading "V"), scrambling a scientific table's canonical row order
+  # into something actively misleading to a reader. The caller-supplied
+  # order is trusted and preserved instead; uniqueness/non-emptiness are
+  # already validated above.
   phi_statistics <- .publication_amova_table(phi_statistics, "phi_statistics")
   if (!is.null(phi_statistics) && length(spec$phi_columns)) {
     if (!all(spec$phi_columns %in% names(phi_statistics))) {

@@ -23,6 +23,15 @@ test_that("grayscale and contrast validation fail closed", {
   ), "distinguishable")
 })
 
+test_that("an NA linetype is rejected the same way an NA shape already is", {
+  # shapes was checked for NA (anyNA(shapes)) but linetypes was not,
+  # despite the same "non-empty deterministic palettes" validation being
+  # asserted for both in one shared error message.
+  expect_error(new_publication_figure_style_profile(
+    "bad-linetype", c("#111111", "#222222"), c("solid", NA_character_), c(16L, 17L)
+  ), "deterministic palettes")
+})
+
 test_that("figure-style bindings preserve report and layout identity", {
   spec <- new_publication_report_spec(c("html", "pdf"))
   layout <- publication_layout_profile("general")

@@ -19,6 +19,18 @@ publication_narrative_test_project <- function() {
   )
 }
 
+test_that("publication_narrative_reason tolerates a length-0 reason field instead of crashing", {
+  # `%||%` only coalesces NULL, not a length-0 vector -- module$reason =
+  # character(0) (a real shape an optional module-record field can take)
+  # left `reason` as character(0), and `if (!is.na(reason) && ...)` on
+  # that errors "argument is of length zero" instead of falling through
+  # to the state-based default reason text.
+  reason <- popgenVCF:::publication_narrative_reason(
+    module = list(reason = character(0)), state = "skipped"
+  )
+  expect_identical(reason, "Analysis was intentionally skipped by the recorded execution plan.")
+})
+
 test_that("all canonical publication families have complete deterministic narratives", {
   project <- publication_narrative_test_project()
   inventory <- publication_narrative_inventory(project)

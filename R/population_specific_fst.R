@@ -27,9 +27,24 @@ compute_population_specific_fst <- function(genotype, population, snp_ids = NULL
   colnames(encoded) <- if (!is.null(snp_ids)) as.character(snp_ids) else paste0("snp_", seq_len(ncol(genotype)))
   dat <- data.frame(pop = population, encoded, check.names = FALSE)
   res <- hierfstat::betas(dat, nboot = 0)
+  beta <- as.numeric(res$betaiovl)
+  # hierfstat::betas() is not documented to guarantee a finite beta for
+  # every population -- a small or degenerate population (e.g. n = 1
+  # sample) is a plausible source of a non-finite value that would
+  # otherwise propagate silently into the published table and figure
+  # with no indication anything was unusual. This does not filter or
+  # drop such a population (an NA/NaN beta is itself real, reportable
+  # information, the same convention this package uses for Ne(LD) and
+  # kinship), it only makes it visible rather than silent.
+  if (any(!is.finite(beta))) {
+    log_msg(sprintf(
+      "Population-specific FST (beta) is non-finite for: %s",
+      paste(names(res$betaiovl)[!is.finite(beta)], collapse = ", ")
+    ), level = "WARNING")
+  }
   list(
     available = TRUE,
-    table = data.table::data.table(population = names(res$betaiovl), beta = as.numeric(res$betaiovl)),
+    table = data.table::data.table(population = names(res$betaiovl), beta = beta),
     overall = res$betaW
   )
 }

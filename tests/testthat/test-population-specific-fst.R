@@ -35,6 +35,31 @@ test_that("compute_population_specific_fst returns an unavailable, empty result 
   expect_true(is.na(res$overall))
 })
 
+test_that("a non-finite beta from hierfstat::betas() is surfaced with a warning, not silently propagated", {
+  # hierfstat::betas() is not documented to guarantee a finite beta for
+  # every population (a small or degenerate population, e.g. n = 1
+  # sample, is a plausible source) -- previously any non-finite value
+  # flowed silently into the published table/figure with nothing
+  # indicating it was unusual. hierfstat::betas() is mocked to return a
+  # NaN beta directly (engineering a real genotype fixture that reliably
+  # reproduces hierfstat's own internal NaN case is not practical) so
+  # this test exercises the actual guard, not a hand reimplementation.
+  local_mocked_bindings(
+    betas = function(dat, nboot = 0, ...) {
+      list(betaiovl = c(A = NaN, B = 0.1), betaW = 0.1)
+    },
+    .package = "hierfstat"
+  )
+  geno <- matrix(rbinom(80, 2, 0.3), nrow = 8L)
+  expect_output(
+    res <- popgenVCF:::compute_population_specific_fst(geno, rep(c("A", "B"), each = 4L)),
+    "non-finite.*A"
+  )
+  expect_true(res$available)
+  expect_true(is.nan(res$table[population == "A", beta]))
+  expect_equal(res$table[population == "B", beta], 0.1)
+})
+
 test_that("compute_population_specific_fst skips transparently when hierfstat is unavailable", {
   local_mocked_bindings(requireNamespace = function(...) FALSE, .package = "base")
   geno <- matrix(rbinom(80, 2, 0.3), nrow = 8L)

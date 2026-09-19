@@ -76,3 +76,25 @@ test_that("publication plans embed in their originating project", {
     "Other", project_id = "00000000-0000-0000-0000-000000000076")
   expect_error(set_project_publication_bundle(other, bundle), "another project")
 })
+
+test_that("set_project_publication_bundle refreshes component_digests$artifacts, not just $publication_bundle", {
+  # set_project_artifact_lineage() (a sibling function that also mutates
+  # project$artifacts) already recomputes component_digests$artifacts
+  # after doing so -- this function mutates the very same
+  # project$artifacts (adding $publication_bundle) but was missing the
+  # matching recomputation, leaving component_digests$artifacts stale:
+  # any downstream digest-based comparison would see no change in
+  # $artifacts despite a real one.
+  project <- new_popgenvcf_project(
+    "Stale digest check", project_id = "00000000-0000-0000-0000-000000000077")
+  before_digest <- project$component_digests$artifacts
+  bundle <- new_publication_bundle(project, style = "BMC")
+
+  updated <- set_project_publication_bundle(project, bundle)
+
+  expect_false(identical(updated$component_digests$artifacts, before_digest))
+  expect_identical(
+    updated$component_digests$artifacts,
+    popgenVCF:::project_component_digests(updated$artifacts)
+  )
+})

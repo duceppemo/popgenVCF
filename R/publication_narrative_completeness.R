@@ -12,6 +12,13 @@ publication_narrative_state <- function(result = NULL, module = NULL) {
 
 publication_narrative_reason <- function(result = NULL, module = NULL, state) {
   reason <- module$reason %||% result$reason %||% result$message %||% NA_character_
+  # `%||%` only coalesces NULL, not a length-0 vector (e.g.
+  # module$reason = character(0), a real shape a module record's
+  # optional field can take) -- left in, `is.na(reason)` on a length-0
+  # value is logical(0), and `if (logical(0))` errors outright
+  # ("argument is of length zero") instead of falling through to the
+  # state-based default reason text below.
+  if (!length(reason)) reason <- NA_character_
   if (!is.na(reason) && nzchar(as.character(reason)[1L])) return(as.character(reason)[1L])
   switch(state,
     present = "Canonical result is present.",
