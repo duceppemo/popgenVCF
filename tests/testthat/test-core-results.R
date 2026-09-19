@@ -44,6 +44,19 @@ test_that("legacy adapters and serialization round-trip deterministically", {
   expect_equal(y$provenance$commit, "abc")
 })
 
+test_that("as_core_result treats a bare data.frame as one positional argument, not a list to splat", {
+  # is.list(x) is TRUE for a data.frame too (a data.frame IS a list under
+  # the hood in R) -- a bare data.frame `x` (e.g. a legacy module's
+  # statistics table, passed directly rather than wrapped in
+  # list(statistics = ...)) was previously splatted column-by-column into
+  # the constructor call instead of passed through as new_diversity_result()'s
+  # single `statistics` argument.
+  stats <- data.frame(population = c("A", "B"), Ho = c(0.2, 0.3))
+  x <- as_core_result("diversity", stats)
+  expect_s3_class(x, "PopgenVCFDiversityResult")
+  expect_identical(x$payload$statistics, stats)
+})
+
 test_that("core results reject malformed schemas and failed validation", {
   expect_error(new_core_result("pca", list()), "payload must be a named list")
   expect_error(

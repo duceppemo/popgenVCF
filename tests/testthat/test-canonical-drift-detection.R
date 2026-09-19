@@ -76,6 +76,32 @@ test_that("history records ordered transitions and cumulative drift", {
   expect_error(canonical_drift_history(list(snapshots[[1]])), "at least two")
 })
 
+test_that("a metric with an Inf transition stays visible in cumulative drift, not silently dropped", {
+  # normalized_drift is either a real finite value or literally Inf (an
+  # added/removed metric, "breaking" -- see the "added and removed
+  # metrics fail closed" test above). Pre-filtering to only finite rows
+  # before aggregating meant a metric whose every transition was Inf
+  # vanished from `cumulative` entirely -- no row at all, easily misread
+  # as "no drift data" rather than "unbounded drift" -- and a metric with
+  # a MIX of finite and Inf transitions had the Inf one silently dropped
+  # from its own sum instead of correctly making the total Inf.
+  snapshots <- list(
+    drift_snapshot("01", list(drift_metric("stable_metric", expected = 1, version = "1"))),
+    drift_snapshot("02", list(
+      drift_metric("stable_metric", expected = 1, version = "2"),
+      drift_metric("new_metric", expected = 5, version = "1")
+    )),
+    drift_snapshot("03", list(drift_metric("stable_metric", expected = 1, version = "3")))
+  )
+  history <- canonical_drift_history(snapshots)
+  cumulative <- stats::setNames(
+    history$cumulative$cumulative_normalized_drift, history$cumulative$metric_id
+  )
+  expect_true("new_metric" %in% names(cumulative))
+  expect_true(is.infinite(cumulative[["new_metric"]]))
+  expect_equal(cumulative[["stable_metric"]], 0)
+})
+
 test_that("dataset and analysis summaries are deterministic", {
   old <- drift_snapshot("01", list(
     drift_metric("b", expected = 1, analysis = "fst"),

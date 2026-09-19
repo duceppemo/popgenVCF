@@ -516,16 +516,30 @@ plot_clonality <- function(result, cfg, dirs) {
   if (is.finite(result$n_mlg_total)) {
     p <- p + ggplot2::geom_hline(yintercept = result$n_mlg_total, linetype = "dashed", colour = highlight)
   }
+  # The dashed reference line above is only drawn when n_mlg_total is
+  # finite (the poppr::poppr() 32-bit crash fallback path leaves it NA),
+  # but the caption previously interpolated it unconditionally -- on the
+  # fallback path the figure said "dashed line: NA MLGs with the full..."
+  # while no line was actually drawn. Omit that clause entirely instead
+  # of describing a line that isn't there.
+  caption <- if (is.finite(result$n_mlg_total)) {
+    sprintf(
+      "Mean and 95%% envelope across %s replicates; dashed line: %s MLGs with the full LD-pruned, polymorphic marker set (58c_monomorphic_loci_dropped.csv lists loci excluded before this curve)",
+      scales::comma(result$curve_replicates), scales::comma(result$n_mlg_total)
+    )
+  } else {
+    sprintf(
+      "Mean and 95%% envelope across %s replicates (58c_monomorphic_loci_dropped.csv lists loci excluded before this curve)",
+      scales::comma(result$curve_replicates)
+    )
+  }
   p <- p +
     ggplot2::scale_x_continuous(labels = scales::label_comma()) +
     ggplot2::scale_y_continuous(labels = scales::label_comma()) +
     ggplot2::labs(
       title = "Genotype accumulation curve",
       subtitle = "Distinct multilocus genotypes resolved when subsampling LD-pruned, polymorphic loci",
-      caption = wrap_plot_text(sprintf(
-        "Mean and 95%% envelope across %s replicates; dashed line: %s MLGs with the full LD-pruned, polymorphic marker set (58c_monomorphic_loci_dropped.csv lists loci excluded before this curve)",
-        scales::comma(result$curve_replicates), scales::comma(result$n_mlg_total)
-      )),
+      caption = wrap_plot_text(caption),
       x = "Number of LD-pruned, polymorphic loci sampled", y = "Multilocus genotypes (MLG)"
     ) + theme_publication(figure_base_size(cfg))
   save_plot(p, "58_genotype_accumulation_curve", dirs, fmts, 8, 5.5, dpi)

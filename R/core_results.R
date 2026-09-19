@@ -161,7 +161,12 @@ as_core_result <- function(analysis, x, parameters = list(), provenance = list()
     dapc = new_dapc_result,
     ibd = new_ibd_result,
     stop("unsupported core analysis: ", analysis, call. = FALSE)
-  ), c(if (is.list(x)) x else list(x), common))
+  # is.list(x) is TRUE for a data.frame too (a data.frame IS a list under
+  # the hood in R) -- a bare data.frame `x` (e.g. a legacy module's
+  # coordinates table, passed as the intended single positional
+  # constructor argument) would otherwise be splatted column-by-column
+  # into the constructor call instead of passed through as one argument.
+  ), c(if (is.list(x) && !is.data.frame(x)) x else list(x), common))
 }
 
 #' Extract the primary tabular representation of a core result

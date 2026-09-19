@@ -175,6 +175,34 @@ test_that("plot_clonality writes a figure file when a curve was computed", {
   expect_true(file.exists(file.path(dirs$figures, "58_genotype_accumulation_curve.png")))
 })
 
+test_that("plot_clonality's caption does not describe a dashed line that wasn't drawn (n_mlg_total = NA fallback path)", {
+  # The dashed reference line is only drawn `if (is.finite(n_mlg_total))`
+  # (the poppr::poppr() 32-bit crash fallback path leaves it NA), but the
+  # caption previously interpolated it unconditionally via sprintf(),
+  # producing "dashed line: NA MLGs with the full..." on that path --
+  # describing a line the figure never actually drew.
+  geno <- clonality_fixture_genotype()
+  metadata <- data.table::data.table(
+    sample = rownames(geno), population = rep(c("A", "B"), each = 10)
+  )
+  res <- popgenVCF:::run_clonality(geno, geno, rownames(geno), metadata, seed = 42, curve_replicates = 10)
+  res$n_mlg_total <- NA_real_ # simulate the bitwise-fallback path
+  cfg <- popgenVCF::default_config()
+
+  p <- suppressWarnings({
+    plots <- list()
+    testthat::local_mocked_bindings(
+      save_plot = function(plot, stem, ...) { plots[[stem]] <<- plot; invisible(TRUE) },
+      .package = "popgenVCF"
+    )
+    popgenVCF:::plot_clonality(res, cfg, list(figures = tempdir()))
+    plots[["58_genotype_accumulation_curve"]]
+  })
+
+  expect_false(grepl("NA", p$labels$caption, fixed = TRUE))
+  expect_false(grepl("dashed line", p$labels$caption, fixed = TRUE))
+})
+
 test_that("plot_clonality is a no-op when the curve is empty (curve_replicates = 0)", {
   geno <- clonality_fixture_genotype()
   metadata <- data.table::data.table(

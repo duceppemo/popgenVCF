@@ -193,3 +193,36 @@ test_that("write_chromosome_results sanitizes chromosome names used as file stem
   expect_true(file.exists(file.path(dirs$chromosomes, "chr_weird_name_pairwise_FST.tsv")))
   expect_true(file.exists(file.path(dirs$chromosomes, "chr_weird_name_PCA.tsv")))
 })
+
+test_that("write_chromosome_results does not let two chromosomes that sanitize to the same stem overwrite each other", {
+  # "chr 1" and "chr_1" both sanitize to "chr_1" -- writing the second
+  # chromosome's tables previously silently overwrote the first's,
+  # losing that chromosome's real results with no error or warning.
+  fake <- list(
+    "chr 1" = list(
+      summary = data.table::data.table(
+        chromosome = "chr 1", qc_snps = 4L, ld_snps = 4L, global_fst = 0.1, pc1_percent = 20
+      ),
+      fst = data.table::data.table(population_1 = "PopA", population_2 = "PopB", fst = 0.111111),
+      pca = data.table::data.table(sample = c("A1", "B1"), PC1 = c(-1, 1))
+    ),
+    "chr_1" = list(
+      summary = data.table::data.table(
+        chromosome = "chr_1", qc_snps = 5L, ld_snps = 5L, global_fst = 0.2, pc1_percent = 30
+      ),
+      fst = data.table::data.table(population_1 = "PopA", population_2 = "PopB", fst = 0.222222),
+      pca = data.table::data.table(sample = c("A1", "B1"), PC1 = c(-2, 2))
+    )
+  )
+
+  root <- withr::local_tempdir()
+  dirs <- popgenVCF:::make_dirs(root)
+  popgenVCF:::write_chromosome_results(fake, dirs)
+
+  fst_files <- list.files(dirs$chromosomes, pattern = "pairwise_FST\\.tsv$")
+  expect_length(fst_files, 2L)
+  fst_values <- sort(unname(vapply(fst_files, function(f) {
+    data.table::fread(file.path(dirs$chromosomes, f))$fst[[1L]]
+  }, numeric(1L))))
+  expect_equal(fst_values, c(0.111111, 0.222222))
+})

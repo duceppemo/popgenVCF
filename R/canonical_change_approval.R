@@ -22,6 +22,22 @@ new_canonical_change_request <- function(id, metric_ids, expected_classification
       stop(label, " must be one non-empty string", call. = FALSE)
     trimws(x)
   }
+  iso_date <- function(x, label, optional = FALSE) {
+    if (optional && is.null(x)) return(NULL)
+    value <- scalar(x, label)
+    # .resolve_governing_approval() below relies on decided_at being a
+    # real ISO-8601 date so lexicographic string comparison orders
+    # candidates by actual decision date -- previously unvalidated here
+    # (and unvalidated at all in set_canonical_change_status(), which
+    # skipped even this non-empty-string check), so a non-ISO date (e.g.
+    # "9/2/2026") could misorder against real ISO dates, silently letting
+    # a stale, more permissive approval govern -- the exact bug that
+    # function's own supersession logic exists to prevent.
+    if (!grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", value)) {
+      stop(label, " must be an ISO-8601 date (YYYY-MM-DD)", call. = FALSE)
+    }
+    value
+  }
   metric_ids <- sort(unique(tolower(as.character(metric_ids))))
   if (!length(metric_ids) || anyNA(metric_ids) || any(!nzchar(metric_ids)))
     stop("metric_ids must contain non-empty identifiers", call. = FALSE)
@@ -43,7 +59,7 @@ new_canonical_change_request <- function(id, metric_ids, expected_classification
     justification = scalar(justification, "justification"), status = status,
     requested_by = scalar(requested_by, "requested_by"),
     decided_by = scalar(decided_by, "decided_by", TRUE),
-    decided_at = scalar(decided_at, "decided_at", TRUE),
+    decided_at = iso_date(decided_at, "decided_at", TRUE),
     supersedes = scalar(supersedes, "supersedes", TRUE), provenance = provenance),
     class = "PopgenVCFCanonicalChangeRequest")
 }
@@ -89,10 +105,24 @@ set_canonical_change_status <- function(registry, id, status, decided_by, decide
   id <- tolower(as.character(id)[1L])
   if (!id %in% names(registry$requests)) stop("unknown change request: ", id, call. = FALSE)
   status <- match.arg(status, c("approved", "rejected", "superseded"))
+  decided_by <- as.character(decided_by)[1L]
+  decided_at <- as.character(decided_at)[1L]
+  if (is.na(decided_by) || !nzchar(trimws(decided_by))) {
+    stop("decided_by must be one non-empty string", call. = FALSE)
+  }
+  # Weaker than even new_canonical_change_request()'s own constructor,
+  # which this mirrors -- previously accepted any string (including NA
+  # or empty) with no validation at all. See iso_date()'s own comment
+  # there for why a real ISO-8601 date matters here specifically:
+  # .resolve_governing_approval() orders approvals by this field via
+  # lexicographic string comparison.
+  if (is.na(decided_at) || !grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", decided_at)) {
+    stop("decided_at must be an ISO-8601 date (YYYY-MM-DD)", call. = FALSE)
+  }
   request <- registry$requests[[id]]
   request$status <- status
-  request$decided_by <- as.character(decided_by)[1L]
-  request$decided_at <- as.character(decided_at)[1L]
+  request$decided_by <- decided_by
+  request$decided_at <- decided_at
   registry$requests[[id]] <- request
   registry
 }
@@ -125,9 +155,10 @@ set_canonical_change_status <- function(registry, id, status, decided_by, decide
   if (length(active) == 1L) return(active[[1L]])
   # No supersedes chain resolves the remaining ties: the most recently
   # decided approval governs, rather than an arbitrary registry-order pick.
-  # decided_at is a validated ISO-8601 string (new_canonical_change_request()
-  # requires it), so lexicographic comparison already orders it correctly --
-  # which.max() would coerce to numeric instead and fail on a real date string.
+  # decided_at is a validated ISO-8601 date (both new_canonical_change_request()
+  # and set_canonical_change_status() require it), so lexicographic comparison
+  # already orders it correctly -- which.max() would coerce to numeric instead
+  # and fail on a real date string.
   decided_at <- vapply(active, function(x) x$decided_at %||% "", character(1L))
   active[[which(decided_at == max(decided_at))[[1L]]]]
 }
@@ -165,7 +196,23 @@ reconcile_canonical_changes <- function(assessment, registry) {
       stringsAsFactors = FALSE)
   })
   table <- if (length(rows)) do.call(rbind, rows) else data.frame()
-  expected_ids <- unique(unlist(lapply(approved, `[[`, "metric_ids"), use.names = FALSE))
+  # A metric approved with expected_classification == "stable" is a
+  # request that specifically anticipates NO change -- "stable" is an
+  # allowed expected_classification (new_canonical_change_request()'s own
+  # allowed_classes). Building expected_ids from every approval's
+  # metric_ids regardless of the expected classification meant a metric
+  # correctly staying stable (as its approval predicted) was flagged
+  # "missing_expected_change" below and blocked release_ready, exactly
+  # backwards: an approval that correctly predicted stability was treated
+  # as a failure to see the change it never expected in the first place.
+  # Resolving each metric's governing approval (respecting supersession,
+  # the same way `rows` above already does per drift row) and excluding
+  # metrics whose expected classification is itself "stable" fixes this.
+  expected_ids <- vapply(names(approvals), function(metric_id) {
+    request <- .resolve_governing_approval(approvals[[metric_id]])
+    unname(request$expected_classifications[[metric_id]])
+  }, character(1L))
+  expected_ids <- names(expected_ids)[expected_ids != "stable"]
   changed_ids <- drift$metric_id[drift$classification != "stable"]
   missing <- sort(setdiff(expected_ids, changed_ids))
   missing_table <- data.frame(metric_id = missing,

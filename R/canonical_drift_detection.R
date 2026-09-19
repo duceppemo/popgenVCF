@@ -182,9 +182,19 @@ canonical_drift_history <- function(snapshots, profile = new_canonical_drift_pro
   })
   table <- do.call(rbind, rows)
   rownames(table) <- NULL
-  finite <- is.finite(table$normalized_drift)
-  cumulative <- aggregate(table$normalized_drift[finite],
-    by = list(metric_id = table$metric_id[finite]), FUN = sum)
+  # normalized_drift is either a real finite value or literally Inf (a
+  # "breaking" transition -- undefined-reference-value case above), never
+  # NA/NaN. Pre-filtering to only finite rows before aggregating meant a
+  # metric with even one Inf transition among several finite ones had
+  # that transition silently dropped from its own sum (understating a
+  # cumulative history that should genuinely be unbounded once any
+  # transition is), and a metric whose EVERY transition was Inf vanished
+  # from `cumulative` entirely -- no row at all, easily misread as "no
+  # drift data" rather than "unbounded drift". sum()'s own natural Inf
+  # propagation (Inf + anything finite = Inf) handles both cases
+  # correctly without pre-filtering.
+  cumulative <- aggregate(table$normalized_drift,
+    by = list(metric_id = table$metric_id), FUN = sum)
   names(cumulative)[2L] <- "cumulative_normalized_drift"
   structure(list(schema_version = "1.0", snapshot_ids = ids,
     assessments = assessments, table = table, cumulative = cumulative),

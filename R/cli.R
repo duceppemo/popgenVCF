@@ -63,6 +63,15 @@ parse_cli <- function(args) {
     if (!a %in% value_opts || i == length(args)) {
       stopf("Unknown or incomplete argument: %s", a)
     }
+    # A value option unconditionally consumed the NEXT token as its value,
+    # even when that token was itself another flag (e.g. "--config
+    # --no-report" silently set config = "--no-report" and dropped
+    # --no-report entirely) -- the resulting bogus value only surfaced
+    # later as a confusing "file not found" error, not a clear CLI
+    # parsing error naming the actual problem.
+    if (startsWith(args[[i + 1L]], "--")) {
+      stopf("Missing value for argument: %s", a)
+    }
     out[[gsub("-", "_", sub("^--", "", a))]] <- args[[i + 1L]]
     i <- i + 2L
   }

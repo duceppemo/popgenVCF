@@ -51,6 +51,24 @@ test_that("parse_cli rejects a value option with a missing trailing value", {
   )
 })
 
+test_that("parse_cli rejects a value option immediately followed by another flag, instead of silently consuming it", {
+  # A value option previously consumed the NEXT token unconditionally as
+  # its value, even when that token was itself another flag -- e.g.
+  # "--config --no-report" silently set config = "--no-report" (dropping
+  # --no-report entirely) instead of erroring, and the bogus value only
+  # surfaced later as a confusing "file not found" error.
+  expect_error(
+    popgenVCF:::parse_cli(c("--config", "--no-report")),
+    "Missing value for argument: --config"
+  )
+  # A value that happens to start with "--" is rare in practice for this
+  # CLI's own option set (paths, thread counts), so this deliberately
+  # favors catching the common typo/missing-value case.
+  ok <- popgenVCF:::parse_cli(c("--config", "analysis.yml", "--no-report"))
+  expect_equal(ok$config, "analysis.yml")
+  expect_true(ok$no_report)
+})
+
 # Bootstraps a fresh Rscript subprocess so it can access popgenVCF regardless
 # of how *this* test process reached it: getwd() is not the source root under
 # every test runner (a plain `R CMD check` on a built tarball, and covr's own

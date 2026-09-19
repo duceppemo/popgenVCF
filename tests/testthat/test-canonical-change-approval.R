@@ -57,6 +57,48 @@ test_that("unapproved drift and missing expected changes are detected", {
   expect_false(result$release_ready)
 })
 
+test_that("an approval expecting a metric to stay stable does not itself block release when it correctly stays stable", {
+  # "stable" is an allowed expected_classification -- a request can
+  # specifically pre-approve "this metric will NOT change". Building the
+  # missing-expected-change check from every approval's metric_ids
+  # regardless of the expected classification meant a metric correctly
+  # staying stable (exactly as this approval predicted) was flagged
+  # "missing_expected_change" and blocked release_ready -- backwards: the
+  # approval correctly predicted no change, and got penalized for it.
+  approved <- new_canonical_change_request("cr-stable", "m1", c(m1 = "stable"),
+    "Expected no change from this refactor", status = "approved", requested_by = "scientist",
+    decided_by = "reviewer", decided_at = "2026-02-02")
+  registry <- new_canonical_change_registry(list(approved))
+  result <- reconcile_canonical_changes(change_assessment(old = 10, new = 10), registry)
+  expect_equal(result$table$reconciliation, "approved_change")
+  expect_equal(nrow(result$missing_expected), 0L)
+  expect_true(result$release_ready)
+})
+
+test_that("decided_at is validated as a real ISO-8601 date, at both creation paths", {
+  # decided_at was completely unvalidated in set_canonical_change_status()
+  # (any string, including one that isn't a date at all, was accepted),
+  # and only checked for non-emptiness -- not date format -- in
+  # new_canonical_change_request(). .resolve_governing_approval() (this
+  # file) depends on decided_at being lexicographically ordered like a
+  # real ISO date to correctly pick the most recent approval when ties
+  # aren't resolved by a supersedes chain; a non-ISO date could silently
+  # misorder against real ISO dates there.
+  expect_error(
+    new_canonical_change_request("cr-x", "m1", c(m1 = "minor"), "reason",
+      status = "approved", requested_by = "scientist",
+      decided_by = "reviewer", decided_at = "2/2/2026"),
+    "ISO-8601 date"
+  )
+  request <- new_canonical_change_request("cr-y", "m1", c(m1 = "minor"), "reason",
+    requested_by = "scientist")
+  registry <- new_canonical_change_registry(list(request))
+  expect_error(
+    set_canonical_change_status(registry, "cr-y", "approved", "reviewer", "not-a-date"),
+    "ISO-8601 date"
+  )
+})
+
 test_that("rejected and superseded requests do not authorize drift", {
   rejected <- new_canonical_change_request("cr-r", "m1", c(m1 = "breaking"),
     "Rejected proposal", status = "rejected", requested_by = "scientist",

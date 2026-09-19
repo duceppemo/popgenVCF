@@ -20,8 +20,14 @@ write_chromosome_results <- function(x, dirs) {
   if (!length(x)) return(data.table::data.table())
   summary <- data.table::rbindlist(lapply(x, `[[`, "summary"))
   write_tsv(summary, file.path(dirs$tables, "chromosome_summary.tsv"))
-  for (chr in names(x)) {
-    safe <- gsub("[^A-Za-z0-9_.-]", "_", chr)
+  # Two distinct chromosome names can sanitize to the same on-disk stem
+  # (e.g. "chr 1" and "chr_1" both become "chr_1") -- computing every
+  # sanitized name up front and running them through make.unique() gives
+  # any collision a distinguishing numeric suffix instead of the second
+  # chromosome's files silently overwriting the first's.
+  safe_names <- make.unique(gsub("[^A-Za-z0-9_.-]", "_", names(x)))
+  for (i in seq_along(x)) {
+    chr <- names(x)[[i]]; safe <- safe_names[[i]]
     write_tsv(x[[chr]]$fst, file.path(dirs$chromosomes, paste0(safe, "_pairwise_FST.tsv")))
     write_tsv(x[[chr]]$pca, file.path(dirs$chromosomes, paste0(safe, "_PCA.tsv")))
   }
