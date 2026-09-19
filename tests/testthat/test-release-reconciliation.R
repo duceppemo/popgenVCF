@@ -164,3 +164,28 @@ test_that("release reconciliation evidence is deterministic and machine readable
   expect_true(audit_one$passed)
   expect_identical(audit_one$findings, audit_two$findings)
 })
+
+test_that("regex metacharacters in the checkout root's own path do not corrupt the stripped file paths", {
+  # normalizePath(root, ...) is used directly as a sub()/grepl() PATTERN
+  # via paste0("^", root, "/?") without escaping -- a filesystem path can
+  # legitimately contain regex metacharacters (".", "+", "(", ")", etc.
+  # are all valid in a Unix path), which are then read as regex syntax
+  # instead of a literal path segment: the intended "strip the repo root
+  # prefix" either silently fails to match (leaving the full absolute
+  # path un-stripped) or matches something other than intended.
+  parent <- tempfile("release-reconciliation-root.name+test(v2)[final]-")
+  root <- file.path(parent, "pkg")
+  dir.create(file.path(root, "R"), recursive = TRUE)
+  writeLines(c(
+    "#' A test function",
+    "#' @export",
+    "test_export_fn <- function() NULL"
+  ), file.path(root, "R", "test-export.R"))
+
+  exports <- release_reconciliation_roxygen_exports(root)
+  expect_identical(exports$symbol, "test_export_fn")
+  # The stripped path must be relative (root prefix removed cleanly), not
+  # still the full absolute path with the regex pattern silently failing
+  # to match.
+  expect_identical(exports$file, "R/test-export.R")
+})

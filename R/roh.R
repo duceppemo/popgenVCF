@@ -160,6 +160,25 @@ run_roh <- function(vcf_path, sample_ids, metadata, missing_rate, gt_error_phred
   }
   runs <- roh_parse_regions(called$output)
   runs[, sample := public_ids[match(sample, sample_ids)]]
+  # roh_parse_regions() already warns on a malformed 'RG' line (fewer
+  # than 8 tab-separated fields), but a torn/interleaved captured write
+  # that still happens to produce >= 8 fields -- just with a shifted or
+  # corrupted sample-name field -- passes that check silently, and only
+  # fails HERE, at the match() above, with no warning at all: the
+  # resulting NA `sample` rows are silently excluded by the
+  # sample-keyed merge() below (sample_summary is built by left-joining
+  # onto the real public_ids), understating that run's FROH with
+  # nothing indicating a run went missing.
+  unmatched <- sum(is.na(runs$sample))
+  if (unmatched > 0L) {
+    log_msg(
+      "ROH: discarding ", unmatched, " run(s) with an unmatched raw sample ID ",
+      "(a torn or interleaved captured write that still passed the field-count check); ",
+      "affected samples' FROH is understated",
+      level = "WARNING"
+    )
+    runs <- runs[!is.na(sample)]
+  }
   runs[, length_class := roh_length_class(length_bp, length_class_short_max_bp, length_class_long_min_bp)]
   if ("population" %in% names(metadata)) {
     raw_lookup <- stats::setNames(sample_ids, public_ids)

@@ -54,7 +54,13 @@ compare_release_benchmarks <- function(current, baseline) {
         inherits(reference, "PopgenVCFPerformanceResult")) {
       comparison <- tryCatch(
         compare_performance_baseline(observed, reference),
-        error = function(e) NULL
+        error = function(e) {
+          log_msg(sprintf(
+            "Performance comparison for component '%s' failed, falling back to a bare digest diff: %s",
+            component, conditionMessage(e)
+          ), level = "WARNING")
+          NULL
+        }
       )
       if (!is.null(comparison)) {
         tab <- performance_benchmark_table(comparison)

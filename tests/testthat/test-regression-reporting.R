@@ -125,6 +125,39 @@ test_that("latest release selection uses semantic versions", {
   expect_equal(latest_release_benchmark(archive, exclude = "v0.10.0")$release, "v0.9.0")
 })
 
+test_that("a failed performance comparison logs a warning before falling back to a bare digest diff", {
+  # compare_performance_baseline() erroring (e.g. mismatched benchmark
+  # identifiers between the two performance results) was silently caught
+  # and downgraded to a bare digest-diff row, with nothing indicating a
+  # richer performance comparison was even attempted or why it failed.
+  fake_performance_result <- function(id) {
+    structure(list(
+      schema_version = "1.0", id = id, fingerprint = list(), fingerprint_id = "fp",
+      measurements = data.table::data.table(), summary = data.table::data.table(),
+      thresholds = c(runtime_seconds = 1, peak_memory_mb = 1, temporary_disk_mb = 1),
+      gating = FALSE, metadata = list()
+    ), class = "PopgenVCFPerformanceResult")
+  }
+  baseline <- new_release_benchmark_record(
+    release = "v0.9.0", package_version = "0.9.0", git_sha = "sha-a",
+    created_at = "2026-01-01 UTC",
+    components = list(perf = fake_performance_result("bench-a"))
+  )
+  current <- new_release_benchmark_record(
+    release = "v0.10.0", package_version = "0.10.0", git_sha = "sha-b",
+    created_at = "2026-01-02 UTC",
+    # Mismatched id vs. baseline's "bench-a" makes
+    # compare_performance_baseline() throw "benchmark identifiers differ".
+    components = list(perf = fake_performance_result("bench-b"))
+  )
+
+  expect_output(
+    comparison <- compare_release_benchmarks(current, baseline),
+    "Performance comparison for component 'perf' failed.*benchmark identifiers differ"
+  )
+  expect_true("perf" %in% comparison$details$component)
+})
+
 test_that("regression reports support source-only generation", {
   archive <- new_benchmark_archive(list(
     make_release_record("v0.9.0", 1),

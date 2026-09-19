@@ -127,6 +127,46 @@ test_that("run_roh reports a sample with zero runs correctly rather than omittin
   expect_true(all(is.finite(result$sample_summary$froh)))
 })
 
+test_that("run_roh warns and excludes a run with an unmatched raw sample ID instead of silently dropping it unremarked", {
+  skip_if(Sys.which("bcftools") == "", "bcftools is not available")
+  # roh_parse_regions() already warns on a malformed 'RG' line (fewer
+  # than 8 fields), but a torn/interleaved captured write that still
+  # produces >= 8 fields -- just with a corrupted sample-name field --
+  # passed that check silently and only failed at the match() against
+  # sample_ids afterward, with no warning: the resulting NA-sample row
+  # was silently excluded by the sample-keyed merge() building
+  # sample_summary, understating that sample's FROH. A fabricated extra
+  # 'RG' line with a bogus sample name (appended to bcftools' own real
+  # output for the "roh" subcommand specifically) reproduces this
+  # without needing to actually corrupt bcftools' output stream.
+  vcf <- roh_fixture_vcf()
+  sample_ids <- c("TARGET_HET", "TARGET_HOM", "ANCHOR_HET", "ANCHOR_ALT")
+  metadata <- popgenVCF:::metadata_from_samples(sample_ids)
+
+  real_vcf_command_status <- popgenVCF:::vcf_command_status
+  local_mocked_bindings(
+    vcf_command_status = function(command, args) {
+      real <- real_vcf_command_status(command, args)
+      if (identical(args[[1L]], "roh")) {
+        real$output <- c(
+          real$output,
+          "RG\tUNKNOWN_SAMPLE\t1\t100\t200\t100\t5\t30.0"
+        )
+      }
+      real
+    },
+    .package = "popgenVCF"
+  )
+
+  expect_output(
+    result <- popgenVCF:::run_roh(vcf, sample_ids, metadata, 0.2, 30, 1L),
+    "unmatched raw sample ID"
+  )
+  expect_false("UNKNOWN_SAMPLE" %in% result$runs$sample)
+  expect_false(anyNA(result$runs$sample))
+  expect_identical(nrow(result$sample_summary), 4L)
+})
+
 test_that("run_roh joins population labels when metadata provides them, and omits the column otherwise", {
   skip_if(Sys.which("bcftools") == "", "bcftools is not available")
   vcf <- roh_fixture_vcf()

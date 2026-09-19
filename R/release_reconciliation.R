@@ -4,6 +4,18 @@
 # generated package interfaces without creating a second source of truth for
 # exports or documentation.
 
+# A filesystem path (this repository's own checkout root, or any absolute
+# path derived from it) can legitimately contain regex metacharacters
+# (".", "+", "(", ")", "[", "]", "*", "$", "^", "\\" are all valid in a
+# Unix path) -- used directly as a sub()/grepl() PATTERN via paste0("^",
+# root, ...) without escaping, any such character is read as regex syntax
+# instead of a literal path segment, so the intended "strip the repo root
+# prefix" either silently fails to match (leaving the full absolute path
+# un-stripped) or matches something other than what was intended.
+release_reconciliation_regex_escape <- function(x) {
+  gsub("([.\\+*?\\[\\^\\]$(){}=!<>|:\\\\/-])", "\\\\\\1", x, perl = TRUE)
+}
+
 release_reconciliation_root <- function(root = ".") {
   root <- normalizePath(root, winslash = "/", mustWork = TRUE)
   # docs/ is excluded from built packages by .Rbuildignore, so a root built by
@@ -73,7 +85,7 @@ release_reconciliation_roxygen_exports <- function(root) {
       }
       data.frame(
         symbol = symbol,
-        file = sub(paste0("^", normalizePath(root, winslash = "/"), "/?"), "", normalizePath(path, winslash = "/")),
+        file = sub(paste0("^", release_reconciliation_regex_escape(normalizePath(root, winslash = "/")), "/?"), "", normalizePath(path, winslash = "/")),
         line = index,
         stringsAsFactors = FALSE
       )
@@ -101,7 +113,7 @@ release_reconciliation_dynamic_exports <- function(root) {
     )
     if (!length(indices)) return(NULL)
     data.frame(
-      file = rep(sub(paste0("^", normalizePath(root, winslash = "/"), "/?"), "", normalizePath(path, winslash = "/")), length(indices)),
+      file = rep(sub(paste0("^", release_reconciliation_regex_escape(normalizePath(root, winslash = "/")), "/?"), "", normalizePath(path, winslash = "/")), length(indices)),
       line = indices,
       code = trimws(lines[indices]),
       stringsAsFactors = FALSE
