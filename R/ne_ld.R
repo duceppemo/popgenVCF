@@ -1,34 +1,42 @@
 # LD-based contemporary effective population size (Waples 2006; Waples & Do
-# 2008, the "LDNe"/NeEstimator method). Formula and bias-correction
-# coefficients verified against independent secondary sources (not just
-# recalled) before shipping -- see NEWS.md for the exact citations checked.
-# Given bias-corrected r-squared (r2_drift, attributable to drift alone,
-# after subtracting the expected sampling-noise contribution):
-#   Ne = (1/3 + sqrt(1/9 - 2.76 * r2_drift)) / (2 * r2_drift)
-# The sampling-noise correction depends on harmonic-mean sample size S
-# (Waples 2006):
-#   S <= 30: E(r2) = 0.0018 + 0.907/S + 4.44/S^2
-#   S >  30: E(r2) = 1/S
+# 2008, the "LDNe"/NeEstimator method). Both the sampling-noise correction
+# and the Ne formula are piecewise in the harmonic-mean sample size S
+# (Waples 2006, Table 1, random mating):
+#   S >= 30: E(r2) = 1/S + 3.19/S^2
+#            Ne = (1/3 + sqrt(1/9 - 2.76 * r2_drift)) / (2 * r2_drift)
+#   S <  30: E(r2) = 0.0018 + 0.907/S + 4.44/S^2
+#            Ne = (0.308 + sqrt(0.308^2 - 2.08 * r2_drift)) / (2 * r2_drift)
+# where r2_drift is mean r-squared minus E(r2). Releases through 1.0.14
+# used a bare 1/S for S > 30 (dropping the second-order 3.19/S^2 term) and
+# the S >= 30 Ne formula for every S. The two E(r2) branches are continuous
+# at S = 30 only with the 3.19/S^2 term (0.03688 vs 0.03697; a bare 1/S gives
+# 0.03333), and the omission is not small relative to the signal: at S = 50
+# it inflates r2_drift by 0.0013, against a true drift signal of only
+# ~1/(3 Ne) = 0.0033 for Ne = 100 -- biasing Ne downward by roughly a third.
 # The empirical bias correction was developed assuming rare alleles (< 5%
 # frequency) are excluded -- satisfied here for free by this package's own
 # QC MAF filter (qc.maf, default 0.05), no separate parameter needed.
-ne_ld_bias_correction <- function(s) ifelse(s <= 30, 0.0018 + 0.907 / s + 4.44 / s^2, 1 / s)
+ne_ld_bias_correction <- function(s) {
+  ifelse(s < 30, 0.0018 + 0.907 / s + 4.44 / s^2, 1 / s + 3.19 / s^2)
+}
 
-ne_ld_from_r2_drift <- function(r2_drift) {
+ne_ld_from_r2_drift <- function(r2_drift, s = Inf) {
   if (!is.finite(r2_drift) || r2_drift <= 0) {
     # No detectable drift signal above sampling noise -- reported as
     # infinite, matching NeEstimator's own convention, not a fabricated
     # finite number.
     return(list(ne = Inf, status = "ok"))
   }
-  discriminant <- 1 / 9 - 2.76 * r2_drift
+  small <- is.finite(s) && s < 30
+  intercept <- if (small) 0.308 else 1 / 3
+  discriminant <- if (small) 0.308^2 - 2.08 * r2_drift else 1 / 9 - 2.76 * r2_drift
   if (discriminant < 0) {
     # Implies an extremely small Ne, outside this quadratic formula's valid
     # domain -- reported as NA with an explicit status rather than a
     # complex/nonsensical root.
     return(list(ne = NA_real_, status = "below_formula_domain"))
   }
-  list(ne = (1 / 3 + sqrt(discriminant)) / (2 * r2_drift), status = "ok")
+  list(ne = (intercept + sqrt(discriminant)) / (2 * r2_drift), status = "ok")
 }
 
 # Cross-chromosome SNP pairs only: the drift-only interpretation requires
@@ -91,7 +99,7 @@ ne_ld_one_population <- function(gds, pop_sample_ids, snp_ids, ids, max_snps, se
   harmonic_mean_n <- length(pair_n) / sum(1 / pair_n)
   mean_r2 <- mean(r2)
   r2_drift <- mean_r2 - ne_ld_bias_correction(harmonic_mean_n)
-  fit <- ne_ld_from_r2_drift(r2_drift)
+  fit <- ne_ld_from_r2_drift(r2_drift, harmonic_mean_n)
 
   data.table::data.table(
     n_samples = length(pop_sample_ids), n_snps = length(use_snps),

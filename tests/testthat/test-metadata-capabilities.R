@@ -222,3 +222,38 @@ test_that("pipeline module resolution honors configured enablement", {
     fixed = TRUE
   )
 })
+
+test_that("coordinate modules need coordinates only, not complete population annotations", {
+  runner <- function(analysis, context) list(analysis = analysis, context = context)
+  registry <- popgenVCF::new_analysis_registry()
+  for (name in c("fst", "ibd", "spatial_autocorrelation")) {
+    registry <- popgenVCF::register_analysis(registry, name, runner)
+  }
+  coordinates_only <- popgenVCF:::metadata_capabilities(
+    data.table::data.table(
+      sample = c("s1", "s2"), latitude = c(45.4, 45.5), longitude = c(-75.7, -73.6)
+    ), TRUE
+  )
+  tab <- popgenVCF:::analysis_capability_table(registry, coordinates_only)
+  expect_true(all(tab[module %in% c("ibd", "spatial_autocorrelation"), available]))
+  expect_false(tab[module == "fst", available])
+
+  partial_population <- popgenVCF:::metadata_capabilities(
+    data.table::data.table(
+      sample = c("s1", "s2"), population = c("A", NA_character_),
+      latitude = c(45.4, 45.5), longitude = c(-75.7, -73.6)
+    ), TRUE
+  )
+  tab <- popgenVCF:::analysis_capability_table(registry, partial_population)
+  expect_true(all(tab[module %in% c("ibd", "spatial_autocorrelation"), available]))
+})
+
+test_that("coordinate capability follows the configured geographic columns", {
+  custom <- data.table::data.table(
+    sample = c("s1", "s2"), lat = c("45.4", "n/a"), lon = c(-75.7, -73.6)
+  )
+  expect_false(popgenVCF:::metadata_capabilities(custom, TRUE)$coordinates)
+  expect_true(popgenVCF:::metadata_capabilities(custom, TRUE, c("lat", "lon"))$coordinates)
+  custom[, lat := c("north", "n/a")]
+  expect_false(popgenVCF:::metadata_capabilities(custom, TRUE, c("lat", "lon"))$coordinates)
+})

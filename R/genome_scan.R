@@ -63,8 +63,15 @@ run_genome_scan_fst <- function(gds, snp_ids, ids, metadata, window_bp, step_bp,
   # retained sample.id/population pair must come from metadata, not ids --
   # using ids$sample here would pass QC-excluded samples straight to
   # snpgdsFst() with an undefined (NA) population, which it rejects outright.
-  sample_ids <- metadata$sample
-  population <- factor(metadata$population)
+  # Same N >= 2 rule run_fst() applies to the genome-wide estimate these
+  # windows are read against: a singleton population has no within-population
+  # variance component, and including it here but not there made the
+  # windowed and global values describe two different sample sets.
+  valid <- metadata[, .N, by = population][N >= 2L, population]
+  retained <- metadata[population %in% valid]
+  sample_ids <- retained$sample
+  population <- factor(retained$population)
+  enough_populations <- nlevels(population) >= 2L
   n_windows <- nrow(windows)
 
   # Pre-split once by chromosome so each window scans only its own
@@ -86,7 +93,7 @@ run_genome_scan_fst <- function(gds, snp_ids, ids, metadata, window_bp, step_bp,
     chr_ids <- chr_split_ids[[chromosome]]
     chr_pos <- chr_split_position[[chromosome]]
     w <- chr_ids[chr_pos >= window_start & chr_pos <= window_end]
-    if (length(w) < min_snps) return(list(n_snps = length(w), global_fst = NA_real_))
+    if (length(w) < min_snps || !enough_populations) return(list(n_snps = length(w), global_fst = NA_real_))
     z <- SNPRelate::snpgdsFst(
       gds_conn, sample.id = sample_ids, snp.id = w, population = population,
       method = "W&C84", autosome.only = FALSE, remove.monosnp = TRUE,

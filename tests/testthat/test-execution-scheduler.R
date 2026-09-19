@@ -182,3 +182,33 @@ test_that("scheduler ledger adds deterministic provenance columns", {
   ) %in% names(ledger)))
   expect_true(all(is.na(ledger$dispatch_sequence)))
 })
+
+test_that("each module runs from its own deterministic RNG state and leaves the caller's untouched", {
+  # A module drawing random numbers without its own set.seed() used to
+  # inherit whatever RNG state earlier modules left behind, so its result
+  # depended on which other modules ran, on the backend (forked workers never
+  # advance the parent RNG), and on fresh-vs-resumed execution.
+  draw_module <- list(run = function(analysis, context) {
+    list(analysis = analysis, context = context, result = stats::runif(3L))
+  })
+  registry <- list(modules = list(draws = draw_module, other = draw_module))
+  context <- list(cfg = list(compute = list(seed = 7L)))
+
+  set.seed(100L)
+  first <- popgenVCF:::run_scheduled_engine_module("draws", NULL, context, registry)$value$result
+  after_first <- stats::runif(1L)
+  set.seed(999L)
+  invisible(stats::runif(50L))
+  second <- popgenVCF:::run_scheduled_engine_module("draws", NULL, context, registry)$value$result
+  expect_identical(first, second)
+
+  set.seed(100L)
+  expect_identical(stats::runif(1L), after_first)
+
+  other <- popgenVCF:::run_scheduled_engine_module("other", NULL, context, registry)$value$result
+  expect_false(identical(first, other))
+  reseeded <- popgenVCF:::run_scheduled_engine_module(
+    "draws", NULL, list(cfg = list(compute = list(seed = 8L))), registry
+  )$value$result
+  expect_false(identical(first, reseeded))
+})

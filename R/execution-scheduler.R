@@ -65,8 +65,35 @@ print.PopgenVCFExecutionEngine <- function(x, ...) {
   invisible(x)
 }
 
+# Deterministic per-module RNG seed: the pipeline seed offset by a stable
+# function of the module's own name.
+module_rng_seed <- function(seed, name) {
+  seed <- suppressWarnings(as.integer(seed)[1L])
+  if (is.na(seed)) seed <- 42L
+  offset <- sum(utf8ToInt(name) * seq_along(utf8ToInt(name))) %% 1000003L
+  as.integer((abs(seed) %% 1000000007L + offset) %% .Machine$integer.max)
+}
+
 run_scheduled_engine_module <- function(name, analysis, context, registry) {
   module <- registry$modules[[name]]
+  # Every module starts from its own deterministic RNG state and leaves the
+  # caller's state untouched. Without this, any module drawing random numbers
+  # without its own set.seed() inherited whatever state the modules before it
+  # happened to leave behind -- so its result depended on which other modules
+  # were enabled, on the execution backend (a forked multicore worker never
+  # advances the parent's RNG; a sequential run does), and on whether the run
+  # was fresh or resumed from a checkpoint (a resume skips completed modules
+  # and with them their RNG draws). Modules that do call set.seed()
+  # themselves are unaffected.
+  old_seed <- if (exists(".Random.seed", envir = .GlobalEnv)) get(".Random.seed", envir = .GlobalEnv) else NULL
+  on.exit({
+    if (is.null(old_seed)) {
+      if (exists(".Random.seed", envir = .GlobalEnv)) rm(".Random.seed", envir = .GlobalEnv)
+    } else {
+      assign(".Random.seed", old_seed, envir = .GlobalEnv)
+    }
+  }, add = TRUE)
+  set.seed(module_rng_seed(context$cfg$compute$seed, name))
   started <- Sys.time()
   t0 <- proc.time()[["elapsed"]]
   value <- tryCatch(

@@ -303,3 +303,31 @@ test_that("run_genome_scan_diversity reports NA tajima_d when population_n is un
   out <- popgenVCF:::run_genome_scan_diversity(locus, window_bp = 1000, step_bp = 1000, min_snps = 1L)
   expect_true(is.na(out$tajima_d))
 })
+
+test_that("run_genome_scan_fst excludes singleton populations, matching run_fst()'s global estimate", {
+  set.seed(8L)
+  n <- 21L; n_loci <- 40L
+  g <- matrix(sample(0:2, n * n_loci, replace = TRUE), n, n_loci)
+  path <- tempfile(fileext = ".gds")
+  SNPRelate::snpgdsCreateGeno(
+    path, genmat = g, sample.id = paste0("s", seq_len(n)), snp.id = seq_len(n_loci),
+    snp.chromosome = rep(1L, n_loci), snp.position = seq(100L, by = 100L, length.out = n_loci),
+    snp.allele = rep("A/G", n_loci), snpfirstdim = FALSE
+  )
+  gds <- SNPRelate::snpgdsOpen(path)
+  on.exit(SNPRelate::snpgdsClose(gds), add = TRUE)
+  ids <- popgenVCF:::get_gds_ids(gds)
+  metadata <- data.table::data.table(
+    sample = paste0("s", seq_len(n)), population = c(rep("A", 10L), rep("B", 10L), "C")
+  )
+  windows <- popgenVCF:::run_genome_scan_fst(gds, seq_len(n_loci), ids, metadata, 1e6, 1e6, 5L)
+  global <- popgenVCF:::run_fst(gds, seq_len(n_loci), metadata)$global
+  expect_equal(windows$global_fst[[1L]], global)
+
+  only_singletons <- data.table::data.table(
+    sample = paste0("s", seq_len(n)), population = c(rep("A", 20L), "C")
+  )
+  expect_true(all(is.na(
+    popgenVCF:::run_genome_scan_fst(gds, seq_len(n_loci), ids, only_singletons, 1e6, 1e6, 5L)$global_fst
+  )))
+})

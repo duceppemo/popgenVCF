@@ -350,6 +350,21 @@ validate_config <- function(cfg) {
       stopf("input.%s must be NULL or a single non-empty column name", field)
     }
   }
+  # Metadata headers are normalized on import (lowercased, punctuation
+  # collapsed to "_" -- normalize_metadata_name(), R/io.R), so the configured
+  # coordinate column names must be normalized the same way to ever match
+  # them: `geographic_columns: [Lat, Long]` used to look up "Lat"/"Long"
+  # against columns already renamed "lat"/"long", never match, and skip the
+  # Mantel and spatial-autocorrelation modules as if no coordinates existed.
+  geographic_columns <- unlist(cfg$input$geographic_columns, use.names = FALSE)
+  if (!is.character(geographic_columns) || length(geographic_columns) != 2L ||
+      anyNA(geographic_columns) || any(!nzchar(trimws(geographic_columns)))) {
+    stop("input.geographic_columns must be two column names: latitude, then longitude", call. = FALSE)
+  }
+  cfg$input$geographic_columns <- normalize_metadata_name(trimws(geographic_columns))
+  if (anyDuplicated(cfg$input$geographic_columns)) {
+    stop("input.geographic_columns must name two different columns", call. = FALSE)
+  }
   if (!is.finite(cfg$analyses$structure$replicates) || cfg$analyses$structure$replicates < 1L) stop("analyses.structure.replicates must be >= 1", call. = FALSE)
   if (!is.finite(cfg$analyses$structure$reproducibility_rmse) || cfg$analyses$structure$reproducibility_rmse < 0) stop("analyses.structure.reproducibility_rmse must be non-negative", call. = FALSE)
   if (!is.finite(cfg$analyses$structure$minimum_cluster_correlation) || cfg$analyses$structure$minimum_cluster_correlation < -1 || cfg$analyses$structure$minimum_cluster_correlation > 1) stop("analyses.structure.minimum_cluster_correlation must be between -1 and 1", call. = FALSE)

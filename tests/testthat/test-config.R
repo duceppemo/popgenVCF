@@ -690,3 +690,16 @@ test_that("default analysis toggles drive registry enablement", {
   expect_false(popgenVCF:::module_is_enabled(registry$modules$faststructure, cfg))
   expect_false(popgenVCF:::module_is_enabled(registry$modules$snmf, cfg))
 })
+
+test_that("input.geographic_columns is normalized like metadata headers and validated", {
+  cfg <- popgenVCF::default_config(); cfg$input$vcf <- tempfile(); cfg$input$metadata <- tempfile(); cfg$output$directory <- tempdir()
+  file.create(cfg$input$vcf, cfg$input$metadata)
+  cfg$input$geographic_columns <- c("Lat (deg)", "Long.")
+  expect_identical(popgenVCF::validate_config(cfg)$input$geographic_columns, c("lat_deg_", "long_"))
+  cfg$input$geographic_columns <- list("Latitude", "Longitude")
+  expect_identical(popgenVCF::validate_config(cfg)$input$geographic_columns, c("latitude", "longitude"))
+  cfg$input$geographic_columns <- "latitude"
+  expect_error(popgenVCF::validate_config(cfg), "geographic_columns")
+  cfg$input$geographic_columns <- c("lat", "LAT")
+  expect_error(popgenVCF::validate_config(cfg), "two different columns")
+})

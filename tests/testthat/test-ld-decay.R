@@ -126,3 +126,34 @@ test_that("plot_ld_decay writes a figure only when the binned table is non-empty
   popgenVCF:::plot_ld_decay(empty, cfg, dirs2)
   expect_false(file.exists(file.path(dirs2$figures, "43_LD_decay.png")))
 })
+
+test_that("compute_ld_decay labels LD values by the GDS's native SNP order, not natural chromosome order", {
+  # snpgdsLDMat() returns its band matrix in the GDS file's own SNP order
+  # regardless of the snp.id order requested. With contig "10" stored before
+  # contig "2" (not natural order), the old natural-sort relabelling paired
+  # each r value with the wrong SNP's chromosome/position: the genuine
+  # cross-chromosome pair (native columns 4 and 5) was binned as a
+  # same-chromosome pair. Here chromosome "10" is a perfect-LD block and
+  # chromosome "2" is independent noise, so correct labelling gives
+  # mean r2 = 1 in chromosome 10's own 100 bp bin.
+  set.seed(4L)
+  n <- 60L
+  block <- sample(0:2, n, replace = TRUE)
+  noise <- matrix(sample(0:2, n * 8L, replace = TRUE), n, 8L)
+  g <- cbind(block, block, block, block, noise)
+  chr <- c(rep("10", 4L), rep("2", 8L))
+  pos <- c(seq(100L, 400L, 100L), seq(10000L, 80000L, 10000L))
+  path <- tempfile(fileext = ".gds")
+  SNPRelate::snpgdsCreateGeno(
+    path, genmat = g, sample.id = paste0("s", seq_len(n)), snp.id = seq_len(12L),
+    snp.chromosome = chr, snp.position = pos, snp.allele = rep("A/G", 12L), snpfirstdim = FALSE
+  )
+  gds <- SNPRelate::snpgdsOpen(path)
+  on.exit(SNPRelate::snpgdsClose(gds), add = TRUE)
+  ids <- popgenVCF:::get_gds_ids(gds)
+
+  res <- popgenVCF:::compute_ld_decay(gds, paste0("s", seq_len(n)), seq_len(12L), ids, 1e6, 100L, 1L)
+  expect_equal(res$binned[distance_bin_start == 100L, mean_r2], 1)
+  expect_equal(res$binned[distance_bin_start == 100L, n_pairs], 3L)
+  expect_lt(res$binned[distance_bin_start == 10000L, mean_r2], 0.2)
+})

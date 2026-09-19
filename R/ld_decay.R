@@ -8,15 +8,6 @@ compute_ld_decay <- function(gds, sample_ids, snp_ids, ids, max_distance_bp, bin
     distance_bin_start = integer(), distance_bin_end = integer(),
     n_pairs = integer(), mean_r2 = numeric()
   )
-  chromosome <- as.character(ids$chromosome[match(snp_ids, ids$snp)])
-  position <- as.numeric(ids$position[match(snp_ids, ids$snp)])
-  # SNPRelate::snpgdsLDMat() bands adjacency by the ORDER of the snp.id vector
-  # passed in, not by chromosome/position -- explicit sort here (rather than
-  # trusting GDS file order) so cross-chromosome pairs are only ever adjacent
-  # at true chromosome boundaries, where the chromosome_i != chromosome_j
-  # filter below discards them.
-  ord <- order(natural_sort_key(chromosome), position)
-  snp_ids <- snp_ids[ord]; chromosome <- chromosome[ord]; position <- position[ord]
   n <- length(snp_ids)
   if (n < 2L) return(list(binned = empty_binned(), n_snps = n, n_pairs = 0L))
 
@@ -24,6 +15,21 @@ compute_ld_decay <- function(gds, sample_ids, snp_ids, ids, max_distance_bp, bin
     gds, sample.id = sample_ids, snp.id = snp_ids, slide = min(slide, n - 1L),
     method = "r", with.id = TRUE, verbose = FALSE
   )
+  # SNPRelate::snpgdsLDMat() bands adjacency by the GDS file's own NATIVE
+  # SNP order, never by the order of the snp.id vector passed in (confirmed
+  # directly: requesting snp.id = c(5:12, 1:4) returns z$snp.id = 1:12) --
+  # the same selection-not-ordering behavior as every other SNPRelate
+  # function. Releases through 1.0.14 pre-sorted snp_ids into natural
+  # chromosome order and then labelled z$LD's columns with that sorted
+  # order; for any VCF whose contig order is not already natural order
+  # (e.g. scaffold_10 before scaffold_2) every column past the first
+  # out-of-order contig was labelled with the wrong SNP's chromosome and
+  # position, so r values were binned at the wrong distances and genuine
+  # cross-chromosome pairs were averaged in as same-chromosome ones.
+  # Labelling from z$snp.id -- the order the matrix is actually in -- needs
+  # no assumption about either order.
+  chromosome <- as.character(ids$chromosome[match(z$snp.id, ids$snp)])
+  position <- as.numeric(ids$position[match(z$snp.id, ids$snp)])
   slide_used <- z$slide
   pairs <- data.table::rbindlist(lapply(seq_len(slide_used), function(k) {
     j <- seq_len(n - k)

@@ -1,4 +1,5 @@
-metadata_capabilities <- function(metadata, metadata_supplied = TRUE) {
+metadata_capabilities <- function(metadata, metadata_supplied = TRUE,
+                                  geographic_columns = c("latitude", "longitude")) {
   columns <- names(metadata)
   population <- if ("population" %in% columns) {
     trimws(as.character(metadata$population))
@@ -8,8 +9,17 @@ metadata_capabilities <- function(metadata, metadata_supplied = TRUE) {
   population_levels <- if (has_population) {
     data.table::uniqueN(population)
   } else 0L
-  has_coordinates <- all(c("latitude", "longitude") %in% columns) &&
-    any(stats::complete.cases(metadata[, c("latitude", "longitude"), with = FALSE]))
+  # The configured coordinate columns (input.geographic_columns), not a
+  # hardcoded "latitude"/"longitude": with custom column names the Mantel and
+  # spatial-autocorrelation modules were reported "no complete
+  # latitude/longitude pairs available" and skipped, even though both read
+  # the configured names themselves. Non-numeric entries count as missing,
+  # matching those modules' own as.numeric()/is.finite() handling.
+  has_coordinates <- length(geographic_columns) == 2L && all(geographic_columns %in% columns) && {
+    lat <- suppressWarnings(as.numeric(metadata[[geographic_columns[1L]]]))
+    lon <- suppressWarnings(as.numeric(metadata[[geographic_columns[2L]]]))
+    any(is.finite(lat) & is.finite(lon))
+  }
   list(
     metadata_supplied = isTRUE(metadata_supplied),
     sample = "sample" %in% columns,
@@ -45,21 +55,26 @@ analysis_capability_table <- function(registry, capabilities) {
   reason <- stats::setNames(rep("available", length(modules)), modules)
 
   if (!isTRUE(capabilities$population)) {
-    disabled <- union(population_modules, coordinate_modules)
-    enabled <- setdiff(enabled, disabled)
+    enabled <- setdiff(enabled, population_modules)
     reason[population_modules] <- if (isTRUE(capabilities$metadata_supplied)) {
       "complete population annotations unavailable"
     } else {
       "metadata not supplied; population annotations unavailable"
     }
+  }
+  # Coordinate modules depend on coordinates alone. They used to be disabled
+  # whenever population annotations were incomplete as well, although neither
+  # the Mantel/isolation-by-distance test nor spatial autocorrelation uses
+  # population labels (the partial Mantel control is simply skipped without
+  # them) -- so a study with coordinates but no, or partly missing, population
+  # labels silently lost both analyses.
+  if (!isTRUE(capabilities$coordinates)) {
+    enabled <- setdiff(enabled, coordinate_modules)
     reason[coordinate_modules] <- if (isTRUE(capabilities$metadata_supplied)) {
-      "population and/or usable coordinates unavailable"
+      "no complete latitude/longitude pairs available"
     } else {
       "metadata not supplied; spatial annotations unavailable"
     }
-  } else if (!isTRUE(capabilities$coordinates)) {
-    enabled <- setdiff(enabled, coordinate_modules)
-    reason[coordinate_modules] <- "no complete latitude/longitude pairs available"
   }
   if (isTRUE(capabilities$population) && n_populations < 2L) {
     enabled <- setdiff(enabled, multi_population_modules)

@@ -75,7 +75,7 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
   )
   sample_ids <- hs$sample_ids
   metadata <- hs$metadata
-  capabilities <- metadata_capabilities(metadata, metadata_supplied)
+  capabilities <- metadata_capabilities(metadata, metadata_supplied, cfg$input$geographic_columns)
   analysis$inputs$metadata <- metadata
   analysis$inputs$metadata_supplied <- metadata_supplied
   analysis$inputs$capabilities <- capabilities

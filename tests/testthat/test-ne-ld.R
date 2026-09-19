@@ -99,8 +99,25 @@ test_that("ne_ld_one_population ignores NA pairs from a locus monomorphic within
 
 test_that("ne_ld_bias_correction matches the documented Waples (2006) piecewise formula", {
   expect_equal(popgenVCF:::ne_ld_bias_correction(20), 0.0018 + 0.907 / 20 + 4.44 / 20^2)
-  expect_equal(popgenVCF:::ne_ld_bias_correction(50), 1 / 50)
-  expect_equal(popgenVCF:::ne_ld_bias_correction(30), 0.0018 + 0.907 / 30 + 4.44 / 30^2)
+  # Waples (2006) Table 1: the S >= 30 branch carries a second-order
+  # 3.19/S^2 term; a bare 1/S (every release through 1.0.14) inflates
+  # r2_drift and biases Ne downward.
+  expect_equal(popgenVCF:::ne_ld_bias_correction(50), 1 / 50 + 3.19 / 50^2)
+  expect_equal(popgenVCF:::ne_ld_bias_correction(30), 1 / 30 + 3.19 / 30^2)
+  # The two published branches are (near-)continuous at S = 30 -- only true
+  # with the 3.19/S^2 term present.
+  expect_lt(abs(popgenVCF:::ne_ld_bias_correction(29.999) - popgenVCF:::ne_ld_bias_correction(30)), 2e-4)
+})
+
+test_that("ne_ld_from_r2_drift uses the Waples (2006) small-sample Ne formula below S = 30", {
+  large <- popgenVCF:::ne_ld_from_r2_drift(0.01, s = 50)
+  expect_equal(large$ne, (1 / 3 + sqrt(1 / 9 - 2.76 * 0.01)) / (2 * 0.01))
+  small <- popgenVCF:::ne_ld_from_r2_drift(0.01, s = 20)
+  expect_equal(small$ne, (0.308 + sqrt(0.308^2 - 2.08 * 0.01)) / (2 * 0.01))
+  # 0.308^2 / 2.08 = 0.0456: inside the S >= 30 domain (1/9/2.76 = 0.0403)
+  # is not the same boundary.
+  expect_identical(popgenVCF:::ne_ld_from_r2_drift(0.043, s = 20)$status, "ok")
+  expect_identical(popgenVCF:::ne_ld_from_r2_drift(0.043, s = 50)$status, "below_formula_domain")
 })
 
 test_that("ne_ld_from_r2_drift handles the non-positive and out-of-domain cases", {
