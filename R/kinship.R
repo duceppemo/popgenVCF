@@ -45,7 +45,15 @@ run_kinship <- function(gds, sample_ids, snp_ids, metadata, threads) {
   } else {
     pairs <- pairs[, .(sample_1, sample_2, IBS0, kinship, relationship_degree)]
   }
-  data.table::setorder(pairs, -kinship)
+  # data.table::setorder()'s own default is na.last = FALSE (NA/NaN sort
+  # FIRST) -- confirmed directly, the opposite of base R's order()
+  # default. A pair with undefined (NaN) KING-robust kinship (a real,
+  # reachable value: SNPRelate::snpgdsIBDKING() can return NaN) would
+  # otherwise sort to the very top of the published pairs table,
+  # presented as the *most* related pair, when it is actually undefined.
+  # The relationship_degree column already correctly reports NA for
+  # these via kinship_relationship_degree()'s own is.finite() guard.
+  data.table::setorder(pairs, -kinship, na.last = TRUE)
 
   list(kinship = kinship, ibs0 = ibs0, pairs = pairs)
 }

@@ -100,6 +100,34 @@ test_that("run_mantel_ibd leaves partial Mantel NA without a population column o
   expect_true(is.na(res2$summary$partial_mantel_r))
 })
 
+test_that("run_mantel_ibd's partial Mantel test excludes NA-population samples instead of being poisoned by them", {
+  # data.table::uniqueN() counts NA as its own distinct level -- io.R
+  # deliberately converts an empty population string to NA_character_, a
+  # real, reachable value, not hypothetical. Left in,
+  # outer(population, population, `!=`) produces NA cells for every pair
+  # involving the NA-population sample, and vegan::mantel.partial() on a
+  # distance object built from that either errors or poisons the result
+  # for every sample, not just the unlabeled one.
+  set.seed(5)
+  n <- 20L
+  pop <- c(rep(c("A", "B"), each = (n - 2L) / 2L), NA_character_, NA_character_)
+  sample_id <- paste0("S", seq_len(n))
+  coord <- seq_len(n)
+  metadata <- data.table::data.table(
+    sample = sample_id, population = pop,
+    latitude = 40 + coord * 0.1, longitude = -70 + coord * 0.1
+  )
+  gd <- as.matrix(stats::dist(coord)) + matrix(stats::rnorm(n * n, 0, 0.5), n, n)
+  gd <- (gd + t(gd)) / 2; diag(gd) <- 0
+  rownames(gd) <- colnames(gd) <- sample_id
+
+  res <- popgenVCF:::run_mantel_ibd(gd, metadata, c("latitude", "longitude"), permutations = 199L, seed = 42L)
+
+  expect_false(is.null(res$partial_mantel))
+  expect_true(is.finite(res$summary$partial_mantel_r))
+  expect_true(is.finite(res$summary$partial_mantel_p))
+})
+
 test_that("plot_ibd's subtitle includes the partial Mantel result when available", {
   fx <- data.table::data.table(
     genetic_distance = c(0.1, 0.5, 0.9), geographic_distance_km = c(10, 500, 900)

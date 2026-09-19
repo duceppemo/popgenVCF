@@ -1,7 +1,14 @@
 journal_profile_roles <- function(x, label) {
-  x <- sort(unique(trimws(as.character(x))))
+  # sort()'s own default (na.last = NA) REMOVES NA entirely rather than
+  # keeping it -- so anyNA(x) below could never actually trigger once x
+  # had already been through sort() first; a genuinely NA role name
+  # silently vanished instead of being rejected. Validating before
+  # sorting (rather than adding na.last = TRUE, which would still let an
+  # NA reach the "non-empty" check as a value to describe rather than
+  # reject outright) catches it.
+  x <- unique(trimws(as.character(x)))
   if (anyNA(x) || any(!nzchar(x))) stop(label, " must contain non-empty role names", call. = FALSE)
-  x
+  sort(x)
 }
 
 journal_profile_filenames <- function(x) {
@@ -297,7 +304,14 @@ validate_journal_submission <- function(profile, manuscript, companions = NULL,
   add("abstract:max_words", is.na(limits$abstract_max_words) || abstract_words <= limits$abstract_max_words,
       abstract_words, limits$abstract_max_words, "Maximum abstract word count")
   keyword_count <- length(manuscript$keywords)
-  add("keywords:min", keyword_count >= limits$keyword_min, keyword_count, limits$keyword_min, "Minimum keyword count")
+  # journal_profile_limit() explicitly permits NA ("no minimum imposed"),
+  # unlike keyword_max (guarded by is.na() || ... two lines below,
+  # matching this file's own established pattern) -- a bare
+  # `keyword_count >= limits$keyword_min` with keyword_min = NA propagates
+  # NA into journal_submission_row()'s own `if (ok) "pass" else "fail"`,
+  # a hard crash rather than the intended "no minimum" pass.
+  add("keywords:min", is.na(limits$keyword_min) || keyword_count >= limits$keyword_min,
+      keyword_count, limits$keyword_min, "Minimum keyword count")
   add("keywords:max", is.na(limits$keyword_max) || keyword_count <= limits$keyword_max,
       keyword_count, limits$keyword_max, "Maximum keyword count")
   for (declaration in req$declarations) {
@@ -317,9 +331,18 @@ validate_journal_submission <- function(profile, manuscript, companions = NULL,
     add(paste0("companion:", companion), present, if (present) "present" else "missing", "required", paste("Required companion", companion))
   }
   highlights <- companions$highlights %||% character()
-  if (limits$highlight_min > 0L || !is.na(limits$highlight_max) || !is.na(limits$highlight_max_chars)) {
+  # highlight_min = NA (explicitly permitted by journal_profile_limit())
+  # with highlight_max/highlight_max_chars left at their own NA defaults
+  # makes `limits$highlight_min > 0L` alone NA, and NA || FALSE || FALSE
+  # is NA in R (OR only short-circuits to TRUE on an actual TRUE operand,
+  # not on FALSE) -- `if (NA)` crashes outright instead of correctly
+  # skipping this whole optional highlights-limits block, the intended
+  # behavior when no highlight limit is configured at all. isTRUE()
+  # neutralizes the NA-producing comparison to FALSE.
+  if (isTRUE(limits$highlight_min > 0L) || !is.na(limits$highlight_max) || !is.na(limits$highlight_max_chars)) {
     count <- length(highlights)
-    add("highlights:min", count >= limits$highlight_min, count, limits$highlight_min, "Minimum highlight count")
+    add("highlights:min", is.na(limits$highlight_min) || count >= limits$highlight_min,
+        count, limits$highlight_min, "Minimum highlight count")
     add("highlights:max", is.na(limits$highlight_max) || count <= limits$highlight_max, count, limits$highlight_max, "Maximum highlight count")
     if (!is.na(limits$highlight_max_chars)) {
       longest <- if (count) max(nchar(highlights)) else 0L

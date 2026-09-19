@@ -43,6 +43,41 @@ test_that("custom profiles validate roles, sections, and filename rules", {
   expect_error(new_journal_profile(overrides = list("value")), "named list")
 })
 
+test_that("an NA role name is rejected instead of being silently dropped by sort()", {
+  # sort()'s own default (na.last = NA) REMOVES NA entirely -- so
+  # anyNA(x) after sorting could never actually trigger; a genuinely NA
+  # role name silently vanished instead of being rejected.
+  expect_error(
+    new_journal_profile(required_roles = c("manuscript_source", NA_character_)),
+    "non-empty role names"
+  )
+})
+
+test_that("keyword_min = NA (explicitly 'no minimum') does not crash validation", {
+  # journal_profile_limit() explicitly documents NA as a supported value
+  # ("must be a non-negative integer or NA"). A bare
+  # `keyword_count >= limits$keyword_min` with keyword_min = NA
+  # propagated NA into journal_submission_row()'s own
+  # `if (ok) "pass" else "fail"`, a hard crash instead of the intended
+  # "no minimum imposed" pass.
+  profile <- new_journal_profile(id = "no-keyword-min", keyword_min = NA_integer_)
+  manuscript <- journal_profile_test_manuscript()
+  report <- expect_no_error(validate_journal_submission(profile, manuscript))
+  expect_identical(report[requirement == "keywords:min", status], "pass")
+})
+
+test_that("highlight_min = NA with no other highlight limits configured does not crash validation", {
+  # `if (limits$highlight_min > 0L || !is.na(limits$highlight_max) || !is.na(limits$highlight_max_chars))`
+  # is NA (not FALSE) when highlight_min is NA and the other two limits
+  # are also left at their own NA defaults -- R's `||` only
+  # short-circuits to TRUE on an actual TRUE operand, not on FALSE -- so
+  # this crashed outright instead of correctly skipping the optional
+  # highlights-limits block entirely.
+  profile <- new_journal_profile(id = "no-highlight-min", highlight_min = NA_integer_)
+  manuscript <- journal_profile_test_manuscript()
+  expect_no_error(validate_journal_submission(profile, manuscript))
+})
+
 test_that("verified named profiles require versioned sources", {
   expect_error(new_journal_profile(id = "named", status = "verified"), "require source_url and source_date")
   profile <- new_journal_profile(

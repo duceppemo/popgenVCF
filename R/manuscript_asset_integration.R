@@ -44,6 +44,20 @@ manuscript_cross_reference_table <- function(manuscript) {
   captions <- data.table::copy(manuscript$captions)
   caption_by_id <- setNames(captions$caption, captions$id)
   label_by_id <- setNames(captions$label, captions$id)
+  # `named_vector[[key]]` (not `[key]`) throws "subscript out of bounds"
+  # for a key absent from the vector's names -- confirmed directly -- so
+  # `label_by_id[[id]] %||% id` below never actually reached its `%||%`
+  # fallback for a missing id; it aborted with that cryptic error first,
+  # taking down manuscript_cross_reference_table() (and everything built
+  # on it: write_manuscript(), JATS, submission packaging) for any
+  # artifact whose id has no captions row, including the legitimate
+  # empty-captions case. `%in% names()` first, falling back on both a
+  # missing key and an explicit NA value (a captions row that exists but
+  # left this field blank), matches the fallback's original intent.
+  lookup_or <- function(named_vector, key, fallback) {
+    value <- if (key %in% names(named_vector)) named_vector[[key]] else NA
+    if (is.na(value)) fallback else value
+  }
   rows <- lapply(seq_len(nrow(artifacts)), function(i) {
     id <- manuscript_artifact_value(artifacts, "id", i, paste0("artifact_", i))
     category <- manuscript_artifact_value(artifacts, "category", i, "supplementary")
@@ -53,10 +67,10 @@ manuscript_cross_reference_table <- function(manuscript) {
     data.table::data.table(
       id = id,
       category = category,
-      label = label_by_id[[id]] %||% id,
+      label = lookup_or(label_by_id, id, id),
       anchor = manuscript_anchor_id(category, id),
       path = path,
-      caption = caption_by_id[[id]] %||% manuscript_artifact_value(artifacts, "name", i, id),
+      caption = lookup_or(caption_by_id, id, manuscript_artifact_value(artifacts, "name", i, id)),
       embeddable = identical(category, "figure") && extension %in% c("png", "jpg", "jpeg", "gif", "svg", "webp")
     )
   })

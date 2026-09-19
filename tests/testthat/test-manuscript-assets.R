@@ -24,6 +24,35 @@ test_that("manuscript cross references are stable and anchored", {
   expect_identical(refs$anchor, manuscript_cross_reference_table(manuscript)$anchor)
 })
 
+test_that("manuscript_cross_reference_table tolerates an artifact with no matching captions row", {
+  # named_vector[[key]] (not [key]) throws "subscript out of bounds" for a
+  # key absent from the vector's names -- confirmed directly -- so
+  # label_by_id[[id]] %||% id never actually reached its %||% fallback
+  # for a missing id; it aborted with that cryptic error first, taking
+  # down manuscript_cross_reference_table() (and everything built on it:
+  # write_manuscript(), JATS, submission packaging) for any artifact
+  # whose id has no captions row.
+  figure <- tempfile(fileext = ".png")
+  writeBin(as.raw(c(137, 80, 78, 71)), figure)
+  lineage <- new_artifact_lineage(
+    list(new_lineage_execution("exec:pca", "pca")),
+    list(new_lineage_artifact("artifact:pca:figure", "pca", "PCA figure", "figure", "png",
+                              producer = "exec:pca", path = figure))
+  )
+  project <- new_popgenvcf_project(
+    "Missing caption", project_id = "00000000-0000-0000-0000-000000000732")
+  project <- set_project_artifact_lineage(project, lineage)
+  manuscript <- new_manuscript(project)
+  # Simulate an artifact with no matching captions row -- reachable in
+  # practice whenever an artifact is added after captions were seeded, or
+  # a caller supplies an incomplete captions table directly.
+  manuscript$captions <- manuscript$captions[0L]
+
+  refs <- expect_no_error(manuscript_cross_reference_table(manuscript))
+  expect_equal(nrow(refs), 1L)
+  expect_identical(refs$label, "artifact:pca:figure") # falls back to the artifact id
+})
+
 test_that("written manuscripts copy assets and preserve bibliography", {
   figure <- tempfile(fileext = ".svg")
   writeLines(c("<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"), figure)

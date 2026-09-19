@@ -168,9 +168,27 @@ write_ibs_publication_artifacts <- function(similarity, distance, metadata = NUL
       if (is.null(palette)) palette <- population_palette(lev)
       point_col <- unname(palette[pops]); point_col[is.na(point_col)] <- "grey40"
     }
-    graphics::plot(coords$MDS1, coords$MDS2, pch = 21, bg = point_col, col = "black", cex = 1.1,
-      xlab = sprintf("MDS1 (%.2f%%)", axis_percent[1]), ylab = sprintf("MDS2 (%.2f%%)", axis_percent[2]),
-      main = "Multidimensional scaling of identity-by-state distance")
+    # coords has no MDS2 column at all when write_ibs_publication_artifacts()
+    # was called with k = 1 (compute_ibs_mds()'s own contract: return
+    # exactly k axes, not padded). graphics::plot(x, y = NULL) does not
+    # error -- confirmed directly -- but silently falls back to plotting x
+    # against an implicit sample INDEX instead of the intended second MDS
+    # axis, while xlab/ylab and the title still describe a genuine 2-D MDS
+    # scatter that was never actually computed. Plotting MDS1 against a
+    # constant zero, with an honest label and title, avoids both the
+    # silent mislabeling and (this function's own artifact-manifest
+    # contract requires every listed figure file to actually exist)
+    # skipping the figure file outright.
+    has_mds2 <- "MDS2" %in% names(coords)
+    y_values <- if (has_mds2) coords$MDS2 else rep(0, nrow(coords))
+    graphics::plot(coords$MDS1, y_values, pch = 21, bg = point_col, col = "black", cex = 1.1,
+      xlab = sprintf("MDS1 (%.2f%%)", axis_percent[1]),
+      ylab = if (has_mds2) sprintf("MDS2 (%.2f%%)", axis_percent[2]) else "",
+      main = if (has_mds2) {
+        "Multidimensional scaling of identity-by-state distance"
+      } else {
+        "Multidimensional scaling of identity-by-state distance (single axis retained)"
+      })
     graphics::abline(h = 0, v = 0, lty = 3, col = "grey75")
     if ("population" %in% names(coords)) {
       lev <- sort(unique(as.character(coords$population[!is.na(coords$population)])))

@@ -67,6 +67,43 @@ test_that("IBS publication artifacts are complete and reproducible", {
   expect_true(all(validation$passed))
 })
 
+test_that("write_ibs_publication_artifacts(k = 1) plots the single retained axis instead of silently mislabeling an index plot as MDS2", {
+  # coords has no MDS2 column at all when k = 1 (compute_ibs_mds()'s own
+  # contract: return exactly k axes, not padded to 2). graphics::plot(x,
+  # y = NULL) does not error, but silently falls back to plotting x
+  # against an implicit sample index instead -- while the old code's
+  # xlab/ylab/title still described a genuine 2-D MDS scatter that was
+  # never actually computed, a real, reachable mislabeling for any
+  # legitimate k = 1 request, not merely a hypothetical crash.
+  similarity <- matrix(c(
+    1.0, 0.9, 0.7, 0.6,
+    0.9, 1.0, 0.8, 0.7,
+    0.7, 0.8, 1.0, 0.9,
+    0.6, 0.7, 0.9, 1.0
+  ), nrow = 4, byrow = TRUE,
+  dimnames = list(paste0("s", 1:4), paste0("s", 1:4)))
+  distance <- 1 - similarity
+  out <- tempfile("ibs-publication-k1-")
+
+  manifest <- expect_no_error(write_ibs_publication_artifacts(
+    similarity = similarity, distance = distance, output_dir = out, k = 1L
+  ))
+  expect_s3_class(manifest, "PopgenVCFArtifactManifest")
+  expect_true(file.exists(file.path(out, "figures", "IBS_MDS1_MDS2.png")))
+
+  coordinates <- data.table::fread(file.path(out, "tables", "IBS_MDS_coordinates.tsv"))
+  expect_false("MDS2" %in% names(coordinates))
+  # Note: graphics::plot(x, y = NULL) does not error either before or
+  # after this fix (confirmed directly) -- the bug this guards against is
+  # a silent mislabeling (an index-vs-value fallback plot presented with
+  # a 2-D MDS title/axis labels), not a crash, so this test's real
+  # assertions are that k = 1 completes without error at all and that
+  # the coordinates table honestly has no MDS2 column, both of which the
+  # pre-fix code already satisfied too -- this is coverage for the k = 1
+  # path succeeding end-to-end, not a bisecting regression test for the
+  # specific mislabeling itself.
+})
+
 test_that("IBS publication validation rejects inconsistent matrices", {
   similarity <- diag(3)
   distance <- matrix(c(0, 1, 1, 1, 0, 1, 1, 1, 0), 3, 3)

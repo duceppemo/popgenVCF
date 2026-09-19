@@ -50,11 +50,25 @@ run_mantel_ibd <- function(genetic_distance, metadata, geographic_columns, permu
   partial <- NULL
   if ("population" %in% names(m)) {
     population <- m$population[keep]
-    if (data.table::uniqueN(population) >= 2L) {
-      pop_dissim <- outer(population, population, `!=`) * 1
+    # data.table::uniqueN() counts NA as its own distinct level -- io.R
+    # deliberately converts an empty population string to NA_character_,
+    # a real, reachable value here, not a hypothetical one. Left in,
+    # outer(population, population, `!=`) produces NA cells for every
+    # pair involving an NA-population sample, and vegan::mantel.partial()
+    # on a distance object built from that poisons the result for every
+    # sample, not just the ones with an unlabeled population. Excluding
+    # unlabeled samples first (and re-checking both the minimum usable
+    # count and that at least two real populations remain among them)
+    # keeps this test's population control meaningful without needing to
+    # discard the sample entirely from the rest of this function.
+    pop_known <- !is.na(population)
+    if (sum(pop_known) >= 4L && data.table::uniqueN(population[pop_known]) >= 2L) {
+      gd_pop <- gd[pop_known, pop_known, drop = FALSE]
+      geo_pop <- geo[pop_known, pop_known, drop = FALSE]
+      pop_dissim <- outer(population[pop_known], population[pop_known], `!=`) * 1
       set.seed(seed)
       partial <- vegan::mantel.partial(
-        stats::as.dist(gd), stats::as.dist(geo), stats::as.dist(pop_dissim),
+        stats::as.dist(gd_pop), stats::as.dist(geo_pop), stats::as.dist(pop_dissim),
         permutations = permutations, method = "pearson"
       )
     }

@@ -82,6 +82,47 @@ test_that("run_kinship recovers a known duplicate and a simulated parent-offspri
   expect_identical(child_parent2$relationship_degree, "1st-degree")
 })
 
+test_that("a pair with undefined (NaN) kinship sorts last, not first, in the published pairs table", {
+  # data.table::setorder()'s own default is na.last = FALSE (NA/NaN sort
+  # FIRST) -- confirmed directly, the opposite of base R's order()
+  # default. A pair with genuinely undefined KING-robust kinship (NaN,
+  # a real value SNPRelate::snpgdsIBDKING() can return) would otherwise
+  # sort to the very top of "35_kinship_pairs.tsv", presented as the
+  # *most* related pair in the whole published table, when it is
+  # actually undefined. SNPRelate::snpgdsIBDSelection() is mocked to
+  # inject one NaN-kinship row alongside real, finite ones (engineering
+  # a real genotype fixture that produces exactly one NaN pair among
+  # otherwise-finite ones is impractical -- SNPRelate treats an
+  # all-missing sample's presence as poisoning every pair's kinship, not
+  # just that sample's own), while everything else (the real king$kinship
+  # matrix, sample IDs) comes from an actual snpgdsIBDKING() run.
+  fx <- kinship_fixture()
+  on.exit(SNPRelate::snpgdsClose(fx$gds), add = TRUE)
+  snp_id <- popgenVCF:::get_gds_ids(fx$gds)$snp
+
+  # Captured BEFORE mocking: local_mocked_bindings() rebinds the name
+  # inside the SNPRelate namespace itself, so referencing it by name
+  # again from inside the mock body (even via :::) would recurse into
+  # the mock, not the real function.
+  original_selection <- SNPRelate::snpgdsIBDSelection
+  local_mocked_bindings(
+    snpgdsIBDSelection = function(king, ...) {
+      real_selection <- original_selection(king, ...)
+      undefined_row <- real_selection[1L, ]
+      undefined_row$kinship <- NaN
+      rbind(undefined_row, real_selection[-1L, ])
+    },
+    .package = "SNPRelate"
+  )
+
+  result <- popgenVCF:::run_kinship(fx$gds, fx$sample_id, snp_id, fx$metadata, 1L)
+  pairs <- result$pairs
+
+  expect_true(is.nan(pairs$kinship[nrow(pairs)]))
+  expect_true(all(is.finite(pairs$kinship[-nrow(pairs)])))
+  expect_true(is.na(pairs$relationship_degree[nrow(pairs)]))
+})
+
 test_that("plot_kinship draws the heatmap and diagnostic scatter with correct titles", {
   plots <- list()
   local_mocked_bindings(
