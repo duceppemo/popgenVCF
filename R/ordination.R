@@ -104,13 +104,21 @@ pca_tracy_widom_significant_count <- function(tw, alpha = 0.05) {
   pvalues <- tw$pvalues
   pvalues[is.na(pvalues)] <- 1
   first_nonsignificant <- which(pvalues >= alpha)[1L]
-  n_significant <- if (is.na(first_nonsignificant)) nrow(tw) else first_nonsignificant - 1L
-  max(2L, n_significant)
+  # The true count, which can be 0 or 1. It used to be floored at 2 here (a
+  # PC1-vs-PC2 plot needs two axes), so a dataset with no significant
+  # structure at all -- itself an important result -- was logged, stored,
+  # and captioned as "2 of N component(s) significant (Patterson, Price &
+  # Reich 2006)". The two-axis floor belongs to how many components are
+  # RETAINED (pca_retained_component_count() below), not to what the test
+  # found.
+  as.integer(if (is.na(first_nonsignificant)) nrow(tw) else first_nonsignificant - 1L)
 }
+
+pca_retained_component_count <- function(n_significant) max(2L, as.integer(n_significant))
 
 pca_significant_component_count <- function(eigenvalues, alpha = 0.05) {
   tw <- pca_tracy_widom_table(eigenvalues)
-  pca_tracy_widom_significant_count(tw, alpha)
+  pca_retained_component_count(pca_tracy_widom_significant_count(tw, alpha))
 }
 
 pca_eigensystem_is_finite <- function(pca, requested_components) {
@@ -289,10 +297,11 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads, ids = NU
     log_msg(
       "PCA auto component selection (Tracy-Widom, Patterson/Price/Reich 2006): ",
       tracy_widom_significant, " of ", length(available_components),
-      " computed component(s) significant",
+      " computed component(s) significant; retaining ",
+      pca_retained_component_count(tracy_widom_significant),
       level = "INFO"
     )
-    retain <- tracy_widom_significant
+    retain <- pca_retained_component_count(tracy_widom_significant)
   } else if (isTRUE(always_tracy_widom)) {
     # Purely a comparison for the user's own benefit here -- a fixed n_pcs
     # is retained exactly as requested either way, so a missing LEA

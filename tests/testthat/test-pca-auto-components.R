@@ -107,7 +107,7 @@ test_that("pca_tracy_widom_table returns the full LEA statistics table, and run_
   expect_equal(sum(tw$percentage), 1, tolerance = 1e-3)
 
   significant <- popgenVCF:::pca_tracy_widom_significant_count(tw)
-  expect_identical(significant, popgenVCF:::pca_significant_component_count(eig))
+  expect_identical(max(2L, significant), popgenVCF:::pca_significant_component_count(eig))
 
   set.seed(5L)
   n_samples <- 20L; n_snps <- 300L
@@ -131,8 +131,8 @@ test_that("pca_tracy_widom_table returns the full LEA statistics table, and run_
 
   auto <- popgenVCF:::run_pca(gds, sample_id, snp_id, metadata, "auto", 1L)
   expect_s3_class(auto$tracy_widom, "data.table")
-  expect_identical(auto$tracy_widom_significant, nrow(auto$variance))
-  expect_identical(auto$retained_components, auto$tracy_widom_significant)
+  expect_identical(max(2L, auto$tracy_widom_significant), nrow(auto$variance))
+  expect_identical(auto$retained_components, max(2L, auto$tracy_widom_significant))
   expect_identical(auto$tracy_widom_alpha, 0.05)
 
   # Default (always_tracy_widom = FALSE): a fixed n_pcs neither widens the
@@ -316,4 +316,15 @@ test_that("validate_config accepts analyses.n_pcs = \"auto\" and rejects other s
 
   cfg$analyses$n_pcs <- "bogus"
   expect_error(popgenVCF:::validate_config(cfg), "auto")
+})
+
+test_that("the Tracy-Widom significant count is the true count, not floored at the two retained axes", {
+  # Floored at 2, a dataset with no significant structure at all was
+  # reported as "2 of N component(s) significant".
+  none <- data.table::data.table(pvalues = c(0.4, 0.001, 0.9))
+  expect_identical(popgenVCF:::pca_tracy_widom_significant_count(none), 0L)
+  one <- data.table::data.table(pvalues = c(0.001, 0.4, 0.001))
+  expect_identical(popgenVCF:::pca_tracy_widom_significant_count(one), 1L)
+  expect_identical(popgenVCF:::pca_retained_component_count(0L), 2L)
+  expect_identical(popgenVCF:::pca_retained_component_count(5L), 5L)
 })
