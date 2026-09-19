@@ -152,7 +152,27 @@ compare_external_results <- function(observed, reference, id_cols, value_cols,
   if (anyDuplicated(key(observed)) || anyDuplicated(key(reference))) stop("comparison identifiers must be unique", call. = FALSE)
   merged <- merge(reference[required], observed[required], by = id_cols, all = TRUE,
                   suffixes = c("_reference", "_observed"), sort = TRUE)
-  tol <- rep(as.numeric(tolerance), length.out = length(value_cols)); names(tol) <- value_cols
+  # A named `tolerance` (the documented "scalar or named vector" contract)
+  # previously had its names discarded by as.numeric() and was then
+  # re-labeled purely by position against `value_cols` -- so
+  # tolerance = c(fst = 0.01, pi = 1e-6) with value_cols = c("pi", "fst")
+  # silently swapped which tolerance applied to which metric. A named
+  # tolerance now looks up each value_col by name explicitly (order-
+  # independent, and loudly errors on a missing name instead of silently
+  # recycling); an unnamed tolerance (the common scalar case) keeps the
+  # original recycle-by-position behavior unchanged.
+  tol <- if (!is.null(names(tolerance))) {
+    missing_tolerance <- setdiff(value_cols, names(tolerance))
+    if (length(missing_tolerance)) {
+      stop(sprintf(
+        "tolerance is missing entries for: %s",
+        paste(missing_tolerance, collapse = ", ")
+      ), call. = FALSE)
+    }
+    stats::setNames(as.numeric(tolerance[value_cols]), value_cols)
+  } else {
+    stats::setNames(rep(as.numeric(tolerance), length.out = length(value_cols)), value_cols)
+  }
   rows <- lapply(value_cols, function(column) {
     ref <- as.numeric(merged[[paste0(column, "_reference")]])
     obs <- as.numeric(merged[[paste0(column, "_observed")]])

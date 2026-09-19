@@ -96,6 +96,37 @@ test_that("run_spatial_autocorrelation recovers real spatial structure and a sig
   expect_lt(res$p_value[1], 0.05)
 })
 
+test_that("run_spatial_autocorrelation matches sample_ids against metadata$sample, not public_sample", {
+  # sample_ids (this function's argument) are always raw, VCF-native
+  # identifiers -- its production caller passes them straight from
+  # SNPRelate::snpgdsGetGeno(sample.id = ...). An earlier version
+  # preferred matching against metadata$public_sample whenever that
+  # column existed (normalize_sample_aliases() means it always does once
+  # any alias is set), silently dropping every aliased sample from `keep`
+  # since a VCF id never matches its own public/display alias. This
+  # fixture aliases every sample, so the bug would drop all 4 -- below the
+  # bins >= 4-sample floor -- and return NULL instead of a real result.
+  set.seed(7)
+  n_ind <- 6L; n_snp <- 30L
+  genotype <- matrix(rbinom(n_ind * n_snp, 2, 0.4), nrow = n_ind, ncol = n_snp)
+  vcf_id <- paste0("VCF", seq_len(n_ind))
+  metadata <- data.table::data.table(
+    sample = vcf_id,
+    alias = paste0("Display", seq_len(n_ind)),
+    public_sample = paste0("Display", seq_len(n_ind)),
+    latitude = seq(10, 10 + n_ind - 1),
+    longitude = seq(1, n_ind)
+  )
+
+  res <- popgenVCF:::run_spatial_autocorrelation(
+    genotype, vcf_id, metadata, c("latitude", "longitude"),
+    bins = 3L, permutations = 0L
+  )
+
+  expect_false(is.null(res))
+  expect_true(sum(res$n_pairs) > 0L)
+})
+
 test_that("run_spatial_autocorrelation returns NULL without usable coordinates, matching run_mantel_ibd()'s convention", {
   genotype <- matrix(rbinom(40, 2, 0.3), nrow = 4L)
   rownames(genotype) <- paste0("S", 1:4)

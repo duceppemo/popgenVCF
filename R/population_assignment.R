@@ -26,9 +26,16 @@
 # 1 / (2n) minimum-observable-frequency (Paetkau et al. 2004's convention,
 # also GenAlEx's default) rather than a hard zero, which would let one locus
 # veto that population outright with a log-likelihood of -Inf. A locus with
-# zero calls in a candidate population contributes no information there and
-# is excluded from that population's score entirely -- the same locus-
-# exclusion convention population_tree.R already uses for Nei's distance.
+# zero calls in ANY candidate population (after leave-one-out) is excluded
+# from EVERY population's score for that sample -- the same locus-exclusion
+# convention population_tree.R already uses for Nei's distance, applied
+# symmetrically here so every population's log-likelihood is always summed
+# over the identical set of loci. An earlier version excluded a locus only
+# from the one population that individually lacked calls there, so
+# different populations were scored over different numbers of loci for the
+# same sample -- since every per-locus term is negative, a population
+# simply missing more data at a locus could accumulate fewer penalty terms
+# and win by omission rather than by a genuinely better-fitting frequency.
 
 genotype_log_likelihood <- function(dosage, freq) {
   ifelse(is.na(dosage) | is.na(freq), NA_real_,
@@ -71,22 +78,46 @@ run_population_assignment <- function(genotype, sample_table, locus_table, snp_i
   log_lik <- matrix(NA_real_, n_sample, n_pop, dimnames = list(sample_table$sample, populations))
   n_used <- matrix(0L, n_sample, n_pop, dimnames = list(sample_table$sample, populations))
 
-  for (p in seq_len(n_pop)) {
-    called_base <- n_called_mat[p, ]; alt_base <- alt_count_mat[p, ]
-    for (i in seq_len(n_sample)) {
-      g <- genotype[i, ]
-      called <- called_base; alt <- alt_base
-      if (!is.na(own_pop_idx[i]) && own_pop_idx[i] == p) {
-        has_call <- !is.na(g)
-        called <- called - has_call
-        alt <- alt - ifelse(has_call, g, 0)
-      }
+  for (i in seq_len(n_sample)) {
+    g <- genotype[i, ]
+    called_i <- n_called_mat
+    alt_i <- alt_count_mat
+    if (!is.na(own_pop_idx[i])) {
+      p0 <- own_pop_idx[i]
+      has_call <- !is.na(g)
+      called_i[p0, ] <- called_i[p0, ] - has_call
+      alt_i[p0, ] <- alt_i[p0, ] - ifelse(has_call, g, 0)
+    }
+    gene_copies_i <- 2 * called_i
+    # A locus is usable for this sample only if EVERY candidate population
+    # (after the leave-one-out adjustment above) still has at least one
+    # call there -- the same symmetric locus-exclusion convention
+    # population_tree.R uses for Nei's distance, applied per sample rather
+    # than once globally because leave-one-out can zero out only the
+    # sample's own population's count at a locus every other population
+    # still has calls at.
+    #
+    # This must be checked across every population BEFORE scoring any of
+    # them: an earlier version excluded a locus only from the one
+    # population that individually had zero calls there, so each
+    # population's log-likelihood was summed over a different number of
+    # loci. Since every per-locus term is negative, summing more of them
+    # can only push a population's total lower -- a population simply
+    # missing more data at a locus could out-score a genuinely
+    # better-fitting population by omission alone, not by a fair
+    # comparison of the same evidence. Restricting every population to the
+    # identical usable-locus set keeps their log-likelihoods directly
+    # comparable, exactly as a leave-one-out self-assignment test requires.
+    usable <- apply(gene_copies_i > 0, 2L, all)
+    for (p in seq_len(n_pop)) {
+      if (!any(usable)) { log_lik[i, p] <- NA_real_; n_used[i, p] <- 0L; next }
+      called <- called_i[p, usable]; alt <- alt_i[p, usable]
       gene_copies <- 2 * called
-      freq <- ifelse(gene_copies > 0, alt / gene_copies, NA_real_)
-      floor_freq <- 1 / pmax(gene_copies, 1)
-      freq <- ifelse(is.finite(freq) & freq <= 0, floor_freq, freq)
-      freq <- ifelse(is.finite(freq) & freq >= 1, 1 - floor_freq, freq)
-      contrib <- genotype_log_likelihood(g, freq)
+      freq <- alt / gene_copies
+      floor_freq <- 1 / gene_copies
+      freq <- ifelse(freq <= 0, floor_freq, freq)
+      freq <- ifelse(freq >= 1, 1 - floor_freq, freq)
+      contrib <- genotype_log_likelihood(g[usable], freq)
       used <- sum(!is.na(contrib))
       n_used[i, p] <- used
       log_lik[i, p] <- if (used > 0L) sum(contrib, na.rm = TRUE) else NA_real_

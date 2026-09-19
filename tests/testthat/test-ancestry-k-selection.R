@@ -36,6 +36,36 @@ test_that("K selection summarizes backend metrics and recommends a plateau", {
   expect_match(out$reason, "backend recommendations")
 })
 
+test_that("K selection recommends the K just before the plateau starts, not the K it plateaus at", {
+  # CV error 0.50/0.40/0.399/0.3985 at K=2..5: the K=3->K=4 step already
+  # falls under 1% of the metric's total span (well under the 2% plateau
+  # threshold here), so K=3 -- the *last K that still improved
+  # meaningfully* -- is the parsimonious recommendation. An earlier
+  # version recommended K=4 (one K too many: the first K the negligible
+  # step arrives AT, not the K it departs FROM), contradicting this
+  # function's own stated goal of preferring "the first stable model with
+  # negligible fit loss ... over unnecessarily complex models".
+  reps <- make_k_selection_replicates("admixture", "cv_error", c(0.50, 0.40, 0.399, 0.3985))
+  out <- select_ancestry_k(reps, plateau_fraction = 0.02)
+  expect_identical(out$recommendations$best_k, 5L)
+  expect_identical(out$recommendations$plateau_k, 3L)
+  expect_identical(out$recommendations$recommended_k, 3L)
+})
+
+test_that("K selection's plateau search ignores a negative (regressing) step, not just a small one", {
+  # A dip before the true rise-to-plateau (replicate noise, not
+  # diminishing returns) must not trigger the plateau search: a negative
+  # relative_improvement is always "< plateau_fraction" too, so without an
+  # explicit non-negative guard the search would stop at the dip instead
+  # of continuing on to the real plateau. cv_error 0.50/0.52/0.40/0.399 at
+  # K=2..5: K=3 is genuinely *worse* than K=2 (a regression), K=4 is the
+  # real, large improvement, and K=4->K=5 is the negligible step -- the
+  # correct plateau is K=4, not K=2 (which the dip alone would suggest).
+  reps <- make_k_selection_replicates("admixture", "cv_error", c(0.50, 0.52, 0.40, 0.399))
+  out <- select_ancestry_k(reps, plateau_fraction = 0.02)
+  expect_identical(out$recommendations$plateau_k, 4L)
+})
+
 test_that("K selection respects explicit optimization direction", {
   reps <- make_k_selection_replicates("admixture", "score", c(1, 3, 2, 1))
   out <- select_ancestry_k(reps, metric = "score", direction = "maximize", plateau_fraction = 0)

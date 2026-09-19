@@ -5,6 +5,27 @@ test_that("performance specifications validate inputs", {
   expect_error(new_performance_benchmark_spec("x", identity, runtime_regression = -1), "nonnegative")
 })
 
+test_that("measure_performance_once reports true peak (max used) memory, not post-run resident memory", {
+  # gc()'s own matrix carries three columns literally named "(Mb)" (used,
+  # gc trigger, max used); indexing by that bare name alone silently
+  # returns only the *first* match -- "used" (current resident memory),
+  # not "max used" -- confirmed directly. A large transient allocation
+  # freed before the trailing gc() call went completely unreported,
+  # silently defeating the memory_regression gate. Comparing against a
+  # no-op runner's own reading, rather than an absolute MB threshold,
+  # keeps this test independent of the test machine's/R version's
+  # baseline session memory footprint.
+  noop <- function(threads) invisible(NULL)
+  allocate_and_free <- function(threads) {
+    big <- vector("double", 3e7) # ~229 MiB, freed before this function returns
+    rm(big)
+    invisible(NULL)
+  }
+  baseline <- measure_performance_once(noop, threads = 1L, seed = 1L)
+  peak <- measure_performance_once(allocate_and_free, threads = 1L, seed = 1L)
+  expect_gt(peak$peak_memory_mb - baseline$peak_memory_mb, 150)
+})
+
 test_that("performance measurements produce stable summaries", {
   runner <- function(threads) {
     path <- file.path(Sys.getenv("POPGENVCF_PERFORMANCE_TEMP"), "payload.bin")

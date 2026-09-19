@@ -84,6 +84,38 @@ test_that("run_population_assignment excludes loci with zero calls in a candidat
   expect_identical(res$assignment$n_loci_used, 1L)
 })
 
+test_that("run_population_assignment excludes a zero-call locus symmetrically, not just from the population that lacks it", {
+  # A locus present in population A but with zero calls in population B
+  # must be dropped from BOTH populations' scores for a fair comparison --
+  # not only from B's, the bug this test targets. Locus s1 (comparable,
+  # A genuinely fits far better) is shared by both; locus s2 exists only
+  # in A (B has zero calls) and, if wrongly left in A's score alone, drags
+  # A's total down by an extra bad-fitting term with nothing on B's side
+  # to offset it, flipping a genuine self-match into a spurious mismatch.
+  locus_table <- data.table::data.table(
+    population = c("A", "A", "B", "B"),
+    snp_id = c("s1", "s2", "s1", "s2"),
+    n_called = c(4L, 4L, 4L, 0L),
+    alternate_allele_count = c(0L, 2L, 4L, 0L)
+  )
+  sample_table <- data.table::data.table(sample = "S1", population = "A")
+  genotype <- matrix(c(0, 2), nrow = 1L)
+
+  res <- popgenVCF:::run_population_assignment(genotype, sample_table, locus_table, c("s1", "s2"))
+  a <- res$assignment
+
+  # s2 is unusable for every population (B has zero calls there), so only
+  # s1 -- shared by both -- is ever scored. Leave-one-out within A at s1
+  # gives freq = 1/(2*3) = 1/6 (floor-corrected from a zero alt count);
+  # B's freq (no leave-one-out) is 4/8 = 1/2. S1's dosage-0 genotype fits
+  # A's freq far better than B's.
+  expect_identical(a$assigned_population, "A")
+  expect_false(a$mismatch)
+  expect_equal(a$log_likelihood, 2 * log(1 - 1 / 6), tolerance = 1e-8)
+  expect_identical(a$n_loci_used, 1L)
+  expect_identical(res$log_likelihood["S1", "B"], 2 * log(1 - 0.5))
+})
+
 test_that("run_population_assignment returns an empty result with fewer than two populations", {
   locus_table <- data.table::data.table(
     population = "A", snp_id = "s1", n_called = 4L, alternate_allele_count = 2L

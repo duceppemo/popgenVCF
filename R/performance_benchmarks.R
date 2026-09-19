@@ -90,7 +90,19 @@ measure_performance_once <- function(runner, threads, seed) {
   value <- runner(threads = threads)
   elapsed <- proc.time()[["elapsed"]] - started
   memory <- gc()
-  mb_column <- if ("(Mb)" %in% colnames(memory)) "(Mb)" else colnames(memory)[ncol(memory)]
+  # gc()'s own matrix carries THREE columns literally named "(Mb)" (used,
+  # gc trigger, max used -- confirmed directly), and `memory[, "(Mb)"]`
+  # silently returns only the *first* name match, i.e. current used
+  # memory, not "max used". The preceding gc(reset = TRUE) exists
+  # specifically to make a max-used reading meaningful, which this bug
+  # then never actually took: peak memory was systematically understated
+  # (a run that transiently allocated far more than its post-run resident
+  # size reported near-baseline), silently defeating the memory_regression
+  # gate above. The last "(Mb)" column is always "max used (Mb)" in gc()'s
+  # own fixed column order; fall back to the last column only in the
+  # unlikely event that name is ever absent.
+  mb_columns <- which(colnames(memory) == "(Mb)")
+  mb_column <- if (length(mb_columns)) mb_columns[[length(mb_columns)]] else ncol(memory)
   memory_mb <- sum(memory[, mb_column], na.rm = TRUE)
   files <- list.files(temp, recursive = TRUE, full.names = TRUE, all.files = TRUE, no.. = TRUE)
   disk_mb <- if (length(files)) sum(file.info(files)$size, na.rm = TRUE) / 1024^2 else 0

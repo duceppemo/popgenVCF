@@ -46,6 +46,15 @@ consensus_ancestry <- function(x, confidence = 0.95,
   }
 
   replicate_ids <- vapply(reps, `[[`, integer(1L), "replicate")
+  # new_ancestry_result() already rejects duplicate backend/K/replicate
+  # combinations (ancestry_result.R), but consensus_ancestry() also
+  # accepts a plain list of replicates directly, which bypasses that
+  # check entirely -- and a duplicate replicate ID here is not merely
+  # redundant, it actively corrupts the consensus (see below), so it must
+  # be rejected explicitly rather than silently misprocessed.
+  if (anyDuplicated(replicate_ids)) {
+    stop("replicate identifiers must be unique", call. = FALSE)
+  }
   order_idx <- order(replicate_ids)
   reps <- reps[order_idx]
   replicate_ids <- replicate_ids[order_idx]
@@ -59,11 +68,20 @@ consensus_ancestry <- function(x, confidence = 0.95,
   }
   reference <- reps[[reference_idx]]
 
-  alignments <- lapply(reps, function(rep) {
-    if (identical(rep$replicate, reference$replicate)) {
+  # Identify the reference by its POSITION (reference_idx), not by
+  # matching replicate$replicate == reference$replicate: the duplicate-ID
+  # guard above makes this moot now, but matching by value alone was the
+  # actual bug -- any non-reference replicate that happened to carry the
+  # same replicate ID as the reference (duplicate IDs were never
+  # rejected) matched this condition too, silently discarding that
+  # replicate's own Q matrix and substituting the reference aligned to
+  # itself in its place, corrupting the consensus with a duplicated copy
+  # of the reference instead of the replicate's real data.
+  alignments <- lapply(seq_along(reps), function(i) {
+    if (i == reference_idx) {
       align_ancestry_replicate(reference, reference, tolerance = tolerance)
     } else {
-      align_ancestry_replicate(rep, reference, tolerance = tolerance)
+      align_ancestry_replicate(reps[[i]], reference, tolerance = tolerance)
     }
   })
   aligned <- lapply(alignments, `[[`, "aligned_q")

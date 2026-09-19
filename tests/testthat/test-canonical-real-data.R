@@ -39,6 +39,31 @@ test_that("external comparisons align identifiers and apply tolerances", {
                "unique")
 })
 
+test_that("named tolerances apply to the metric they name, not to whichever value_col occupies that position", {
+  # tolerance = c(fst = 0.01, pi = 1e-6) previously had its names dropped
+  # by as.numeric() and was then re-labeled purely by the *position* of
+  # value_cols -- so requesting value_cols = c("pi", "fst") (reference
+  # order swapped from tolerance's own) silently applied 0.01 to pi and
+  # 1e-6 to fst instead of the other way around.
+  reference <- data.frame(id = "s1", pi = 0.10, fst = 0.10)
+  observed <- data.frame(id = "s1", pi = 0.1050, fst = 0.1050) # both off by 0.005
+  result <- compare_external_results(
+    observed, reference, "id", c("pi", "fst"),
+    tolerance = c(fst = 0.01, pi = 1e-6), tool = "x", tool_version = "1"
+  )
+  by_metric <- stats::setNames(result$status, result$metric)
+  # pi's real tolerance (1e-6) is far tighter than its 0.005 error -> fail.
+  expect_identical(unname(by_metric["pi"]), "fail")
+  # fst's real tolerance (0.01) comfortably covers its 0.005 error -> pass.
+  expect_identical(unname(by_metric["fst"]), "pass")
+
+  expect_error(
+    compare_external_results(observed, reference, "id", c("pi", "fst"),
+                             tolerance = c(fst = 0.01), tool = "x", tool_version = "1"),
+    "missing entries"
+  )
+})
+
 test_that("validation evidence is deterministic and complete", {
   directory <- tempfile(); output <- tempfile(); dir.create(directory)
   writeLines("payload", file.path(directory, "fixture.txt"), useBytes = TRUE)

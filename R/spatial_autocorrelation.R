@@ -76,8 +76,24 @@ spatial_autocorrelation_r <- function(gd, ed, bins) {
 run_spatial_autocorrelation <- function(genotype, sample_ids, metadata, geographic_columns,
                                         bins = 10L, permutations = 999L, seed = 42L) {
   if (!all(geographic_columns %in% names(metadata))) return(NULL)
-  identity_column <- if ("public_sample" %in% names(metadata)) "public_sample" else "sample"
-  m <- metadata[match(sample_ids, metadata[[identity_column]])]
+  # `sample_ids` here are always the raw, VCF-native sample identifiers --
+  # its one production caller (run_module_spatial_autocorrelation(),
+  # module_registry.R) passes context$sample_ids straight through from
+  # SNPRelate::snpgdsGetGeno(sample.id = context$sample_ids, ...), and
+  # normalize_sample_aliases() (io.R) means metadata$public_sample always
+  # exists once any metadata is supplied at all. An earlier version
+  # preferred matching against public_sample whenever that column was
+  # present, mirroring run_mantel_ibd()'s own identity_column logic
+  # (mantel_ibd.R) -- but that function's own `distance_ids` argument is
+  # genuinely public-facing (rownames of an already-built genetic-distance
+  # matrix), unlike this one. For any aliased sample (public_sample !=
+  # sample), matching VCF ids against public_sample silently dropped that
+  # sample from `keep` below -- or, if most samples in a run were aliased,
+  # degraded the whole module to the same "valid latitude/longitude
+  # columns were unavailable" skip a genuinely coordinate-less run gets,
+  # with no indication the real cause was ID aliasing, not missing
+  # coordinates.
+  m <- metadata[match(sample_ids, metadata$sample)]
   lat <- as.numeric(m[[geographic_columns[1]]]); lon <- as.numeric(m[[geographic_columns[2]]])
   keep <- is.finite(lat) & is.finite(lon) & abs(lat) <= 90 & abs(lon) <= 180
   if (sum(keep) < 4L) return(NULL)

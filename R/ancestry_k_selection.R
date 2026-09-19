@@ -74,8 +74,32 @@ select_ancestry_k <- function(x, metric = NULL, direction = NULL,
     best_k <- tab$k[[best_idx]]
     plateau_k <- best_k
     if (best_idx > 1L) {
-      first_small <- which(tab$k[-1L] <= best_k & tab$relative_improvement[-1L] < plateau_fraction)
-      if (length(first_small)) plateau_k <- tab$k[first_small[[1L]] + 1L]
+      # `tab$relative_improvement[-1L][m]` is the step INTO row m+1 (from
+      # row m to row m+1) -- so the first m where that step is already
+      # negligible means row m itself is the first K past which further
+      # complexity stops paying for itself, i.e. the parsimonious choice.
+      # An earlier version indexed `tab$k[first_small[[1L]] + 1L]`, i.e.
+      # row m+1 -- the row the negligible step goes INTO, one K more
+      # complex than intended, contradicting this function's whole
+      # purpose (documented in ancestry_k_selection_text() and this
+      # file's own manuscript text: "the first stable model with
+      # negligible fit loss was preferred over unnecessarily complex
+      # models"). Confirmed directly against a real fixture (CV errors
+      # 0.50/0.40/0.399/0.3985 at K=2-5, plateau_fraction=0.02): the old
+      # code recommended K=4, one more than the K=3 where the K=3->K=4
+      # step itself already showed under 1% of the metric's total span.
+      #
+      # Also requires the step to be non-negative: relative_improvement
+      # can go slightly negative from ordinary replicate noise even
+      # before the true optimum, and a negative value is always
+      # "< plateau_fraction" too -- that is a regression, not a
+      # diminishing-returns plateau, and must not trigger this search.
+      first_small <- which(
+        tab$k[-1L] <= best_k &
+          tab$relative_improvement[-1L] >= 0 &
+          tab$relative_improvement[-1L] < plateau_fraction
+      )
+      if (length(first_small)) plateau_k <- tab$k[first_small[[1L]]]
     }
     stable_candidates <- which(tab$k <= best_k & !is.na(tab$stability) & tab$stability >= stability_threshold)
     recommended_k <- if (length(stable_candidates)) {

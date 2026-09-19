@@ -70,3 +70,22 @@ test_that("consensus ancestry rejects incompatible replicate collections", {
   expect_error(consensus_ancestry(list(a), confidence = 1), "strictly between")
   expect_error(consensus_ancestry(list(a), reference_replicate = 99), "not present")
 })
+
+test_that("consensus ancestry rejects duplicate replicate identifiers instead of silently corrupting the consensus", {
+  # new_ancestry_result() already rejects duplicate backend/K/replicate
+  # combinations, but a plain list bypasses that. Before this guard
+  # existed, two replicates sharing an ID both matched
+  # `rep$replicate == reference$replicate` (only one of them was actually
+  # the reference object at reference_idx), so BOTH silently had their own
+  # Q matrix discarded and replaced with the reference aligned to itself
+  # -- verified directly: without this check, both entries came back
+  # bit-identical to the reference instead of each replicate's own,
+  # genuinely different data.
+  ids <- c("a", "b")
+  q_ref <- matrix(c(0.9, 0.1, 0.1, 0.9), ncol = 2, byrow = TRUE)
+  q_dup <- matrix(c(0.6, 0.4, 0.4, 0.6), ncol = 2, byrow = TRUE)
+  first <- new_ancestry_replicate(ids, q_ref, "admixture", replicate = 1)
+  duplicate <- new_ancestry_replicate(ids, q_dup, "admixture", replicate = 1)
+
+  expect_error(consensus_ancestry(list(first, duplicate)), "unique")
+})
