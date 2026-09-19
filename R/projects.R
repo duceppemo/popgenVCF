@@ -208,6 +208,30 @@ write_popgenvcf_project <- function(project, path, overwrite = FALSE) {
 
 extract_project_bundle <- function(path) {
   if (!file.exists(path)) stop("project bundle does not exist", call. = FALSE)
+  # utils::untar() itself has no built-in confinement to `exdir` -- a
+  # crafted .popgenvcf bundle (this is a portable, potentially
+  # shared/downloaded file, not necessarily one this package itself
+  # wrote) containing an entry named e.g. "../../../etc/cron.d/evil" or
+  # an absolute path is only ever stopped by whichever external `tar`
+  # binary R's untar() happens to shell out to, if that binary happens to
+  # reject such entries itself -- and even then only via a warning
+  # ("... returned error code 2"), not a catchable R error; this function
+  # previously returned the (silently incomplete) extraction directory as
+  # if extraction had fully succeeded. Listing the archive's entry names
+  # first and refusing any that are absolute or contain a ".." path
+  # component rejects that loudly and portably before any extraction is
+  # attempted, rather than depending on a particular external tool's own
+  # behavior.
+  entries <- utils::untar(path, list = TRUE)
+  unsafe <- entries[
+    startsWith(entries, "/") | grepl("(^|/)\\.\\.(/|$)", entries)
+  ]
+  if (length(unsafe)) {
+    stop(
+      "project bundle contains unsafe archive entries: ",
+      paste(unsafe, collapse = ", "), call. = FALSE
+    )
+  }
   root <- tempfile("popgenvcf-project-read-")
   dir.create(root, recursive = TRUE)
   utils::untar(path, exdir = root)

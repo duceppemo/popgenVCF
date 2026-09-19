@@ -188,7 +188,21 @@ write_benchmark_archive <- function(archive, path, overwrite = FALSE) {
   manifest_rows <- list()
   for (record in archive$records) {
     validate_release_benchmark_record(record)
-    release_dir <- file.path(releases_dir, record$release)
+    # `record$release` is validated only as "one non-empty string"
+    # (archive_scalar_string()) -- nothing rejects path separators or
+    # "..", so an unsanitized release id used directly as a directory
+    # name here could escape releases_dir entirely (and, combined with
+    # `overwrite = TRUE`'s unconditional unlink(release_dir, recursive =
+    # TRUE) below, delete something outside it). The release id itself
+    # (used verbatim in error messages and the written metadata) is left
+    # untouched; only the on-disk directory name is sanitized, the same
+    # convention write_chromosome_results() (chromosome.R) already uses --
+    # and the manifest's own recorded `path` column below must use this
+    # same sanitized name too, since verify_benchmark_archive() resolves
+    # files purely from that recorded path, not by re-deriving it from
+    # record$release itself.
+    safe_release <- gsub("[^A-Za-z0-9_.-]", "_", record$release)
+    release_dir <- file.path(releases_dir, safe_release)
     if (dir.exists(release_dir) && !isTRUE(overwrite)) {
       stop("release directory already exists: ", record$release, call. = FALSE)
     }
@@ -213,7 +227,7 @@ write_benchmark_archive <- function(archive, path, overwrite = FALSE) {
       file <- files[[kind]]
       data.table::data.table(
         release = record$release, kind = kind,
-        path = file.path("releases", record$release, basename(file)),
+        path = file.path("releases", safe_release, basename(file)),
         size_bytes = file.info(file)$size,
         sha256 = digest::digest(file, algo = "sha256", file = TRUE)
       )

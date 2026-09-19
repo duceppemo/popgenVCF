@@ -116,12 +116,20 @@ compress_report_pdf <- function(path) {
   }
   compressed <- tempfile(fileext = ".pdf")
   on.exit(unlink(compressed), add = TRUE)
+  # base::system2() shell-quotes only the executable itself, not its
+  # `args` -- `path` here is derived from the user/config-controlled
+  # output directory (render_standard_report_format(), same file), so a
+  # directory name containing a space or shell metacharacter would
+  # otherwise be split or interpreted by the shell system2() builds on
+  # Unix. `compressed` (a tempfile() path) is effectively always safe in
+  # practice but is quoted the same way for consistency and defense in
+  # depth.
   status <- system2(
     gs,
     c(
       "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.4", "-dPDFSETTINGS=/printer",
       "-dNOPAUSE", "-dQUIET", "-dBATCH", "-dSAFER",
-      paste0("-sOutputFile=", compressed), path
+      paste0("-sOutputFile=", shQuote(compressed)), shQuote(path)
     ),
     stdout = FALSE, stderr = FALSE
   )
@@ -298,7 +306,18 @@ render_standard_report_format <- function(template, results_rds, output_dir,
     quiet = TRUE
   )
   final_path <- file.path(output_dir, output_file)
-  file.copy(file.path(render_output_dir, output_file), final_path, overwrite = TRUE)
+  # A failed copy (a full disk, a permissions problem, output_dir removed
+  # mid-render) previously went unnoticed here -- the function still
+  # returned final_path as if the report had been written, and for a PDF
+  # the only downstream symptom was compress_report_pdf() logging a
+  # generic "compression failed" warning about a file that was never
+  # created rather than actually missing. copied is a length-1 logical
+  # (a single source, single destination file.copy() call), so this is
+  # not a partial-batch check, just an unchecked return value.
+  copied <- file.copy(file.path(render_output_dir, output_file), final_path, overwrite = TRUE)
+  if (!isTRUE(copied)) {
+    stop(sprintf("failed to copy rendered %s report to %s", format, final_path), call. = FALSE)
+  }
   if (identical(format, "pdf")) compress_report_pdf(final_path)
   final_path
 }

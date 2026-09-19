@@ -63,6 +63,37 @@ test_that("archive directory exports round-trip and verify checksums", {
   expect_error(write_benchmark_archive(archive, path), "already exists")
 })
 
+test_that("a release id containing path-traversal characters cannot escape the releases directory", {
+  # record$release is validated only as "one non-empty string"
+  # (archive_scalar_string()) -- nothing rejects path separators or "..".
+  # Using it directly as a directory name let a crafted release id escape
+  # releases_dir entirely; combined with overwrite = TRUE's unconditional
+  # recursive unlink(), a second write could delete something outside the
+  # archive altogether. Confirmed directly before this test was written:
+  # release = "../../escape-marker-xyz" made write_benchmark_archive()
+  # create a REAL directory at file.path(dirname(dirname(path)),
+  # "escape-marker-xyz") -- two levels above the archive root, e.g.
+  # directly inside the shared system temp directory.
+  marker <- "escape-marker-xyz"
+  record <- new_release_benchmark_record(
+    release = paste0("../../", marker), package_version = "1.0.0",
+    git_sha = paste(rep("d", 40), collapse = ""),
+    components = list(validation = data.table::data.table(passed = TRUE)),
+    created_at = "2026-07-15 UTC"
+  )
+  path <- tempfile("archive-traversal-")
+  escaped_target <- file.path(dirname(dirname(path)), marker)
+  expect_false(dir.exists(escaped_target)) # sanity: not already present for an unrelated reason
+  on.exit(unlink(escaped_target, recursive = TRUE, force = TRUE), add = TRUE)
+
+  write_benchmark_archive(new_benchmark_archive(list(record)), path)
+
+  expect_false(dir.exists(escaped_target))
+  expect_true(dir.exists(file.path(path, "releases", ".._.._escape-marker-xyz")))
+  expect_true(verify_benchmark_archive(path))
+  expect_identical(read_benchmark_archive(path)$records[[1L]]$release, paste0("../../", marker))
+})
+
 test_that("archive verification detects corruption", {
   record <- new_release_benchmark_record(
     "v1", "1.0.0", paste(rep("c", 40), collapse = ""),

@@ -137,3 +137,36 @@ test_that("invalid project inputs fail clearly", {
   expect_error(validate_popgenvcf_project(list()), "PopgenVCFProject")
   expect_error(read_popgenvcf_project("missing.popgenvcf"), "does not exist")
 })
+
+test_that("a bundle containing a path-traversal archive entry is rejected before extraction", {
+  # utils::untar() itself has no built-in confinement to `exdir` -- a
+  # crafted .popgenvcf bundle (a portable file that could be
+  # shared/downloaded, not necessarily one this package itself wrote)
+  # containing an entry like "../evil.txt" is only ever stopped by
+  # whichever external `tar` binary R's untar() happens to shell out to
+  # (getOption("tar")) on the host, if that binary happens to reject ".."
+  # entries itself -- and even then, only with a warning
+  # ("... returned error code 2"), not a clean, catchable R error;
+  # extract_project_bundle() itself previously returned the (silently
+  # incomplete) extraction directory as if it had succeeded. A minimal
+  # tar, R's own internal untar implementation, or simply a different
+  # host would not necessarily stop it at all. This guard makes the
+  # rejection explicit, loud, and environment-independent -- it does not
+  # rely on any particular external tool's own behavior.
+  stage <- tempfile("evil-stage-")
+  sub <- file.path(stage, "sub")
+  dir.create(sub, recursive = TRUE)
+  writeLines("pwned", file.path(stage, "evil.txt"))
+  old <- setwd(sub)
+  on.exit(setwd(old), add = TRUE)
+  evil_bundle <- tempfile(fileext = ".popgenvcf")
+  utils::tar(evil_bundle, files = "../evil.txt", compression = "gzip", tar = "internal")
+  setwd(old)
+
+  expect_error(
+    popgenVCF:::extract_project_bundle(evil_bundle),
+    "unsafe archive entries"
+  )
+  expect_error(verify_popgenvcf_project(evil_bundle), "unsafe archive entries")
+  expect_error(read_popgenvcf_project(evil_bundle), "unsafe archive entries")
+})
