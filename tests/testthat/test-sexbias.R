@@ -142,6 +142,29 @@ test_that("validate_sexbias_result accepts a well-formed result, a skipped NULL 
   expect_false(popgenVCF:::validate_sexbias_result(incomplete, NULL, NULL)$valid)
 })
 
+test_that("run_sexbias does not perturb the caller's global RNG state", {
+  # set.seed(seed) here previously left the global RNG state permanently
+  # re-seeded for the rest of the R session, silently coupling every
+  # subsequently executed randomized analysis (bootstrap trees, other
+  # permutation tests) to whether/when sexbias happened to run.
+  skip_if_not_installed("hierfstat")
+  geno <- sexbias_fixture_genotype(n = 24L, l = 30L, seed = 3L)
+  metadata <- data.table::data.table(
+    sample = rownames(geno), population = rep(c("A", "B"), each = 12),
+    sex = rep(c("male", "female"), 12)
+  )
+  set.seed(123L)
+  before <- runif(5L)
+
+  set.seed(123L)
+  invisible(popgenVCF:::run_sexbias(
+    geno, rownames(geno), metadata, test = "mAIc", permutations = 20L, seed = 999L
+  ))
+  after <- runif(5L)
+
+  expect_identical(before, after)
+})
+
 test_that("sexbias_module_spec is registered, requires diversity, and is enabled by default", {
   registry <- popgenVCF::default_analysis_registry()
   expect_true("sexbias" %in% names(registry$modules))

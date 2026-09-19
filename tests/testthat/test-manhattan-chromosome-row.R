@@ -18,6 +18,22 @@ test_that("manhattan_layout reports each chromosome's own physical span", {
   expect_equal(layout$ticks$width[layout$ticks$chromosome == "2"], 200)
 })
 
+test_that("manhattan_layout tolerates a single NA position instead of corrupting every later chromosome's offset", {
+  # max()/range() default to na.rm = FALSE: a single NA position on
+  # chromosome "1" previously made max() return NA, which poisoned the
+  # cumulative offset (`cum`) for every chromosome laid out after it too --
+  # not merely chromosome "1"'s own tick -- since `cum` accumulates across
+  # the loop. Confirmed directly against the pre-fix code: chromosome "2"'s
+  # entire x layout became NA even though its own positions were fine.
+  chromosome <- c("1", "1", "1", "2", "2")
+  position <- c(100L, 500L, NA_integer_, 50L, 250L)
+  layout <- popgenVCF:::manhattan_layout(chromosome, position)
+
+  expect_true(all(is.finite(layout$x[chromosome == "2"])))
+  expect_true(all(is.finite(layout$ticks$center)))
+  expect_true(all(is.finite(layout$ticks$width)))
+})
+
 test_that("manhattan_chromosome_row keeps horizontal labels when they comfortably fit", {
   ticks <- data.frame(chromosome = c("chr1", "chr2"), center = c(50, 150), width = c(100, 100))
   p0 <- ggplot2::ggplot(data.frame(x = c(1, 190), y = c(-1, 1)), ggplot2::aes(x, y)) +

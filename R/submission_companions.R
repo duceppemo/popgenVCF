@@ -126,7 +126,18 @@ render_author_declarations <- function(x) {
 #' @export
 write_submission_companions <- function(companions, directory, overwrite = FALSE, strict = FALSE) {
   validate_submission_companions(companions, strict = strict)
-  if (dir.exists(directory) && length(list.files(directory, all.files = TRUE, no.. = TRUE)) && !isTRUE(overwrite)) stop("companion directory is not empty", call. = FALSE)
+  if (dir.exists(directory) && length(list.files(directory, all.files = TRUE, no.. = TRUE))) {
+    if (!isTRUE(overwrite)) stop("companion directory is not empty", call. = FALSE)
+    # overwrite = TRUE previously skipped straight to writing this render's
+    # own files over whatever was already there, unlike
+    # write_scientific_release_bundle()'s own overwrite = TRUE handling
+    # (R/scientific_release_bundle.R), which clears the directory first. Any
+    # stale leftover file from a prior write (an old companion version, or
+    # anything else placed in that directory) survived untouched and was
+    # then silently swept into this render's own manifest below, as if it
+    # were part of the current companion set.
+    unlink(directory, recursive = TRUE, force = TRUE)
+  }
   dir.create(directory, recursive = TRUE, showWarnings = FALSE)
   writeLines(render_cover_letter(companions), file.path(directory, "cover-letter.md"), useBytes = TRUE)
   writeLines(render_highlights(companions), file.path(directory, "highlights.md"), useBytes = TRUE)

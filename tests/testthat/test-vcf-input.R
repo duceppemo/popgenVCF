@@ -189,3 +189,59 @@ test_that("vcf_variant_type_summary reports zero dropped records for a VCF that 
   expect_equal(summary$biallelic_snps_retained, 2L)
   expect_equal(summary$dropped_non_biallelic_snp, 0L)
 })
+
+test_that("an already-compressed, already-indexed input whose content changed in place is not served with its stale index", {
+  # `bcftools index --nrecords` only inspects the index file's own internal
+  # metadata -- it never compares the index against the VCF's actual
+  # content, so it happily reports success (and the OLD record count)
+  # against a .tbi left over from before the .vcf.gz was overwritten in
+  # place (confirmed directly). prepare_vcf_input()'s "reuse this file
+  # as-is" fast path previously trusted vcf_index_is_valid() unconditionally
+  # here, unlike the normalized-cache path 40 lines below it, which already
+  # guards the equivalent scenario via a content hash. A region-restricted
+  # query is required to actually exercise this (a plain sequential query
+  # never touches the index at all): confirmed directly that a stale index
+  # left over a substantially resized replacement file (the realistic
+  # scenario -- a re-run pipeline producing a differently-sized VCF at the
+  # same path) makes htslib either hard-crash ("Invalid BGZF header ...
+  # BCF read error") or silently return zero records for a region that
+  # genuinely has data, because the new content's BGZF block layout no
+  # longer matches the old index's virtual file offsets.
+  skip_if(Sys.which("bcftools") == "", "bcftools is not available")
+  bcftools <- Sys.which("bcftools")
+  source <- tempfile(fileext = ".vcf")
+  compressed <- paste0(source, ".gz")
+  cache <- tempfile("vcf-cache-")
+
+  write_wide_contig_vcf <- function(path, positions) {
+    writeLines(c(
+      "##fileformat=VCFv4.2",
+      "##contig=<ID=1,length=100000>",
+      "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">",
+      "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ts1\ts2",
+      sprintf("1\t%d\tv%d\tA\tG\t.\tPASS\t.\tGT\t0/1\t1/1", positions, seq_along(positions))
+    ), path, useBytes = TRUE)
+  }
+
+  write_wide_contig_vcf(source, c(10L, 20L))
+  system2(bcftools, c("view", "-Oz", "-o", shQuote(compressed), shQuote(source)))
+  system2(bcftools, c("index", "--tbi", shQuote(compressed)))
+
+  first <- popgenVCF::prepare_vcf_input(compressed, cache)
+  expect_false(first$normalized)
+
+  # Overwrite the compressed file's content in place with a substantially
+  # larger VCF, without regenerating its index -- the index on disk is now
+  # stale relative to both the new content and its resized BGZF layout.
+  write_wide_contig_vcf(source, seq(10L, 50000L, by = 10L))
+  system2(bcftools, c("view", "-Oz", "-o", shQuote(compressed), shQuote(source)))
+
+  second <- popgenVCF::prepare_vcf_input(compressed, cache)
+  result <- system2(
+    bcftools, c("query", "-r", "1:40000-40100", "-f", shQuote("%POS\\n"), shQuote(second$path)),
+    stdout = TRUE, stderr = TRUE
+  )
+  status <- attr(result, "status")
+  expect_true(is.null(status) || identical(status, 0L))
+  expect_equal(as.integer(result), seq(40000L, 40100L, by = 10L))
+})

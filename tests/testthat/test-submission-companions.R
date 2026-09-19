@@ -58,3 +58,33 @@ test_that("written companion directories are checksum verified", {
   writeLines("modified", file.path(directory, "highlights.md"))
   expect_error(validate_submission_companions(directory), "checksum mismatch")
 })
+
+test_that("overwrite = TRUE clears a stale leftover file from a prior write, unlike write_scientific_release_bundle()'s own overwrite = TRUE convention which already does this", {
+  # write_submission_companions(overwrite = TRUE) previously skipped straight
+  # to writing this render's own files over whatever already existed in the
+  # directory -- a stale file left over from a previous write (here, an old
+  # companion set's highlights.md content, and an unrelated extra file) was
+  # never removed, and got silently swept into the new manifest as if it
+  # were part of the current render.
+  manuscript <- new_manuscript(new_popgenvcf_project("overwrite"), title = "Overwrite")
+  directory <- tempfile()
+
+  first <- new_submission_companions(
+    manuscript, highlights = "First highlight from the original companion set"
+  )
+  write_submission_companions(first, directory, strict = FALSE)
+  writeLines("a leftover file this render never wrote", file.path(directory, "stale-leftover.txt"))
+
+  second <- new_submission_companions(
+    manuscript, highlights = "Second, completely different highlight"
+  )
+  write_submission_companions(second, directory, overwrite = TRUE, strict = FALSE)
+
+  expect_false(file.exists(file.path(directory, "stale-leftover.txt")))
+  manifest <- data.table::fread(file.path(directory, "companions-manifest.tsv"))
+  expect_false("stale-leftover.txt" %in% manifest$path)
+  highlights <- readLines(file.path(directory, "highlights.md"), warn = FALSE)
+  expect_true(any(grepl("Second, completely different highlight", highlights, fixed = TRUE)))
+  expect_false(any(grepl("First highlight from the original", highlights, fixed = TRUE)))
+  expect_true(validate_submission_companions(directory))
+})

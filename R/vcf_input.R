@@ -22,8 +22,25 @@ vcf_index_path <- function(vcf) {
   NA_character_
 }
 
-vcf_index_is_valid <- function(vcf, bcftools = require_vcf_tool("bcftools")) {
-  if (is.na(vcf_index_path(vcf))) return(FALSE)
+vcf_index_is_valid <- function(vcf, bcftools = require_vcf_tool("bcftools"), check_mtime = FALSE) {
+  index <- vcf_index_path(vcf)
+  if (is.na(index)) return(FALSE)
+  # `bcftools index --nrecords` only reads the index file's own internal
+  # metadata -- it never compares the index against the actual VCF content,
+  # so it happily reports success (and the OLD record count) against an
+  # index left over from before the VCF was overwritten in place. Confirmed
+  # directly: bgzip-ing new content over an existing .vcf.gz path while
+  # leaving the old .tbi beside it still returns status 0 and the stale
+  # record count (htslib emits only a non-fatal stderr warning, which this
+  # status-only check never inspects). check_mtime = TRUE is opt-in because
+  # it is only a safe heuristic when this function itself controls both
+  # files' timestamps (the normalized-cache pair below does not use it, for
+  # the mtime-unreliability reason documented at its own call site).
+  if (isTRUE(check_mtime)) {
+    vcf_mtime <- file.mtime(vcf)
+    index_mtime <- file.mtime(index)
+    if (is.na(vcf_mtime) || is.na(index_mtime) || index_mtime < vcf_mtime) return(FALSE)
+  }
   result <- vcf_command_status(bcftools, c("index", "--nrecords", shQuote(vcf)))
   identical(result$status, 0L)
 }
@@ -58,7 +75,7 @@ prepare_vcf_input <- function(vcf, cache_dir, force = FALSE) {
   cache_dir <- normalizePath(cache_dir, winslash = "/", mustWork = TRUE)
 
   compressed <- grepl("\\.vcf\\.gz$", vcf, ignore.case = TRUE)
-  if (compressed && !isTRUE(force) && vcf_index_is_valid(vcf, bcftools)) {
+  if (compressed && !isTRUE(force) && vcf_index_is_valid(vcf, bcftools, check_mtime = TRUE)) {
     return(list(
       path = vcf,
       index = vcf_index_path(vcf),

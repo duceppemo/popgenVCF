@@ -110,6 +110,17 @@ run_spatial_autocorrelation <- function(genotype, sample_ids, metadata, geograph
     observed[, `:=`(p_value = NA_real_, null_lower = NA_real_, null_upper = NA_real_)]
     return(observed[])
   }
+  # set.seed() here previously left the global RNG state permanently
+  # perturbed for the rest of the pipeline run -- every subsequently
+  # executed randomized module (bootstrap trees, other permutation tests)
+  # silently became coupled to whether/when this module ran, breaking each
+  # module's own independent seed control. Save/restore matches this
+  # package's established convention (tree_bootstrap_replicate_seeds(),
+  # R/tree_bootstrap.R).
+  old_seed <- if (exists(".Random.seed", envir = .GlobalEnv)) get(".Random.seed", envir = .GlobalEnv) else NULL
+  on.exit({
+    if (is.null(old_seed)) rm(".Random.seed", envir = .GlobalEnv) else assign(".Random.seed", old_seed, envir = .GlobalEnv)
+  }, add = TRUE)
   set.seed(seed)
   null_r <- matrix(NA_real_, permutations, bins)
   for (p in seq_len(permutations)) {

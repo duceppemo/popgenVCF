@@ -564,11 +564,27 @@ assert_module_validation <- function(validation, module) {
 validate_membership_collection <- function(collection, tolerance = 1e-6) {
   errors <- character(); metrics <- list()
   if (!is.list(collection) || !length(collection)) return(list(errors = "no membership matrices were produced", metrics = metrics))
-  for (nm in names(collection)) {
-    q <- collection[[nm]]
+  # names(collection) is NULL for an unnamed list -- `for (nm in NULL)` never
+  # executes, so an unnamed collection previously validated nothing at all
+  # and returned a vacuous pass (zero errors). Index positionally instead,
+  # falling back to a 1-based label only for entries that lack a real name.
+  labels <- names(collection)
+  if (is.null(labels)) labels <- character(length(collection))
+  unlabeled <- !nzchar(labels)
+  labels[unlabeled] <- as.character(seq_along(collection))[unlabeled]
+  for (i in seq_along(collection)) {
+    nm <- labels[[i]]
+    q <- collection[[i]]
     if (data.table::is.data.table(q) || is.data.frame(q)) {
+      # `..cols` is data.table's own NSE escape and is only recognized inside
+      # a data.table `[` call -- a plain data.frame (explicitly accepted by
+      # this same `is.data.frame(q)` check) hits base R's `[.data.frame`
+      # instead, which has no such escape and errors with "object '..cols'
+      # not found" (confirmed directly). Downgrading through as.data.frame()
+      # first makes the subsequent `[` uniformly base R for both input types.
+      q <- as.data.frame(q)
       cols <- grep("^cluster_", names(q), value = TRUE)
-      q <- as.matrix(q[, ..cols])
+      q <- as.matrix(q[, cols, drop = FALSE])
     }
     z <- tryCatch(normalize_q_matrix(q), error = function(e) e)
     if (inherits(z, "error")) errors <- c(errors, sprintf("K=%s: %s", nm, conditionMessage(z)))

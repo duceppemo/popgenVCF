@@ -159,6 +159,29 @@ test_that("run_spatial_autocorrelation returns NULL with permutations = 0 handle
   expect_true(all(is.na(res$null_lower)))
 })
 
+test_that("run_spatial_autocorrelation does not perturb the caller's global RNG state", {
+  # set.seed(seed) here previously left the global RNG state permanently
+  # re-seeded for the rest of the R session, silently coupling every
+  # subsequently executed randomized analysis (bootstrap trees, other
+  # permutation tests) to whether/when this module happened to run.
+  genotype <- matrix(rbinom(200, 2, 0.3), nrow = 10L)
+  rownames(genotype) <- paste0("S", 1:10)
+  metadata <- data.table::data.table(
+    sample = paste0("S", 1:10), latitude = seq(10, 19), longitude = seq(1, 10)
+  )
+  set.seed(123L)
+  before <- runif(5L)
+
+  set.seed(123L)
+  invisible(popgenVCF:::run_spatial_autocorrelation(
+    genotype, rownames(genotype), metadata, c("latitude", "longitude"),
+    bins = 4L, permutations = 20L, seed = 999L
+  ))
+  after <- runif(5L)
+
+  expect_identical(before, after)
+})
+
 test_that("plot_spatial_autocorrelation writes a figure file, and is a no-op for a NULL result", {
   res <- data.table::data.table(
     bin_upper = c(10, 20, 30), n_pairs = c(5L, 8L, 3L),

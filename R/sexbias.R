@@ -47,6 +47,17 @@ run_sexbias <- function(genotype, sample_ids, metadata, test = "mAIc",
   aic <- hierfstat::AIc(dat)
 
   nperm <- if (as.integer(permutations) > 0L) as.integer(permutations) else NULL
+  # set.seed() here previously left the global RNG state permanently
+  # perturbed for the rest of the pipeline run -- every subsequently
+  # executed randomized module (bootstrap trees, other permutation tests)
+  # silently became coupled to whether/when this module ran, breaking each
+  # module's own independent seed control. Save/restore matches this
+  # package's established convention (tree_bootstrap_replicate_seeds(),
+  # R/tree_bootstrap.R).
+  old_seed <- if (exists(".Random.seed", envir = .GlobalEnv)) get(".Random.seed", envir = .GlobalEnv) else NULL
+  on.exit({
+    if (is.null(old_seed)) rm(".Random.seed", envir = .GlobalEnv) else assign(".Random.seed", old_seed, envir = .GlobalEnv)
+  }, add = TRUE)
   set.seed(as.integer(seed))
   test_result <- hierfstat::sexbias.test(dat, sx, nperm = nperm, test = test)
 

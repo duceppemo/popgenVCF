@@ -151,7 +151,12 @@ parse_int_range <- function(x) {
   if (grepl(":", x, fixed = TRUE)) {
     z <- as.integer(strsplit(x, ":", fixed = TRUE)[[1]])
     if (length(z) != 2L || anyNA(z)) stopf("Invalid integer range: %s", x)
-    return(seq.int(z[1], z[2]))
+    # Every other branch of this function returns sort(unique(...)) --
+    # a reversed bound (a plausible typo, e.g. "10:2" meant as "2:10") went
+    # straight to seq.int(10, 2) unsorted (10, 9, ..., 2) instead, breaking
+    # that same contract silently for callers who rely on ascending K order
+    # (e.g. ancestry_k_selection.R's plateau detection).
+    return(seq.int(min(z), max(z)))
   }
   z <- as.integer(strsplit(x, ",", fixed = TRUE)[[1]])
   if (anyNA(z)) stopf("Invalid integer list: %s", x)
@@ -198,7 +203,18 @@ figure_base_size <- function(cfg = NULL) {
 # these assignments." -- is preserved rather than being merged back into one
 # paragraph.
 wrap_plot_text <- function(text, width = 90L) {
-  if (is.null(text) || !length(text) || is.na(text) || !nzchar(text)) return(text)
+  if (is.null(text) || !length(text)) return(text)
+  # `||` (like the `if` it feeds) requires a length-1 operand as of R >= 4.3
+  # and errors outright ("'length = N' in coercion to 'logical(1)'",
+  # confirmed directly) for a length > 1 `text` -- a plausible input for any
+  # of this function's 30+ call sites building a caption/title/subtitle
+  # dynamically via sprintf()/paste0() without an explicit collapse.
+  # Recursing element-wise both avoids the crash and wraps each element
+  # independently, the same as calling this function separately per string.
+  if (length(text) > 1L) {
+    return(vapply(text, wrap_plot_text, character(1L), width = width, USE.NAMES = FALSE))
+  }
+  if (is.na(text) || !nzchar(text)) return(text)
   lines <- strsplit(text, "\n", fixed = TRUE)[[1L]]
   paste(unlist(lapply(lines, strwrap, width = width)), collapse = "\n")
 }
@@ -237,15 +253,21 @@ manhattan_layout <- function(chromosome, position) {
   order_chr <- natural_sort_levels(chromosome)
   offset <- stats::setNames(numeric(length(order_chr)), order_chr)
   cum <- 0
+  # max()/range() below default to na.rm = FALSE -- a single NA position for
+  # one chromosome (a genuinely reachable value for a genome-scan window
+  # statistic, unlike a mandatory VCF POS) would return NA from max(), which
+  # then poisons `cum` for every chromosome laid out AFTER it too (`cum`
+  # accumulates), not merely the affected one -- corrupting the whole plot's
+  # x-axis offsets rather than just that one chromosome's tick.
   for (chr in order_chr) {
     offset[[chr]] <- cum
-    cum <- cum + max(position[chromosome == chr]) + 1
+    cum <- cum + max(position[chromosome == chr], na.rm = TRUE) + 1
   }
   x <- unname(position + offset[chromosome])
   ticks <- data.frame(
     chromosome = order_chr,
     center = vapply(order_chr, function(chr) {
-      mean(range(position[chromosome == chr])) + offset[[chr]]
+      mean(range(position[chromosome == chr], na.rm = TRUE)) + offset[[chr]]
     }, numeric(1L)),
     # Each chromosome/contig's own laid-out span, in the same x-units as
     # `x` -- manhattan_chromosome_row() needs this to know how much physical
@@ -253,7 +275,7 @@ manhattan_layout <- function(chromosome, position) {
     # which for a many-small-contig assembly can differ hugely between
     # entries and isn't recoverable from chromosome count alone.
     width = vapply(order_chr, function(chr) {
-      diff(range(position[chromosome == chr]))
+      diff(range(position[chromosome == chr], na.rm = TRUE))
     }, numeric(1L)),
     stringsAsFactors = FALSE
   )

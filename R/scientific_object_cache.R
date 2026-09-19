@@ -43,9 +43,16 @@ new_scientific_cache_key <- function(
     module_version = .scalar_cache_string(module_version, "module_version"),
     object_fingerprints = object_fingerprints[order(names(object_fingerprints))],
     parameters = .canonicalize_cache_value(parameters),
-    dependency_fingerprints = dependency_fingerprints[
-      order(names(dependency_fingerprints))
-    ]
+    # order(NULL) is a hard error ("argument 1 is not a vector", confirmed
+    # directly) -- names(character(0)) is NULL, so the documented default
+    # dependency_fingerprints = character() (this function's own supported
+    # "no dependencies" case) previously crashed unconditionally, before
+    # this function could ever be called with its own default argument.
+    dependency_fingerprints = if (length(dependency_fingerprints)) {
+      dependency_fingerprints[order(names(dependency_fingerprints))]
+    } else {
+      dependency_fingerprints
+    }
   )
 
   structure(
@@ -214,6 +221,13 @@ validate_scientific_cache_manifest <- function(
 }
 
 .cache_contract_fingerprint <- function(value) {
-  bytes <- serialize(value, NULL, version = 3L)
-  paste0("r-serialize-v3:", paste(sprintf("%02x", as.integer(bytes)), collapse = ""))
+  # Previously hex-encoded the ENTIRE serialized byte stream one byte at a
+  # time via sprintf() in a loop -- not actually a fingerprint (a compact
+  # digest) at all, but a literal, invertible re-encoding of the whole
+  # value, doubling its size and scaling the R-level sprintf loop linearly
+  # with object size. digest::digest() is already this package's own
+  # established convention for exactly this (hash_file(), R/utils.R, and
+  # every checksum/manifest elsewhere in the package) -- a fixed-size SHA256
+  # digest, computed in C rather than an R-level per-byte loop.
+  paste0("sha256:", digest::digest(value, algo = "sha256", serialize = TRUE))
 }
