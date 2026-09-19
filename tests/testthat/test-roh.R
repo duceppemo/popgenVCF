@@ -398,3 +398,23 @@ test_that("validate_roh_result flags negative or non-summing froh_<class> values
   bad_sum$sample_summary[1L, froh_long := 0.5]
   expect_false(popgenVCF:::validate_roh_result(bad_sum, NULL, NULL)$valid)
 })
+
+test_that("run_roh measures site missingness over the retained samples only, not samples excluded by sample QC", {
+  # bcftools view evaluates --exclude against the original sample set, before
+  # -S subsetting. A QC-excluded sample that is missing everywhere (exactly
+  # the kind sample QC removes) pushed F_MISSING to 0.2 > 0.1 at every site
+  # in a single-pass call, leaving no sites at all for the retained samples.
+  skip_if(Sys.which("bcftools") == "", "bcftools is not available")
+  lines <- readLines(roh_fixture_vcf())
+  header <- startsWith(lines, "#")
+  lines[startsWith(lines, "#CHROM")] <- paste0(lines[startsWith(lines, "#CHROM")], "\tDROPPED")
+  lines[!header] <- paste0(lines[!header], "\t./.")
+  vcf <- tempfile(fileext = ".vcf")
+  writeLines(lines, vcf)
+
+  sample_ids <- c("TARGET_HET", "TARGET_HOM", "ANCHOR_HET", "ANCHOR_ALT")
+  metadata <- popgenVCF:::metadata_from_samples(sample_ids)
+  result <- popgenVCF:::run_roh(vcf, sample_ids, metadata, 0.1, 30, 1L)
+  expect_equal(result$analyzed_footprint_bp, 3901)
+  expect_setequal(result$sample_summary$sample, sample_ids)
+})

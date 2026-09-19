@@ -108,20 +108,32 @@ run_roh <- function(vcf_path, sample_ids, metadata, missing_rate, gt_error_phred
 
   samples_file <- file.path(work_dir, "samples.txt")
   writeLines(as.character(sample_ids), samples_file)
+  # Two passes, not one: bcftools view evaluates -i/-e expressions against the
+  # ORIGINAL sample set, before -S subsetting (confirmed directly: a site
+  # fully called in the two requested samples but missing in two unrequested
+  # ones is dropped by `-S ... --exclude 'F_MISSING > 0.2'`). In a single
+  # pass, F_MISSING therefore still counted every sample that sample QC had
+  # already excluded -- typically the high-missingness ones -- so sites were
+  # removed for missingness among samples not in the analysis, and the ROH
+  # site set disagreed with the GDS-side variant QC, which measures
+  # missingness over retained samples only.
+  sample_subset <- file.path(work_dir, "roh_samples.bcf")
+  subset_args <- c(
+    "view", "-S", shQuote(samples_file),
+    "--output-type", "b", "--output", shQuote(sample_subset), shQuote(vcf_path)
+  )
+  subsetted <- vcf_command_status(bcftools, subset_args)
+  if (!identical(subsetted$status, 0L) || !file.exists(sample_subset)) {
+    stop("Failed to derive the ROH sample subset: ", paste(subsetted$output, collapse = "\n"), call. = FALSE)
+  }
   subset_vcf <- file.path(work_dir, "roh_subset.vcf.gz")
   view_args <- c(
     "view", "--min-alleles", "2", "--max-alleles", "2", "--types", "snps",
-    "-S", shQuote(samples_file),
     "--exclude", shQuote(sprintf("F_MISSING > %s", missing_rate)),
-    # ROH assumes uniform diploid genotypes at every retained site; the
-    # hemizygous sex is always homozygous by construction on a sex
-    # chromosome, which would inflate apparent autozygosity for reasons
-    # unrelated to real inbreeding. Excluded the same way autosome_only
-    # excludes these chromosomes from every other ploidy-sensitive module.
     if (length(non_autosomal_chromosome_names)) {
       c("--targets", shQuote(paste0("^", paste(non_autosomal_chromosome_names, collapse = ","))))
     },
-    "--output-type", "z", "--output", shQuote(subset_vcf), shQuote(vcf_path)
+    "--output-type", "z", "--output", shQuote(subset_vcf), shQuote(sample_subset)
   )
   viewed <- vcf_command_status(bcftools, view_args)
   if (!identical(viewed$status, 0L) || !file.exists(subset_vcf)) {
@@ -191,7 +203,7 @@ run_roh <- function(vcf_path, sample_ids, metadata, missing_rate, gt_error_phred
 
   agg <- if (nrow(runs)) {
     runs[, .(
-      n_runs = .N, total_length_bp = sum(length_bp),
+      n_runs = .N, total_length_bp = sum(as.numeric(length_bp)),
       mean_length_bp = mean(length_bp), longest_run_bp = max(length_bp)
     ), by = sample]
   } else {
@@ -211,7 +223,7 @@ run_roh <- function(vcf_path, sample_ids, metadata, missing_rate, gt_error_phred
   for (cls in class_levels) {
     total_col <- paste0("total_length_bp_", cls)
     class_totals <- if (nrow(runs)) {
-      runs[length_class == cls, .(total = sum(length_bp)), by = sample]
+      runs[length_class == cls, .(total = sum(as.numeric(length_bp))), by = sample]
     } else {
       data.table::data.table(sample = character(), total = numeric())
     }

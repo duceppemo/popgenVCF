@@ -121,7 +121,8 @@ run_module_tree <- function(analysis, context) {
 run_module_ml_tree <- function(analysis, context) {
   cfg <- context$cfg; dirs <- context$dirs
   genotype <- SNPRelate::snpgdsGetGeno(
-    context$gds, sample.id = context$sample_ids, snp.id = context$final_snps, verbose = FALSE
+    context$gds, sample.id = context$sample_ids, snp.id = context$final_snps,
+    snpfirstdim = FALSE, verbose = FALSE
   )
   alleles <- context$ids$allele[match(context$final_snps, context$ids$snp)]
   ref <- sub("/.*", "", alleles); alt <- sub(".*/", "", alleles)

@@ -158,6 +158,25 @@ run_ml_tree <- function(genotype, ref, alt, sample_ids, seed,
   bootstrap_n <- 0L
   bootstrap_failed <- FALSE
   if (bootstrap_replicates > 0L) {
+    # bootstrap.pml(multicore = TRUE) resamples inside parallel::mclapply()
+    # forks. Under R's default Mersenne-Twister generator a fork's stream
+    # does not derive from set.seed() at all, so bootstrap support changed
+    # from run to run whenever threads > 1 (confirmed directly: two identical
+    # calls disagreed at 7 of 10 nodes). L'Ecuyer-CMRG is the generator
+    # mclapply() documents for reproducible forked streams: with it selected
+    # and seeded, each fork receives a deterministic substream. The previous
+    # generator and its state are restored on exit.
+    # Single-threaded runs never fork and stay on the stream seeded above.
+    if (threads > 1L) {
+      old_kind <- RNGkind()[1L]
+      old_seed <- if (exists(".Random.seed", envir = .GlobalEnv)) get(".Random.seed", envir = .GlobalEnv) else NULL
+      on.exit({
+        RNGkind(old_kind)
+        if (!is.null(old_seed)) assign(".Random.seed", old_seed, envir = .GlobalEnv)
+      }, add = TRUE)
+      RNGkind("L'Ecuyer-CMRG")
+      set.seed(as.integer(seed))
+    }
     # A resampled-with-replacement replicate can, by chance, draw a locus
     # subset too uninformative to fit at all (a real, directly observed
     # failure -- "cannot unroot a tree with less than three edges" -- from a

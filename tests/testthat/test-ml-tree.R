@@ -223,3 +223,16 @@ test_that("ml_tree.bootstrap_replicates config validates non-negative", {
   cfg$analyses$ml_tree$bootstrap_replicates <- -1L
   expect_error(popgenVCF:::validate_config(cfg), "ml_tree.bootstrap_replicates")
 })
+
+test_that("run_ml_tree's bootstrap support is reproducible for a fixed seed with multiple threads", {
+  # bootstrap.pml(multicore = TRUE) resamples inside parallel::mclapply()
+  # forks; under R's default Mersenne-Twister RNG each fork is seeded from
+  # its own process, not from set.seed(), so support values changed from run
+  # to run whenever compute.threads > 1.
+  skip_if_not_installed("phangorn")
+  skip_on_os("windows")
+  fx <- ml_tree_genotype_fixture()
+  r1 <- popgenVCF:::run_ml_tree(fx$geno, fx$ref, fx$alt, fx$sample_ids, seed = 3L, threads = 2L, bootstrap_replicates = 20L)
+  r2 <- popgenVCF:::run_ml_tree(fx$geno, fx$ref, fx$alt, fx$sample_ids, seed = 3L, threads = 2L, bootstrap_replicates = 20L)
+  expect_identical(r1$tree$node.label, r2$tree$node.label)
+})
