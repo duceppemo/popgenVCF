@@ -25,6 +25,7 @@ new_publication_ordination_output(
   coordinates,
   metadata = NULL,
   variance_explained = NULL,
+  variance_explained_unit = c("auto", "fraction", "percent"),
   loadings = NULL,
   result_fingerprint,
   figure_binding = NULL
@@ -49,6 +50,7 @@ publication_ordination_report(output, spec)
 \item{coordinates}{Authoritative PCA or ordination coordinates.}
 \item{metadata}{Optional sample metadata.}
 \item{variance_explained}{Optional variance proportions or percentages.}
+\item{variance_explained_unit}{\code{"auto"} (default) guesses fraction vs. percent from whether the published axes' values sum to at most 1 -- ambiguous, and wrong, for a genuine small percentage. Pass \code{"fraction"} or \code{"percent"} explicitly when the unit is known, to bypass the guess entirely.}
 \item{loadings}{Optional loading matrix or data frame.}
 \item{result_fingerprint}{Fingerprint of the authoritative scientific result.}
 \item{figure_binding}{Optional publication figure-style binding.}

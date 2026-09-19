@@ -1,5 +1,7 @@
 # popgenVCF 1.0.15 development
 
+- **`man/publication_ordination_outputs.Rd`** (after the `v1.0.15` tag): the `variance_explained_unit` argument added in the first review pass was never added to this hand-maintained Rd page, so `R CMD check` reported a code/documentation mismatch WARNING and the R-CMD-check workflow failed on `main`. Documentation only; the tagged 1.0.15 code is unaffected. `tools::codoc()` is clean for the whole package again.
+
 - **A second full code pass over `R/`, this time concentrating on scientific formulas and SNPRelate ordering assumptions rather than defensive-coding gaps. Each fix ships with a regression test verified against the pre-fix code.**
 
   - **`ne_ld.R` -- LD-based Ne was biased low in every release since the module was added.** Waples (2006, Table 1) gives the expected sampling contribution to r-squared as `1/S + 3.19/S^2` for S >= 30, and a separate Ne formula, `(0.308 + sqrt(0.308^2 - 2.08 r2')) / (2 r2')`, for S < 30. The module used a bare `1/S` above 30 and the S >= 30 Ne formula for every S. The two published E(r2) branches meet at S = 30 only with the second-order term (0.03688 vs 0.03697; a bare `1/S` gives 0.03333), and the omission is large relative to the signal: at S = 50 it inflates the drift r-squared by 0.0013 against a true signal of ~0.0033 for Ne = 100, pulling Ne down by roughly a third. Both branches now follow the published table. **Ne(LD) values from earlier releases should be regenerated.**
