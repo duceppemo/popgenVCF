@@ -8,7 +8,13 @@ submission_package_role <- function(path) {
   if (name == "article.xml") return("jats_article")
   if (grepl("manifest\\.tsv$", name)) return("manifest")
   if (grepl("record\\.json$|profile\\.json$", name)) return("provenance")
-  if (grepl("^(figures|tables|supplementary)/", path)) return("asset")
+  # manuscript_copy_assets() (manuscript_asset_integration.R) places every
+  # figure/table/supplementary artifact under "assets/<folder>/...", not
+  # "<folder>/..." directly -- this checked the un-prefixed form, so every
+  # such asset was silently mislabeled "supporting_metadata" below instead
+  # of "asset", and any submission-profile logic keyed on the asset role
+  # (or an asset count) saw zero assets in every generated package.
+  if (grepl("^assets/(figures|tables|supplementary)/", path)) return("asset")
   "supporting_metadata"
 }
 

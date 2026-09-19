@@ -142,8 +142,14 @@ project_bundle_manifest <- function(root) {
 #' @export
 write_popgenvcf_project <- function(project, path, overwrite = FALSE) {
   validate_popgenvcf_project(project)
-  if (file.exists(path) && !isTRUE(overwrite)) stop("project bundle already exists", call. = FALSE)
+  # The overwrite guard must check the REAL final path -- appending the
+  # ".popgenvcf" extension must happen before it, not after. It used to
+  # run first: file.exists(path) on a caller-supplied path lacking the
+  # extension (e.g. "proj" when "proj.popgenvcf" already exists) was
+  # FALSE, silently bypassing overwrite = FALSE, and the unconditional
+  # unlink(path) below then deleted the real, existing bundle anyway.
   if (!grepl("\\.popgenvcf$", path, ignore.case = TRUE)) path <- paste0(path, ".popgenvcf")
+  if (file.exists(path) && !isTRUE(overwrite)) stop("project bundle already exists", call. = FALSE)
   root <- tempfile("popgenvcf-project-")
   dir.create(root, recursive = TRUE)
   on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
@@ -165,10 +171,39 @@ write_popgenvcf_project <- function(project, path, overwrite = FALSE) {
   manifest <- project_bundle_manifest(root)
   data.table::fwrite(manifest, file.path(root, "manifest.tsv"), sep = "\t")
   if (file.exists(path)) unlink(path, force = TRUE)
+  # Resolve the destination to an absolute path BEFORE setwd(root) below,
+  # not after -- the tar() call two lines down used to pass
+  # normalizePath(path, ...) evaluated only once it was already called,
+  # i.e. after setwd(root) had already changed the working directory to
+  # this function's own temp staging directory. A relative `path`
+  # argument then resolved to somewhere INSIDE root, tar() wrote the
+  # bundle there, and this function's own
+  # on.exit(unlink(root, recursive = TRUE)) deleted it before the caller
+  # could ever use the (real, at the moment it was computed) returned
+  # path. Simply moving the normalizePath() call earlier is not enough on
+  # its own, though: normalizePath(x, mustWork = FALSE) on a path that
+  # does not yet exist on disk does NOT resolve it against the working
+  # directory at all -- confirmed directly, it returns a still-relative
+  # input completely unchanged, only ever adjusting a path that already
+  # resolves to something real. Since this function only just unlinked
+  # any prior copy of the destination above, `path` never exists at this
+  # point, so a genuinely relative `path` must be joined onto the working
+  # directory explicitly here; an already-absolute `path` (e.g. anything
+  # built from tempfile(), which is why this went unnoticed) is left
+  # as-is either way.
+  is_absolute_path <- if (identical(.Platform$OS.type, "windows")) {
+    grepl("^([A-Za-z]:[\\/]|\\\\\\\\)", path)
+  } else {
+    startsWith(path, "/")
+  }
+  destination <- normalizePath(
+    if (is_absolute_path) path else file.path(getwd(), path),
+    mustWork = FALSE
+  )
   old <- setwd(root); on.exit(setwd(old), add = TRUE)
-  utils::tar(normalizePath(path, mustWork = FALSE), files = list.files(".", all.files = TRUE,
+  utils::tar(destination, files = list.files(".", all.files = TRUE,
              no.. = TRUE), compression = "gzip", tar = "internal")
-  invisible(normalizePath(path, winslash = "/", mustWork = TRUE))
+  invisible(normalizePath(destination, winslash = "/", mustWork = TRUE))
 }
 
 extract_project_bundle <- function(path) {

@@ -47,6 +47,18 @@ test_that("FAIR bundles are checksummed and validate", {
   expect_true(file.exists(file.path(directory, "ro-crate-metadata.json")))
   expect_true(file.exists(file.path(directory, "CITATION.cff")))
 
+  # `rights_uri` was left at its default (NA, not an explicit URI) here --
+  # the common case. `%||%` only coalesces NULL, not NA, so the RO-Crate
+  # dataset's own `license` field previously stayed NA and serialized as a
+  # literal JSON `null` instead of falling back to the declared license
+  # ("MIT", new_fair_metadata()'s own default) -- every default-configured
+  # FAIR bundle published no license at all.
+  ro_crate <- jsonlite::fromJSON(
+    file.path(directory, "ro-crate-metadata.json"), simplifyVector = FALSE
+  )
+  dataset <- Filter(function(node) identical(node$`@id`, metadata$identifier), ro_crate$`@graph`)[[1L]]
+  expect_identical(dataset$license, "MIT")
+
   writeLines("tampered", file.path(directory, "codemeta.json"))
   expect_error(validate_fair_bundle(directory), "checksum mismatch")
 })

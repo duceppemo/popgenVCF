@@ -37,6 +37,28 @@ test_that("two differently-punctuated headers that normalize to the same name er
   )
 })
 
+test_that("whitespace-separated metadata (neither tab nor comma) is actually split into columns", {
+  # sep is "" specifically for this case (no tab or comma found on the
+  # header line); the header-detection tokenizer correctly splits on
+  # "[[:space:]]+", but that sep = "" was then passed straight through to
+  # data.table::fread(), which does NOT treat "" as "split on whitespace"
+  # -- it read each entire line as one single column instead. A real
+  # space-separated metadata file either failed with a misleading "must
+  # contain a sample column" (headered case) or produced sample IDs like
+  # "S1 popA" that could never match a VCF sample id (headerless case).
+  path <- tempfile(fileext = ".txt")
+  writeLines(c("sample population", "s1 north", "s2  south"), path)
+  x <- popgenVCF:::read_metadata(path)
+  expect_identical(x$sample, c("s1", "s2"))
+  expect_identical(x$population, c("north", "south"))
+
+  headerless <- tempfile(fileext = ".txt")
+  writeLines(c("s1 north", "s2  south"), headerless)
+  y <- popgenVCF:::read_metadata(headerless, header = "no")
+  expect_identical(as.character(y[[1]]), c("s1", "s2"))
+  expect_identical(as.character(y[[2]]), c("north", "south"))
+})
+
 test_that("a literal, ordinarily capitalized 'Population' header is still auto-detected", {
   path <- metadata_fixture_path(c(
     "Sample\tPopulation",

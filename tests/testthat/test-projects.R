@@ -34,6 +34,55 @@ test_that("portable project bundles verify and reopen", {
   expect_error(write_popgenvcf_project(project, written), "already exists")
 })
 
+test_that("write_popgenvcf_project's overwrite guard checks the real, extension-appended path", {
+  # The exists/overwrite check used to run BEFORE ".popgenvcf" was
+  # appended to a caller-supplied path lacking it -- so file.exists(path)
+  # on the bare name was FALSE even though the real, extension-appended
+  # bundle already existed, silently bypassing overwrite = FALSE and then
+  # deleting the real, existing bundle via the unconditional unlink()
+  # right after.
+  project <- new_popgenvcf_project(
+    "guard", results = list(ibs = diag(2L)),
+    project_id = "00000000-0000-0000-0000-000000000009",
+    package_version = "0.10.0", git_sha = "guard1"
+  )
+  bare_path <- tempfile() # deliberately no ".popgenvcf" extension
+  first <- write_popgenvcf_project(project, bare_path)
+  expect_true(file.exists(first))
+  first_mtime <- file.info(first)$mtime
+
+  expect_error(write_popgenvcf_project(project, bare_path), "already exists")
+  # The bundle must survive untouched -- the bug deleted it as a side
+  # effect of the bypassed guard, even though it went on to (re)error.
+  expect_true(file.exists(first))
+  expect_identical(file.info(first)$mtime, first_mtime)
+})
+
+test_that("write_popgenvcf_project resolves a relative destination against the caller's directory, not its own temp staging directory", {
+  # normalizePath(path, mustWork = FALSE) on a still-relative path
+  # resolves against the CURRENT working directory -- and this function
+  # used to evaluate it only after setwd(root) had already pointed the
+  # working directory at its own temp staging directory. A relative path
+  # then silently resolved to somewhere INSIDE that temp directory, and
+  # this function's own on.exit(unlink(root, recursive = TRUE)) deleted
+  # it before the caller could ever use the (already-computed, and at
+  # that moment real) returned path.
+  project <- new_popgenvcf_project(
+    "relative", results = list(ibs = diag(2L)),
+    project_id = "00000000-0000-0000-0000-00000000000a",
+    package_version = "0.10.0", git_sha = "guard2"
+  )
+  caller_dir <- tempfile("popgenvcf-caller-dir-")
+  dir.create(caller_dir)
+  old_wd <- setwd(caller_dir)
+  on.exit(setwd(old_wd), add = TRUE)
+
+  written <- write_popgenvcf_project(project, "relative-bundle")
+  expect_true(file.exists(written))
+  expect_true(startsWith(written, normalizePath(caller_dir, winslash = "/")))
+  expect_true(verify_popgenvcf_project(written))
+})
+
 test_that("project comparison reports identity, input, and result changes", {
   baseline <- new_popgenvcf_project(
     "analysis", results = list(pca = c(1, 2)), parameters = list(maf = .05),

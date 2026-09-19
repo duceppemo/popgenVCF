@@ -86,6 +86,37 @@ test_that("a component's non-regressing content change still stays 'changed', no
   expect_equal(comparison$details$status, "changed")
 })
 
+test_that("a check that erred out (NA, not a clean pass) is treated as a regression, not silently ignored", {
+  # `.component_validation_regressed()` used
+  # `!all(obs_vals, na.rm = TRUE)` -- with obs_vals = c(TRUE, NA), na.rm
+  # drops the NA entirely, `all(TRUE)` is TRUE, and the whole check
+  # concludes "not regressed": a check that errored or returned an
+  # indeterminate result (not a clean pass) was silently treated the same
+  # as a genuine pass, in the code whose specific job is catching exactly
+  # this silent-NA failure class.
+  make_checks_record <- function(release, check_b) {
+    checks <- data.table::data.table(
+      check = c("check_a", "check_b"),
+      passed = c(TRUE, check_b)
+    )
+    new_release_benchmark_record(
+      release = release, package_version = sub("^v", "", release),
+      git_sha = paste0("sha-", release),
+      components = list(scientific_validation = checks),
+      provenance = list(source = "fixture")
+    )
+  }
+  baseline <- make_checks_record("v0.9.0", check_b = TRUE)
+  current <- make_checks_record("v0.10.0", check_b = NA)
+
+  comparison <- compare_release_benchmarks(current, baseline)
+  expect_equal(comparison$status, "failed")
+  expect_equal(
+    comparison$details$status[comparison$details$component == "scientific_validation"],
+    "failed"
+  )
+})
+
 test_that("latest release selection uses semantic versions", {
   archive <- new_benchmark_archive()
   archive <- register_release_benchmark(archive, make_release_record("v0.9.0", 1))

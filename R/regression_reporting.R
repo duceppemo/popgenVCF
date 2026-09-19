@@ -23,7 +23,17 @@
   if (!is.logical(obs_vals) || !is.logical(ref_vals) || !length(obs_vals) || !length(ref_vals)) {
     return(FALSE)
   }
-  all(ref_vals, na.rm = TRUE) && !all(obs_vals, na.rm = TRUE)
+  # `!all(obs_vals, na.rm = TRUE)` silently passed a genuine regression:
+  # with obs_vals = c(TRUE, NA, NA) (checks that errored or returned an
+  # indeterminate result rather than a clean pass), na.rm = TRUE drops the
+  # NAs entirely, `all(TRUE)` is TRUE, and the whole expression concludes
+  # "not regressed" -- ironic, in the very function whose job is
+  # defeating exactly this silent-NA failure class. `!isTRUE(all(obs_vals))`
+  # (no na.rm) fails closed instead: `all()` over any NA with no explicit
+  # FALSE returns NA, `isTRUE(NA)` is FALSE, so an NA-poisoned observed
+  # result is now treated the same as a real failure -- while a cleanly
+  # all-TRUE observed result is unaffected.
+  all(ref_vals, na.rm = TRUE) && !isTRUE(all(obs_vals))
 }
 
 #' Compare two archived release benchmark records

@@ -58,6 +58,35 @@ test_that("plot_qc_reports keeps the sequential SNP retention bars in filtering 
   )
 })
 
+test_that("plot_qc_reports draws the variant-missingness threshold line from cfg$qc$max_variant_missing, not a hardcoded 20%", {
+  # Real bug: the dashed threshold line and its subtitle on
+  # "02_variant_missingness" were hardcoded to the literal 0.2 / "20%" --
+  # config.R's own default for qc.max_variant_missing, which is why this
+  # went unnoticed on every default-configured run. p1 (MAF) and p3
+  # (sample missingness) in the same function already draw their own
+  # lines from cfg$qc$maf / cfg$qc$max_sample_missing; this asserts the
+  # variant-missingness one now does too, using a deliberately
+  # non-default value so a hardcoded 0.2 cannot coincidentally pass.
+  plots <- list()
+  local_mocked_bindings(
+    save_plot = function(p, stem, ...) { plots[[stem]] <<- p; invisible(TRUE) },
+    .package = "popgenVCF"
+  )
+  cfg <- default_config()
+  cfg$qc$max_variant_missing <- 0.37
+  sample_qc <- data.table::data.table(sample = "s1", population = "A", missing_rate = 0.01)
+  reports <- list(
+    variant = data.table::data.table(maf = 0.1, missing_rate = 0.01),
+    sequential = data.table::data.table(step = "x", variants = 1L)
+  )
+  plot_qc_reports(reports, sample_qc, cfg, list(figures = tempdir()))
+
+  p2 <- plots[["02_variant_missingness"]]
+  vline_layer <- Filter(function(l) inherits(l$geom, "GeomVline"), p2$layers)[[1L]]
+  expect_equal(vline_layer$data$xintercept, 0.37)
+  expect_match(p2$labels$subtitle, "37%", fixed = TRUE)
+})
+
 test_that("sample-missingness y-axis labels shrink to fit when there are many samples, and stay at the normal size otherwise", {
   plots <- list()
   local_mocked_bindings(

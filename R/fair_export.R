@@ -165,7 +165,15 @@ fair_creator_jsonld <- function(x) {
   dataset <- list(
     `@id` = metadata$identifier, `@type` = "Dataset", name = metadata$title,
     description = metadata$description, datePublished = as.character(metadata$publication_year),
-    license = metadata$rights_uri %||% metadata$license, keywords = metadata$keywords,
+    # `%||%` coalesces NULL only, but rights_uri's own default (above) is
+    # the real value NA_character_, not NULL -- so whenever no explicit
+    # rights_uri was supplied (the common case: license defaults to "MIT"
+    # with no accompanying URI), `%||%` left it unchanged as NA, which
+    # write_json(..., na = "null") then serialized as a literal
+    # `"license": null` in every default-configured FAIR bundle instead of
+    # the declared license.
+    license = if (is.na(metadata$rights_uri)) metadata$license else metadata$rights_uri,
+    keywords = metadata$keywords,
     creator = creator_refs, hasPart = lapply(artifact_entities, function(x) list(`@id` = x$`@id`)),
     softwareRequirements = list(`@id` = "https://github.com/duceppemo/popgenVCF")
   )

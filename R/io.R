@@ -47,8 +47,20 @@ read_metadata <- function(path, header = "auto", sample_column = NULL, populatio
       call. = FALSE
     )
   }
+  # `sep` is "" specifically for the whitespace-separated case (neither a
+  # tab nor a comma was found on the header line) -- correct for the
+  # tokenizer above (strsplit() on "[[:space:]]+", used only to sniff
+  # column names), but data.table::fread() does not treat sep = "" as "any
+  # whitespace" the way that tokenizer does: it reads each entire line as
+  # one single column instead, confirmed directly (a genuine "sample
+  # population" file with real header detection produced one column
+  # literally named "sample population", and every data row un-split).
+  # fread's own sep = "auto" correctly handles whitespace-separated data
+  # (including irregular runs of multiple spaces), so it is used here
+  # specifically for the sep == "" case; tab/comma detection above is left
+  # untouched since it is unambiguous once found.
   x <- data.table::fread(
-    path, sep = sep, header = use_header, fill = TRUE,
+    path, sep = if (sep == "") "auto" else sep, header = use_header, fill = TRUE,
     data.table = TRUE, showProgress = FALSE
   )
   generated_empty <- grepl("^V[0-9]+$", names(x)) & vapply(x, function(column) {

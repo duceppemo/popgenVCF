@@ -201,7 +201,16 @@ plot_qc_reports <- function(reports, sample_qc, cfg, dirs) {
       bins = 50, fill = accent, colour = "white", linewidth = 0.2
     ) +
     ggplot2::geom_vline(
-      xintercept = 0.2, colour = threshold_colour,
+      # Was hardcoded to the literal 0.2 -- config.R's own default for
+      # qc.max_variant_missing, which is why this went unnoticed on every
+      # default-configured run, but any user who actually changed
+      # qc.max_variant_missing got a publication figure whose stated
+      # threshold silently disagreed with the filter genuinely applied
+      # (variant_qc(), same file). p1 (MAF) and p3 (sample missingness)
+      # below already draw their own threshold lines from cfg$qc$maf and
+      # cfg$qc$max_sample_missing respectively; this is the one that was
+      # missed.
+      xintercept = cfg$qc$max_variant_missing, colour = threshold_colour,
       linetype = "dashed", linewidth = 0.65
     ) +
     ggplot2::scale_x_continuous(labels = scales::label_percent(accuracy = 1)) +
@@ -211,7 +220,9 @@ plot_qc_reports <- function(reports, sample_qc, cfg, dirs) {
     ) +
     ggplot2::labs(
       title = "Variant missingness",
-      subtitle = "Dashed line: maximum retained missingness (20%)",
+      subtitle = wrap_plot_text(sprintf(
+        "Dashed line: maximum retained missingness (%.0f%%)", 100 * cfg$qc$max_variant_missing
+      )),
       x = "Missing genotype rate", y = "Number of variants"
     ) + theme_publication(figure_base_size(cfg))
   save_plot(p2, "02_variant_missingness", dirs, fmts, 7, 5, dpi)
