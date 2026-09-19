@@ -1,4 +1,4 @@
-# popgenVCF 1.0.14 development
+# popgenVCF 1.0.15 development
 
 - **A second full code pass over `R/`, this time concentrating on scientific formulas and SNPRelate ordering assumptions rather than defensive-coding gaps. Each fix ships with a regression test verified against the pre-fix code.**
 
