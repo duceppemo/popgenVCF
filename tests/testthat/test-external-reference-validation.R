@@ -83,6 +83,25 @@ test_that("optional references skip transparently and adapter errors are recorde
   expect_match(broken_result$message, "adapter failed")
 })
 
+test_that("observed values missing a reference metric name fail loudly instead of crashing on NA", {
+  # observed[names(reference)] silently inserted NA for any reference
+  # name absent from observed (same length, different names passes the
+  # earlier length check) -- `passed` then became NA, and
+  # run_external_reference()'s own
+  # `if (spec$role == "diagnostic" || numerical_pass)` crashed with
+  # "missing value where TRUE/FALSE needed" for a non-diagnostic role,
+  # instead of a clear, catchable "error" status result.
+  spec <- new_external_reference_spec(
+    id = "name_mismatch", analysis = "diversity", reference_tool = "adegenet",
+    observed = function(x) c(fst = 0.1, other_metric = 0.2),
+    reference = function(x) c(fst = 0.1, pi = 0.2),
+    role = "equivalence"
+  )
+  result <- run_external_reference(spec, 1)
+  expect_equal(result$status, "error")
+  expect_match(result$message, "pi")
+})
+
 test_that("external-reference tables retain scientific labels", {
   spec <- new_external_reference_spec(
     id = "table_fixture", analysis = "diversity", reference_tool = "adegenet",

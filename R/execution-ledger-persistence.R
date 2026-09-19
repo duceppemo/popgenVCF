@@ -48,8 +48,13 @@ validate_execution_ledger <- function(ledger) {
   if (anyDuplicated(as.character(ledger$module))) {
     stop("execution ledger module identities must be unique", call. = FALSE)
   }
+  # classify_timeout_ledger() (execution-timeout.R) rewrites a failed
+  # row's status to literally "timed_out" -- omitted here, so persisting
+  # the final ledger of any execute_analysis_plan_with_timeouts() run
+  # through this exported constructor was rejected as "unsupported
+  # status", contradicting that exported API's own output.
   allowed_status <- c("pending", "running", "success", "failed", "blocked",
-                      "cancelled", "skipped")
+                      "cancelled", "skipped", "timed_out")
   if (anyNA(ledger$status) ||
       !all(as.character(ledger$status) %in% allowed_status)) {
     stop("execution ledger contains an unsupported status", call. = FALSE)

@@ -117,12 +117,25 @@ run_execution_batch <- function(eligible, analysis, context, registry, engine) {
     )
   }
   if (identical(engine$backend, "multicore")) {
-    return(parallel::mclapply(
+    results <- parallel::mclapply(
       eligible, run_scheduled_engine_module,
       analysis = analysis, context = context, registry = registry,
       mc.cores = min(engine$workers, length(eligible)),
       mc.preschedule = FALSE
-    ))
+    )
+    # Every other real mclapply() fork site in this package (diversity.R,
+    # fst.R, dapc.R, genome_scan.R, report.R) is guarded by
+    # check_mclapply_results() -- this one was missed. An OOM-killed
+    # forked worker returns NULL for its element rather than propagating
+    # a real R error, and a downstream vapply()/rbindlist() over the raw
+    # results would then either silently drop that module's output or
+    # misalign a positionally-zipped result against the wrong module,
+    # exactly the class of bug check_mclapply_results() exists to catch
+    # at every other fork site. Currently unreachable in practice (no
+    # registered module is parallel_safe = TRUE yet, per the dead-path
+    # comment above), but this must not stay unguarded once one is.
+    check_mclapply_results(results, eligible, "module execution")
+    return(results)
   }
 
   worker_count <- min(engine$workers, length(eligible))

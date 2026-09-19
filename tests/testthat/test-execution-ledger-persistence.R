@@ -43,6 +43,22 @@ test_that("execution ledger serialization is byte-for-byte deterministic", {
   )
 })
 
+test_that("a 'timed_out' status round-trips -- classify_timeout_ledger()'s own output must be persistable", {
+  # classify_timeout_ledger() (execution-timeout.R) rewrites a failed
+  # row's status to literally "timed_out" -- previously absent from this
+  # constructor's own allowed_status list, so persisting the final
+  # ledger of any execute_analysis_plan_with_timeouts() run through this
+  # exported API was rejected as "unsupported status", contradicting
+  # that exported function's own real output.
+  ledger <- new_persisted_execution_ledger(data.table::data.table(
+    module = c("pca", "fst"), status = c("timed_out", "success")
+  ))
+  expect_s3_class(ledger, "PopgenVCFExecutionLedger")
+  path <- tempfile(fileext = ".rds")
+  write_execution_ledger(ledger, path)
+  expect_identical(read_execution_ledger(path)$status, c("timed_out", "success"))
+})
+
 test_that("execution ledger invariants fail closed", {
   expect_error(
     new_persisted_execution_ledger(data.frame(module = c("a", "a"), status = "success")),

@@ -103,8 +103,19 @@ start_supervised_external_command <- function(
   }
   handle$resolved_executable <- resolved
 
+  # processx::process$new()'s own `env` REPLACES the entire child
+  # environment by default (confirmed directly against processx::run(),
+  # same underlying mechanism: env = c(FOO = "bar") alone left the child
+  # with no PATH/HOME/etc. at all) -- unlike run_external_command()'s
+  # system2(env = ...) path, which is additive. The same
+  # command$environment override therefore had opposite semantics
+  # depending on which backend ran it. Prefixing with the unnamed
+  # "current" element is processx's own documented merge mechanism
+  # (append/override onto the current environment, rather than replace
+  # it); the prior setNames(unname(...), names(...)) round trip was a
+  # pure no-op on an already-named vector and did not address this.
   env <- if (length(command$environment)) {
-    stats::setNames(unname(command$environment), names(command$environment))
+    c("current", command$environment)
   } else {
     character()
   }

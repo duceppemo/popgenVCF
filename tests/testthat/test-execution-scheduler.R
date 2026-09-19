@@ -107,6 +107,31 @@ test_that("run_execution_batch refuses to parallelize a batch when context carri
   }
 })
 
+test_that("a multicore worker killed outright (NULL, not a try-error) is reported loudly, not silently dropped", {
+  skip_on_os("windows")
+  # Every other real mclapply() fork site in this package (diversity.R,
+  # fst.R, dapc.R, genome_scan.R, report.R) is guarded by
+  # check_mclapply_results() -- run_execution_batch()'s own multicore
+  # path was missed. A forked worker killed by a signal (OOM, segfault)
+  # returns NULL for that slot, not a classed "try-error"; the old code
+  # returned parallel::mclapply()'s raw result list unchecked, which a
+  # downstream caller could easily misprocess the same way run_fst()'s
+  # own pre-fix bug did (see test-fst-parallel.R). Mocking
+  # run_scheduled_engine_module() to return NULL (what mclapply's own
+  # results list actually contains for a killed worker) reproduces this
+  # without needing to really kill a forked process.
+  local_mocked_bindings(run_scheduled_engine_module = function(...) NULL, .package = "popgenVCF")
+  registry <- list(modules = list(
+    a = scheduler_module(0, "a"),
+    b = scheduler_module(0, "b")
+  ))
+  engine <- new_execution_engine(workers = 2L, backend = "multicore")
+  expect_error(
+    popgenVCF:::run_execution_batch(c("a", "b"), list(), list(), registry, engine),
+    "terminated abnormally"
+  )
+})
+
 test_that("scheduler_sequence orders distinct completion times correctly", {
   executions <- list(
     list(name = "slow", finished_numeric = 100.5),

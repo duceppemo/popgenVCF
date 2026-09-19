@@ -80,7 +80,25 @@ external_reference_numeric_table <- function(observed, reference, absolute_toler
   reference <- unlist(reference, use.names = TRUE)
   if (!is.numeric(observed) || !is.numeric(reference)) stop("numeric comparison requires numeric values", call. = FALSE)
   if (length(observed) != length(reference)) stop("observed and reference lengths differ", call. = FALSE)
-  if (!is.null(names(reference)) && all(nzchar(names(reference)))) observed <- observed[names(reference)]
+  if (!is.null(names(reference)) && all(nzchar(names(reference)))) {
+    # observed[names(reference)] alone silently inserts NA for any
+    # reference name absent from observed (same length, different names
+    # passes the earlier length check) -- `passed` then becomes NA a few
+    # lines down, and run_external_reference()'s own
+    # `if (spec$role == "diagnostic" || numerical_pass)` crashes with
+    # "missing value where TRUE/FALSE needed" for any non-diagnostic
+    # role instead of a clear, catchable failure. This is caught by that
+    # caller's own tryCatch(..., error = identity), so failing loudly
+    # here becomes a normal "error" status result, not an uncaught crash.
+    missing_metrics <- setdiff(names(reference), names(observed))
+    if (length(missing_metrics)) {
+      stop(sprintf(
+        "observed values are missing metric(s) present in reference: %s",
+        paste(missing_metrics, collapse = ", ")
+      ), call. = FALSE)
+    }
+    observed <- observed[names(reference)]
+  }
   metric <- names(reference)
   if (is.null(metric) || any(!nzchar(metric))) metric <- paste0("metric_", seq_along(reference))
   absolute_error <- abs(as.numeric(observed) - as.numeric(reference))

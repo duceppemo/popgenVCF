@@ -32,6 +32,29 @@ test_that("asynchronous handles complete successful commands", {
                    seq_len(nrow(result$supervision$lifecycle_events)))
 })
 
+test_that("an environment override merges onto the current environment instead of replacing it", {
+  # processx::process$new()'s own `env` REPLACES the entire child
+  # environment by default -- confirmed directly (same underlying
+  # mechanism as processx::run()): an override alone left the child with
+  # no PATH/HOME/etc. at all.
+  script <- async_script(c(
+    "cat(nzchar(Sys.getenv('PATH')), '\\n', sep = '')",
+    "cat(Sys.getenv('POPGENVCF_ASYNC_ENV_TEST'), sep = '')"
+  ))
+  on.exit(unlink(script), add = TRUE)
+  handle <- start_supervised_external_command(
+    new_external_command(
+      async_rscript(), script,
+      environment = c(POPGENVCF_ASYNC_ENV_TEST = "present"),
+      label = "async-env-merge"
+    )
+  )
+  result <- finalize_supervised_external_command(handle)
+  expect_identical(result$status, "success")
+  expect_match(result$stdout, "^TRUE", fixed = FALSE)
+  expect_match(result$stdout, "present", fixed = TRUE)
+})
+
 test_that("asynchronous polling collects output without duplication", {
   script <- async_script(c(
     "cat('alpha')",

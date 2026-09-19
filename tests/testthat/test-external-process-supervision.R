@@ -108,6 +108,30 @@ test_that("successful supervised commands retain output and provenance", {
   expect_identical(result$supervision$cleanup, "completed")
 })
 
+test_that("an environment override merges onto the current environment instead of replacing it", {
+  # processx::run()'s own `env` REPLACES the entire child environment by
+  # default -- confirmed directly before this fix: env = c(FOO = "bar")
+  # alone left the child process with no PATH/HOME/etc. at all, unlike
+  # run_external_command()'s additive system2(env = ...) path. A real
+  # override (e.g. OMP_NUM_THREADS) would have silently broken whatever
+  # tool it was meant to configure by wiping its PATH out from under it.
+  script <- supervision_script(c(
+    "cat(nzchar(Sys.getenv('PATH')), '\\n', sep = '')",
+    "cat(Sys.getenv('POPGENVCF_SUPERVISION_ENV_TEST'), sep = '')"
+  ))
+  on.exit(unlink(script), add = TRUE)
+  result <- run_supervised_external_command(
+    new_external_command(
+      supervised_rscript(), script,
+      environment = c(POPGENVCF_SUPERVISION_ENV_TEST = "present"),
+      label = "env-merge"
+    )
+  )
+  expect_identical(result$status, "success")
+  expect_match(result$stdout, "^TRUE", fixed = FALSE)
+  expect_match(result$stdout, "present", fixed = TRUE)
+})
+
 test_that("non-zero commands preserve exit status and output", {
   script <- supervision_script(c(
     "cat('partial-output')",
