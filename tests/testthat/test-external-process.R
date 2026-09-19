@@ -40,7 +40,7 @@ test_that("successful external commands capture stdout and stderr", {
 
   result <- run_external_command(new_external_command(
     rscript_executable(),
-    args = shQuote(script),
+    args = script,
     label = "capture-output"
   ))
 
@@ -63,7 +63,7 @@ test_that("non-zero exits remain distinct from launch failures", {
 
   failed <- run_external_command(new_external_command(
     rscript_executable(),
-    args = shQuote(script),
+    args = script,
     label = "nonzero"
   ))
   missing <- run_external_command(new_external_command(
@@ -92,7 +92,7 @@ test_that("working directory and environment are explicit", {
 
   result <- run_external_command(new_external_command(
     rscript_executable(),
-    args = shQuote(script),
+    args = script,
     working_directory = directory,
     environment = c(POPGENVCF_PROCESS_TEST = "visible"),
     label = "context"
@@ -101,4 +101,37 @@ test_that("working directory and environment are explicit", {
   expect_identical(result$status, "success")
   expect_match(result$stdout, normalizePath(directory), fixed = TRUE)
   expect_match(result$stdout, "visible", fixed = TRUE)
+})
+
+test_that("run_external_command shell-quotes args and environment values, not just the executable", {
+  # base::system2() only shQuote()s the executable itself -- args and env
+  # are pasted into its internally-built shell command line unquoted. An
+  # arg or env value containing shell metacharacters (or a plain space)
+  # previously executed as shell syntax instead of being passed through
+  # literally; confirmed directly before this test was added (an injected
+  # `; touch ...; ` arg created the file). Rscript's own commandArgs()
+  # reports each argument exactly as the OS delivered it to the process,
+  # so this exercises the real, full round trip, not just the constructed
+  # command string.
+  marker <- tempfile("popgenvcf-injection-marker-")
+  on.exit(unlink(marker), add = TRUE)
+  injected_arg <- sprintf("; touch %s; echo", shQuote(marker))
+  script <- external_process_script(c(
+    "args <- commandArgs(trailingOnly = TRUE)",
+    "cat(args[[1]], sep = '')",
+    "cat('|', Sys.getenv('POPGENVCF_INJECTION_TEST'), sep = '')"
+  ))
+  on.exit(unlink(script), add = TRUE)
+
+  result <- run_external_command(new_external_command(
+    rscript_executable(),
+    args = c(script, injected_arg),
+    environment = c(POPGENVCF_INJECTION_TEST = "has space; and a semicolon"),
+    label = "injection-guard"
+  ))
+
+  expect_identical(result$status, "success")
+  expect_false(file.exists(marker))
+  expect_match(result$stdout, injected_arg, fixed = TRUE)
+  expect_match(result$stdout, "has space; and a semicolon", fixed = TRUE)
 })

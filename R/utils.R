@@ -1,5 +1,24 @@
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
+# A hand-rolled `paste0("title: \"", gsub("\"", "'", x), "\"")` (the prior
+# pattern in both dashboard.R and report_engine.R) only neutralizes double
+# quotes -- a title containing a newline still breaks out of the quoted
+# scalar and injects new YAML keys or, worse, a new Quarto/Pandoc fenced
+# code chunk that executes when the document renders (report titles here
+# can be config- or metadata-derived, not necessarily typed by a trusted
+# author). yaml::as.yaml() is the correct general-purpose YAML string
+# escaper: for content containing special characters it emits a `|-` block
+# scalar, and YAML block scalars consume every line at or above their own
+# indentation as literal content regardless of what it contains (including
+# a literal "---" or a code-fence line), only terminating once indentation
+# drops below the block's own level -- so injected front-matter or chunk
+# syntax stays inert, indented text. Returns a single "key: value" line
+# with no trailing newline, matching how both call sites build their YAML
+# header line-by-line.
+yaml_scalar_line <- function(key, value) {
+  sub("\n$", "", yaml::as.yaml(stats::setNames(list(value), key)))
+}
+
 .pg_env <- new.env(parent = emptyenv())
 .pg_env$log_file <- NULL
 

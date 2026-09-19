@@ -177,17 +177,35 @@ run_external_command <- function(command) {
   on.exit(setwd(old_directory), add = TRUE)
   setwd(command$working_directory)
 
+  # base::system2() does NOT shell-quote its own `args` or `env` parameters
+  # -- only the `command` executable itself (`paste(c(env, shQuote(command),
+  # args), collapse = " ")`, per its own source). The docstring above
+  # ("no shell command string ... quoting is unambiguous") was true of
+  # new_external_command()'s own representation but did not carry through
+  # to how system2() actually invokes it: an arg or environment value
+  # containing shell metacharacters (or even a plain space) was pasted
+  # unquoted into the shell command line system2() builds on Unix,
+  # confirmed directly (an arg like "; touch pwned; echo" executes the
+  # injected command instead of being passed through literally). Quoting
+  # each arg individually with shQuote() keeps arguments correctly
+  # separated (a shQuote()'d string is exactly one shell word) while
+  # neutralizing injection; an environment value needs the assignment's
+  # `=` left outside the quoting (`NAME=` + shQuote(value)), since
+  # shQuote()-ing the whole "NAME=value" string stops the shell from
+  # recognizing it as an environment-variable-assignment prefix at all
+  # (confirmed directly: it is then read as the command itself).
   environment <- if (length(command$environment)) {
-    paste0(names(command$environment), "=", unname(command$environment))
+    paste0(names(command$environment), "=", vapply(command$environment, shQuote, character(1L)))
   } else {
     character()
   }
+  quoted_args <- vapply(command$args, shQuote, character(1L))
 
   execution_error <- NULL
   exit_status <- tryCatch(
     suppressWarnings(system2(
       resolved,
-      args = command$args,
+      args = quoted_args,
       stdout = stdout_path,
       stderr = stderr_path,
       env = environment,

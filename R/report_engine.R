@@ -86,7 +86,7 @@ report_markdown_table <- function(x, max_rows = 50L) {
 
 write_report_qmd <- function(plan, path) {
   lines <- c(
-    "---", paste0("title: \"", gsub("\"", "'", plan$title), "\""),
+    "---", yaml_scalar_line("title", plan$title),
     "format:", "  html:", "    toc: true", "    toc-depth: 3", "    code-fold: true",
     "    embed-resources: true", "execute:", "  echo: false", "---", "",
     "# Executive summary", "",

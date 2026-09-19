@@ -20,6 +20,41 @@ test_that("report filters and invalid inputs behave transparently", {
   expect_error(build_population_genomics_report_plan(list(list(x = 1))), "canonical result")
 })
 
+test_that("a malicious report title cannot break out of the YAML front matter", {
+  # write_report_qmd() previously built its title line as
+  # paste0("title: \"", gsub("\"", "'", title), "\"") -- only double quotes
+  # were neutralized, so a title containing a newline could close the
+  # quoted scalar, inject new YAML front-matter keys, and even open a
+  # fenced ```{r} code chunk that Quarto would execute on render. Confirmed
+  # directly before the fix. yaml_scalar_line() (R/utils.R) now builds this
+  # line via yaml::as.yaml(), which switches to a `|-` block scalar for
+  # multi-line content -- every line of the injected text stays literal,
+  # indented content inside that one YAML value.
+  pca <- new_pca_result(data.frame(sample_id = "a", PC1 = 0, PC2 = 0), c(1, .5))
+  evil_title <- paste(
+    "Evil", "---", "execute:", "  echo: true", "```{r}",
+    "system(\"touch /tmp/popgenvcf-qmd-injection-marker\")", "```",
+    sep = "\n"
+  )
+  out <- tempfile("popgen-report-injection-")
+  result <- write_population_genomics_report(list(pca = pca), out, title = evil_title, render = FALSE)
+  qmd_path <- result$paths[["source"]]
+
+  front_matter_lines <- readLines(qmd_path, warn = FALSE)
+  fence_idx <- which(front_matter_lines == "---")
+  expect_length(fence_idx, 2L)
+  front_matter <- yaml::yaml.load(paste(
+    front_matter_lines[(fence_idx[[1L]] + 1L):(fence_idx[[2L]] - 1L)], collapse = "\n"
+  ))
+  expect_identical(front_matter$title, evil_title)
+  # The template's own, legitimate "execute: echo: false" must survive
+  # untouched -- if the injected "execute:\n  echo: true" had broken out of
+  # the title's block scalar instead of staying literal content inside it,
+  # this would read TRUE (echo turned on) or the YAML parse would have
+  # failed outright on the injected ```{r} fence below it.
+  expect_identical(front_matter$execute$echo, FALSE)
+})
+
 test_that("report source generation does not require Quarto", {
   pca <- new_pca_result(data.frame(sample_id = c("a", "b"), PC1 = c(-1, 1), PC2 = 0), c(1, .5))
   out <- tempfile("popgen-report-")

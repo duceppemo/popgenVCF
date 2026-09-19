@@ -127,7 +127,7 @@ dashboard_json_ready <- function(x) {
 write_dashboard_qmd <- function(plan, summary, quality, path) {
   lines <- c(
     "---",
-    paste0("title: \"", gsub("\"", "'", plan$title), "\""),
+    yaml_scalar_line("title", plan$title),
     "format:",
     "  html:",
     "    theme: cosmo",
