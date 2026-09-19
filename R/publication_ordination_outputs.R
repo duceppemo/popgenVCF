@@ -85,14 +85,22 @@ validate_publication_ordination_spec <- function(spec) {
 #' @param coordinates Authoritative PCA or ordination coordinates.
 #' @param metadata Optional sample metadata.
 #' @param variance_explained Optional numeric variance proportions or percentages.
+#' @param variance_explained_unit `"auto"` (default) guesses fraction vs.
+#'   percent from whether the published axes' values sum to at most 1 --
+#'   ambiguous, and wrong, for a genuine small percentage (e.g. a real
+#'   PC1+PC2 under 1% of variance on a large, weakly-structured SNP panel
+#'   silently multiplies by 100). Pass `"fraction"` or `"percent"`
+#'   explicitly when the unit is known, to bypass the guess entirely.
 #' @param loadings Optional loading matrix or data frame.
 #' @param result_fingerprint Fingerprint of the authoritative scientific result.
 #' @param figure_binding Optional validated publication figure-style binding.
 #' @return A fingerprinted publication ordination output manifest.
 #' @export
 new_publication_ordination_output <- function(
-    spec, coordinates, metadata = NULL, variance_explained = NULL, loadings = NULL,
+    spec, coordinates, metadata = NULL, variance_explained = NULL,
+    variance_explained_unit = c("auto", "fraction", "percent"), loadings = NULL,
     result_fingerprint, figure_binding = NULL) {
+  variance_explained_unit <- match.arg(variance_explained_unit)
   validate_publication_ordination_spec(spec)
   result_fingerprint <- .publication_ordination_scalar(result_fingerprint, "result_fingerprint")
   scores <- .publication_ordination_coordinates(coordinates, spec$sample_id_column, spec$axis_columns)
@@ -121,7 +129,10 @@ new_publication_ordination_output <- function(
     if (length(variance_explained) < length(spec$axis_columns) || any(!is.finite(variance_explained)) || any(variance_explained < 0)) {
       stop("variance_explained must contain finite nonnegative values for all published axes.", call. = FALSE)
     }
-    if (sum(variance_explained) <= 1 + 1e-8) variance_explained <- variance_explained * 100
+    if (identical(variance_explained_unit, "fraction") ||
+        (identical(variance_explained_unit, "auto") && sum(variance_explained) <= 1 + 1e-8)) {
+      variance_explained <- variance_explained * 100
+    }
     if (sum(variance_explained) > 100 + 1e-6) stop("variance_explained cannot exceed 100 percent.", call. = FALSE)
     variance <- data.frame(axis = spec$axis_columns, variance_percent = variance_explained[seq_along(spec$axis_columns)], stringsAsFactors = FALSE)
   }
@@ -134,7 +145,17 @@ new_publication_ordination_output <- function(
   centroids <- NULL
   if (length(groups)) {
     centroids <- do.call(rbind, lapply(groups, function(group) {
-      rows <- scores[[spec$group_column]] == group
+      # `groups` above already excludes NA/empty group VALUES, but a
+      # sample whose own group is NA still has NA in
+      # scores[[group_column]] -- and `NA == group` is NA, not FALSE, for
+      # every group in this loop, not just for that one sample. A
+      # data.frame's `[` treats an NA in a logical row index as "return
+      # an all-NA row" rather than omitting it, so one NA-labeled sample
+      # silently injected an all-NA row into every group's subset,
+      # corrupting mean() (na.rm = FALSE) to NA for every centroid, not
+      # just the group the NA sample would have belonged to. Confirmed
+      # directly. `%in%` never produces NA for this comparison.
+      rows <- scores[[spec$group_column]] %in% group
       data.frame(group = group, as.list(vapply(scores[rows, spec$axis_columns, drop = FALSE], mean, numeric(1L))), check.names = FALSE)
     }))
     rownames(centroids) <- NULL

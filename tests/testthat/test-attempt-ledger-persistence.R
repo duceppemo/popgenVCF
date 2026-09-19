@@ -28,6 +28,21 @@ test_that("attempt ledgers validate retry chains", {
     attempt = c(1L, 2L)
   )
   expect_error(new_attempt_ledger(after_success), "after a terminal state")
+
+  # Real bug: ledger[module == name] is ambiguous once the ledger carries
+  # a column literally named "name" -- data.table resolves a bare symbol
+  # against the data.table's own columns before the validation loop's own
+  # `name` variable, so this silently compared `module` against the wrong
+  # values and returned zero rows for every module, skipping the
+  # terminal-state check entirely. An extra "name" column is otherwise
+  # unremarkable/permitted data, so this must still be caught.
+  after_success_with_name_column <- data.table::data.table(
+    module = c("pca", "pca"),
+    status = c("success", "failed"),
+    attempt = c(1L, 2L),
+    name = c("some sample", "another sample")
+  )
+  expect_error(new_attempt_ledger(after_success_with_name_column), "after a terminal state")
 })
 
 test_that("attempt ledger serialization is deterministic", {

@@ -1,3 +1,23 @@
+test_that("ancestry_write_devices closes its graphics device even when draw() errors partway through", {
+  # Real bug: each grDevices::pdf()/svg()/png() open was followed by a
+  # bare draw(); dev.off() with no on.exit/tryCatch -- a draw() error left
+  # that device open for the rest of the R session, silently corrupting
+  # whatever plotting call ran next. Confirmed directly before the fix:
+  # dev.list() still showed the device open after the error propagated.
+  open_before <- length(grDevices::dev.list())
+  out <- tempfile("ancestry-device-leak-")
+  dir.create(out)
+  paths <- popgenVCF:::ancestry_figure_paths(out, "stem")
+
+  expect_error(
+    popgenVCF:::ancestry_write_devices(
+      paths, draw = function() stop("draw failed"), width = 4, height = 3
+    ),
+    "draw failed"
+  )
+  expect_identical(length(grDevices::dev.list()), open_before)
+})
+
 test_that("ancestry publication artifacts are complete without metadata", {
   sample_ids <- paste0("s", 1:6)
   q <- rbind(

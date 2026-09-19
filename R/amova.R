@@ -35,7 +35,20 @@ run_amova_analysis <- function(geno, sample_ids, metadata, permutations = 999L, 
   )
   set.seed(seed)
   model <- poppr::poppr.amova(gl, ~population, within = TRUE, quiet = TRUE)
-  test <- tryCatch(ade4::randtest(model, nrepet = permutations), error = function(e) NULL)
+  # Without this warning, a genuine ade4::randtest() failure left
+  # `permutation` as a quietly empty table below, and a report could
+  # publish AMOVA variance components with the significance test simply
+  # missing, with nothing anywhere indicating that happened.
+  test <- tryCatch(
+    ade4::randtest(model, nrepet = permutations),
+    error = function(e) {
+      log_msg(
+        sprintf("AMOVA permutation test failed, variance components reported without significance: %s", conditionMessage(e)),
+        level = "WARNING"
+      )
+      NULL
+    }
+  )
   components <- data.table::as.data.table(model$componentsofcovariance, keep.rownames = "component")
   phi <- data.table::as.data.table(model$statphi, keep.rownames = "statistic")
   permutation <- if (is.null(test)) data.table::data.table() else data.table::data.table(

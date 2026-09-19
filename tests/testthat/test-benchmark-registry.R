@@ -57,6 +57,23 @@ test_that("empty observed/reference with a real reference supplied fails loudly 
   expect_match(result$message, "numerical")
 })
 
+test_that("observed values missing a reference metric name fail loudly instead of silently comparing NA", {
+  # Real bug: observed[names(reference)] silently inserted NA for any
+  # reference name absent from observed (same length, different names
+  # passes the earlier length check) -- `passed` then became NA, and this
+  # function's own `if (numerical_pass && ...)` crashed with "missing
+  # value where TRUE/FALSE needed" instead of a clear, catchable failure.
+  dataset <- new_benchmark_dataset("mismatch-data", loader = function() c(fst = 0.1, pi = 0.2))
+  spec <- new_benchmark_spec(
+    "name-mismatch", "numerical", dataset,
+    runner = function(x) list(observed = c(fst = 0.1, other_metric = 0.2)),
+    reference = c(fst = 0.1, pi = 0.2)
+  )
+  result <- run_benchmark(spec)
+  expect_equal(result$status, "error")
+  expect_match(result$message, "pi")
+})
+
 test_that("a spec with genuinely no reference still passes vacuously -- the legitimate informational case", {
   dataset <- new_benchmark_dataset("no-reference-data", loader = function() c(a = 1))
   spec <- new_benchmark_spec(

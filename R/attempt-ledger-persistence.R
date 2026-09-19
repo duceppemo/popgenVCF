@@ -62,21 +62,40 @@ validate_attempt_ledger <- function(ledger) {
   }
 
   chains <- split(attempt, module)
-  for (name in names(chains)) {
-    observed <- sort(unique(chains[[name]]))
+  # Was previously `ledger[module == name][order(attempt)]` -- ambiguous
+  # if `ledger` ever carries a column literally named "name" (extra
+  # columns beyond module/attempt/status are permitted): data.table
+  # resolves a bare symbol inside `[.data.table]`'s `i` against the
+  # data.table's own columns before the calling environment, so a loop
+  # variable named `name` silently resolved to that COLUMN instead --
+  # confirmed directly, `module == name` then compared against the wrong
+  # values entirely and returned zero rows for every module, silently
+  # skipping the terminal-state check below for all of them. Renaming the
+  # loop variable only narrows which future column name could collide,
+  # and data.table's own `..name` escape (forcing lookup in the calling
+  # environment) turned out not to resolve reliably for a `for`-loop
+  # variable specifically in this data.table version (confirmed directly:
+  # "object '..name' not found"). Subsetting the plain `module`/`status`/
+  # `attempt` vectors already extracted above with base R indexing
+  # instead sidesteps data.table's column-vs-environment NSE ambiguity
+  # entirely, for either operand, regardless of what columns `ledger`
+  # happens to carry.
+  for (module_name in names(chains)) {
+    observed <- sort(unique(chains[[module_name]]))
     expected <- seq_len(max(observed))
     if (!identical(observed, expected)) {
       stop(
-        "attempt ledger retry chain is not contiguous for module: ", name,
+        "attempt ledger retry chain is not contiguous for module: ", module_name,
         call. = FALSE
       )
     }
-    rows <- ledger[module == name][order(attempt)]
-    terminal <- which(as.character(rows$status) %in% c("success", "cancelled", "skipped"))
-    if (length(terminal) && terminal[[1]] < nrow(rows)) {
+    row_idx <- which(module == module_name)
+    row_idx <- row_idx[order(attempt[row_idx])]
+    terminal <- which(status[row_idx] %in% c("success", "cancelled", "skipped"))
+    if (length(terminal) && terminal[[1]] < length(row_idx)) {
       stop(
         "attempt ledger contains attempts after a terminal state for module: ",
-        name,
+        module_name,
         call. = FALSE
       )
     }

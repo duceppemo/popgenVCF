@@ -108,7 +108,25 @@ benchmark_default_compare <- function(observed, reference, absolute_tolerance, r
   reference <- unlist(reference, use.names = TRUE)
   if (!is.numeric(observed) || !is.numeric(reference)) stop("default comparator requires numeric observed and reference values", call. = FALSE)
   if (length(observed) != length(reference)) stop("observed and reference values have different lengths", call. = FALSE)
-  if (!is.null(names(reference)) && length(names(reference))) observed <- observed[names(reference)]
+  if (!is.null(names(reference)) && length(names(reference))) {
+    # `observed[names(reference)]` alone silently inserts NA for any
+    # reference name absent from `observed` (same length, different
+    # names passes the earlier length check) -- `passed` then becomes NA
+    # a few lines down, and run_benchmark()'s own
+    # `if (numerical_pass && ...)` crashes with "missing value where
+    # TRUE/FALSE needed" instead of reporting a clear name-mismatch
+    # failure. This is caught by run_benchmark()'s own
+    # tryCatch(comparator(...), error = identity), so failing loudly here
+    # becomes a normal "error" status result, not an uncaught crash.
+    missing_metrics <- setdiff(names(reference), names(observed))
+    if (length(missing_metrics)) {
+      stop(sprintf(
+        "observed values are missing metric(s) present in reference: %s",
+        paste(missing_metrics, collapse = ", ")
+      ), call. = FALSE)
+    }
+    observed <- observed[names(reference)]
+  }
   metric <- names(reference)
   if (is.null(metric) || any(!nzchar(metric))) metric <- paste0("metric_", seq_along(reference))
   absolute_error <- abs(observed - reference)
@@ -217,7 +235,19 @@ run_benchmark <- function(spec) {
   )
   if (inherits(comparisons, "error")) return(new_benchmark_result(spec, "error", runtime_seconds = runtime, message = conditionMessage(comparisons)))
   comparisons <- data.table::as.data.table(comparisons)
-  if (!"passed" %in% names(comparisons)) stop("benchmark comparator must return a passed column", call. = FALSE)
+  # This check runs on the comparator's successfully-RETURNED value, after
+  # the tryCatch() above (which only catches the comparator erroring
+  # outright) -- a hard stop() here crashed run_benchmark() itself instead
+  # of degrading to the same "error" status result every other comparator
+  # failure path above already produces, inconsistent with this
+  # function's own established convention of never letting one bad
+  # benchmark spec crash a whole suite run.
+  if (!"passed" %in% names(comparisons)) {
+    return(new_benchmark_result(
+      spec, "error", runtime_seconds = runtime,
+      message = "benchmark comparator must return a passed column"
+    ))
+  }
   memory_mb <- as.numeric(payload$memory_mb %||% NA_real_)
   disk_mb <- as.numeric(payload$disk_mb %||% NA_real_)
   # A real gap found in a pre-release audit: 0 rows in `comparisons` is only

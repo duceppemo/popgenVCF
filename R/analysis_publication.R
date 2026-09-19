@@ -17,10 +17,19 @@ publication_count <- function(x, candidates) {
   NA_integer_
 }
 
-publication_percent <- function(x) {
+# `unit = "auto"` (the previous, only behaviour) guesses fraction-vs-percent
+# from the value alone: "<= 1 means a fraction" is wrong for a genuine
+# small percentage (a PC legitimately explaining under 1% of variance, real
+# for a PCA fit on a large, weakly-structured SNP panel), which this
+# silently inflates 100x in generated manuscript text. Callers that know
+# their own units should pass "fraction" or "percent" explicitly to bypass
+# the guess entirely; "auto" is kept as the default so existing callers are
+# unaffected.
+publication_percent <- function(x, unit = c("auto", "fraction", "percent")) {
+  unit <- match.arg(unit)
   value <- suppressWarnings(as.numeric(x)[1L])
   if (!is.finite(value)) return(NA_character_)
-  if (value <= 1) value <- value * 100
+  if (identical(unit, "fraction") || (identical(unit, "auto") && value <= 1)) value <- value * 100
   sprintf("%.1f%%", value)
 }
 

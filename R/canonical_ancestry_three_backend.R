@@ -298,13 +298,13 @@ new_canonical_ancestry_three_backend_evidence <- function(
   if (length(cross_backend_comparisons) != 3L) {
     stop("cross_backend_comparisons must contain exactly three backend-pair records", call. = FALSE)
   }
-  pair_keys <- vapply(cross_backend_comparisons, function(c) paste(c$backend_a, c$backend_b, sep = "::"), character(1L))
+  pair_keys <- vapply(cross_backend_comparisons, function(pair) paste(pair$backend_a, pair$backend_b, sep = "::"), character(1L))
   expected_pairs <- sort(apply(utils::combn(sort(c("admixture", "faststructure", "snmf")), 2L), 2L,
                                 paste, collapse = "::"))
   if (!identical(sort(pair_keys), expected_pairs)) {
     stop("cross_backend_comparisons must cover each unordered backend pair exactly once", call. = FALSE)
   }
-  if (!all(vapply(cross_backend_comparisons, function(c) identical(c$k, selected_k), logical(1L)))) {
+  if (!all(vapply(cross_backend_comparisons, function(pair) identical(pair$k, selected_k), logical(1L)))) {
     stop("all cross_backend_comparisons must use selected_k", call. = FALSE)
   }
   cross_backend_comparisons <- cross_backend_comparisons[order(pair_keys)]
@@ -379,12 +379,12 @@ validate_canonical_ancestry_three_backend_evidence <- function(x, require_approv
   if (length(x$cross_backend_comparisons) != 3L) {
     stop("cross_backend_comparisons must contain exactly three backend-pair records", call. = FALSE)
   }
-  pair_keys <- vapply(x$cross_backend_comparisons, function(c) paste(c$backend_a, c$backend_b, sep = "::"), character(1L))
+  pair_keys <- vapply(x$cross_backend_comparisons, function(pair) paste(pair$backend_a, pair$backend_b, sep = "::"), character(1L))
   expected_pairs <- sort(apply(utils::combn(c("admixture", "faststructure", "snmf"), 2L), 2L, paste, collapse = "::"))
   if (!identical(pair_keys, expected_pairs)) {
     stop("cross_backend_comparisons must be the three ordered unordered-backend pairs", call. = FALSE)
   }
-  if (!all(vapply(x$cross_backend_comparisons, function(c) identical(c$k, x$selected_k), logical(1L)))) {
+  if (!all(vapply(x$cross_backend_comparisons, function(pair) identical(pair$k, x$selected_k), logical(1L)))) {
     stop("all cross_backend_comparisons must use selected_k", call. = FALSE)
   }
   validate_ancestry_k_selection(x$k_selection)

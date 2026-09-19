@@ -180,10 +180,32 @@ ancestry_figure_paths <- function(dir, stem) {
   list(pdf = file.path(dir, paste0(stem, ".pdf")), svg = file.path(dir, paste0(stem, ".svg")), png = file.path(dir, paste0(stem, ".png")))
 }
 
+# Each grDevices::pdf()/svg()/png() open below was previously followed by
+# a bare draw(); dev.off() with no on.exit/tryCatch -- if draw() ever
+# errored partway through one device, that device was left open for the
+# rest of the R session: subsequent, unrelated plotting calls would
+# silently render into the still-open, truncated file instead of wherever
+# they actually intended, or land in the wrong device entirely. Each
+# device is now opened and closed within its own local scope so
+# on.exit(dev.off()) always runs, including on error, before the error
+# propagates.
+ancestry_write_one_device <- function(open_device, draw) {
+  open_device()
+  on.exit(grDevices::dev.off(), add = TRUE)
+  draw()
+  invisible(NULL)
+}
+
 ancestry_write_devices <- function(paths, draw, width, height) {
-  grDevices::pdf(paths$pdf, width = width, height = height, useDingbats = FALSE); draw(); grDevices::dev.off()
-  grDevices::svg(paths$svg, width = width, height = height); draw(); grDevices::dev.off()
-  grDevices::png(paths$png, width = width * 300, height = height * 300, res = 300); draw(); grDevices::dev.off()
+  ancestry_write_one_device(
+    function() grDevices::pdf(paths$pdf, width = width, height = height, useDingbats = FALSE), draw
+  )
+  ancestry_write_one_device(
+    function() grDevices::svg(paths$svg, width = width, height = height), draw
+  )
+  ancestry_write_one_device(
+    function() grDevices::png(paths$png, width = width * 300, height = height * 300, res = 300), draw
+  )
   invisible(paths)
 }
 

@@ -68,6 +68,37 @@ test_that("run_ancestry gracefully skips unavailable backends", {
                "no requested ancestry backend")
 })
 
+test_that("run_ancestry warns when only some of the explicitly requested backends are available", {
+  # fail_if_none only errors when NO requested backend is available -- a
+  # partial drop (one of several requested backends genuinely
+  # unavailable) previously proceeded with no indication at all, so a
+  # caller could not tell "both backends ran" from "one was silently
+  # skipped" just by looking at the result.
+  available_backend <- new_ancestry_backend(
+    "snmf", availability = function() TRUE,
+    execute = function(task) list(q = matrix(1 / task$k, length(task$sample_ids), task$k), metric = 1),
+    parse = function(native, task) new_ancestry_replicate(
+      task$sample_ids, native$q, "snmf", k = task$k,
+      replicate = task$replicate, seed = task$seed
+    )
+  )
+  unavailable_backend <- new_ancestry_backend(
+    "admixture", availability = function() FALSE,
+    execute = function(task) stop("must not execute"),
+    parse = function(native, task) stop("must not execute")
+  )
+  registry <- new_ancestry_backend_registry(list(available_backend, unavailable_backend))
+
+  expect_output(
+    out <- run_ancestry(
+      list(), c("s1", "s2"), backend = c("snmf", "admixture"), k_values = 2,
+      registry = registry, fail_if_none = FALSE
+    ),
+    "admixture"
+  )
+  expect_named(out$results, "snmf")
+})
+
 test_that("backend registry rejects duplicate and invalid plugins", {
   backend <- new_ancestry_backend("snmf", function() TRUE,
                                   function(task) task,

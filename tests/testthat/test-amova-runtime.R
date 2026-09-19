@@ -55,3 +55,32 @@ test_that("AMOVA runs with public aliases and immutable sample IDs", {
   expect_gt(nrow(result$components), 0L)
   expect_gt(nrow(result$phi), 0L)
 })
+
+test_that("a failed AMOVA permutation test logs a warning instead of silently reporting nothing", {
+  # Real bug: ade4::randtest() was wrapped in tryCatch(..., error =
+  # function(e) NULL) with no warning at all -- a genuine failure left
+  # `permutation` as a quietly empty table, so a report could publish
+  # AMOVA variance components with the significance test simply missing
+  # and nothing anywhere indicating that happened.
+  sample_ids <- paste0("s", seq_len(6L))
+  metadata <- data.table::data.table(
+    sample = sample_ids, population = rep(c("A", "B"), each = 3L)
+  )
+  set.seed(27L)
+  genotype <- matrix(
+    sample(0:2, length(sample_ids) * 12L, replace = TRUE),
+    nrow = length(sample_ids)
+  )
+  testthat::local_mocked_bindings(
+    randtest = function(...) stop("forced failure"), .package = "ade4"
+  )
+
+  expect_output(
+    result <- popgenVCF:::run_amova_analysis(
+      genotype, sample_ids, metadata, permutations = 9L, seed = 27L
+    ),
+    "AMOVA permutation test failed.*forced failure"
+  )
+  expect_identical(nrow(result$permutation), 0L)
+  expect_gt(nrow(result$components), 0L) # the rest of the result is unaffected
+})

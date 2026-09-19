@@ -16,6 +16,17 @@ test_that("analysis narratives distinguish scientific interpretations", {
   expect_match(narratives[kind == "dapc", method], "not interpreted as model-based ancestry")
 })
 
+test_that("publication_percent's unit argument bypasses the ambiguous auto-detect guess", {
+  # unit = "auto" (the only prior behavior) treats any value <= 1 as a
+  # fraction needing *100 -- wrong for a genuine small percentage (e.g. a
+  # PC legitimately explaining 0.9% of variance), which this silently
+  # inflated to "90.0%" in generated manuscript text.
+  expect_identical(popgenVCF:::publication_percent(0.9), "90.0%") # "auto" default, unchanged
+  expect_identical(popgenVCF:::publication_percent(0.9, unit = "percent"), "0.9%")
+  expect_identical(popgenVCF:::publication_percent(0.9, unit = "fraction"), "90.0%")
+  expect_identical(popgenVCF:::publication_percent(45, unit = "percent"), "45.0%")
+})
+
 test_that("ancestry narratives preserve model-based interpretation", {
   results <- list(ancestry = structure(list(backend = "ADMIXTURE", selected_k = 3L), class = "PopgenVCFAncestryResult"))
   project <- new_popgenvcf_project("Ancestry", results = results,

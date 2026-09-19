@@ -124,6 +124,19 @@ run_ancestry <- function(input, sample_ids, backend = "auto", k_values = 2:10,
     unknown <- setdiff(requested, status$backend)
     if (length(unknown)) stop(sprintf("unknown ancestry backend(s): %s", paste(unknown, collapse = ", ")), call. = FALSE)
     selected <- intersect(requested, status[available == TRUE, backend])
+    # fail_if_none only fires when NO requested backend is available, so a
+    # partial drop (one of several requested backends genuinely
+    # unavailable) previously proceeded silently -- a caller requesting
+    # c("admixture", "snmf") with only ADMIXTURE installed got back a
+    # result indistinguishable in shape from one where both ran, with
+    # nothing indicating sNMF was silently skipped.
+    dropped <- setdiff(requested, selected)
+    if (length(dropped)) {
+      log_msg(sprintf(
+        "Requested ancestry backend(s) unavailable and skipped: %s",
+        paste(dropped, collapse = ", ")
+      ), level = "WARNING")
+    }
   }
   selected <- selected[!is.na(selected)]
   if (!length(selected)) {

@@ -2,10 +2,12 @@
 #'
 #' @param label Benchmark label.
 #' @param expr Expression to evaluate.
-#' @return One-row data table with elapsed time and garbage-collection change.
+#' @return A list with `value` (the evaluated expression's own result) and
+#'   `metrics` (a one-row data table with elapsed time and approximate peak
+#'   memory).
 #' @export
 benchmark_stage <- function(label, expr) {
-  before <- gc(reset = TRUE)
+  invisible(gc(reset = TRUE))
   t0 <- proc.time()
   value <- force(expr)
   elapsed <- unname((proc.time() - t0)[["elapsed"]])
