@@ -67,11 +67,23 @@ print.PopgenVCFExecutionEngine <- function(x, ...) {
 
 # Deterministic per-module RNG seed: the pipeline seed offset by a stable
 # function of the module's own name.
-module_rng_seed <- function(seed, name) {
+#
+# `attempt` separates the streams of successive retries of the same module
+# (execute_analysis_plan_with_retries()). Without it every retry was re-seeded
+# identically, so a module that failed for a stochastic reason -- a resampled
+# replicate too degenerate to fit, an optimizer's unlucky start -- drew the
+# same numbers and failed the same way on every attempt (confirmed directly:
+# six attempts, one distinct draw), which made retrying pointless for exactly
+# the failures it exists for. Attempt 1 adds nothing, so an ordinary run's
+# seeds are unchanged, and attempt k is itself reproducible.
+module_rng_seed <- function(seed, name, attempt = 1L) {
   seed <- suppressWarnings(as.integer(seed)[1L])
   if (is.na(seed)) seed <- 42L
+  attempt <- suppressWarnings(as.integer(attempt)[1L])
+  if (is.na(attempt) || attempt < 1L) attempt <- 1L
   offset <- sum(utf8ToInt(name) * seq_along(utf8ToInt(name))) %% 1000003L
-  as.integer((abs(seed) %% 1000000007L + offset) %% .Machine$integer.max)
+  retry_offset <- ((attempt - 1) * 7919) %% 1000003
+  as.integer((abs(seed) %% 1000000007 + offset + retry_offset) %% .Machine$integer.max)
 }
 
 run_scheduled_engine_module <- function(name, analysis, context, registry) {
@@ -93,7 +105,7 @@ run_scheduled_engine_module <- function(name, analysis, context, registry) {
       assign(".Random.seed", old_seed, envir = .GlobalEnv)
     }
   }, add = TRUE)
-  set.seed(module_rng_seed(context$cfg$compute$seed, name))
+  set.seed(module_rng_seed(context$cfg$compute$seed, name, context$execution_attempt %||% 1L))
   started <- Sys.time()
   t0 <- proc.time()[["elapsed"]]
   value <- tryCatch(

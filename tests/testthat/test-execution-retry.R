@@ -124,3 +124,38 @@ test_that("default retry policy performs one standard attempt", {
   expect_equal(result$engine$retry$policy, "no-retry")
   expect_equal(result$engine$retry$attempts_run, 1L)
 })
+
+test_that("each retry of a module gets its own RNG stream, while attempt 1 keeps the ordinary seed", {
+  # Every module is seeded deterministically from compute.seed and its name.
+  # Without the attempt folded in, a retry drew exactly the numbers the
+  # failed attempt had drawn, so a stochastic failure recurred identically on
+  # every attempt and retrying could never recover it.
+  expect_identical(popgenVCF:::module_rng_seed(42L, "dapc", 1L), popgenVCF:::module_rng_seed(42L, "dapc"))
+  seeds <- vapply(1:5, function(a) popgenVCF:::module_rng_seed(42L, "dapc", a), integer(1L))
+  expect_identical(anyDuplicated(seeds), 0L)
+  expect_identical(seeds, vapply(1:5, function(a) popgenVCF:::module_rng_seed(42L, "dapc", a), integer(1L)))
+
+  state <- new.env(parent = emptyenv())
+  state$draws <- numeric()
+  stochastic <- function(analysis, context) {
+    draw <- stats::runif(1L)
+    state$draws <- c(state$draws, draw)
+    # Fails whenever it sees the same draw as its first attempt.
+    if (identical(draw, state$draws[[1L]])) stop("unlucky draw", call. = FALSE)
+    list(analysis = set_analysis_result(analysis, "stochastic", draw), context = context)
+  }
+  registry <- register_analysis(new_analysis_registry(), "stochastic", stochastic)
+  policy <- new_execution_retry_policy(
+    max_attempts = 4L, label = "always",
+    retryable = function(module, error_message, attempt, ledger) TRUE
+  )
+  result <- suppressWarnings(execute_analysis_registry_with_retries(
+    retry_test_analysis(), list(cfg = default_config()), registry,
+    engine = new_execution_engine(backend = "sequential", fail_fast = FALSE), retry_policy = policy
+  ))
+  expect_identical(result$execution$status, "success")
+  expect_identical(result$engine$retry$recovered_modules, "stochastic")
+  expect_length(state$draws, 2L)
+  expect_false(identical(state$draws[[1L]], state$draws[[2L]]))
+  expect_null(result$context$execution_attempt)
+})

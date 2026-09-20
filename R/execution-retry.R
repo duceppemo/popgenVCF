@@ -143,6 +143,9 @@ execute_analysis_plan_with_retries <- function(
   stopped_non_retryable <- FALSE
 
   for (attempt in seq_len(retry_policy$max_attempts)) {
+    # Read by run_scheduled_engine_module() to give each retry its own
+    # deterministic RNG stream; see module_rng_seed().
+    current_context$execution_attempt <- attempt
     result <- execute_analysis_plan(
       current_analysis, current_context, registry, current_plan, attempt_engine
     )
@@ -195,6 +198,7 @@ execute_analysis_plan_with_retries <- function(
     current_analysis, "execution_engine", metadata
   )
 
+  current_context$execution_attempt <- NULL
   list(
     analysis = current_analysis,
     context = current_context,
