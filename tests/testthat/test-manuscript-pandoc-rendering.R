@@ -42,3 +42,22 @@ test_that("render validation detects modified output", {
   writeLines("modified", output)
   expect_error(validate_manuscript_render(record), "checksum mismatch")
 })
+test_that("a manuscript directory containing a space and a shell metacharacter renders", {
+  # system2() quotes only the executable. Passed unquoted, the source path and
+  # --output=<path> were split at the space into several arguments, and a
+  # metacharacter in the path was interpreted by the shell.
+  skip_if(!nzchar(Sys.which("pandoc")), "pandoc is not available")
+  skip_on_os("windows")
+  project <- new_popgenvcf_project("pandoc-space")
+  manuscript <- new_manuscript(project, title = "Pandoc path with a space")
+  directory <- file.path(tempfile("manuscript parent $(dir)-"), "my manuscript")
+  dir.create(dirname(directory), recursive = TRUE)
+  write_manuscript(manuscript, directory)
+
+  record <- render_manuscript(directory, "html")
+  expect_identical(record$status, 0L)
+  expect_true(file.exists(file.path(directory, "rendered", "manuscript.html")))
+  # The recorded argument list stays literal (unquoted): it is a record of
+  # what was asked for, not of how it was passed to the shell.
+  expect_false(any(grepl("^'", record$arguments)))
+})

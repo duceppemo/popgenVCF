@@ -145,7 +145,11 @@ write_population_genomics_report <- function(results, output_dir, title = "Popul
     for (fmt in formats) {
       if (!fmt %in% c("html", "pdf")) stop("unsupported report format: ", fmt, call. = FALSE)
       args <- c("render", qmd, "--to", fmt, "--output-dir", normalizePath(output_dir))
-      status <- system2(quarto, args, stdout = TRUE, stderr = TRUE)
+      # system2() builds one shell command line and quotes only the executable, so
+      # each argument is quoted here: an output directory containing a space was
+      # split into several arguments, and shell metacharacters in a path were
+      # interpreted. Same fix, same place, as run_external_command().
+      status <- system2(quarto, vapply(args, shQuote, character(1L)), stdout = TRUE, stderr = TRUE)
       code <- attr(status, "status") %||% 0L
       if (code != 0L) stop("Quarto report rendering failed for ", fmt, ": ", paste(status, collapse = "\n"), call. = FALSE)
       outputs <- c(outputs, file.path(output_dir, paste0("population_genomics_report.", fmt)))

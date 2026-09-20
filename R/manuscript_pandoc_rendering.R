@@ -44,7 +44,11 @@ render_manuscript <- function(manuscript_directory, format = c("html", "docx"), 
   stderr_file <- file.path(dirname(output), paste0("pandoc-", format, ".stderr.log"))
   exit_status <- NA_integer_
   if (!isTRUE(dry_run)) {
-    exit_status <- system2(status$executable, args, stdout = stdout_file, stderr = stderr_file)
+    # Quoted at the call, not in pandoc_render_arguments(): that builder's
+    # output is recorded verbatim and must stay the literal argument list.
+    # system2() quotes only the executable, so an unquoted manuscript directory
+    # containing a space was split into several arguments.
+    exit_status <- system2(status$executable, vapply(args, shQuote, character(1L)), stdout = stdout_file, stderr = stderr_file)
   }
   record <- structure(list(
     schema_version = "1.0", format = format, manuscript_directory = normalizePath(manuscript_directory, winslash = "/"),

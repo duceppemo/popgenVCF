@@ -65,7 +65,11 @@ quarto_publication_report_renderer <- function(
       args <- c("render", source_path, "--to", format,
                 "--output", basename(output_path),
                 "--output-dir", normalizePath(output_dir, mustWork = TRUE))
-      out <- system2(executable, args, stdout = TRUE, stderr = TRUE)
+      # system2() builds one shell command line and quotes only the executable, so
+      # each argument is quoted here: an output directory containing a space was
+      # split into several arguments, and shell metacharacters in a path were
+      # interpreted. Same fix, same place, as run_external_command().
+      out <- system2(executable, vapply(args, shQuote, character(1L)), stdout = TRUE, stderr = TRUE)
       list(
         status = as.integer(attr(out, "status") %||% 0L),
         stdout = as.character(out), stderr = character(), warnings = character()

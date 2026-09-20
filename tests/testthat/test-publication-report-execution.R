@@ -100,3 +100,32 @@ test_that("execution records detect source, output, and record mutation", {
     "not bound|fingerprint mismatch"
   )
 })
+
+test_that("the Quarto publication renderer passes each path as one argument when it contains a space", {
+  # system2() quotes only the executable; this renderer's render closure had
+  # no test at all. A stand-in executable records the arguments it is given.
+  skip_on_os("windows")
+  bin <- tempfile("fake-quarto-"); dir.create(bin)
+  log <- file.path(bin, "args.txt")
+  executable <- file.path(bin, "quarto")
+  writeLines(c(
+    "#!/bin/sh",
+    sprintf(": > '%s'", log),
+    sprintf("for a in \"$@\"; do printf '%%s\\n' \"$a\" >> '%s'; done", log)
+  ), executable)
+  Sys.chmod(executable, "0755")
+
+  renderer <- quarto_publication_report_renderer(executable, version = "0.0.0-test")
+  root <- file.path(tempfile("publication parent-"), "out dir")
+  dir.create(root, recursive = TRUE)
+  source_path <- file.path(root, "my report.qmd")
+  writeLines("# report", source_path)
+
+  result <- renderer$render(source_path, file.path(root, "my report.html"), "html", list())
+  expect_identical(result$status, 0L)
+  args <- readLines(log)
+  expect_identical(args, c(
+    "render", source_path, "--to", "html", "--output", "my report.html",
+    "--output-dir", normalizePath(root)
+  ))
+})

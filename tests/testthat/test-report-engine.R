@@ -75,3 +75,33 @@ test_that("report rendering gives actionable Quarto error", {
     succeed()
   }
 })
+
+test_that("the Quarto render receives each path as one argument when the output directory contains a space", {
+  # system2() quotes only the executable; unquoted, "my report dir" arrived
+  # at quarto as three separate arguments. A stand-in `quarto` on PATH records
+  # exactly what it is given and writes the expected output file.
+  skip_on_os("windows")
+  bin <- tempfile("fake-quarto-bin-"); dir.create(bin)
+  log <- file.path(bin, "args.txt")
+  writeLines(c(
+    "#!/bin/sh",
+    sprintf(": > '%s'", log),
+    sprintf("for a in \"$@\"; do printf '%%s\\n' \"$a\" >> '%s'; done", log),
+    "while [ $# -gt 0 ]; do [ \"$1\" = \"--output-dir\" ] && out=$2; shift; done",
+    "echo '<html></html>' > \"$out/population_genomics_report.html\""
+  ), file.path(bin, "quarto"))
+  Sys.chmod(file.path(bin, "quarto"), "0755")
+  withr::local_path(bin, action = "prefix")
+
+  pca <- new_pca_result(data.frame(sample_id = c("a", "b"), PC1 = c(-1, 1), PC2 = c(0, 0)), c(2, 1))
+  out <- file.path(tempfile("report parent-"), "my report dir")
+  dir.create(out, recursive = TRUE)
+  result <- write_population_genomics_report(list(pca = pca), out, render = TRUE)
+
+  args <- readLines(log)
+  expect_identical(args[[1L]], "render")
+  expect_identical(args[[2L]], file.path(out, "population_genomics_report.qmd"))
+  expect_identical(args[[which(args == "--output-dir") + 1L]], normalizePath(out))
+  expect_length(args, 6L)
+  expect_true(file.exists(file.path(out, "population_genomics_report.html")))
+})
