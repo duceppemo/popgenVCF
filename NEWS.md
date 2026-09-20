@@ -16,6 +16,11 @@
   read them back as bytes, dropping NULs and escaping invalid UTF-8, so the
   output is always regex-safe. The async capture directory is removed when
   the run is finalized.
+  `run_external_command()` decodes its output the same way (a NUL used to cut
+  the line short and one Latin-1 byte made every later `grepl()` on the output
+  fail). `workspace_contents_fingerprint()` no longer depends on where the
+  workspace lives: absolute paths leaked into the digest as data-frame row
+  names, and a trailing slash on the path mis-cut every relative name.
 - **Fourth code pass, increment 9 (execution timeouts and cancellation):**
 
   - **`execution-timeout.R` -- the documentation promised more than R can deliver.** The help page said timeout handling is "fail-closed" and that "R elapsed-time limits are reliable for interruptible R and native code". The budget is enforced with `setTimeLimit()`, which R checks only when control returns to the interpreter: it stops R-level code, but a single blocking call -- a compiled routine, or a wait on an external process -- runs to completion however small the budget. Measured directly: one compiled call ran 422 seconds under a 1-second budget. Nearly all of this package's long-running work is compiled (SNPRelate, adegenet, phangorn) or external, so the limit guards far less than the wording implied. This is inherent to R, so the fix is the documentation: both the roxygen block and the hand-maintained `man/execution_timeout.Rd` now say what the budget does and does not bound, and point to the genuinely enforced `timeout_seconds` on the external ancestry backends. No behaviour change.

@@ -116,3 +116,19 @@ test_that("workspace identity is deterministic and staging fails closed", {
   )
   expect_true(first$workspace$retained)
 })
+
+test_that("the workspace contents fingerprint depends on the contents, not on where they live", {
+  make_tree <- function() {
+    root <- tempfile("workspace-tree-"); dir.create(file.path(root, "sub"), recursive = TRUE)
+    writeLines("a", file.path(root, "x.txt")); writeLines("b", file.path(root, "sub", "y.txt"))
+    root
+  }
+  first <- make_tree(); second <- make_tree()
+  fingerprint <- popgenVCF:::workspace_contents_fingerprint(first)
+  expect_identical(popgenVCF:::workspace_contents_fingerprint(second), fingerprint)
+  expect_identical(popgenVCF:::workspace_contents_fingerprint(paste0(first, "/")), fingerprint)
+  writeLines("changed", file.path(second, "sub", "y.txt"))
+  expect_false(identical(popgenVCF:::workspace_contents_fingerprint(second), fingerprint))
+  file.rename(file.path(first, "x.txt"), file.path(first, "z.txt"))
+  expect_false(identical(popgenVCF:::workspace_contents_fingerprint(first), fingerprint))
+})

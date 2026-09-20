@@ -135,3 +135,17 @@ test_that("run_external_command shell-quotes args and environment values, not ju
   expect_match(result$stdout, injected_arg, fixed = TRUE)
   expect_match(result$stdout, "has space; and a semicolon", fixed = TRUE)
 })
+
+test_that("run_external_command keeps output usable when a tool prints a NUL or a non-UTF-8 byte", {
+  skip_on_os("windows")
+  root <- tempfile("external-bytes-"); dir.create(root)
+  script <- file.path(root, "emit.sh")
+  writeLines(c("#!/bin/sh", "echo one", "printf 'mid\\000dle\\n'", "printf 'caf\\351\\n'", "echo three"), script)
+  Sys.chmod(script, "0755")
+  result <- run_external_command(new_external_command(script, working_directory = root))
+  expect_identical(result$status, "success")
+  expect_identical(result$stdout, "one\nmiddle\ncaf<e9>\nthree")
+  expect_true(validUTF8(result$stdout))
+  expect_no_warning(expect_true(grepl("three", result$stdout)))
+  expect_identical(result$stderr, "")
+})

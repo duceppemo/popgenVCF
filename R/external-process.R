@@ -113,8 +113,14 @@ resolve_external_executable <- function(executable) {
 }
 
 read_process_output <- function(path) {
-  if (!file.exists(path) || !file.info(path)$size) return("")
-  paste(readLines(path, warn = FALSE, encoding = "UTF-8"), collapse = "\n")
+  # Decoded from bytes (read_captured_process_stream()), not readLines():
+  # readLines() cut a line short at a NUL byte and marked invalid UTF-8 as
+  # UTF-8, so a tool printing one Latin-1 character made every later grepl()
+  # on its output fail with "unable to translate ... to a wide string". The
+  # line-joined shape readLines() gave -- "\n" separators, no terminator --
+  # is kept.
+  text <- gsub("\r\n", "\n", read_captured_process_stream(path), fixed = TRUE)
+  sub("\n$", "", text)
 }
 
 new_external_process_result <- function(command, status, exit_status,

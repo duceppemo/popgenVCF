@@ -100,17 +100,22 @@ workspace_identifier <- function(command, policy, manifest, execution_label) {
 }
 
 workspace_contents_fingerprint <- function(path) {
-  files <- list.files(path, recursive = TRUE, all.files = TRUE,
-                      full.names = TRUE, no.. = TRUE)
-  files <- files[file.info(files)$isdir %in% FALSE]
-  if (!length(files)) return(digest::digest(character(), algo = "sha256"))
-  relative <- substring(files, nchar(path) + 2L)
-  index <- order(relative)
+  # Relative paths come straight from list.files(), never from trimming the
+  # absolute ones: substring() by nchar(path) mis-cut every name when `path`
+  # carried a trailing slash. unname() matters as much -- vapply() names its
+  # result after the absolute file paths, data.frame() turned those into row
+  # names, and the serialized digest then depended on where the workspace
+  # lived, so identical contents under two roots never matched.
+  relative <- list.files(path, recursive = TRUE, all.files = TRUE,
+                         full.names = FALSE, no.. = TRUE)
+  relative <- relative[file.info(file.path(path, relative))$isdir %in% FALSE]
+  if (!length(relative)) return(digest::digest(character(), algo = "sha256"))
+  relative <- sort(relative, method = "radix")
   digest::digest(
     data.frame(
-      path = relative[index],
-      sha256 = vapply(files[index], digest::digest, character(1),
-        algo = "sha256", file = TRUE, serialize = FALSE),
+      path = relative,
+      sha256 = unname(vapply(file.path(path, relative), digest::digest, character(1),
+        algo = "sha256", file = TRUE, serialize = FALSE)),
       stringsAsFactors = FALSE
     ),
     algo = "sha256",
