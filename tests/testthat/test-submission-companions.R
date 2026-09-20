@@ -88,3 +88,17 @@ test_that("overwrite = TRUE clears a stale leftover file from a prior write, unl
   expect_false(any(grepl("First highlight from the original", highlights, fixed = TRUE)))
   expect_true(validate_submission_companions(directory))
 })
+
+test_that("the companions manifest records each file's role", {
+  # The role lookup was keyed by role and indexed by file name, so every
+  # manifest row carried role = NA.
+  manuscript <- new_manuscript(new_popgenvcf_project("roles"), title = "Roles")
+  directory <- tempfile()
+  write_submission_companions(new_submission_companions(manuscript), directory, strict = FALSE)
+  manifest <- data.table::fread(file.path(directory, "companions-manifest.tsv"))
+  expect_identical(
+    stats::setNames(manifest$role, manifest$path)[c("cover-letter.md", "highlights.md", "author-declarations.md", "companions-record.json")],
+    c("cover-letter.md" = "cover_letter", "highlights.md" = "highlights",
+      "author-declarations.md" = "author_declarations", "companions-record.json" = "record")
+  )
+})

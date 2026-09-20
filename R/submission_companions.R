@@ -146,7 +146,7 @@ write_submission_companions <- function(companions, directory, overwrite = FALSE
   jsonlite::write_json(record, file.path(directory, "companions-record.json"), auto_unbox = TRUE, pretty = TRUE, null = "null")
   files <- list.files(directory, full.names = TRUE)
   files <- files[basename(files) != "companions-manifest.tsv"]
-  manifest <- data.table::data.table(path = basename(files), role = c(author_declarations = "author-declarations.md", cover_letter = "cover-letter.md", highlights = "highlights.md", record = "companions-record.json")[basename(files)], size_bytes = file.info(files)$size, sha256 = vapply(files, digest::digest, character(1L), algo = "sha256", file = TRUE))
+  manifest <- data.table::data.table(path = basename(files), role = unname(c("author-declarations.md" = "author_declarations", "cover-letter.md" = "cover_letter", "highlights.md" = "highlights", "companions-record.json" = "record")[basename(files)]), size_bytes = file.info(files)$size, sha256 = vapply(files, digest::digest, character(1L), algo = "sha256", file = TRUE))
   data.table::setorderv(manifest, "path")
   data.table::fwrite(manifest, file.path(directory, "companions-manifest.tsv"), sep = "\t")
   validate_submission_companions(directory, strict = FALSE)

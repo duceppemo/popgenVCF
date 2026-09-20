@@ -6,6 +6,9 @@
   - **`diversity.R` -- one tiny population erased everyone's allelic richness.** Rarefaction goes down to the smallest population's gene-copy count for every population, so a single singleton population rarefied the whole table to 2 copies, where richness is just 1 + He (every population ~1.28 instead of ~1.84-1.93 on the quickstart data). Populations under 5 samples are now left out of the rarefaction and get `NA`, with a pipeline notice; if fewer than two populations reach 5 samples, all are kept as before. Separately, the "hierfstat is not installed" warning was also emitted when allelic richness had simply been switched off in the config.
   - **`population_assignment.R`**: the only member of a singleton population got no assignment at all. Setting it aside for the leave-one-out step empties its own population, and that emptied population then failed the "usable in every population" locus test at every locus, leaving no likelihood under any population. The emptied population is now dropped as a candidate, the sample is assigned among the rest, and its `mismatch` is `NA` rather than counted as a suspected migrant.
 
+- **Fourth code pass, increment 14 (submission companions):** every row of
+  `companions-manifest.tsv` carried `role = NA`; the role lookup was keyed by
+  role and indexed by file name. Roles are now recorded.
 - **Fourth code pass, increment 13 (manuscript regeneration plans):** a
   section's `reason` and `source_changes` were overwritten by whichever
   dependency edge was applied last, and only when that edge did not lower the
