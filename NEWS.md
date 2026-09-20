@@ -1,5 +1,10 @@
 # popgenVCF 1.0.15.9000 development
 
+- **A third code pass, in increments. Increment 1 (ordination and clonality):**
+
+  - **`ordination.R` -- the Tracy-Widom test was run on a truncated eigenvalue spectrum.** Each statistic scales the k-th eigenvalue by the sum (and sum of squares) of every eigenvalue from k onward, but only the top 100 were computed and passed in, so every p-value changed for cohorts above 101 samples. On the quickstart data (160 samples) the top-100 slice gave 15 significant components; the full 159-value spectrum gives 19. The whole non-trivial spectrum is now computed whenever the test runs; `n_pcs: "auto"` still retains at most 100. The quickstart figure, wiki, and vignette are updated (19 of 159). Cohorts of 101 samples or fewer are unaffected.
+  - **`clonality.R` -- Ia/rbarD permutation p-values were not reproducible.** `poppr::poppr()` runs in a forked child for crash isolation, and `mcparallel()`'s default `mc.set.seed = TRUE` reseeds that child from the process, discarding the `set.seed()` made just before it. With `clonality_ia_permutations > 0`, identical runs gave different p-values. The child now inherits the seeded state.
+
 - **`man/publication_ordination_outputs.Rd`** (after the `v1.0.15` tag): the `variance_explained_unit` argument added in the first review pass was never added to this hand-maintained Rd page, so `R CMD check` reported a code/documentation mismatch WARNING and the R-CMD-check workflow failed on `main`. Documentation only; the tagged 1.0.15 code is unaffected. `tools::codoc()` is clean for the whole package again.
 
 # popgenVCF 1.0.15

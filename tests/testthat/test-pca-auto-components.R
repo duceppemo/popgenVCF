@@ -328,3 +328,25 @@ test_that("the Tracy-Widom significant count is the true count, not floored at t
   expect_identical(popgenVCF:::pca_retained_component_count(0L), 2L)
   expect_identical(popgenVCF:::pca_retained_component_count(5L), 5L)
 })
+
+test_that("the Tracy-Widom comparison is computed on the full eigenvalue spectrum, not a top-100 slice", {
+  # Each statistic scales the k-th eigenvalue by the sum of every eigenvalue
+  # from k onward; truncating the spectrum changes every p-value (15 vs 19
+  # significant components on the quickstart data).
+  skip_if_not(requireNamespace("LEA", quietly = TRUE), "LEA is not installed")
+  set.seed(9L)
+  n_samples <- 130L; n_snps <- 400L
+  genmat <- matrix(sample(0:2, n_samples * n_snps, replace = TRUE), n_samples, n_snps)
+  gds_path <- tempfile(fileext = ".gds")
+  SNPRelate::snpgdsCreateGeno(
+    gds_path, genmat = genmat, sample.id = paste0("s", seq_len(n_samples)), snp.id = seq_len(n_snps),
+    snp.chromosome = rep(1L, n_snps), snp.position = seq_len(n_snps),
+    snp.allele = rep("A/G", n_snps), snpfirstdim = FALSE
+  )
+  gds <- SNPRelate::snpgdsOpen(gds_path)
+  on.exit(SNPRelate::snpgdsClose(gds), add = TRUE)
+  metadata <- popgenVCF:::normalize_sample_aliases(data.table::data.table(sample = paste0("s", seq_len(n_samples))))
+  res <- popgenVCF:::run_pca(gds, paste0("s", seq_len(n_samples)), seq_len(n_snps), metadata, 5L, 1L, always_tracy_widom = TRUE)
+  expect_identical(nrow(res$tracy_widom), n_samples - 1L)
+  expect_identical(res$retained_components, 5L)
+})

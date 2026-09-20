@@ -101,8 +101,8 @@ example), but every run also compares that choice against the sequential
 Tracy-Widom eigenvalue significance test (Patterson, Price & Reich 2006 --
 the same test EIGENSOFT's `smartpca` uses for its own automatic PC-count
 selection), letting you check how close a fixed choice is to the
-data-driven one without committing to it. In the quickstart example, 15 of
-100 computed components are Tracy-Widom-significant against the fixed
+data-driven one without committing to it. In the quickstart example, 19 of
+159 computed components are Tracy-Widom-significant against the fixed
 choice of 10 -- the dashed line marks the significance cutoff, the dotted
 line marks the fixed 10 actually retained. Set `analyses.n_pcs: "auto"`
 to retain the Tracy-Widom-significant count directly instead of a fixed

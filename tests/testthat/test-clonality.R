@@ -475,3 +475,21 @@ test_that("plot_msn_network writes a figure file for a real network and is a no-
   popgenVCF:::plot_msn_network(no_msn, cfg, dirs2)
   expect_length(list.files(dirs2$figures), 0L)
 })
+
+test_that("run_clonality's Ia/rbarD permutation p-values are reproducible for a fixed seed", {
+  # poppr::poppr() runs in a forked child (crash isolation); mcparallel()'s
+  # default mc.set.seed = TRUE reseeds that child from the process, so the
+  # permutation p-values ignored the caller's set.seed() and changed between
+  # identical runs.
+  skip_on_os("windows")
+  geno <- clonality_fixture_genotype(n = 16L, l = 25L, seed = 5L)
+  metadata <- data.table::data.table(
+    sample = rownames(geno), population = rep(c("A", "B"), each = 8)
+  )
+  runs <- lapply(1:3, function(i) popgenVCF:::run_clonality(
+    geno, geno, rownames(geno), metadata, seed = 7, curve_replicates = 0L, ia_permutations = 49L
+  )$summary)
+  expect_true(all(is.finite(runs[[1L]]$ia_p_value)))
+  expect_identical(runs[[1L]]$ia_p_value, runs[[2L]]$ia_p_value)
+  expect_identical(runs[[1L]]$rbard_p_value, runs[[3L]]$rbard_p_value)
+})

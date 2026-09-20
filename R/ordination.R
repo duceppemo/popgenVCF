@@ -218,7 +218,14 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads, ids = NU
   # generous cap `pca_component_count()`'s own "auto" branch uses, without
   # changing how many components are actually retained for a fixed n_pcs.
   available <- min(length(sample_ids) - 1L, length(snp_ids))
-  eigen_cnt <- if (compute_tracy_widom) max(requested_components, min(available, 100L)) else requested_components
+  # The WHOLE non-trivial spectrum, not a top-100 slice: every Tracy-Widom
+  # statistic is the k-th eigenvalue scaled by the sum (and sum of squares)
+  # of all eigenvalues from k onward, so a truncated spectrum changes every
+  # p-value. Confirmed directly on the quickstart data (160 samples, 159
+  # non-trivial eigenvalues): the top-100 slice this used to pass gave 15
+  # significant components, the full spectrum 19. Cohorts of 101 samples or
+  # fewer were never truncated and are unaffected.
+  eigen_cnt <- if (compute_tracy_widom) max(requested_components, available) else requested_components
   run_snprelate <- function(need_genmat = FALSE) {
     SNPRelate::snpgdsPCA(
       gds,
@@ -301,7 +308,7 @@ run_pca <- function(gds, sample_ids, snp_ids, metadata, n_pcs, threads, ids = NU
       pca_retained_component_count(tracy_widom_significant),
       level = "INFO"
     )
-    retain <- pca_retained_component_count(tracy_widom_significant)
+    retain <- min(pca_retained_component_count(tracy_widom_significant), requested_components)
   } else if (isTRUE(always_tracy_widom)) {
     # Purely a comparison for the user's own benefit here -- a fixed n_pcs
     # is retained exactly as requested either way, so a missing LEA

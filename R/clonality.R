@@ -324,7 +324,13 @@ clonality_run_poppr_isolated <- function(gc, ia_permutations) {
   if (!identical(.Platform$OS.type, "unix")) {
     return(tryCatch(call_poppr(), error = function(e) NULL))
   }
-  job <- parallel::mcparallel(call_poppr())
+  # mc.set.seed = FALSE: mcparallel()'s default (TRUE) gives the forked
+  # child a fresh, process-derived RNG state, discarding the set.seed() the
+  # caller made immediately before this call -- so the Ia/rbarD permutation
+  # p-values (clonality_ia_permutations > 0) differed from run to run under
+  # an identical compute.seed. Inheriting the parent's state keeps them
+  # reproducible; the fork still isolates the known poppr crash.
+  job <- parallel::mcparallel(call_poppr(), mc.set.seed = FALSE)
   result <- suppressWarnings(parallel::mccollect(job, wait = TRUE))[[1L]]
   if (is.null(result) || inherits(result, "try-error")) NULL else result
 }
