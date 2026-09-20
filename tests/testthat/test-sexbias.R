@@ -220,3 +220,55 @@ test_that("run_module_sexbias gracefully skips against this package's real, sex-
   res <- popgenVCF:::run_sexbias(geno, sample_ids, metadata)
   expect_null(res)
 })
+
+test_that("run_sexbias gives the same result whether or not the samples arrive grouped by population", {
+  # hierfstat::samp.within() returns indices concatenated population by
+  # population -- a within-population shuffle only for population-sorted
+  # rows. In VCF order it moved assignment-index values across populations,
+  # so the permutation p-value came from the wrong null.
+  skip_if_not_installed("hierfstat")
+  geno <- sexbias_fixture_genotype(n = 24L, l = 30L, seed = 3L)
+  population <- rep(c("A", "B", "C"), 8L)
+  sex <- rep(c("male", "female"), each = 12L)
+  unsorted <- data.table::data.table(sample = rownames(geno), population = population, sex = sex)
+  ord <- order(population)
+  sorted_geno <- geno[ord, , drop = FALSE]
+  sorted <- data.table::data.table(sample = rownames(sorted_geno), population = population[ord], sex = sex[ord])
+
+  a <- popgenVCF:::run_sexbias(geno, rownames(geno), unsorted, test = "mAIc", permutations = 99L, seed = 5)
+  b <- popgenVCF:::run_sexbias(sorted_geno, rownames(sorted_geno), sorted, test = "mAIc", permutations = 99L, seed = 5)
+  expect_equal(a$statistic, b$statistic)
+  expect_identical(a$p_value, b$p_value)
+  expect_equal(a$table[order(sample), aic], b$table[order(sample), aic])
+})
+
+test_that("run_sexbias's FST and FIS tests run on samples that are not grouped by population", {
+  # Both failed with "invalid 'times' argument" for any input in VCF order.
+  skip_if_not_installed("hierfstat")
+  geno <- sexbias_fixture_genotype(n = 20L, l = 30L, seed = 4L)
+  metadata <- data.table::data.table(
+    sample = rownames(geno), population = rep(c("A", "B"), 10L), sex = rep(c("female", "male"), each = 10L)
+  )
+  for (test in c("FST", "FIS")) {
+    res <- popgenVCF:::run_sexbias(geno, rownames(geno), metadata, test = test, permutations = 20L, seed = 1)
+    expect_true(is.finite(res$p_value))
+    expect_true(res$p_value >= 0 && res$p_value <= 1)
+  }
+})
+
+test_that("an undefined sex-bias p-value is a validation warning, not a pipeline-aborting error", {
+  skip_if_not_installed("hierfstat")
+  geno <- sexbias_fixture_genotype(n = 6L, l = 30L)
+  geno[] <- 1L
+  metadata <- data.table::data.table(
+    sample = rownames(geno), population = rep(c("A", "B"), 3L), sex = rep(c("female", "male"), each = 3L)
+  )
+  res <- popgenVCF:::run_sexbias(geno, rownames(geno), metadata)
+  expect_false(is.finite(res$p_value))
+  validation <- popgenVCF:::validate_sexbias_result(res, NULL, NULL)
+  expect_true(validation$valid)
+  expect_match(validation$warnings, "undefined")
+
+  out_of_range <- res; out_of_range$p_value <- 1.5
+  expect_false(popgenVCF:::validate_sexbias_result(out_of_range, NULL, NULL)$valid)
+})

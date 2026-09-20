@@ -37,10 +37,21 @@ run_sexbias <- function(genotype, sample_ids, metadata, test = "mAIc",
   sex_counts <- table(sex[usable])
   if (length(sex_counts) != 2L || any(sex_counts < 2L)) return(NULL)
 
-  geno <- genotype[usable, , drop = FALSE]
-  pop <- population[usable]
-  sx <- sex[usable]
-  public_ids <- public_sample_ids(metadata, sample_ids)[usable]
+  # Sorted by population, not left in VCF order. hierfstat's permutation
+  # tests draw their null through hierfstat::samp.within(), which returns
+  # indices concatenated population by population -- a within-population
+  # shuffle only if the rows are already grouped that way. On unsorted rows
+  # (confirmed directly) it moves assignment-index values ACROSS populations,
+  # so with permutations > 0 the mAIc test silently reported a p-value from
+  # the wrong null, and the FST/FIS tests -- which index per-population
+  # blocks -- failed outright with "invalid 'times' argument". order() is
+  # stable, so samples keep their relative order within each population.
+  keep <- which(usable)
+  keep <- keep[order(population[keep], method = "radix")]
+  geno <- genotype[keep, , drop = FALSE]
+  pop <- population[keep]
+  sx <- sex[keep]
+  public_ids <- public_sample_ids(metadata, sample_ids)[keep]
 
   encoded <- hierfstat_encode_genotype(geno)
   dat <- data.frame(pop = pop, encoded, check.names = FALSE)

@@ -456,7 +456,16 @@ validate_sexbias_result <- function(result, analysis, context) {
     errors <- c(errors, "sexbias result requires table, test, statistic, and p_value")
     return(validation_result(!length(errors), errors))
   }
-  if (!is.finite(result$p_value) || result$p_value < -1e-8 || result$p_value > 1 + 1e-8) {
+  # Out of range is an integrity error; undefined is not. A NaN statistic and
+  # p-value is what stats::t.test() legitimately returns for uninformative
+  # input (every assignment index identical -- e.g. a marker set with no
+  # variation left among the sexed samples), and a validation ERROR here
+  # aborts the entire pipeline run (fail_fast), discarding every other
+  # module's work over one default-on exploratory test.
+  warnings <- character()
+  if (!is.finite(result$p_value)) {
+    warnings <- c(warnings, "Sex-biased dispersal test statistic is undefined (no variation in the assignment index between the sexed samples); no p-value is reported")
+  } else if (result$p_value < -1e-8 || result$p_value > 1 + 1e-8) {
     errors <- c(errors, "sexbias p_value must be between zero and one")
   }
   if (!all(c("sample", "population", "sex", "aic") %in% names(result$table))) {
@@ -464,7 +473,7 @@ validate_sexbias_result <- function(result, analysis, context) {
   } else if (data.table::uniqueN(result$table$sex) != 2L) {
     errors <- c(errors, "sexbias per-sample table must contain exactly two recorded sexes")
   }
-  validation_result(!length(errors), errors)
+  validation_result(!length(errors), errors, warnings)
 }
 
 validate_ibd_result <- function(result, analysis, context) {
