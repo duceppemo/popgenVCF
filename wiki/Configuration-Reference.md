@@ -30,8 +30,11 @@ container paths below the mounted directory.
 
 `metadata_header` accepts `auto`, `yes`/`true`, or `no`/`false`. A headered
 tab-separated file is recommended. `geographic_columns` is ordered latitude
-first and longitude second; the canonical column names shown above support
-capability discovery.
+first and longitude second. Any two column names work (since 1.0.15): they
+are matched the way metadata headers are imported -- lowercased, punctuation
+collapsed to `_` -- so `[Lat, Long]` finds columns headed `Lat`/`LONG`. The
+Mantel and spatial-autocorrelation modules need only these coordinates, not
+population labels.
 Coordinates must be signed decimal degrees, not DMS, UTM, or projected units.
 
 `sample_column`/`population_column` (default `null`) name a metadata column
