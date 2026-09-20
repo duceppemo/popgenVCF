@@ -6,7 +6,7 @@
 \title{Deterministic execution timeout policies}
 \description{
 Create explicit elapsed-time budgets and execute analysis plans or registries
-with fail-closed timeout handling, dependency propagation, retry integration,
+with timeout handling, dependency propagation, retry integration,
 and auditable timeout metadata.
 }
 \usage{
@@ -63,6 +63,18 @@ policy metadata. The print method returns \code{x} invisibly.
 Timeouts are disabled by default. A timed-out module contributes no accepted
 result or artifact, is recorded as \code{timed_out}, and blocks dependent modules
 unless a bounded retry later completes successfully and passes the normal
-validation contracts. R elapsed-time limits are reliable for interruptible R
-and native code; external processes require process-level supervision.
+validation contracts.
+
+The budget is enforced with \code{\link[base]{setTimeLimit}}, which R checks
+only when control returns to the interpreter. It stops a module that is running
+R-level code, but it cannot interrupt a single blocking call: a long-running
+compiled routine (most of \pkg{SNPRelate}, \pkg{adegenet} and \pkg{phangorn})
+or a wait on an external process runs to completion however small the budget,
+and is reported as timed out only afterwards, if at all (measured directly: one
+compiled call ran 422 seconds under a 1-second budget). A budget is a guard
+against runaway R-level work, not a hard wall-clock guarantee. The external
+ancestry backends have their own, genuinely enforced limit
+(\code{timeout_seconds} under \code{analyses.admixture} and
+\code{analyses.faststructure}), which kills the child process; use a scheduler
+or container limit where a hard bound on the whole run is required.
 }

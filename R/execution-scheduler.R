@@ -155,6 +155,14 @@ run_execution_batch <- function(eligible, analysis, context, registry, engine) {
       call. = FALSE
     )
   }
+  # A second thing the first parallel-safe module will need, beside its own
+  # GDS connection (above): anything a module does to shared R state inside a
+  # forked or PSOCK worker stays in that worker. In particular a
+  # PopgenVCFExecutionCancellationToken is an environment, so
+  # request_execution_cancellation() called from within a concurrently run
+  # module would set the worker's copy and the parent would never see it.
+  # Unreachable today (single-module batches run in-process, where the token
+  # is shared and cancellation was verified to propagate).
   if (identical(engine$backend, "multicore")) {
     results <- parallel::mclapply(
       eligible, run_scheduled_engine_module,

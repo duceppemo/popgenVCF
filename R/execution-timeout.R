@@ -1,7 +1,16 @@
 #' Create an execution timeout policy
 #'
-#' Timeout policies are explicit and fail closed. The default policy applies no
-#' time limit. Per-module limits override the default limit.
+#' Timeout policies are explicit. The default policy applies no time limit.
+#' Per-module limits override the default limit.
+#'
+#' The budget is enforced with [base::setTimeLimit()], which R checks only when
+#' control returns to the interpreter. It stops a module that is running
+#' R-level code, but cannot interrupt a single blocking call: a long-running
+#' compiled routine or a wait on an external process runs to completion however
+#' small the budget (measured directly: one compiled call ran 422 seconds under
+#' a 1-second budget). Treat a budget as a guard against runaway R-level work,
+#' not a hard wall-clock guarantee; the external ancestry backends have their
+#' own enforced `timeout_seconds`, which kills the child process.
 #'
 #' @param default_seconds Default elapsed-time budget in seconds. Use `Inf` for
 #'   no timeout.
