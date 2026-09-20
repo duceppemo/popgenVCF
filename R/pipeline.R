@@ -15,7 +15,7 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
   if (n_stale > 0L) {
     log_msg(
       "Removed ", n_stale, " result file(s) left in this output directory by a previous run ",
-      "(tables/, figures/, trees/, chromosomes/); cache/ is kept",
+      "(tables/, figures/, trees/, chromosomes/, and its execution checkpoint); cache/ is kept",
       level = "WARNING"
     )
   }

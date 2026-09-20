@@ -714,10 +714,13 @@ test_that("a fresh run clears a previous run's result files but keeps the cache 
     file.path(dirs$figures, "14_ADMIXTURE_Q_K9.png"), file.path(dirs$tables, "28_ADMIXTURE_Q_K9.tsv"),
     file.path(dirs$trees, "old.nwk"), file.path(dirs$chromosomes, "chrOld_PCA.tsv")
   )
+  # The old checkpoint too: a crash before the new run's first checkpoint,
+  # followed by --resume, would otherwise finalize the previous run.
+  stale <- c(stale, file.path(dirs$root, c("execution_checkpoint.rds", "execution_checkpoint.rds.sha256")))
   kept <- c(file.path(dirs$cache, "genotypes.gds"), file.path(dirs$root, "notes.txt"))
   for (path in c(stale, kept)) writeLines("x", path)
 
-  expect_identical(popgenVCF:::clear_stale_pipeline_outputs(dirs), 4L)
+  expect_identical(popgenVCF:::clear_stale_pipeline_outputs(dirs), 6L)
   expect_false(any(file.exists(stale)))
   expect_true(all(file.exists(kept)))
   expect_identical(popgenVCF:::clear_stale_pipeline_outputs(dirs), 0L)

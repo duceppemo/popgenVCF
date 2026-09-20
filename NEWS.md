@@ -1,5 +1,10 @@
 # popgenVCF 1.0.15.9000 development
 
+- **Third code pass, increment 3 (execution infrastructure):**
+
+  - **`config.R` -- a fresh run left the previous run's execution checkpoint in place.** A run only writes its own checkpoint after its first module batch completes; a crash before that, followed by `--resume`, loaded the *old* run's checkpoint -- its config, completed-module list, and results -- and finalized a report from it. The stale checkpoint and its `.sha256` sidecar are now removed with the other stale outputs when a fresh run starts.
+  - **`utils.R`**: `log_msg()` joined its parts with `paste()`, whose default separator doubled every space callers already supply ("Starting  pca", "popgenVCF v 1.0.15") in the console and `pipeline.log`. Now `paste0()`.
+
 - **Third code pass, increment 2 (ancestry backends and reruns into an existing output directory):**
 
   - **`pipeline.R` / `config.R` -- a rerun into an existing output directory published the previous run's leftovers.** The report's figure gallery embeds every figure file in `figures/`, and `tables/`, `trees/`, `chromosomes/` are handed over as-is, so anything the new run did not overwrite (a K value outside a narrowed range, a module since disabled, a population gone after samples were removed) appeared alongside the new results. A fresh run now clears those four pipeline-owned directories first and logs the count; `cache/` is kept and `--resume` is unaffected. Documented in the wiki.

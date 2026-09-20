@@ -24,7 +24,11 @@ yaml_scalar_line <- function(key, value) {
 
 log_msg <- function(..., level = "INFO") {
   line <- sprintf("[%s] [%-7s] %s", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), level,
-                  paste(..., collapse = ""))
+                  # paste0(), not paste(): every caller supplies its own
+                  # spacing ("Starting ", name), so paste()'s default
+                  # sep = " " doubled every join -- "Starting  pca",
+                  # "popgenVCF v 1.0.15" -- in the console and pipeline.log.
+                  paste0(..., collapse = ""))
   cat(line, "\n")
   # A log line is diagnostic, not load-bearing: an unwritable log destination
   # (a deleted output directory, a full disk, a stale path left over from an

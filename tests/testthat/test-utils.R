@@ -35,3 +35,9 @@ test_that("wrap_plot_text still handles the ordinary scalar case as before", {
   expect_identical(popgenVCF:::wrap_plot_text(""), "")
   expect_identical(popgenVCF:::wrap_plot_text("short"), "short")
 })
+
+test_that("log_msg joins its parts without inserting extra spaces", {
+  line <- NULL
+  expect_output(line <- popgenVCF:::log_msg("Starting ", "pca", " with ", 3L, " thread(s)"), "Starting pca with 3 thread(s)", fixed = TRUE)
+  expect_false(grepl("  ", sub("^\\[[^]]*\\] \\[[^]]*\\] ", "", line)))
+})

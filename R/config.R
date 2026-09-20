@@ -431,6 +431,13 @@ clear_stale_pipeline_outputs <- function(dirs) {
     files <- list.files(path, full.names = TRUE, all.files = TRUE, no.. = TRUE)
     files[!dir.exists(files)]
   }), use.names = FALSE)
+  # The previous run's execution checkpoint goes too. A fresh run only writes
+  # its own after the first module batch completes; until then, a crash
+  # followed by `--resume` would load the OLD run's checkpoint -- its config,
+  # its completed-module list, its results -- and finalize a report from it
+  # over the directories just cleared above.
+  checkpoint <- file.path(dirs$root, "execution_checkpoint.rds")
+  stale <- c(stale, Filter(file.exists, c(checkpoint, paste0(checkpoint, ".sha256"))))
   if (length(stale)) unlink(stale, force = TRUE)
   invisible(length(stale))
 }
