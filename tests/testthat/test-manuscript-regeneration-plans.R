@@ -79,3 +79,30 @@ test_that("revision and regeneration APIs are exported", {
     "new_manuscript_regeneration_plan", "manuscript_regeneration_table"
   ) %in% exports))
 })
+
+test_that("a regeneration plan names every change that reaches a section", {
+  # reason/source_changes were single strings overwritten by the last edge
+  # applied, and only when that edge did not lower the state -- so a section
+  # with its own changed input and a changed upstream section listed one of
+  # them, and a manual_review section never listed what arrived through a
+  # regenerate edge.
+  dependencies <- data.frame(
+    section_id = c("methods", "results", "results", "discussion", "discussion"),
+    dependency_id = c("config", "fst_table", "methods", "results", "figure_1"),
+    dependency_type = c("input", "input", "section", "section", "input"),
+    policy = c("regenerate", "manual_review", "regenerate", "regenerate", "regenerate")
+  )
+  changes <- data.frame(
+    dependency_id = c("config", "fst_table", "figure_1"),
+    before_identity = "a", after_identity = "b", change_type = "modified"
+  )
+  plan <- as.data.frame(popgenVCF:::manuscript_regeneration_table(list(dependencies = dependencies, changes = changes)))
+  row <- function(id) plan[plan$section_id == id, ]
+  expect_identical(row("methods")$source_changes, "config")
+  expect_identical(row("results")$state, "manual_review")
+  expect_identical(row("results")$source_changes, "config;fst_table")
+  expect_identical(row("results")$reason, "Direct changed input: fst_table; Depends on changed section: methods")
+  expect_identical(row("discussion")$state, "affected")
+  expect_identical(row("discussion")$source_changes, "config;figure_1;fst_table")
+  expect_identical(row("discussion")$reason, "Direct changed input: figure_1; Depends on changed section: results")
+})

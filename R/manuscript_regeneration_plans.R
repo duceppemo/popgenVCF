@@ -102,22 +102,28 @@ manuscript_regeneration_table <- function(x) {
   direct <- deps[deps$dependency_type == "input" & deps$dependency_id %in% changed_ids, , drop = FALSE]
   policy_rank <- c(regenerate = 1L, manual_review = 2L, blocked = 3L)
   policy_state <- c(regenerate = "affected", manual_review = "manual_review", blocked = "blocked")
-
+  # Every changed input that reaches a section, directly or through the
+  # sections it depends on, and every changed section it depends on. These
+  # were single strings overwritten by whichever edge was applied last, and
+  # only when that edge did not lower the state: a section with its own
+  # changed input AND a changed upstream section reported just one of them,
+  # and a "manual_review" section never listed what reached it through a
+  # "regenerate" edge. The plan is what an author reads to decide what to
+  # re-check, so it has to name all of it.
+  sources <- stats::setNames(rep(list(character()), length(sections)), sections)
+  upstreams <- sources
   for (section_name in sort(unique(direct$section_id))) {
     rows <- direct[direct$section_id == section_name, , drop = FALSE]
     chosen <- rows$policy[[which.max(unname(policy_rank[rows$policy]))]]
-    ids <- sort(unique(rows$dependency_id))
     index <- match(section_name, result$section_id)
     result$state[[index]] <- unname(policy_state[[chosen]])
-    result$reason[[index]] <- paste0("Direct changed input: ", paste(ids, collapse = ", "))
-    result$source_changes[[index]] <- paste(ids, collapse = ";")
+    sources[[section_name]] <- unique(rows$dependency_id)
   }
-
+  direct_sources <- sources
   section_edges <- deps[deps$dependency_type == "section", , drop = FALSE]
   state_rank <- c(unaffected = 0L, affected = 1L, manual_review = 2L, blocked = 3L)
-
   repeat {
-    previous <- result$state
+    previous <- list(result$state, sources)
     for (i in seq_len(nrow(section_edges))) {
       upstream <- section_edges$dependency_id[[i]]
       downstream <- section_edges$section_id[[i]]
@@ -125,18 +131,29 @@ manuscript_regeneration_table <- function(x) {
       downstream_index <- match(downstream, result$section_id)
       if (is.na(upstream_index) || is.na(downstream_index)) next
       if (!result$state[[upstream_index]] %in% c("affected", "manual_review", "blocked")) next
-
       propagated <- unname(policy_state[[section_edges$policy[[i]]]])
-      current <- result$state[[downstream_index]]
-      if (state_rank[[propagated]] >= state_rank[[current]]) {
+      if (state_rank[[propagated]] > state_rank[[result$state[[downstream_index]]]]) {
         result$state[[downstream_index]] <- propagated
-        result$reason[[downstream_index]] <- paste0("Depends on changed section: ", upstream)
-        result$source_changes[[downstream_index]] <- result$source_changes[[upstream_index]]
       }
+      sources[[downstream]] <- union(sources[[downstream]], sources[[upstream]])
+      upstreams[[downstream]] <- union(upstreams[[downstream]], upstream)
     }
-    if (identical(previous, result$state)) break
+    if (identical(previous, list(result$state, sources))) break
   }
-
+  for (index in seq_along(sections)) {
+    section_name <- sections[[index]]
+    parts <- c(
+      if (length(direct_sources[[section_name]])) paste0(
+        "Direct changed input: ", paste(sort(direct_sources[[section_name]], method = "radix"), collapse = ", ")
+      ),
+      if (length(upstreams[[section_name]])) paste0(
+        "Depends on changed section: ", paste(sort(upstreams[[section_name]], method = "radix"), collapse = ", ")
+      )
+    )
+    if (!length(parts)) next
+    result$reason[[index]] <- paste(parts, collapse = "; ")
+    result$source_changes[[index]] <- paste(sort(sources[[section_name]], method = "radix"), collapse = ";")
+  }
   result <- result[order(result$section_id), , drop = FALSE]
   rownames(result) <- NULL
   data.table::as.data.table(result)
