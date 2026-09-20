@@ -1,5 +1,9 @@
 # popgenVCF 1.0.15.9000 development
 
+- **Third code pass, increment 5 (QC reporting):**
+
+  - **`qc.R` -- the QC retention table booked the autosome restriction to LD pruning.** With `qc.autosome_only` (the default), markers on the configured sex chromosomes leave the analysis set between the missingness filter and LD pruning, but `07_QC_sequential_counts.tsv`, `06_QC_independent_counts.tsv`, the `04_SNP_retention` figure, and the report's Quality control table had no row for it. On the quickstart data "After LD pruning" showed 63,228 markers removed; 61,616 of those were chromosome X/Y markers and pruning itself took 1,969 down to 357. An "After autosome restriction" row (and "Autosomal analysis set" criterion) now appears whenever the restriction removes anything; runs without sex-chromosome markers keep identical tables. Quickstart figure, wiki, vignette, and report note updated. No analysis result changes.
+
 - **Third code pass, increment 4 (metadata import):**
 
   - **`io.R` -- metadata header auto-detection missed most non-standard headers.** It compared the raw lowercased first row against a short fixed list, so `Sample ID`/`Sample.ID`, the `individual_id` synonym accepted further down, quoted CSV headers, and a BOM-prefixed first column were all read as data rows. Worst, a custom header was never recognized, so configuring `input.sample_column`/`population_column` -- whose whole purpose is a non-standard header -- failed with "require headered metadata" unless `metadata_header: yes` was also set. Detection now uses the normalized form, the full synonym list, and any configured column names.

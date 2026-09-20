@@ -73,10 +73,14 @@ not a data-quality failure, the exact mechanism described above.
 ![Sequential SNP retention through each filtering stage, from the quickstart example](figures/04_SNP_retention.png)
 
 The funnel above is the same sequence of numbers just quoted, in order:
-input, after MAF, after missingness (identical to after MAF here -- this
-cohort's variants are either well-covered or not called at all, nothing in
-between to filter further), and after LD pruning to the 357-SNP final
-marker set.
+input (98,922), after MAF (63,585), after missingness (identical to after
+MAF here -- this cohort's variants are either well-covered or not called at
+all, nothing in between to filter further), after the autosome restriction
+(1,969 -- the 61,616 chromosome X/Y markers set aside for the sex-check
+module leave the analysis set here, by far the largest single step), and
+after LD pruning to the 357-SNP final marker set. The autosome-restriction
+row appears only when `qc.autosome_only` actually removes markers; before
+1.0.16 its removals were booked to the LD-pruning step.
 
 ## PCA
 

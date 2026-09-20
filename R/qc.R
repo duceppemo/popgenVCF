@@ -143,7 +143,7 @@ ld_prune_exact <- function(gds, sample_ids, maf_threshold, threads, seed, snp_id
   as.vector(out)
 }
 
-qc_reports <- function(vq, final_snps) {
+qc_reports <- function(vq, final_snps, analysis_snps = NULL) {
   vq[, retained_ld := snp_id %in% final_snps]
   bad <- vq[retained_ld & !pass_combined]
   if (nrow(bad)) stop("SNPRelate LD set disagrees with independent MAF/missingness audit", call. = FALSE)
@@ -159,11 +159,30 @@ qc_reports <- function(vq, final_snps) {
     criterion = factor(independent_criteria, levels = independent_criteria),
     variants = c(nrow(vq), sum(vq$pass_maf), sum(vq$pass_missing), sum(vq$pass_combined), length(final_snps))
   )
-  independent[, retained_percent := 100 * variants / variants[1]]
   sequential_steps <- c("Input biallelic", "After MAF", "After missingness", "After LD pruning")
+  sequential_counts <- c(nrow(vq), sum(vq$pass_maf), sum(vq$pass_combined), length(final_snps))
+  # With qc.autosome_only, the markers set aside for the sex-check module
+  # leave the analysis set BETWEEN the missingness filter and LD pruning
+  # (`analysis_snps` = context$qc_snps). Without a row of their own that
+  # whole exclusion was booked to "After LD pruning": on the quickstart data
+  # LD pruning appeared to remove 63,228 markers, when 61,616 of them are
+  # chromosome X/Y markers and pruning itself took 1,969 down to 357. The
+  # row is added only when it actually removes something, so runs without
+  # sex-chromosome markers keep exactly the tables they had.
+  n_analysis <- if (is.null(analysis_snps)) NA_integer_ else length(analysis_snps)
+  if (!is.na(n_analysis) && n_analysis != sum(vq$pass_combined)) {
+    independent_criteria <- append(independent_criteria, "Autosomal analysis set", after = 4L)
+    independent <- data.table::data.table(
+      criterion = factor(independent_criteria, levels = independent_criteria),
+      variants = append(independent$variants, n_analysis, after = 4L)
+    )
+    sequential_steps <- append(sequential_steps, "After autosome restriction", after = 3L)
+    sequential_counts <- append(sequential_counts, n_analysis, after = 3L)
+  }
+  independent[, retained_percent := 100 * variants / variants[1]]
   sequential <- data.table::data.table(
     step = factor(sequential_steps, levels = sequential_steps),
-    variants = c(nrow(vq), sum(vq$pass_maf), sum(vq$pass_combined), length(final_snps))
+    variants = sequential_counts
   )
   sequential[, `:=`(removed_at_step = c(0L, utils::head(variants, -1) - utils::tail(variants, -1)),
                     retained_percent = 100 * variants / variants[1])]

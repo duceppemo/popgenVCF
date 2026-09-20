@@ -144,7 +144,7 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
   )
   analysis$variants$ld_ids <- final_snps
   validate_analysis(analysis, "ordination")
-  qc <- qc_reports(vq, final_snps)
+  qc <- qc_reports(vq, final_snps, analysis_snps = qc_snps)
   analysis$variants$reports <- qc
   write_tsv(qc$variant, file.path(dirs$tables, "05_variant_QC.tsv"))
   write_tsv(qc$independent, file.path(dirs$tables, "06_QC_independent_counts.tsv"))

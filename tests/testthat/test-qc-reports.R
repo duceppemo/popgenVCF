@@ -41,3 +41,28 @@ test_that("qc_reports computes real, hand-verified sequential and independent co
   expect_identical(reports$sequential$removed_at_step, c(0L, 2L, 2L, 2L))
   expect_identical(reports$independent$variants, c(10L, 8L, 7L, 6L, 4L))
 })
+
+test_that("qc_reports gives the autosome restriction its own row instead of booking it to LD pruning", {
+  # With qc.autosome_only, sex-chromosome markers leave the analysis set
+  # between the missingness filter and LD pruning. On the quickstart data the
+  # old table said LD pruning removed 63,228 markers; 61,616 were X/Y markers.
+  vq <- data.table::data.table(
+    snp_id = 1:10, pass_maf = TRUE, pass_missing = TRUE,
+    pass_combined = c(rep(TRUE, 9), FALSE)
+  )
+  reports <- popgenVCF:::qc_reports(vq, final_snps = 1:3, analysis_snps = 1:5)
+  expect_identical(
+    as.character(reports$sequential$step),
+    c("Input biallelic", "After MAF", "After missingness", "After autosome restriction", "After LD pruning")
+  )
+  expect_identical(reports$sequential$variants, c(10L, 10L, 9L, 5L, 3L))
+  expect_equal(reports$sequential$removed_at_step, c(0, 0, 1, 4, 2))
+  expect_true("Autosomal analysis set" %in% reports$independent$criterion)
+
+  unchanged <- popgenVCF:::qc_reports(vq, final_snps = 1:3, analysis_snps = 1:9)
+  expect_identical(
+    as.character(unchanged$sequential$step),
+    c("Input biallelic", "After MAF", "After missingness", "After LD pruning")
+  )
+  expect_identical(unchanged$sequential, popgenVCF:::qc_reports(vq, final_snps = 1:3)$sequential)
+})

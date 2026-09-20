@@ -471,7 +471,10 @@ report_table_section(
   "Quality control", r$qc$sequential, digits = 2,
   note = paste0(
     "Sample and SNP counts retained after each filtering stage, in sequence -- ",
-    "a final count alone cannot show which rule removed what. Filtering ",
+    "a final count alone cannot show which rule removed what. With ",
+    "qc.autosome_only, markers set aside for the sex-check module have ",
+    "their own \"After autosome restriction\" row rather than being ",
+    "counted as LD-pruning removals. Filtering ",
     "thresholds should be set before looking at population patterns, not ",
     "fitted afterward to produce a preferred result."
   )
