@@ -438,6 +438,12 @@ unlike raw heterozygosity, it is comparable across populations with unequal
 sample sizes, since it rarefies every population down to the same allele
 count before counting. For biallelic SNPs it ranges from 1 (monomorphic
 within the population) to 2 (both alleles present).
+Rarefaction depth is set by the smallest population, so populations with
+fewer than 5 samples are left out of the calculation (their
+`allelic_richness` is `NA`, with a pipeline notice) rather than dragging
+every population down to their size -- one singleton population would
+otherwise rarefy the whole table to 2 gene copies, where richness is just 1
++ He. If fewer than two populations reach 5 samples, all are kept.
 
 ![Allelic richness by population from the quickstart example](figures/44_allelic_richness.png)
 
