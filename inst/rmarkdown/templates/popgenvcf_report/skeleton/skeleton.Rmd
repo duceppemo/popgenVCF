@@ -628,6 +628,20 @@ report_table_section(
     "estimator's valid range, i.e. smaller still."
   )
 )
+report_table_section(
+  "Bottleneck mode-shift screen (per population; see 48_site_frequency_spectrum.tsv for the full spectrum)",
+  r$bottleneck$summary, digits = 3,
+  note = paste0(
+    "The modal class of each population's folded site frequency spectrum ",
+    "(Luikart & Cornuet 1998). Under mutation-drift equilibrium the lowest ",
+    "class holds the most loci; a mode in a higher class is a possible ",
+    "recent-bottleneck signature -- a qualitative screen, not a p-value, ",
+    "and sensitive to the MAF filter. `mode_shifted` is `NA` with status ",
+    "`too_few_samples` where a population has fewer called samples than ",
+    "frequency classes: the smallest attainable minor allele frequency is ",
+    "1/(2n), so its lowest class cannot hold a locus at all."
+  )
+)
 close_relatives <- NULL
 if (!is.null(r$kinship$close_relatives) && nrow(r$kinship$close_relatives)) {
   close_relatives <- head(r$kinship$close_relatives, 20)

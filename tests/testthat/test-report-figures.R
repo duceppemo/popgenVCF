@@ -707,3 +707,29 @@ test_that("each render works from a private copy of the template, never inside t
   expect_false(identical(dirname(inputs[["html"]]), dirname(inputs[["pdf"]])))
   expect_false(any(dir.exists(dirname(inputs))))
 })
+
+test_that("HTML reports show the bottleneck mode-shift table, including a withheld call, and omit it when absent", {
+  # The report warned about "possible recent bottleneck" populations without
+  # ever showing the table behind the warning.
+  skip_if_not(rmarkdown::pandoc_available())
+  root <- tempfile("bottleneck-report-")
+  dir.create(root)
+  results <- file.path(root, "analysis_results.rds")
+  populated <- minimal_standard_report_result()
+  populated$bottleneck <- list(summary = data.table::data.table(
+    population = c("north", "south"), n_polymorphic_loci = c(40L, 12L),
+    mode_bin = c(1L, 5L), mode_bin_lower = c(0, 0.2), mode_bin_upper = c(0.05, 0.25),
+    mode_shifted = c(FALSE, NA), n_samples_called = c(20L, 2L),
+    mode_shift_status = c("tested", "too_few_samples")
+  ))
+  saveRDS(populated, results)
+  rendered <- render_report(results, file.path(root, "report"), title = "Bottleneck", formats = "html")
+  html <- paste(readLines(rendered[["html"]], warn = FALSE), collapse = "\n")
+  expect_match(html, "Bottleneck mode-shift\\s+screen")
+  expect_match(html, "too_few_samples", fixed = TRUE)
+
+  saveRDS(minimal_standard_report_result(), results)
+  rendered <- render_report(results, file.path(root, "report"), title = "No bottleneck", formats = "html")
+  html <- paste(readLines(rendered[["html"]], warn = FALSE), collapse = "\n")
+  expect_false(grepl("Bottleneck mode-shift\\s+screen", html))
+})
