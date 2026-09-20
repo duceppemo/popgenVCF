@@ -1,4 +1,6 @@
-# popgenVCF 1.0.15 development
+# popgenVCF 1.0.15
+
+popgenVCF 1.0.15 is released. DOI [10.5281/zenodo.22848587](https://doi.org/10.5281/zenodo.22848587) (concept DOI [10.5281/zenodo.21747067](https://doi.org/10.5281/zenodo.21747067)), 2026-09-19. Published under the maintainer's own account via `RELEASE_TOKEN`; Zenodo's GitHub integration deposited it exactly once (no orphaned duplicate). Verified the same way as every prior release: the Zenodo record API's title, version, license, creator, and keywords match `.zenodo.json`, its related identifier points at the `v1.0.15` GitHub tag, and the DOI resolves via a real `doi.org` redirect.
 
 - **`man/publication_ordination_outputs.Rd`** (after the `v1.0.15` tag): the `variance_explained_unit` argument added in the first review pass was never added to this hand-maintained Rd page, so `R CMD check` reported a code/documentation mismatch WARNING and the R-CMD-check workflow failed on `main`. Documentation only; the tagged 1.0.15 code is unaffected. `tools::codoc()` is clean for the whole package again.
 

@@ -8,7 +8,7 @@
   <a href="https://github.com/duceppemo/popgenVCF/actions/workflows/test-coverage.yaml"><img alt="Test coverage" src="https://codecov.io/gh/duceppemo/popgenVCF/branch/main/graph/badge.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-0B6B62.svg"></a>
   <a href="https://github.com/duceppemo/popgenVCF/wiki"><img alt="Documentation: Wiki" src="https://img.shields.io/badge/docs-wiki-123B4A.svg"></a>
-  <a href="https://doi.org/10.5281/zenodo.22754452"><img alt="DOI" src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22754452-blue.svg"></a>
+  <a href="https://doi.org/10.5281/zenodo.22848587"><img alt="DOI" src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22848587-blue.svg"></a>
 </p>
 
 **popgenVCF** is an R toolkit and command-line application for reproducible
@@ -18,9 +18,8 @@ runs of homozygosity, sliding-window genome scans, DAPC, AMOVA, population
 structure, spatial genetics, publication outputs, and machine-readable
 validation evidence.
 
-> Development series: **1.0.15** — active development on `main` toward
-> the next release, past the current stable release **1.0.14** (released;
-> Zenodo DOI reconciliation for this release is still pending).
+> Current release: **1.0.15** — scientifically approved and released,
+> 2026-09-19 ([DOI 10.5281/zenodo.22848587](https://doi.org/10.5281/zenodo.22848587)).
 > No development build should be treated as release-approved unless its own
 > production dossier reports `READY`.
 
@@ -113,8 +112,8 @@ changes require estimator definitions, independent validation, and retained
 evidence appropriate to their risk.
 
 Citation metadata are available in [CITATION.cff](CITATION.cff). popgenVCF
-1.0.13 is archived on Zenodo at
-[10.5281/zenodo.22754452](https://doi.org/10.5281/zenodo.22754452)
+1.0.15 is archived on Zenodo at
+[10.5281/zenodo.22848587](https://doi.org/10.5281/zenodo.22848587)
 (concept DOI [10.5281/zenodo.21747067](https://doi.org/10.5281/zenodo.21747067),
 which always resolves to the latest version). popgenVCF is licensed under the
 [MIT License](LICENSE).
