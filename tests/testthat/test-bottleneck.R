@@ -161,3 +161,27 @@ test_that("a MAF sitting exactly on a class boundary is binned right-closed desp
   expect_equal(res$spectrum[bin == 7L, n_loci], 0L)
   expect_equal(res$spectrum[bin == 1L, n_loci], 1L)
 })
+
+test_that("the mode-shift call is withheld where the lowest frequency class is unattainable", {
+  # The smallest attainable MAF is 1/(2n). With fewer called samples than
+  # classes the lowest class is structurally empty, so such a population was
+  # reported mode_shifted = TRUE every time -- including a singleton, whose
+  # every segregating locus has MAF 0.5.
+  small <- data.table::data.table(
+    population = "small", snp_id = 1:6, polymorphic = TRUE, n_called = 4L,
+    maf = c(0.125, 0.125, 0.125, 0.125, 0.25, 0.5)
+  )
+  large <- data.table::data.table(
+    population = "large", snp_id = 1:6, polymorphic = TRUE, n_called = 20L,
+    maf = c(0.025, 0.025, 0.05, 0.05, 0.25, 0.5)
+  )
+  res <- popgenVCF:::run_bottleneck_analysis(rbind(small, large), n_bins = 10L)$summary
+  expect_true(is.na(res[population == "small", mode_shifted]))
+  expect_identical(res[population == "small", mode_shift_status], "too_few_samples")
+  expect_identical(res[population == "small", n_samples_called], 4L)
+  expect_false(res[population == "large", mode_shifted])
+  expect_identical(res[population == "large", mode_shift_status], "tested")
+  # Exactly n_bins samples is enough: 1/(2 * 10) = 0.05 is inside (0, 0.05].
+  edge <- data.table::copy(large)[, n_called := 10L]
+  expect_identical(popgenVCF:::run_bottleneck_analysis(edge, n_bins = 10L)$summary$mode_shift_status, "tested")
+})

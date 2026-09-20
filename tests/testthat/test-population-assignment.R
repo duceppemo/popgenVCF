@@ -219,3 +219,31 @@ test_that("population_assignment_module_spec is registered and enabled by defaul
   cfg$analyses$population_assignment <- FALSE
   expect_false(spec$enabled(cfg))
 })
+
+test_that("the only member of a singleton population is assigned among the remaining populations, with mismatch NA", {
+  # Setting that sample aside for leave-one-out empties its own population;
+  # left in the "usable at every population" test, that emptied population
+  # failed every locus and the sample got no likelihood under ANY population.
+  set.seed(12)
+  n_snp <- 60L
+  pops <- c(rep("A", 12L), rep("B", 12L), "SOLO")
+  freq <- c(A = 0.1, B = 0.9, SOLO = 0.9)
+  genotype <- vapply(seq_len(n_snp), function(j) stats::rbinom(length(pops), 2, freq[pops]), integer(length(pops)))
+  snp_ids <- paste0("snp", seq_len(n_snp))
+  locus_table <- data.table::rbindlist(lapply(unique(pops), function(p) {
+    idx <- which(pops == p)
+    data.table::data.table(
+      population = p, snp_id = snp_ids,
+      n_called = colSums(!is.na(genotype[idx, , drop = FALSE])),
+      alternate_allele_count = colSums(genotype[idx, , drop = FALSE], na.rm = TRUE)
+    )
+  }))
+  sample_table <- data.table::data.table(sample = paste0("S", seq_along(pops)), population = pops)
+
+  res <- popgenVCF:::run_population_assignment(genotype, sample_table, locus_table, snp_ids)$assignment
+  solo <- res[recorded_population == "SOLO"]
+  expect_identical(solo$assigned_population, "B")
+  expect_true(is.na(solo$mismatch))
+  expect_identical(solo$n_loci_used, n_snp)
+  expect_gt(mean(!res[recorded_population != "SOLO", mismatch]), 0.9)
+})

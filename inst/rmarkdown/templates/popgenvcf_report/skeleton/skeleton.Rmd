@@ -365,7 +365,9 @@ report_figure_family_catalog <- function() {
       "1998) flags a possible recent-bottleneck signature. This is a ",
       "qualitative screen, not a confirmed bottleneck, and is sensitive to ",
       "MAF filtering -- interpret it alongside the QC thresholds used for ",
-      "this run."
+      "this run. It is not assessed for a population with fewer called ",
+      "samples than frequency classes, whose lowest class cannot hold a ",
+      "locus."
     )),
     list(pattern = "^50_spatial_autocorrelation", heading = "Spatial autocorrelation", note = paste0(
       "Bins sample pairs into geographic-distance classes and reports a ",

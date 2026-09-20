@@ -42,6 +42,22 @@ run_bottleneck_analysis <- function(locus_table, n_bins = 10L) {
     )
   }))
 
+  # The mode-shift call is only meaningful where the lowest class can hold a
+  # locus at all. The smallest attainable minor allele frequency is 1/(2n),
+  # so with fewer than `n_bins` called samples (1/(2n) > 0.5/n_bins) the
+  # lowest class is structurally empty, the mode can never fall in it, and
+  # the population was reported mode_shifted = TRUE every time -- a
+  # guaranteed false "possible recent bottleneck" for every population under
+  # 10 samples at the default 10 classes (and for a singleton, whose every
+  # segregating locus has MAF exactly 0.5). Such populations now get
+  # mode_shifted = NA, with the reason in mode_shift_status. (Luikart and
+  # Cornuet themselves recommend about 30 individuals; this is the hard
+  # arithmetic floor, not an endorsement of n = 10.)
+  max_called <- if ("n_called" %in% names(locus_table)) {
+    locus_table[, .(n_samples_called = if (.N) as.integer(max(n_called, na.rm = TRUE)) else 0L), by = population]
+  } else {
+    data.table::data.table(population = populations, n_samples_called = NA_integer_)
+  }
   summary <- spectrum[, {
     n_poly <- sum(n_loci)
     mode_bin <- if (n_poly > 0L) bin[which.max(n_loci)][1L] else NA_integer_
@@ -51,6 +67,12 @@ run_bottleneck_analysis <- function(locus_table, n_bins = 10L) {
       mode_bin_upper = if (!is.na(mode_bin)) bin_upper[match(mode_bin, bin)] else NA_real_,
       mode_shifted = if (!is.na(mode_bin)) mode_bin != 1L else NA)
   }, by = population]
+  summary[max_called, n_samples_called := i.n_samples_called, on = "population"]
+  summary[, mode_shift_status := data.table::fifelse(
+    !is.na(n_samples_called) & n_samples_called < n_bins, "too_few_samples",
+    data.table::fifelse(is.na(mode_bin), "no_segregating_loci", "tested")
+  )]
+  summary[mode_shift_status == "too_few_samples", mode_shifted := NA]
 
   list(spectrum = spectrum, summary = summary, n_bins = n_bins)
 }
@@ -76,7 +98,10 @@ plot_bottleneck <- function(result, cfg, dirs) {
     ggplot2::labs(
       title = "Site frequency spectrum (folded) and mode-shift bottleneck screen",
       subtitle = "Highlighted bar: each population's modal minor-allele-frequency class",
-      caption = "A mode away from the lowest class is a possible recent-bottleneck signature (Luikart and Cornuet 1998)",
+      caption = wrap_plot_text(paste0(
+        "A mode away from the lowest class is a possible recent-bottleneck signature (Luikart and Cornuet 1998). ",
+        "Not assessed for a population with fewer called samples than classes, whose lowest class cannot hold a locus."
+      )),
       x = "Minor allele frequency class", y = "Segregating loci"
     ) +
     theme_publication(figure_base_size(cfg)) +

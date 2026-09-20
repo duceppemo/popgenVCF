@@ -108,9 +108,20 @@ run_population_assignment <- function(genotype, sample_table, locus_table, snp_i
     # comparison of the same evidence. Restricting every population to the
     # identical usable-locus set keeps their log-likelihoods directly
     # comparable, exactly as a leave-one-out self-assignment test requires.
-    usable <- apply(gene_copies_i > 0, 2L, all)
+    # A population left with no gene copies at any locus once this sample is
+    # set aside -- the sample's own population when it is that population's
+    # only member -- cannot be a candidate. Left in the all-populations test
+    # it failed every locus, so the sample got no likelihood under ANY
+    # population and was reported unassigned instead of being assigned among
+    # the remaining populations.
+    candidate <- rowSums(gene_copies_i > 0, na.rm = TRUE) > 0
+    usable <- if (any(candidate)) {
+      apply(gene_copies_i[candidate, , drop = FALSE] > 0, 2L, all)
+    } else {
+      rep(FALSE, n_snp)
+    }
     for (p in seq_len(n_pop)) {
-      if (!any(usable)) { log_lik[i, p] <- NA_real_; n_used[i, p] <- 0L; next }
+      if (!candidate[p] || !any(usable)) { log_lik[i, p] <- NA_real_; n_used[i, p] <- 0L; next }
       called <- called_i[p, usable]; alt <- alt_i[p, usable]
       gene_copies <- 2 * called
       freq <- alt / gene_copies
@@ -157,8 +168,15 @@ run_population_assignment <- function(genotype, sample_table, locus_table, snp_i
     sample = sample_table$sample,
     recorded_population = recorded_population,
     assigned_population = assigned_population,
-    mismatch = !is.na(assigned_population) & !is.na(recorded_population) &
-      assigned_population != recorded_population,
+    # NA, not TRUE, when the recorded population was never a candidate (this
+    # sample is its only member): assigning elsewhere is then forced, not
+    # evidence of a migrant or a labelling error.
+    mismatch = data.table::fifelse(
+      is.na(log_lik[cbind(seq_len(n_sample), match(recorded_population, populations))]),
+      NA,
+      !is.na(assigned_population) & !is.na(recorded_population) &
+        assigned_population != recorded_population
+    ),
     log_likelihood = best_ll,
     likelihood_ratio = exp(best_ll - second_best_ll),
     posterior_probability = best_posterior,

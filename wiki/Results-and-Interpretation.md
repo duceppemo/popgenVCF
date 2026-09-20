@@ -472,6 +472,13 @@ or a confirmed bottleneck. Unlike the classic heterozygosity-excess
 bottleneck test, it makes no assumption about the locus mutation model, so
 it is a clean fit for biallelic SNP data.
 
+The call is withheld (`mode_shifted = NA`, `mode_shift_status =
+"too_few_samples"`) for a population with fewer called samples than
+frequency classes (10 by default): the smallest attainable MAF is 1/(2n), so
+below that size the lowest class cannot hold a single locus and the mode can
+never fall in it. Luikart and Cornuet recommend about 30 individuals; treat
+a call from 10-30 samples as weak.
+
 ![Site frequency spectrum and mode-shift bottleneck screen from the quickstart example](figures/48_site_frequency_spectrum.png)
 
 **Read this result with the same caution as any MAF-filtered analysis.**

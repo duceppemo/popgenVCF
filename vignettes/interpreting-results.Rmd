@@ -221,7 +221,7 @@ The quickstart example's 8 populations are all exactly 20 samples, so richness i
 
 ## Site frequency spectrum and bottleneck screen
 
-`48_site_frequency_spectrum.tsv` bins each population's segregating loci by folded minor allele frequency. `49_bottleneck_mode_shift.tsv` applies the mode-shift test (Luikart and Cornuet 1998): under mutation-drift equilibrium the lowest frequency class should hold the most loci; a mode shifted to a higher class is a possible recent-bottleneck signature. This is a qualitative screen, not a p-value or a confirmed bottleneck, and (unlike the classic heterozygosity-excess test) makes no assumption about the locus mutation model.
+`48_site_frequency_spectrum.tsv` bins each population's segregating loci by folded minor allele frequency. `49_bottleneck_mode_shift.tsv` applies the mode-shift test (Luikart and Cornuet 1998): under mutation-drift equilibrium the lowest frequency class should hold the most loci; a mode shifted to a higher class is a possible recent-bottleneck signature. This is a qualitative screen, not a p-value or a confirmed bottleneck, and (unlike the classic heterozygosity-excess test) makes no assumption about the locus mutation model. The call is withheld (`mode_shifted = NA`, `mode_shift_status = "too_few_samples"`) for a population with fewer called samples than frequency classes (10 by default): the smallest attainable MAF is 1/(2n), so below that size the lowest class cannot hold a single locus and the mode can never fall in it. Luikart and Cornuet recommend about 30 individuals; treat a call from 10-30 samples as weak.
 
 ```{r bottleneck-figure, echo=FALSE, out.width="90%"}
 knitr::include_graphics("figures/48_site_frequency_spectrum.png")
