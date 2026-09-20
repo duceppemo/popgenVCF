@@ -1,5 +1,9 @@
 # popgenVCF 1.0.15.9000 development
 
+- **Third code pass, increment 6 (ancestry plotting without metadata):**
+
+  - **`admixture.R` -- ADMIXTURE, fastStructure and sNMF crashed in metadata-free runs.** The capability table offers all three without any metadata ("available from VCF sample IDs"), but `plot_q_matrix_views()` requested the population-organized membership view unconditionally, which stops with "Population-organized membership plots require a population column" -- after the backend had already finished. Without population labels only the data-driven view is drawn.
+
 - **Third code pass, increment 5 (QC reporting):**
 
   - **`qc.R` -- the QC retention table booked the autosome restriction to LD pruning.** With `qc.autosome_only` (the default), markers on the configured sex chromosomes leave the analysis set between the missingness filter and LD pruning, but `07_QC_sequential_counts.tsv`, `06_QC_independent_counts.tsv`, the `04_SNP_retention` figure, and the report's Quality control table had no row for it. On the quickstart data "After LD pruning" showed 63,228 markers removed; 61,616 of those were chromosome X/Y markers and pruning itself took 1,969 down to 357. An "After autosome restriction" row (and "Autosomal analysis set" criterion) now appears whenever the restriction removes anything; runs without sex-chromosome markers keep identical tables. Quickstart figure, wiki, vignette, and report note updated. No analysis result changes.

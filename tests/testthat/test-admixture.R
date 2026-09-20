@@ -386,3 +386,23 @@ test_that("parse_admixture_cv tolerates more than one CV line and reads the last
   expect_equal(x$cv_error, 0.52)
   expect_null(popgenVCF:::parse_admixture_cv(c("no", "match")))
 })
+
+test_that("plot_q_matrix_views draws the data-driven view alone when there are no population labels", {
+  # ADMIXTURE/fastStructure/sNMF are offered without metadata, but the
+  # population-organized view was requested unconditionally and stopped the
+  # module after the backend had already run.
+  q <- data.table::data.table(sample = paste0("s", 1:6), cluster_1 = c(.9, .8, .7, .2, .1, .3))
+  q[, cluster_2 := 1 - cluster_1]
+  cfg <- popgenVCF::default_config(); cfg$output$figure_formats <- "png"
+  out <- tempfile("q-views-"); figures <- file.path(out, "figures")
+  dir.create(figures, recursive = TRUE)
+
+  expect_no_error(popgenVCF:::plot_q_matrix_views(q, 2L, cfg, list(figures = figures)))
+  written <- list.files(figures)
+  expect_length(written, 1L)
+  expect_match(written, "data_driven")
+
+  q[, population := rep(c("A", "B"), each = 3L)]
+  popgenVCF:::plot_q_matrix_views(q, 2L, cfg, list(figures = figures))
+  expect_length(list.files(figures), 2L)
+})

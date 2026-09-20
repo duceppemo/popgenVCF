@@ -230,7 +230,16 @@ plot_q_matrix_views <- function(q, k, cfg, dirs, prefix = "ADMIXTURE_Q",
     subtitle_is_warning = subtitle_is_warning,
     sample_labels = sample_labels, y_label = y_label
   )
-  do.call(plot_q_matrix, c(common, list(order_mode = "population")))
+  # The population-organized view needs population labels; the data-driven
+  # one does not. The capability table offers ADMIXTURE, fastStructure and
+  # sNMF without any metadata ("available from VCF sample IDs"), but this
+  # used to request both views unconditionally, so in that mode the module
+  # hard-stopped here -- "Population-organized membership plots require a
+  # population column" -- after the backend itself had already finished.
+  has_population <- "population" %in% names(q) && any(!is.na(q[["population"]]))
+  if (has_population) {
+    do.call(plot_q_matrix, c(common, list(order_mode = "population")))
+  }
   do.call(plot_q_matrix, c(common, list(order_mode = "data_driven")))
   invisible(NULL)
 }
