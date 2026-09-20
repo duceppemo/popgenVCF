@@ -298,8 +298,8 @@ inspect_public_analysis_response <- function(response) {
 phase10_public_fingerprint <- function(x) {
   payload <- unclass(x)
   payload$fingerprint <- NULL
-  raw <- serialize(payload, NULL, version = 3L)
-  as.character(openssl::sha256(raw))
+  # Header-free: see portable_serialization_sha256().
+  portable_serialization_sha256(payload)
 }
 
 .phase10_validate_public_record <- function(x) {

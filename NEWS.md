@@ -6,6 +6,17 @@
   - **`diversity.R` -- one tiny population erased everyone's allelic richness.** Rarefaction goes down to the smallest population's gene-copy count for every population, so a single singleton population rarefied the whole table to 2 copies, where richness is just 1 + He (every population ~1.28 instead of ~1.84-1.93 on the quickstart data). Populations under 5 samples are now left out of the rarefaction and get `NA`, with a pipeline notice; if fewer than two populations reach 5 samples, all are kept as before. Separately, the "hierfstat is not installed" warning was also emitted when allelic richness had simply been switched off in the config.
   - **`population_assignment.R`**: the only member of a singleton population got no assignment at all. Setting it aside for the leave-one-out step empties its own population, and that emptied population then failed the "usable in every population" locus test at every locus, leaving no likelihood under any population. The emptied population is now dropped as a candidate, the sample is assigned among the rest, and its `mismatch` is `NA` rather than counted as a suspected migrant.
 
+- **Fourth code pass, increment 12 (content fingerprints):**
+  `new_execution_plan()` / `new_execution_transition()` identifiers were a
+  leftover placeholder -- the *sum* of the serialized bytes -- so plans
+  differing only by a rearrangement of characters collided (`maf = "0.05"` and
+  `"0.50"` shared a `plan_id`) and `validate_execution_plan()` accepted a plan
+  edited that way. They are now `sha256-<digest>`. The Phase 10 public API
+  fingerprint hashed the whole `serialize()` stream, whose header records the
+  R version and the session's native encoding: a request written in a UTF-8
+  session failed `read_public_api_record()` in a C-locale session, and would
+  after an R upgrade. Both now hash the header-free serialization, so
+  previously stored Phase 10 fingerprints and plan identifiers change once.
 - **Fourth code pass, increment 11 (external-process records):** a result
   from `run_supervised_external_command_in_workspace()` under the default
   policy could never be validated, written or read back. The workspace is

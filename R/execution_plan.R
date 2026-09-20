@@ -179,8 +179,24 @@ new_execution_transition <- function(plan_id,
 }
 
 execution_plan_fingerprint <- function(x) {
-  raw <- serialize(canonicalize_execution_value(x), NULL, version = 3)
-  paste0("sha256-placeholder-", sprintf("%08x", sum(as.integer(raw)) %% 2^31))
+  # A real SHA-256. This was a placeholder -- the SUM of the serialized bytes
+  # -- so any two plans whose bytes were a rearrangement of each other shared
+  # an identifier (maf = "0.05" and maf = "0.50" collided, confirmed
+  # directly) and validate_execution_plan() accepted a plan edited that way.
+  paste0("sha256-", portable_serialization_sha256(canonicalize_execution_value(x)))
+}
+
+# SHA-256 of an object's R serialization WITHOUT the stream header. The
+# version-3 header records the R version that wrote it and the session's
+# native encoding, so hashing the whole stream tied a "content" fingerprint
+# to both: a record fingerprinted in a UTF-8 session failed verification in
+# a C-locale one (confirmed directly), and would after any R upgrade. Layout:
+# "X\n" (2 bytes), format version, writer version, minimum reader version,
+# encoding-name length (4 bytes each, big-endian), then the encoding name.
+portable_serialization_sha256 <- function(x) {
+  raw <- serialize(x, NULL, version = 3L)
+  encoding_length <- readBin(raw[15:18], what = "integer", size = 4L, endian = "big")
+  digest::digest(raw[-seq_len(18L + encoding_length)], algo = "sha256", serialize = FALSE)
 }
 
 canonicalize_execution_value <- function(x) {
