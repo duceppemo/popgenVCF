@@ -667,3 +667,43 @@ test_that("standard report rejects unsupported formats", {
     "formats"
   )
 })
+
+test_that("each render works from a private copy of the template, never inside the package's own template directory", {
+  # LaTeX writes .aux/.toc/.log beside its input document. Rendered in
+  # place, that was one fixed path inside the installed package shared by
+  # every popgenVCF process on the machine, so simultaneous PDF renders
+  # corrupted each other ("Missing \begin{document}"; four concurrent
+  # renders, four failures).
+  root <- tempfile("private-template-")
+  dir.create(root, recursive = TRUE)
+  results <- file.path(root, "analysis_results.rds")
+  saveRDS(minimal_standard_report_result(), results)
+  dest_dir <- file.path(root, "report")
+  dir.create(dest_dir, recursive = TRUE)
+  template <- system.file(
+    "rmarkdown", "templates", "popgenvcf_report", "skeleton", "skeleton.Rmd",
+    package = "popgenVCF"
+  )
+
+  inputs <- character()
+  local_mocked_bindings(
+    render = function(input, output_format, output_file, output_dir,
+                      intermediates_dir, params, envir, quiet) {
+      inputs[[params$report_format]] <<- input
+      expect_true(file.exists(input))
+      expect_true(file.exists(file.path(dirname(input), "report.css")))
+      writeLines("stub", file.path(output_dir, output_file))
+      invisible(file.path(output_dir, output_file))
+    },
+    .package = "rmarkdown"
+  )
+  for (format in c("html", "pdf")) {
+    popgenVCF:::render_standard_report_format(template, results, dest_dir, "Test", "Test", format)
+  }
+
+  package_dir <- normalizePath(dirname(template))
+  expect_false(normalizePath(dirname(inputs[["html"]]), mustWork = FALSE) == package_dir)
+  expect_false(normalizePath(dirname(inputs[["pdf"]]), mustWork = FALSE) == package_dir)
+  expect_false(identical(dirname(inputs[["html"]]), dirname(inputs[["pdf"]])))
+  expect_false(any(dir.exists(dirname(inputs))))
+})

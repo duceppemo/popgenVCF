@@ -1,5 +1,9 @@
 # popgenVCF 1.0.15.9000 development
 
+- **Third code pass, increment 7 (report rendering), found by running the whole pipeline end to end without metadata while the test suite was also running:**
+
+  - **`report.R` -- simultaneous popgenVCF runs on one machine broke each other's PDF report.** The report was rendered in place, and LaTeX writes its `.aux`/`.toc`/`.log` beside the input document regardless of `intermediates_dir`/`output_dir` -- i.e. into the installed package's own template directory, one fixed path shared by every process. Two runs compiling at the same moment read each other's half-written `.aux` and failed with "Missing \\begin{document}" or "Extra }, or forgotten \\endgroup" (confirmed directly: four concurrent renders, four failures), after all analyses had completed. It also made the PDF report impossible wherever the package library is read-only. Each render now works from a private temporary copy of the template. This is the realistic multi-job HPC case, and also the source of the stray `population_genomics_report.aux`/`.toc` files that kept appearing in the source tree during development.
+
 - **Third code pass, increment 6 (ancestry plotting without metadata):**
 
   - **`admixture.R` -- ADMIXTURE, fastStructure and sNMF crashed in metadata-free runs.** The capability table offers all three without any metadata ("available from VCF sample IDs"), but `plot_q_matrix_views()` requested the population-organized membership view unconditionally, which stops with "Population-organized membership plots require a population column" -- after the backend had already finished. Without population labels only the data-driven view is drawn.

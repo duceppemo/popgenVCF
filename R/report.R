@@ -267,6 +267,25 @@ render_standard_report_format <- function(template, results_rds, output_dir,
                                           latex_engine = NULL) {
   figures <- report_figure_inventory(results_rds, target = format)
   output_file <- paste0("population_genomics_report.", format)
+  # Render from a private copy of the template, never in place. LaTeX writes
+  # its .aux/.toc/.log beside the input document regardless of
+  # intermediates_dir/output_dir, i.e. into the installed package's own
+  # template directory -- one fixed path shared by every popgenVCF process
+  # on the machine. Two runs compiling their PDF at the same moment (several
+  # jobs on one HPC node, or a run overlapping the test suite) then read
+  # each other's half-written .aux and fail with "Missing \\begin{document}"
+  # / "Extra }, or forgotten \\endgroup" (confirmed directly: four
+  # simultaneous renders, four failures; zero with private copies). It also
+  # failed outright wherever the package library is read-only.
+  template_dir <- tempfile(paste0("popgenvcf-report-src-", format, "-"))
+  dir.create(template_dir, recursive = TRUE)
+  on.exit(unlink(template_dir, recursive = TRUE), add = TRUE)
+  template_files <- list.files(dirname(template), full.names = TRUE)
+  template_files <- template_files[!grepl("\\.(aux|toc|log|out|tex|pdf|html)$", template_files)]
+  if (!all(file.copy(template_files, template_dir))) {
+    stop("failed to stage a private copy of the report template", call. = FALSE)
+  }
+  template <- file.path(template_dir, basename(template))
   output_format <- if (identical(format, "html")) {
     rmarkdown::html_document(
       toc = TRUE, toc_float = TRUE, number_sections = TRUE,
