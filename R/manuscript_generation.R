@@ -1,6 +1,16 @@
-manuscript_text <- function(x, default = "") {
-  if (is.null(x) || !length(x) || is.na(x[[1L]])) return(default)
-  as.character(x[[1L]])
+# Author-supplied text as ONE string. Text given as several paragraphs (a
+# character vector, the natural way to pass them from R) used to keep only
+# its first element: the rest of an abstract, section or declaration was
+# dropped without a word. Declarations were stored un-normalized on top of
+# that, so the Markdown manuscript ran the paragraphs together, the
+# author-declarations companion kept the first, and
+# validate_journal_submission() crashed on the length-2 condition.
+manuscript_text <- function(x, default = "", collapse = "\n\n") {
+  if (is.null(x) || !length(x)) return(default)
+  x <- as.character(x)
+  x <- x[!is.na(x) & nzchar(trimws(x))]
+  if (!length(x)) return(default)
+  paste(x, collapse = collapse)
 }
 
 manuscript_authors <- function(authors = NULL) {
@@ -68,13 +78,14 @@ new_manuscript <- function(project, publication = NULL, title = project$name,
   validate_publication_bundle(publication)
   defaults <- manuscript_default_declarations(project)
   if (length(declarations)) defaults[names(declarations)] <- declarations
+  defaults <- lapply(defaults, manuscript_text)
 
   manuscript <- structure(list(
     schema_version = "1.0",
     project_id = project$project_id,
     project_digest = publication$project_digest,
     publication_digest = digest::digest(publication, algo = "sha256", serialize = TRUE),
-    title = manuscript_text(title),
+    title = manuscript_text(title, collapse = " "),
     authors = manuscript_authors(authors),
     abstract = manuscript_text(abstract, "[Author-supplied abstract required.]"),
     keywords = sort(unique(trimws(as.character(keywords[nzchar(trimws(as.character(keywords)))])))),

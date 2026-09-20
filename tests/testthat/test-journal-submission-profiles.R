@@ -158,3 +158,23 @@ test_that("journal profile bundles are written and checksum protected", {
   writeLines("changed", file.path(out, "journal-profile.md"))
   expect_error(validate_journal_profile(out), "checksum mismatch")
 })
+
+test_that("author text supplied as several paragraphs is kept whole and validates", {
+  # manuscript_text() kept only the first element of a character vector, so
+  # every later paragraph of an abstract, section or declaration was dropped
+  # silently; declarations were stored un-normalized and a two-paragraph one
+  # crashed validate_journal_submission() ("'length = 2' in coercion to
+  # 'logical(1)'").
+  manuscript <- new_manuscript(
+    new_popgenvcf_project("paragraphs"), title = "Paragraphs",
+    abstract = c("First paragraph.", NA, "", "Second paragraph."),
+    declarations = list(data_availability = c("Reads are in the archive.", "Scripts are on the forge."))
+  )
+  expect_identical(manuscript$abstract, "First paragraph.\n\nSecond paragraph.")
+  expect_identical(manuscript$declarations$data_availability, "Reads are in the archive.\n\nScripts are on the forge.")
+  expect_identical(popgenVCF:::manuscript_text(c(NA, " "), "fallback"), "fallback")
+  report <- validate_journal_submission(journal_profile("data-note"), manuscript)
+  expect_identical(report[requirement == "declaration:data_availability"]$status, "pass")
+  declarations <- popgenVCF:::render_author_declarations(new_submission_companions(manuscript))
+  expect_true(any(grepl("Scripts are on the forge.", declarations, fixed = TRUE)))
+})
