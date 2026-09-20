@@ -109,12 +109,18 @@ new_artifact_lineage <- function(executions = list(), artifacts = list()) {
                        class = "PopgenVCFArtifactLineage")
   validate_artifact_lineage(lineage)
   lineage$dag <- artifact_lineage_dag(lineage, validate = FALSE)
-  lineage$digest <- lineage_hash_object(list(
-    executions = lineage_execution_table(lineage),
-    artifacts = lineage_artifact_table(lineage),
-    edges = provenance_edge_table(lineage$dag)
-  ))
+  lineage$digest <- artifact_lineage_digest(lineage)
   lineage
+}
+
+# The digest of a lineage's records, with the edges rebuilt from those records
+# rather than read from the stored DAG, so an edited DAG is caught as well.
+artifact_lineage_digest <- function(lineage) {
+  lineage_hash_object(list(
+    executions = lineage_execution_rows(lineage),
+    artifacts = lineage_artifact_rows(lineage),
+    edges = provenance_edge_table(artifact_lineage_dag(lineage, validate = FALSE))
+  ))
 }
 
 #' Validate immutable artifact lineage
@@ -143,6 +149,13 @@ validate_artifact_lineage <- function(lineage) {
     if (artifact$producer %in% artifact$consumers) stop("an execution cannot consume its own artifact", call. = FALSE)
     if (!grepl("^[0-9a-f]{64}$", artifact$sha256)) stop("artifact SHA256 is invalid", call. = FALSE)
   }
+  # "Immutable" was unenforced: the digest was computed once and never
+  # compared again, so a lineage whose artifact hashes or producers had been
+  # edited validated and was embedded in projects and FAIR exports under its
+  # original digest. Absent only while the constructor is still building it.
+  if (!is.null(lineage$digest) && !identical(lineage$digest, artifact_lineage_digest(lineage))) {
+    stop("artifact lineage digest mismatch", call. = FALSE)
+  }
   invisible(lineage)
 }
 
@@ -152,6 +165,12 @@ validate_artifact_lineage <- function(lineage) {
 #' @export
 lineage_execution_table <- function(lineage) {
   validate_artifact_lineage(lineage)
+  lineage_execution_rows(lineage)
+}
+
+# The table builders without validation, for artifact_lineage_digest(), which
+# validate_artifact_lineage() itself calls.
+lineage_execution_rows <- function(lineage) {
   if (!length(lineage$executions)) return(data.table::data.table(
     id = character(), module = character(), status = character(), digest = character(),
     started_at = character(), completed_at = character()))
@@ -164,6 +183,10 @@ lineage_execution_table <- function(lineage) {
 #' @export
 lineage_artifact_table <- function(lineage) {
   validate_artifact_lineage(lineage)
+  lineage_artifact_rows(lineage)
+}
+
+lineage_artifact_rows <- function(lineage) {
   if (!length(lineage$artifacts)) return(data.table::data.table(
     id = character(), module = character(), name = character(), type = character(),
     format = character(), producer = character(), consumers = character(),

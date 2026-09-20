@@ -13,7 +13,11 @@
   artifact) validated, wrote and read back as if untouched. All recorded
   component digests are now verified. Doing so exposed
   `set_project_fair_metadata()`, which added an artifact without refreshing
-  the artifacts digest; it now does.
+  the artifacts digest; it now does. `validate_artifact_lineage()` likewise
+  never re-derived the lineage digest, so "immutable" lineage could be edited
+  (an artifact's SHA-256, its consumers) and still be embedded in projects and
+  FAIR exports under its original digest; it is now recomputed from the
+  records, with the DAG edges rebuilt rather than trusted.
 - **Fourth code pass, increment 15 (manuscript text):** author text passed as
   several paragraphs (a character vector) kept only its first element -- the
   rest of an abstract, section, significance/novelty statement or declaration

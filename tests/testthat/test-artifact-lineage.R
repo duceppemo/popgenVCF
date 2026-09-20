@@ -97,3 +97,23 @@ test_that("lineage can be embedded in portable projects", {
   restored <- read_popgenvcf_project(path)
   expect_identical(restored$provenance$artifact_lineage$digest, lineage$digest)
 })
+
+test_that("an artifact lineage edited after construction no longer validates", {
+  # The digest was computed once and never compared again, so "immutable"
+  # lineage could be edited and still be embedded under its original digest.
+  input <- tempfile(fileext = ".tsv")
+  writeLines(c("sample\tPC1", "A\t0.1"), input)
+  lineage <- new_artifact_lineage(
+    list(new_lineage_execution("exec:pca", "pca"), new_lineage_execution("exec:report", "report")),
+    list(new_lineage_artifact("artifact:pca:scores", "pca", "scores", "table", "tsv",
+                              producer = "exec:pca", consumers = "exec:report", path = input))
+  )
+  expect_silent(validate_artifact_lineage(lineage))
+  edited <- lineage
+  edited$artifacts[[1L]]$sha256 <- strrep("0", 64L)
+  expect_error(validate_artifact_lineage(edited), "digest mismatch")
+  expect_error(lineage_artifact_table(edited), "digest mismatch")
+  edited <- lineage
+  edited$artifacts[[1L]]$consumers <- character()
+  expect_error(validate_artifact_lineage(edited), "digest mismatch")
+})
