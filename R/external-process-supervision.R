@@ -138,12 +138,13 @@ run_supervised_external_command <- function(
   }
 
   resolved <- resolve_external_executable(command$executable)
-  if (is.na(resolved)) {
+  launch_problem <- external_command_launch_problem(command, resolved)
+  if (!is.na(launch_problem)) {
     finished <- Sys.time()
     return(supervision_result(
       command, "launch_failed", started, finished, admission,
       supervision_policy, cancellation_token,
-      error_message = sprintf("Executable not found: %s", command$executable)
+      error_message = launch_problem
     ))
   }
 

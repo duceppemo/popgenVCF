@@ -95,10 +95,9 @@ start_supervised_external_command <- function(
   }
 
   resolved <- resolve_external_executable(command$executable)
-  if (is.na(resolved)) {
-    set_async_terminal(handle, "launch_failed", NA_integer_, sprintf(
-      "Executable not found: %s", command$executable
-    ))
+  launch_problem <- external_command_launch_problem(command, resolved)
+  if (!is.na(launch_problem)) {
+    set_async_terminal(handle, "launch_failed", NA_integer_, launch_problem)
     return(handle)
   }
   handle$resolved_executable <- resolved

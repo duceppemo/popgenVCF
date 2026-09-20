@@ -16,6 +16,19 @@ new_external_command <- function(executable,
                                  working_directory = getwd(),
                                  environment = character(),
                                  label = basename(executable)) {
+  build_external_command(executable, args, working_directory, environment, label,
+                         require_directory = TRUE)
+}
+
+# The constructor's body, with the one check that depends on the machine made
+# optional. validate_external_command() used to rebuild through the public
+# constructor, so a command stopped validating the moment its working directory
+# was removed -- which the default workspace policy does on every successful
+# run. A workspace-backed result could therefore never be validated or
+# persisted, and no persisted result could be read back on another machine.
+# A recorded command is checked against its own fingerprint instead.
+build_external_command <- function(executable, args, working_directory,
+                                   environment, label, require_directory) {
   executable <- as.character(executable)[1]
   args <- as.character(args)
   working_directory <- as.character(working_directory)[1]
@@ -30,7 +43,8 @@ new_external_command <- function(executable,
   if (anyNA(args)) {
     stop("args must not contain missing values", call. = FALSE)
   }
-  if (is.na(working_directory) || !dir.exists(working_directory)) {
+  if (is.na(working_directory) || !nzchar(working_directory) ||
+      (require_directory && !dir.exists(working_directory))) {
     stop("working_directory must be an existing directory", call. = FALSE)
   }
   if (length(environment) &&
@@ -48,7 +62,7 @@ new_external_command <- function(executable,
   specification <- list(
     executable = executable,
     args = args,
-    working_directory = normalizePath(working_directory, mustWork = TRUE),
+    working_directory = if (require_directory) normalizePath(working_directory, mustWork = TRUE) else working_directory,
     environment = environment,
     label = label
   )
@@ -75,12 +89,13 @@ validate_external_command <- function(command) {
   if (!all(required %in% names(command))) {
     stop("external command is missing required fields", call. = FALSE)
   }
-  rebuilt <- new_external_command(
+  rebuilt <- build_external_command(
     command$executable,
     command$args,
     command$working_directory,
     command$environment,
-    command$label
+    command$label,
+    require_directory = FALSE
   )
   if (!identical(command$fingerprint, rebuilt$fingerprint)) {
     stop("external command fingerprint does not match its contents", call. = FALSE)
@@ -110,6 +125,18 @@ resolve_external_executable <- function(executable) {
   }
   resolved <- Sys.which(executable)
   if (!nzchar(resolved)) NA_character_ else unname(resolved)
+}
+
+# Launch-time message for a missing executable or working directory, NA when
+# the command can start. The directory is checked here, at launch, rather than
+# by validate_external_command(): a recorded command must stay valid after
+# its directory is gone, but starting one there must fail cleanly.
+external_command_launch_problem <- function(command, resolved) {
+  if (is.na(resolved)) return(sprintf("Executable not found: %s", command$executable))
+  if (!dir.exists(command$working_directory)) {
+    return(sprintf("Working directory does not exist: %s", command$working_directory))
+  }
+  NA_character_
 }
 
 read_process_output <- function(path) {
@@ -160,7 +187,8 @@ run_external_command <- function(command) {
   resolved <- resolve_external_executable(command$executable)
   started <- Sys.time()
 
-  if (is.na(resolved)) {
+  launch_problem <- external_command_launch_problem(command, resolved)
+  if (!is.na(launch_problem)) {
     finished <- Sys.time()
     return(new_external_process_result(
       command = command,
@@ -171,7 +199,8 @@ run_external_command <- function(command) {
       started_at = format(started, tz = "UTC", usetz = TRUE),
       finished_at = format(finished, tz = "UTC", usetz = TRUE),
       elapsed_seconds = as.numeric(difftime(finished, started, units = "secs")),
-      error_message = sprintf("Executable not found: %s", command$executable)
+      resolved_executable = resolved,
+      error_message = launch_problem
     ))
   }
 

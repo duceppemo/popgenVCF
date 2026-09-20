@@ -6,6 +6,19 @@
   - **`diversity.R` -- one tiny population erased everyone's allelic richness.** Rarefaction goes down to the smallest population's gene-copy count for every population, so a single singleton population rarefied the whole table to 2 copies, where richness is just 1 + He (every population ~1.28 instead of ~1.84-1.93 on the quickstart data). Populations under 5 samples are now left out of the rarefaction and get `NA`, with a pipeline notice; if fewer than two populations reach 5 samples, all are kept as before. Separately, the "hierfstat is not installed" warning was also emitted when allelic richness had simply been switched off in the config.
   - **`population_assignment.R`**: the only member of a singleton population got no assignment at all. Setting it aside for the leave-one-out step empties its own population, and that emptied population then failed the "usable in every population" locus test at every locus, leaving no likelihood under any population. The emptied population is now dropped as a candidate, the sample is assigned among the rest, and its `mismatch` is `NA` rather than counted as a suspected migrant.
 
+- **Fourth code pass, increment 11 (external-process records):** a result
+  from `run_supervised_external_command_in_workspace()` under the default
+  policy could never be validated, written or read back. The workspace is
+  removed on success, and `validate_external_command()` rebuilt the command
+  through the public constructor, which requires the working directory to
+  exist -- so any persisted process result also became unreadable once its
+  directory was gone or on another machine. A recorded command is now checked
+  against its own fingerprint; the directory is checked at launch instead, and
+  all three runners report a missing one as `launch_failed` (the basic runner
+  used to throw from `setwd()`). Workspace input manifests are ordered in
+  C-locale (radix) order: with default collation the same inputs produced a
+  different workspace identifier under `en_US` and `C`, and a record written
+  under one locale failed the canonical-order check under the other.
 - **Fourth code pass, increment 10 (external-process runners):** a NUL byte
   in a child's output could hang the pipeline forever. `processx` 3.9.0's
   pipe reader never consumes a NUL, so `run_supervised_external_command()`

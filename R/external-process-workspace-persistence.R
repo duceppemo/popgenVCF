@@ -112,7 +112,7 @@ validate_external_process_workspace <- function(workspace) {
     if (any(!grepl("^[0-9a-f]{64}$", sha256))) {
       stop("workspace input manifest contains invalid SHA-256 digests", call. = FALSE)
     }
-    expected_order <- order(staged, source)
+    expected_order <- order(staged, source, method = "radix")
     if (!identical(expected_order, seq_len(nrow(manifest)))) {
       stop("workspace input manifest is not canonically ordered", call. = FALSE)
     }

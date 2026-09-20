@@ -118,3 +118,50 @@ test_that("workspace readers fail closed", {
   )
   expect_error(read_external_process_workspace(path), "explicit migration")
 })
+
+test_that("a workspace cleaned up after success can still be validated, persisted and read back", {
+  # The default policy removes the workspace on success, and the result's
+  # command points at that (now missing) directory. Validation rebuilt the
+  # command through the public constructor, which demands the directory, so
+  # every real workspace-backed result failed with "working_directory must
+  # be an existing directory" -- only hand-built fixtures ever passed.
+  skip_on_os("windows")
+  source_dir <- tempfile("workspace-source-"); dir.create(source_dir)
+  root <- tempfile("workspace-root-"); dir.create(root)
+  writeLines("1", file.path(source_dir, "B.txt")); writeLines("2", file.path(source_dir, "a.txt"))
+  result <- run_supervised_external_command_in_workspace(
+    new_external_command("/bin/true", working_directory = source_dir),
+    inputs = file.path(source_dir, c("B.txt", "a.txt")),
+    workspace_policy = new_external_process_workspace_policy(root = root)
+  )
+  expect_false(result$workspace$retained)
+  expect_false(dir.exists(result$command$working_directory))
+  expect_silent(validate_external_process_result(result))
+  # Byte order, whatever the session's collation.
+  expect_identical(result$workspace$input_manifest$staged_name, c("B.txt", "a.txt"))
+  path <- tempfile(fileext = ".rds")
+  write_external_process_workspace(result, path)
+  expect_s3_class(read_external_process_workspace(path), "PopgenVCFExternalProcessWorkspace")
+  result_path <- tempfile(fileext = ".rds")
+  write_external_process_result(result, result_path)
+  expect_identical(read_external_process_result(result_path)$status, "success")
+})
+
+test_that("launching a command whose working directory has gone reports launch_failed", {
+  skip_on_os("windows")
+  gone <- tempfile("gone-"); dir.create(gone)
+  command <- new_external_command("/bin/true", working_directory = gone)
+  unlink(gone, recursive = TRUE)
+  before <- getwd()
+  results <- list(
+    run_external_command(command),
+    run_supervised_external_command(command),
+    finalize_supervised_external_command(start_supervised_external_command(command))
+  )
+  for (result in results) {
+    expect_identical(result$status, "launch_failed")
+    expect_match(result$error_message, "Working directory does not exist", fixed = TRUE)
+  }
+  expect_identical(getwd(), before)
+  expect_error(new_external_command("/bin/true", working_directory = gone), "existing directory")
+})

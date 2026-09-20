@@ -75,7 +75,11 @@ workspace_input_manifest <- function(inputs) {
   if (anyDuplicated(staged_names)) {
     stop("inputs must have unique basenames for deterministic staging", call. = FALSE)
   }
-  order_index <- order(staged_names, normalized)
+  # Radix (C-locale) order: the default collation put "a.txt" before "B.txt"
+  # under en_US and after it under C, so the same inputs gave a different
+  # workspace identifier per locale and a record written under one failed the
+  # "canonically ordered" check under the other.
+  order_index <- order(staged_names, normalized, method = "radix")
   normalized <- normalized[order_index]
   staged_names <- staged_names[order_index]
   data.table::data.table(
