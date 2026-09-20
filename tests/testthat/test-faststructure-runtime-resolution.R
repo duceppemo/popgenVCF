@@ -126,3 +126,45 @@ test_that("the primary Conda environment declares fastStructure", {
     environment_text
   )))
 })
+
+test_that("run_faststructure() clears models left in the output directory by an earlier, wider-K run", {
+  # chooseK.py globs every <prefix>.<K>.meanQ/.log beside the prefix, so a
+  # reused output directory fed a previous run's K = 9 model into this run's
+  # model choice.
+  skip_on_cran()
+  skip_on_os("windows")
+  root <- tempfile("faststructure-stale-")
+  dir.create(root)
+  prefix <- file.path(root, "cohort")
+  file.create(paste0(prefix, c(".bed", ".bim", ".fam")))
+  output_dir <- file.path(root, "output")
+  dir.create(output_dir)
+  stale <- file.path(output_dir, c("faststructure.9.meanQ", "faststructure.9.log", "faststructure.9.varQ"))
+  for (path in stale) writeLines("0.5 0.5", path)
+  keep <- file.path(output_dir, "unrelated.txt")
+  writeLines("keep", keep)
+
+  structure_executable <- file.path(root, "fake-structure.sh")
+  writeLines(c(
+    "#!/bin/sh",
+    "while [ $# -gt 0 ]; do case \"$1\" in -K) k=$2;; --output) out=$2;; esac; shift; done",
+    "printf '0.7 0.3\\n0.2 0.8\\n' > \"$out.$k.meanQ\"",
+    "echo 'Marginal Likelihood = -0.9' > \"$out.$k.log\""
+  ), structure_executable)
+  choosek_executable <- file.path(root, "fake-choosek.sh")
+  writeLines(c(
+    "#!/bin/sh",
+    "ls \"$2\".*.meanQ | sed 's/.*faststructure\\.\\([0-9]*\\)\\.meanQ/seen K = \\1/'",
+    "echo 'Model complexity that maximizes marginal likelihood = 2'",
+    "echo 'Model components used to explain structure in data = 2'"
+  ), choosek_executable)
+  Sys.chmod(c(structure_executable, choosek_executable), mode = "0755")
+
+  result <- popgenVCF::run_faststructure(
+    structure_executable, choosek_executable, prefix, 2L, output_dir, seed = 1L
+  )
+  expect_false(any(file.exists(stale)))
+  expect_true(file.exists(keep))
+  expect_false(any(grepl("seen K = 9", readLines(file.path(output_dir, "fastStructure_chooseK.log")))))
+  expect_identical(names(result$q), "2")
+})

@@ -55,6 +55,21 @@ write_structure_sample_order <- function(sample_ids, path) {
   path
 }
 
+# Identity of the genotype data behind an open GDS handle: the source VCF's
+# sha256 from prepare_gds()'s own cache manifest when present, else the GDS
+# file's size and modification time. NULL for an object with no file behind
+# it (test doubles), which leaves the cache key exactly as it was.
+gds_source_identity <- function(gds) {
+  filename <- tryCatch(as.character(gds$filename)[1L], error = function(e) NA_character_)
+  if (is.null(filename) || is.na(filename) || !nzchar(filename) || !file.exists(filename)) return(NULL)
+  manifest <- tryCatch(readRDS(paste0(filename, ".manifest.rds")), error = function(e) NULL, warning = function(w) NULL)
+  if (is.list(manifest) && is.character(manifest$sha256) && length(manifest$sha256) == 1L) {
+    return(list(vcf_sha256 = manifest$sha256))
+  }
+  info <- file.info(filename)
+  list(gds_size = unname(info$size), gds_modified = as.character(info$mtime))
+}
+
 prepare_structure_plink_input <- function(gds, sample_ids, snp_ids,
                                           preferred_prefix = NULL,
                                           cache_dir,
@@ -101,8 +116,12 @@ prepare_structure_plink_input <- function(gds, sample_ids, snp_ids,
   paths <- plink_bundle_paths(prefix)
   manifest_file <- paste0(prefix, ".manifest.rds")
   sample_file <- paste0(prefix, ".samples.txt")
+  # The genotype source is part of the key, not just the ids: snp ids are
+  # positional integers, so a corrected or re-called VCF with the same sites
+  # and samples yields the identical id set -- and an ids-only key then
+  # reused the PREVIOUS file's genotypes for every ancestry backend.
   signature <- digest::digest(
-    list(sample_ids = sample_keys, snp_ids = snp_keys),
+    c(list(sample_ids = sample_keys, snp_ids = snp_keys), gds_source_identity(gds)),
     algo = "sha256",
     serialize = TRUE
   )
@@ -318,8 +337,12 @@ prepare_snmf_input <- function(gds, sample_ids, snp_ids,
   geno_file <- file.path(ancestry_dir, "popgenVCF_snmf.geno")
   sample_file <- file.path(ancestry_dir, "popgenVCF_snmf.samples.txt")
   manifest_file <- file.path(ancestry_dir, "popgenVCF_snmf.manifest.rds")
+  # The genotype source is part of the key, not just the ids: snp ids are
+  # positional integers, so a corrected or re-called VCF with the same sites
+  # and samples yields the identical id set -- and an ids-only key then
+  # reused the PREVIOUS file's genotypes for every ancestry backend.
   signature <- digest::digest(
-    list(sample_ids = sample_keys, snp_ids = snp_keys),
+    c(list(sample_ids = sample_keys, snp_ids = snp_keys), gds_source_identity(gds)),
     algo = "sha256",
     serialize = TRUE
   )

@@ -11,6 +11,14 @@ run_pipeline <- function(config, registry = default_analysis_registry(), selecte
   dirs <- make_dirs(cfg$output$directory)
   .pg_env$log_file <- file.path(dirs$root, "pipeline.log")
   cat("", file = .pg_env$log_file)
+  n_stale <- clear_stale_pipeline_outputs(dirs)
+  if (n_stale > 0L) {
+    log_msg(
+      "Removed ", n_stale, " result file(s) left in this output directory by a previous run ",
+      "(tables/, figures/, trees/, chromosomes/); cache/ is kept",
+      level = "WARNING"
+    )
+  }
   set.seed(cfg$compute$seed)
   analysis <- new_popgen_vcf_analysis(cfg, dirs)
   analysis$status <- "running"

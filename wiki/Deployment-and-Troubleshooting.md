@@ -164,6 +164,15 @@ Every other override flag (`--vcf`, `--maf`, `--outdir`, `--force-gds`,
 Supplying one anyway prints a warning naming it, rather than silently doing
 nothing.
 
+**Starting a fresh run in a directory that already holds results.** A
+fresh (non-`--resume`) run first removes the previous run's files from
+`tables/`, `figures/`, `trees/`, and `chromosomes/` and logs how many it
+removed; `cache/` (validated by content hash) is kept. Without this the
+report would embed every leftover figure -- a K value outside a narrowed
+range, a module since disabled, a population no longer present after
+samples were removed -- as if it belonged to the new results. Use a new
+`output.directory` to keep an earlier run's results.
+
 **Security note:** only ever resume from an `output.directory` your own runs
 produced. The checkpoint file has a SHA-256 sidecar, but that only detects
 accidental corruption (a truncated copy, a partial write) -- it is not a

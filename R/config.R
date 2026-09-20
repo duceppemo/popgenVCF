@@ -414,3 +414,24 @@ make_dirs <- function(outdir) {
   lapply(d[-1], ensure_dir)
   d
 }
+
+# A fresh run into an output directory that already holds a previous run's
+# results must not inherit them. The report's figure gallery embeds every
+# figure file found in figures/ (report_figure_inventory(), R/report.R), and
+# tables/, trees/ and chromosomes/ are handed over as-is, so whatever the
+# new run did not overwrite -- a K value outside a narrowed range, a module
+# now disabled or no longer available, a chromosome or population no longer
+# present after samples were removed -- used to be presented alongside the
+# new results as if it belonged to them. Only these pipeline-owned result
+# directories are cleared; cache/ (validated by content hash) is kept, and a
+# resumed run (run_pipeline_resume()) never calls this.
+clear_stale_pipeline_outputs <- function(dirs) {
+  owned <- unlist(dirs[c("tables", "figures", "trees", "chromosomes")], use.names = FALSE)
+  stale <- unlist(lapply(owned, function(path) {
+    files <- list.files(path, full.names = TRUE, all.files = TRUE, no.. = TRUE)
+    files[!dir.exists(files)]
+  }), use.names = FALSE)
+  if (length(stale)) unlink(stale, force = TRUE)
+  invisible(length(stale))
+}
+

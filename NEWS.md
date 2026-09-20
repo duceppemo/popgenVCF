@@ -1,5 +1,11 @@
 # popgenVCF 1.0.15.9000 development
 
+- **Third code pass, increment 2 (ancestry backends and reruns into an existing output directory):**
+
+  - **`pipeline.R` / `config.R` -- a rerun into an existing output directory published the previous run's leftovers.** The report's figure gallery embeds every figure file in `figures/`, and `tables/`, `trees/`, `chromosomes/` are handed over as-is, so anything the new run did not overwrite (a K value outside a narrowed range, a module since disabled, a population gone after samples were removed) appeared alongside the new results. A fresh run now clears those four pipeline-owned directories first and logs the count; `cache/` is kept and `--resume` is unaffected. Documented in the wiki.
+  - **`ancestry_plink_integration.R` -- cached PLINK and sNMF inputs were keyed on sample and SNP ids only.** SNP ids are positional integers, so a corrected or re-called VCF with the same sites and samples produced the identical key and every ancestry backend silently reused the previous file's genotypes. The key now includes the source VCF's sha256 (from the GDS cache manifest).
+  - **`faststructure_runtime.R`**: `chooseK.py` globs every `faststructure.<K>.*` file beside the output prefix, so models left by an earlier, wider-K run leaked into the model-complexity choice (or failed the module with "must use evaluated K values"). Stale per-K outputs are removed before the run.
+
 - **A third code pass, in increments. Increment 1 (ordination and clonality):**
 
   - **`ordination.R` -- the Tracy-Widom test was run on a truncated eigenvalue spectrum.** Each statistic scales the k-th eigenvalue by the sum (and sum of squares) of every eigenvalue from k onward, but only the top 100 were computed and passed in, so every p-value changed for cohorts above 101 samples. On the quickstart data (160 samples) the top-100 slice gave 15 significant components; the full 159-value spectrum gives 19. The whole non-trivial spectrum is now computed whenever the test runs; `n_pcs: "auto"` still retains at most 100. The quickstart figure, wiki, and vignette are updated (19 of 159). Cohorts of 101 samples or fewer are unaffected.

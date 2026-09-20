@@ -158,3 +158,29 @@ test_that("sNMF module uses prepared retained inputs", {
   expect_match(body, "context$final_snps", fixed = TRUE)
   expect_match(body, "snmf_input$sample_file", fixed = TRUE)
 })
+
+test_that("the cached PLINK bundle is rebuilt when the genotype source changes under identical sample and SNP ids", {
+  # SNP ids are positional integers, so a corrected VCF with the same sites
+  # and samples gives the identical id set; an ids-only cache key reused the
+  # previous file's genotypes for every ancestry backend.
+  root <- tempfile("ancestry-plink-source-")
+  dir.create(root)
+  samples <- paste0("sample", 1:4)
+  snps <- seq_len(7L)
+  gds_file <- file.path(root, "genotypes.gds")
+  writeLines("placeholder", gds_file)
+  gds <- list(filename = gds_file)
+  saveRDS(list(sha256 = "first-vcf"), paste0(gds_file, ".manifest.rds"))
+
+  first <- popgenVCF:::prepare_structure_plink_input(gds, samples, snps, cache_dir = root, converter = fake_gds_to_bed)
+  expect_identical(first$source, "generated")
+  again <- popgenVCF:::prepare_structure_plink_input(
+    gds, samples, snps, cache_dir = root,
+    converter = function(...) stop("converter should not run for an unchanged source")
+  )
+  expect_identical(again$source, "cache")
+
+  saveRDS(list(sha256 = "corrected-vcf"), paste0(gds_file, ".manifest.rds"))
+  rebuilt <- popgenVCF:::prepare_structure_plink_input(gds, samples, snps, cache_dir = root, converter = fake_gds_to_bed)
+  expect_identical(rebuilt$source, "generated")
+})

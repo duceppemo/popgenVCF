@@ -108,6 +108,19 @@ run_faststructure <- function(structure_executable = "structure.py",
     level = "INFO"
   )
 
+  # chooseK.py globs every "<prefix>.<K>.meanQ"/".log" beside the prefix, not
+  # just the K values of this run. An output directory reused after a run
+  # with a wider K range therefore fed that run's leftover models into this
+  # run's model-complexity choice -- either recommending a K that was never
+  # evaluated here (rejected downstream as "must use evaluated K values",
+  # failing the module) or, when the K happened to be in range, silently
+  # mixing results from a different marker set. Clear them all first.
+  stale <- list.files(
+    output_dir, full.names = TRUE,
+    pattern = "^faststructure\\.[0-9]+\\.(meanQ|meanP|varQ|varP|log)$"
+  )
+  unlink(stale, force = TRUE)
+
   runs <- vector("list", length(k_values))
   q <- vector("list", length(k_values))
   names(q) <- as.character(k_values)

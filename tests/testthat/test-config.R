@@ -703,3 +703,22 @@ test_that("input.geographic_columns is normalized like metadata headers and vali
   cfg$input$geographic_columns <- c("lat", "LAT")
   expect_error(popgenVCF::validate_config(cfg), "two different columns")
 })
+
+test_that("a fresh run clears a previous run's result files but keeps the cache and unrelated files", {
+  # The report gallery embeds every figure found in figures/, so a figure
+  # the new run did not overwrite (a K outside a narrowed range, a disabled
+  # module) was presented as part of the new results.
+  out <- tempfile("stale-output-")
+  dirs <- popgenVCF:::make_dirs(out)
+  stale <- c(
+    file.path(dirs$figures, "14_ADMIXTURE_Q_K9.png"), file.path(dirs$tables, "28_ADMIXTURE_Q_K9.tsv"),
+    file.path(dirs$trees, "old.nwk"), file.path(dirs$chromosomes, "chrOld_PCA.tsv")
+  )
+  kept <- c(file.path(dirs$cache, "genotypes.gds"), file.path(dirs$root, "notes.txt"))
+  for (path in c(stale, kept)) writeLines("x", path)
+
+  expect_identical(popgenVCF:::clear_stale_pipeline_outputs(dirs), 4L)
+  expect_false(any(file.exists(stale)))
+  expect_true(all(file.exists(kept)))
+  expect_identical(popgenVCF:::clear_stale_pipeline_outputs(dirs), 0L)
+})
