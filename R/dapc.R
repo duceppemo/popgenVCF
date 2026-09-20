@@ -1,5 +1,15 @@
 genlight_from_gds <- function(geno, sample_ids, metadata, snp_ids = NULL) {
   gl <- adegenet::as.genlight(geno)
+  # Pinned, not inferred. adegenet guesses each individual's ploidy from its
+  # largest genotype value, so a sample with no homozygous-alternate call
+  # anywhere in the matrix is taken to be haploid -- and every one of its
+  # heterozygous calls then enters glPca()/dapc() as allele frequency 1.0
+  # instead of 0.5 (confirmed directly), while poppr.amova() stops with
+  # "min(ploidy(x)) == max(ploidy(x)) is not TRUE". Rare on a large outbred
+  # panel, but routine for a small marker set or a highly homozygous sample
+  # called against a close reference. This package is diploid-only by design;
+  # clonality_genlight_from_matrix() already pins 2 for the same reason.
+  adegenet::ploidy(gl) <- 2L
   adegenet::indNames(gl) <- public_sample_ids(metadata, sample_ids)
   adegenet::pop(gl) <- factor(metadata[match(sample_ids, sample), population])
   if (!is.null(snp_ids)) adegenet::locNames(gl) <- as.character(snp_ids)
