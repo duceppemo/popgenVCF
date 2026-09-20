@@ -26,7 +26,19 @@ run_module_diversity <- function(analysis, context) {
     ]
     write_tsv(private_loci, file.path(dirs$tables, "32_private_alleles.tsv"))
   }
-  if (!isTRUE(div$allelic_richness_available)) {
+  if (length(div$allelic_richness_excluded_populations)) {
+    analysis <- record_analysis_message(
+      analysis, "WARNING", "diversity",
+      paste0(
+        "Allelic richness is not reported for population(s) with fewer than 5 samples (",
+        paste(div$allelic_richness_excluded_populations, collapse = ", "),
+        "): including them would rarefy every population down to their gene-copy count"
+      )
+    )
+  }
+  if (!isTRUE(div$allelic_richness_available) && !isTRUE(cfg$analyses$diversity_allelic_richness)) {
+    # Switched off in the config -- nothing to report.
+  } else if (!isTRUE(div$allelic_richness_available) && !requireNamespace("hierfstat", quietly = TRUE)) {
     analysis <- record_analysis_message(
       analysis, "WARNING", "diversity",
       "Allelic richness was skipped: the optional hierfstat package is not installed"

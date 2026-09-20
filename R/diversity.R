@@ -1,5 +1,6 @@
 compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha = 0.05,
-                               compute_allelic_richness = TRUE, gds_path = NULL, threads = 1L) {
+                               compute_allelic_richness = TRUE, gds_path = NULL, threads = 1L,
+                               allelic_richness_min_samples = 5L) {
   # SNPRelate::snpgdsGetGeno() silently returns rows/columns in the GDS's own
   # native storage order (verified empirically, same behavior class as
   # snpgdsSampMissRate()'s with.id ordering found for sex_check), not the
@@ -138,13 +139,34 @@ compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha
   # allelic richness to output tables/figures, still defaults it on.
   locus[, allelic_richness := NA_real_]
   allelic_richness_available <- FALSE
+  allelic_richness_excluded <- character()
   if (isTRUE(compute_allelic_richness) && requireNamespace("hierfstat", quietly = TRUE)) {
     population_factor <- metadata[match(sample_ids, sample), population]
-    encoded <- hierfstat_encode_genotype(geno)
+    # Rarefaction goes down to the smallest population's gene-copy count, for
+    # EVERY population. One singleton population therefore rarefied the whole
+    # table to 2 copies -- where richness is just 1 + He and every population
+    # reads ~1.28 instead of ~1.88 (confirmed on the quickstart data with one
+    # sample relabelled) -- erasing the between-population comparison the
+    # statistic exists for. Populations under allelic_richness_min_samples
+    # are left out of the rarefaction and get NA, so the rest keep a
+    # meaningful depth.
+    population_sizes <- table(population_factor)
+    ar_populations <- names(population_sizes)[population_sizes >= allelic_richness_min_samples]
+    # Only when that still leaves a comparison to make: a study whose
+    # populations are ALL small keeps the old all-populations rarefaction
+    # rather than losing the statistic altogether.
+    if (length(ar_populations) < 2L) ar_populations <- names(population_sizes)
+    allelic_richness_excluded <- setdiff(names(population_sizes), ar_populations)
+    ar_rows <- population_factor %in% ar_populations
+    encoded <- hierfstat_encode_genotype(geno[ar_rows, , drop = FALSE])
     colnames(encoded) <- as.character(snp_ids)
-    ar <- hierfstat::allelic.richness(data.frame(pop = population_factor, encoded, check.names = FALSE))
+    ar <- if (length(ar_populations)) {
+      hierfstat::allelic.richness(data.frame(pop = population_factor[ar_rows], encoded, check.names = FALSE))
+    } else {
+      list(Ar = matrix(numeric(0), 0L, 0L), min.all = NA_real_)
+    }
     ar_idx <- match(as.character(snp_ids), rownames(ar$Ar))
-    if (!anyNA(ar_idx)) {
+    if (length(ar_populations) && !anyNA(ar_idx)) {
       ar_matrix <- as.matrix(ar$Ar[ar_idx, , drop = FALSE])
       ar_long <- data.table::data.table(
         snp_id = rep(snp_ids, times = ncol(ar_matrix)),
@@ -181,7 +203,8 @@ compute_diversity <- function(gds, sample_ids, snp_ids, metadata, ids, hwe_alpha
   }, by = population]
   list(genotype = geno, sample = sample, locus = locus, population = population,
        allelic_richness_available = allelic_richness_available,
-       allelic_richness_min_alleles = if (allelic_richness_available) ar$min.all else NA_real_)
+       allelic_richness_min_alleles = if (allelic_richness_available) ar$min.all else NA_real_,
+       allelic_richness_excluded_populations = allelic_richness_excluded)
 }
 
 bootstrap_diversity <- function(locus_stats, replicates, seed, unit = "chromosome") {

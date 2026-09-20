@@ -187,3 +187,33 @@ test_that("validate_diversity_result tolerates Inf and above-2 effective_alleles
   expect_false(broken$valid)
   expect_true(any(grepl("effective_alleles", broken$errors)))
 })
+
+test_that("a too-small population is left out of the rarefaction instead of dragging every population down to its size", {
+  # Rarefaction depth is the smallest population's gene-copy count, applied
+  # to everyone: one singleton population rarefied the whole table to 2
+  # copies, where richness is just 1 + He.
+  skip_if_not_installed("hierfstat")
+  set.seed(14L)
+  n <- 17L; n_snps <- 30L
+  genmat <- matrix(sample(0:2, n * n_snps, replace = TRUE), n, n_snps)
+  sample_id <- paste0("s", seq_len(n))
+  gds_path <- tempfile(fileext = ".gds")
+  SNPRelate::snpgdsCreateGeno(
+    gds_path, genmat = genmat, sample.id = sample_id, snp.id = seq_len(n_snps),
+    snp.chromosome = rep(1L, n_snps), snp.position = seq_len(n_snps) * 100L,
+    snp.allele = rep("A/G", n_snps), snpfirstdim = FALSE
+  )
+  gds <- SNPRelate::snpgdsOpen(gds_path)
+  on.exit(SNPRelate::snpgdsClose(gds), add = TRUE)
+  ids <- popgenVCF:::get_gds_ids(gds)
+  metadata <- popgenVCF:::normalize_sample_aliases(data.table::data.table(
+    sample = sample_id, population = c(rep("A", 8L), rep("B", 8L), "SOLO")
+  ))
+
+  div <- popgenVCF:::compute_diversity(gds, sample_id, ids$snp, metadata, ids)
+  expect_identical(div$allelic_richness_excluded_populations, "SOLO")
+  expect_identical(div$allelic_richness_min_alleles, 16)
+  expect_true(all(is.na(div$locus[population == "SOLO", allelic_richness])))
+  expect_true(is.na(div$population[population == "SOLO", mean_allelic_richness]))
+  expect_true(all(is.finite(div$population[population != "SOLO", mean_allelic_richness])))
+})
