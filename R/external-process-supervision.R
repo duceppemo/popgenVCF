@@ -149,6 +149,22 @@ run_supervised_external_command <- function(
 
   execution <- NULL
   execution_error <- NULL
+  # Captured to files, not to processx's in-memory pipes. With stdout = "|",
+  # processx::run() (3.9.0) spins forever at 100% CPU the moment a child
+  # writes a single NUL byte: its reader raises "embedded nul" without ever
+  # consuming the byte, so the pipe never drains and the loop never exits --
+  # and because the child has already exited, run()'s own `timeout` has
+  # nothing left to kill (confirmed directly: `printf 'a\\000b'` under
+  # timeout = 5 never returned). For the ADMIXTURE/fastStructure runners
+  # that meant one stray binary byte from a crashing or chatty backend could
+  # hang a run permanently, with timeout_seconds unable to rescue it. Files
+  # have no such failure mode, and also keep a very large log out of memory
+  # until it is wanted.
+  capture_dir <- tempfile("popgenvcf-process-capture-")
+  dir.create(capture_dir, recursive = TRUE)
+  on.exit(unlink(capture_dir, recursive = TRUE, force = TRUE), add = TRUE)
+  stdout_capture <- file.path(capture_dir, "stdout")
+  stderr_capture <- file.path(capture_dir, "stderr")
   execution <- tryCatch(
     processx::run(
       command = resolved,
@@ -156,8 +172,8 @@ run_supervised_external_command <- function(
       error_on_status = FALSE,
       wd = command$working_directory,
       timeout = supervision_policy$timeout_seconds,
-      stdout = "|",
-      stderr = "|",
+      stdout = stdout_capture,
+      stderr = stderr_capture,
       # processx::run()'s own `env` REPLACES the entire child environment
       # by default (confirmed directly: env = c(FOO = "bar") alone left
       # the child with no PATH/HOME/etc. at all) -- unlike
@@ -214,7 +230,8 @@ run_supervised_external_command <- function(
 
   supervision_result(
     command, status, started, finished, admission, supervision_policy,
-    cancellation_token, exit_status, execution$stdout, execution$stderr,
+    cancellation_token, exit_status,
+    read_captured_process_stream(stdout_capture), read_captured_process_stream(stderr_capture),
     resolved, error_message,
     termination = list(
       requested = timed_out,
@@ -275,3 +292,25 @@ run_supervised_line_command <- function(executable, args, working_directory,
   }
   list(output = lines, status = status, timed_out = timed_out)
 }
+
+# One captured stream as a single string, exactly as written apart from two
+# repairs that make it safe to hand to the rest of R: NUL bytes are dropped (an
+# R string cannot hold one), and bytes that are not valid UTF-8 are rewritten as
+# "<xx>" so that no later regular-expression call can fail with "input string
+# is invalid" on a backend's stray byte.
+read_captured_process_stream <- function(path) {
+  if (!file.exists(path)) return("")
+  size <- file.size(path)
+  if (is.na(size) || size <= 0) return("")
+  captured_process_bytes_to_text(readBin(path, what = "raw", n = size))
+}
+
+captured_process_bytes_to_text <- function(bytes) {
+  bytes <- bytes[bytes != as.raw(0L)]
+  if (!length(bytes)) return("")
+  text <- rawToChar(bytes)
+  if (!validUTF8(text)) text <- iconv(text, from = "UTF-8", to = "UTF-8", sub = "byte")
+  Encoding(text) <- "UTF-8"
+  text
+}
+

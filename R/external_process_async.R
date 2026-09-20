@@ -119,12 +119,26 @@ start_supervised_external_command <- function(
   } else {
     character()
   }
+  # Captured to files, not pipes, for the same reason as the synchronous
+  # runner (external-process-supervision.R): processx's pipe reader raises
+  # "embedded nul" on a NUL byte without ever consuming it. Here that did not
+  # hang -- the poll loop notices the process has died -- but every read from
+  # then on failed, so the run finished as status "success" with stdout ""
+  # (confirmed directly), silently discarding the clean lines before and after
+  # the NUL as well. With neither stream a pipe, processx adds its own poll
+  # connection, so poll_io() still blocks for the poll interval.
+  capture_dir <- tempfile("popgenvcf-async-capture-")
+  dir.create(capture_dir, recursive = TRUE)
+  handle$capture_dir <- capture_dir
+  handle$capture_paths <- c(stdout = file.path(capture_dir, "stdout"), stderr = file.path(capture_dir, "stderr"))
+  handle$capture_offsets <- c(stdout = 0, stderr = 0)
+  reg.finalizer(handle, function(h) unlink(h$capture_dir, recursive = TRUE, force = TRUE), onexit = TRUE)
   process <- tryCatch(
     processx::process$new(
       command = resolved,
       args = command$args,
-      stdout = "|",
-      stderr = "|",
+      stdout = handle$capture_paths[["stdout"]],
+      stderr = handle$capture_paths[["stderr"]],
       wd = command$working_directory,
       env = env,
       cleanup_tree = TRUE,
@@ -237,6 +251,9 @@ finalize_supervised_external_command <- function(
     handle$resolved_executable,
     handle$error_message
   )
+  # All output has been drained into the handle by now; do not leave one
+  # capture directory per launched process behind until garbage collection.
+  if (!is.null(handle$capture_dir)) unlink(handle$capture_dir, recursive = TRUE, force = TRUE)
   result$supervision$backend <- "processx-async"
   result$supervision$termination_grace_seconds <- handle$termination_grace_seconds
   result$supervision$lifecycle_events <- handle$events
@@ -324,12 +341,33 @@ set_async_terminal <- function(handle, status, exit_status, error_message) {
   invisible(handle)
 }
 
+# Appends whatever each capture file has gained since the last drain. While the
+# process is still running only whole lines are taken, so a multi-byte
+# character (which never contains a newline byte) is never split across two
+# drains and mis-repaired as invalid UTF-8; once it has exited the remainder is
+# taken too.
 drain_async_output <- function(handle) {
-  if (is.null(handle$process)) return(invisible(handle))
-  out <- tryCatch(handle$process$read_output(), error = function(e) "")
-  err <- tryCatch(handle$process$read_error(), error = function(e) "")
-  if (length(out) && nzchar(out)) handle$stdout <- paste0(handle$stdout, out)
-  if (length(err) && nzchar(err)) handle$stderr <- paste0(handle$stderr, err)
+  if (is.null(handle$process) || is.null(handle$capture_paths)) return(invisible(handle))
+  finished <- !isTRUE(tryCatch(handle$process$is_alive(), error = function(e) FALSE))
+  for (stream in c("stdout", "stderr")) {
+    path <- handle$capture_paths[[stream]]
+    size <- suppressWarnings(file.size(path))
+    offset <- handle$capture_offsets[[stream]]
+    if (is.na(size) || size <= offset) next
+    connection <- file(path, open = "rb")
+    bytes <- tryCatch({
+      seek(connection, where = offset, origin = "start")
+      readBin(connection, what = "raw", n = size - offset)
+    }, finally = close(connection))
+    if (!finished) {
+      newline <- which(bytes == as.raw(0x0aL))
+      if (!length(newline)) next
+      bytes <- bytes[seq_len(max(newline))]
+    }
+    handle$capture_offsets[[stream]] <- offset + length(bytes)
+    text <- captured_process_bytes_to_text(bytes)
+    if (nzchar(text)) handle[[stream]] <- paste0(handle[[stream]], text)
+  }
   invisible(handle)
 }
 

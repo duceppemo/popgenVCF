@@ -6,6 +6,16 @@
   - **`diversity.R` -- one tiny population erased everyone's allelic richness.** Rarefaction goes down to the smallest population's gene-copy count for every population, so a single singleton population rarefied the whole table to 2 copies, where richness is just 1 + He (every population ~1.28 instead of ~1.84-1.93 on the quickstart data). Populations under 5 samples are now left out of the rarefaction and get `NA`, with a pipeline notice; if fewer than two populations reach 5 samples, all are kept as before. Separately, the "hierfstat is not installed" warning was also emitted when allelic richness had simply been switched off in the config.
   - **`population_assignment.R`**: the only member of a singleton population got no assignment at all. Setting it aside for the leave-one-out step empties its own population, and that emptied population then failed the "usable in every population" locus test at every locus, leaving no likelihood under any population. The emptied population is now dropped as a candidate, the sample is assigned among the rest, and its `mismatch` is `NA` rather than counted as a suspected migrant.
 
+- **Fourth code pass, increment 10 (external-process runners):** a NUL byte
+  in a child's output could hang the pipeline forever. `processx` 3.9.0's
+  pipe reader never consumes a NUL, so `run_supervised_external_command()`
+  (the runner behind ADMIXTURE and fastStructure) spun indefinitely after the
+  child had already exited -- its own timeout could not fire -- and the async
+  runner returned `status = "success"` with empty output, discarding the clean
+  lines as well. Both runners now capture stdout/stderr to private files and
+  read them back as bytes, dropping NULs and escaping invalid UTF-8, so the
+  output is always regex-safe. The async capture directory is removed when
+  the run is finalized.
 - **Fourth code pass, increment 9 (execution timeouts and cancellation):**
 
   - **`execution-timeout.R` -- the documentation promised more than R can deliver.** The help page said timeout handling is "fail-closed" and that "R elapsed-time limits are reliable for interruptible R and native code". The budget is enforced with `setTimeLimit()`, which R checks only when control returns to the interpreter: it stops R-level code, but a single blocking call -- a compiled routine, or a wait on an external process -- runs to completion however small the budget. Measured directly: one compiled call ran 422 seconds under a 1-second budget. Nearly all of this package's long-running work is compiled (SNPRelate, adegenet, phangorn) or external, so the limit guards far less than the wording implied. This is inherent to R, so the fix is the documentation: both the roxygen block and the hand-maintained `man/execution_timeout.Rd` now say what the budget does and does not bound, and point to the genuinely enforced `timeout_seconds` on the external ancestry backends. No behaviour change.

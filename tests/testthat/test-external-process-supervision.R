@@ -194,3 +194,75 @@ test_that("run_supervised_line_command() kills a hung process instead of blockin
   # 1-second timeout, not the full 5-second sleep.
   expect_lt(elapsed[["elapsed"]], 4)
 })
+
+test_that("a NUL byte in a child's output cannot hang the supervised runner", {
+  # With stdout = "|", processx::run() (3.9.0) spins forever once a child
+  # writes a NUL to ONE of its streams: the reader raises "embedded nul"
+  # without consuming the byte, and since the child has already exited, run()'s
+  # own timeout has nothing to kill. This is the runner behind ADMIXTURE and
+  # fastStructure. Verified directly against the old code: a NUL on stdout
+  # alone hangs, on stderr alone hangs, and on BOTH it does not hang but
+  # returns "success" with the output mangled -- so all three are covered, the
+  # single-stream cases first, since they are the ones that hang.
+  #
+  # The spin is in compiled code, so setTimeLimit() cannot break it (also
+  # verified). The scenarios therefore run in a child R process that is killed
+  # outright if it hangs: a regression fails this test instead of hanging the
+  # whole suite.
+  skip_on_cran()
+  skip_on_os("windows")
+  root <- tempfile("nul-output-"); dir.create(root)
+  emit <- function(name, lines) {
+    path <- file.path(root, name)
+    writeLines(c("#!/bin/sh", lines), path)
+    Sys.chmod(path, "0755")
+    path
+  }
+  scripts <- c(
+    stdout = emit("nul-stdout.sh", "printf 'before\\000after\\n'"),
+    stderr = emit("nul-stderr.sh", "printf 'err\\000or\\n' >&2"),
+    both = emit("nul-both.sh", c("printf 'before\\000after\\n'", "printf 'err\\000or\\n' >&2"))
+  )
+
+  load_package <- if (pkgload::is_dev_package("popgenVCF")) {
+    sprintf("suppressPackageStartupMessages(pkgload::load_all(%s, quiet = TRUE))", deparse(pkgload::pkg_path()))
+  } else {
+    "suppressPackageStartupMessages(library(popgenVCF))"
+  }
+  child <- c(
+    load_package,
+    "policy <- new_external_process_supervision_policy(timeout_seconds = 20)",
+    sprintf("scripts <- %s", paste(deparse(scripts), collapse = "")),
+    "for (case in names(scripts)) {",
+    sprintf("  cmd <- new_external_command(executable = scripts[[case]], working_directory = %s)", deparse(root)),
+    "  res <- run_supervised_external_command(cmd, supervision_policy = policy)",
+    "  cat('RESULT', case, res$status, '|', gsub('\\n', '', res$stdout), '|', gsub('\\n', '', res$stderr), '\\n')",
+    "}"
+  )
+  child_script <- file.path(root, "child.R")
+  writeLines(child, child_script)
+  out_file <- file.path(root, "child.out")
+  run <- processx::run(
+    file.path(R.home("bin"), "Rscript"), child_script, timeout = 90,
+    error_on_status = FALSE, stdout = out_file, stderr = file.path(root, "child.err")
+  )
+  expect_false(run$timeout)
+  results <- grep("^RESULT", readLines(out_file), value = TRUE)
+  expect_identical(trimws(results), c(
+    "RESULT stdout success | beforeafter |",
+    "RESULT stderr success |  | error",
+    "RESULT both success | beforeafter | error"
+  ))
+})
+
+test_that("read_captured_process_stream drops NUL bytes and makes invalid UTF-8 regex-safe", {
+  path <- tempfile()
+  writeBin(as.raw(c(0x61, 0x00, 0x62, 0x0a, 0x63, 0xe9, 0xff, 0x0a)), path)
+  text <- popgenVCF:::read_captured_process_stream(path)
+  expect_true(validUTF8(text))
+  expect_identical(strsplit(text, "\n", fixed = TRUE)[[1L]], c("ab", "c<e9><ff>"))
+  expect_no_error(grepl("CV error", text))
+  expect_identical(popgenVCF:::read_captured_process_stream(tempfile()), "")
+  empty <- tempfile(); file.create(empty)
+  expect_identical(popgenVCF:::read_captured_process_stream(empty), "")
+})

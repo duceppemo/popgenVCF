@@ -187,3 +187,26 @@ test_that("a handle's ledger commitment is released if it is garbage-collected w
     popgenVCF:::admission_zero_usage()
   )
 })
+
+test_that("the async runner keeps a child's output when it contains a NUL byte", {
+  # processx's pipe reader raises "embedded nul" without consuming the byte,
+  # so every later read failed too: the run ended as status "success" with
+  # stdout "" -- silently discarding the clean lines around the NUL as well.
+  skip_on_cran()
+  skip_on_os("windows")
+  root <- tempfile("async-nul-"); dir.create(root)
+  script <- file.path(root, "emit.sh")
+  writeLines(c("#!/bin/sh", "echo line-one", "printf 'mid\\000dle\\n'", "echo line-three", "printf 'caf\\351\\n' >&2"), script)
+  Sys.chmod(script, "0755")
+  handle <- start_supervised_external_command(
+    new_external_command(executable = script, working_directory = root),
+    supervision_policy = new_external_process_supervision_policy(timeout_seconds = 20)
+  )
+  capture_dir <- handle$capture_dir
+  result <- finalize_supervised_external_command(handle)
+  expect_identical(result$status, "success")
+  expect_identical(result$stdout, "line-one\nmiddle\nline-three\n")
+  expect_true(validUTF8(result$stderr))
+  expect_identical(result$stderr, "caf<e9>\n")
+  expect_false(dir.exists(capture_dir))
+})
