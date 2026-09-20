@@ -318,5 +318,9 @@ set_project_fair_metadata <- function(project, metadata) {
                                   lineage_digest = metadata$lineage_digest)
   project$artifacts$fair_metadata <- metadata
   project$component_digests$fair_metadata <- digest::digest(metadata, algo = "sha256", serialize = TRUE)
+  # Same recomputation publication_companion.R does after adding its own
+  # artifact: without it component_digests$artifacts described the project
+  # as it was before the metadata was attached.
+  project$component_digests$artifacts <- project_component_digests(project$artifacts)
   project
 }

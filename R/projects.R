@@ -103,6 +103,26 @@ validate_popgenvcf_project <- function(x) {
   if (!identical(expected, x$component_digests$results)) {
     stop("project result digest mismatch", call. = FALSE)
   }
+  # The other four recorded digests were never compared with anything, so a
+  # project whose parameters, modules, artifacts or reports had been edited
+  # after construction -- maf 0.05 -> 0.5, an extra artifact -- validated,
+  # wrote and read back as if untouched (confirmed directly). Only digests
+  # that were recorded are checked, so projects from before a component
+  # existed still load.
+  recorded <- x$component_digests
+  whole <- c(parameters = "parameters", modules = "modules")
+  for (component in names(whole)) {
+    if (!is.null(recorded[[component]]) &&
+        !identical(recorded[[component]], digest::digest(x[[component]], algo = "sha256", serialize = TRUE))) {
+      stop("project ", component, " digest mismatch", call. = FALSE)
+    }
+  }
+  for (component in c("artifacts", "reports")) {
+    if (!is.null(recorded[[component]]) &&
+        !identical(recorded[[component]], project_component_digests(x[[component]]))) {
+      stop("project ", sub("s$", "", component), " digest mismatch", call. = FALSE)
+    }
+  }
   invisible(x)
 }
 

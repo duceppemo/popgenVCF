@@ -170,3 +170,22 @@ test_that("a bundle containing a path-traversal archive entry is rejected before
   expect_error(verify_popgenvcf_project(evil_bundle), "unsafe archive entries")
   expect_error(read_popgenvcf_project(evil_bundle), "unsafe archive entries")
 })
+
+test_that("a project edited after construction no longer validates", {
+  # Only the results digests were ever compared; parameters, modules,
+  # artifacts and reports digests were recorded and then ignored, so an
+  # edited project validated, wrote and read back as if untouched.
+  project <- new_popgenvcf_project("tamper", parameters = list(maf = 0.05), results = list(a = 1))
+  expect_silent(validate_popgenvcf_project(project))
+  edited <- project; edited$parameters$maf <- 0.5
+  expect_error(validate_popgenvcf_project(edited), "parameters digest mismatch")
+  edited <- project; edited$modules$extra <- "x"
+  expect_error(validate_popgenvcf_project(edited), "modules digest mismatch")
+  edited <- project; edited$artifacts$extra <- 1
+  expect_error(validate_popgenvcf_project(edited), "artifact digest mismatch")
+  edited <- project; edited$reports$extra <- 1
+  expect_error(validate_popgenvcf_project(edited), "report digest mismatch")
+  # A project recorded before a component digest existed still loads.
+  legacy <- project; legacy$component_digests$parameters <- NULL; legacy$parameters$maf <- 0.5
+  expect_silent(validate_popgenvcf_project(legacy))
+})
