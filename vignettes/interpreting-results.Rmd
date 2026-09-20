@@ -227,7 +227,7 @@ The quickstart example's 8 populations are all exactly 20 samples, so richness i
 knitr::include_graphics("figures/48_site_frequency_spectrum.png")
 ```
 
-Read this with the same caution as any MAF-filtered analysis: with the default `qc.maf = 0.05` filter, all 8 quickstart populations show `mode_shifted = TRUE`, but re-running with `qc.maf = 0` on the same data shows only 3 of 8 (ITU, STU, YRI) are genuinely mode-shifted -- the other 5 correctly show the expected unshifted, lowest-class mode once the filter is removed. The default MAF filter removes population-rare variants before this test runs, which alone can produce a spurious mode-shift signal (the same caveat already documented for Tajima's D). This is not evidence that all 8 populations experienced a recent bottleneck.
+Read this with the same caution as any MAF-filtered analysis: with the default `qc.maf = 0.05` filter, 3 of the 8 quickstart populations (CHB, ITU, STU) show `mode_shifted = TRUE`, but re-running with `qc.maf = 0` on the same data shows none of the 8 is mode-shifted -- every population has the expected lowest-class mode once the filter is removed. The default MAF filter removes population-rare variants before this test runs, which alone can produce a spurious mode-shift signal (the same caveat already documented for Tajima's D). This is not evidence that those 3 populations experienced a recent bottleneck. (Releases before 1.0.15 reported all 8 as shifted: a floating-point binning error placed every MAF sitting exactly on a class boundary one class too high.)
 
 ## FST
 
@@ -291,7 +291,7 @@ Windowed FST and diversity (`39_genome_scan_fst.tsv`, `40_genome_scan_diversity.
 knitr::include_graphics("figures/25_genome_scan_FST_manhattan.png")
 ```
 
-The 20 windows range from FST 0.051 to 0.172. The single highest, 20.80-20.85 Mb (FST=0.172, 104 SNPs), is a candidate worth further investigation under the caveats above, not a confirmed selection signal -- especially since it is only moderately above the region's known global FST of 0.0915.
+Of the 20 windows, 19 hold enough SNPs to estimate (one holds none) and range from FST 0.019 to 0.172. The single highest, 20.80-20.85 Mb (FST=0.172, 104 SNPs), is a candidate worth further investigation under the caveats above, not a confirmed selection signal -- especially since it is only moderately above the region's known global FST of 0.0915.
 
 ```{r genome-scan-diversity-figure, echo=FALSE, out.width="90%"}
 knitr::include_graphics("figures/26_genome_scan_diversity_manhattan.png")

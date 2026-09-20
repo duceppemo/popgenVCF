@@ -475,18 +475,20 @@ it is a clean fit for biallelic SNP data.
 ![Site frequency spectrum and mode-shift bottleneck screen from the quickstart example](figures/48_site_frequency_spectrum.png)
 
 **Read this result with the same caution as any MAF-filtered analysis.**
-With this package's default `qc.maf = 0.05` filter, all 8 quickstart
-populations show `mode_shifted = TRUE`. Before reporting this, it was
-checked against an unfiltered re-analysis (`qc.maf = 0` on the same data):
-only 3 of 8 populations (ITU, STU, YRI) are genuinely mode-shifted: the
-other 5 (CHB, GBR, LWK, PEL, PUR) correctly show the expected unshifted,
-lowest-class mode once the MAF filter is removed. The default filter
-systematically removes population-rare variants before this test ever
-sees the data, and that alone can produce a spurious mode-shift signal --
-the same general caveat already documented for Tajima's D's own
-MAF-filtering bias. This is not evidence that all 8 quickstart populations
-experienced a recent bottleneck; a real investigation would rerun with a
-low or zero `qc.maf`.
+With this package's default `qc.maf = 0.05` filter, 3 of the 8 quickstart
+populations (CHB, ITU, STU) show `mode_shifted = TRUE`. Before reporting
+this, it was checked against an unfiltered re-analysis (`qc.maf = 0` on the
+same data): none of the 8 is mode-shifted once the filter is removed --
+every population shows the expected lowest-class mode. The default filter
+removes population-rare variants before this test ever sees the data, and
+that alone can produce a spurious mode-shift signal -- the same general
+caveat already documented for Tajima's D's own MAF-filtering bias. This is
+not evidence that those 3 populations experienced a recent bottleneck; a
+real investigation would rerun with a low or zero `qc.maf`. (Releases
+before 1.0.15 reported all 8 as shifted under the default filter and 3
+under `qc.maf = 0`: a floating-point binning error placed every MAF sitting
+exactly on a class boundary -- half of all possible values at n = 20 --
+one class too high.)
 
 ## FST
 
@@ -684,7 +686,7 @@ noisy.
 
 ![Sliding-window FST scan across the quickstart example's analyzed chr22 region, 50kb non-overlapping windows](figures/25_genome_scan_FST_manhattan.png)
 
-The 20 windows range from FST 0.051 to 0.172. The single highest, 20.80-20.85 Mb (FST=0.172, 104 SNPs), is a candidate worth further investigation under the caveats above, not a confirmed selection signal -- especially since it is only moderately above the region's known global FST of 0.0915.
+Of the 20 windows, 19 hold enough SNPs to estimate (one holds none) and range from FST 0.019 to 0.172. The single highest, 20.80-20.85 Mb (FST=0.172, 104 SNPs), is a candidate worth further investigation under the caveats above, not a confirmed selection signal -- especially since it is only moderately above the region's known global FST of 0.0915.
 
 ![Sliding-window diversity scan across the quickstart example's analyzed chr22 region, coloured by population](figures/26_genome_scan_diversity_manhattan.png)
 
