@@ -1,5 +1,9 @@
 # popgenVCF 1.0.15.9000 development
 
+- **Third code pass, increment 4 (metadata import):**
+
+  - **`io.R` -- metadata header auto-detection missed most non-standard headers.** It compared the raw lowercased first row against a short fixed list, so `Sample ID`/`Sample.ID`, the `individual_id` synonym accepted further down, quoted CSV headers, and a BOM-prefixed first column were all read as data rows. Worst, a custom header was never recognized, so configuring `input.sample_column`/`population_column` -- whose whole purpose is a non-standard header -- failed with "require headered metadata" unless `metadata_header: yes` was also set. Detection now uses the normalized form, the full synonym list, and any configured column names.
+
 - **Third code pass, increment 3 (execution infrastructure):**
 
   - **`config.R` -- a fresh run left the previous run's execution checkpoint in place.** A run only writes its own checkpoint after its first module batch completes; a crash before that, followed by `--resume`, loaded the *old* run's checkpoint -- its config, completed-module list, and results -- and finalized a report from it. The stale checkpoint and its `.sha256` sidecar are now removed with the other stale outputs when a fresh run starts.

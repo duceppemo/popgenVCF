@@ -150,3 +150,28 @@ test_that("sample_column/population_column require a headered metadata file", {
     "require headered metadata"
   )
 })
+
+test_that("header auto-detection recognizes configured, punctuated, quoted, and BOM-prefixed headers", {
+  # With no standard token on the header row, "auto" used to conclude the
+  # file had no header -- so configuring input.sample_column for a custom
+  # header (its whole purpose) failed with "require headered metadata".
+  custom <- metadata_fixture_path(c("Isolate\tPathotype", "s1\tnorth", "s2\tsouth"))
+  x <- popgenVCF:::read_metadata(custom, sample_column = "Isolate", population_column = "Pathotype")
+  expect_identical(x$sample, c("s1", "s2"))
+  expect_identical(x$population, c("north", "south"))
+
+  punctuated <- metadata_fixture_path(c("Sample ID\tgroup", "s1\tnorth", "s2\tsouth"))
+  expect_identical(popgenVCF:::read_metadata(punctuated)$sample, c("s1", "s2"))
+
+  synonym <- metadata_fixture_path(c("individual_id\tgroup", "s1\tnorth", "s2\tsouth"))
+  expect_identical(popgenVCF:::read_metadata(synonym)$sample, c("s1", "s2"))
+
+  quoted <- metadata_fixture_path(c("\"sample\",\"site\"", "s1,north", "s2,south"))
+  expect_identical(popgenVCF:::read_metadata(quoted)$sample, c("s1", "s2"))
+
+  bom <- metadata_fixture_path(c("﻿sample\tsite", "s1\tnorth", "s2\tsouth"))
+  expect_identical(popgenVCF:::read_metadata(bom)$sample, c("s1", "s2"))
+
+  headerless <- metadata_fixture_path(c("s1\tnorth", "s2\tsouth"))
+  expect_identical(popgenVCF:::read_metadata(headerless)$sample, c("s1", "s2"))
+})

@@ -38,7 +38,22 @@ read_metadata <- function(path, header = "auto", sample_column = NULL, populatio
   first <- readLines(path, n = 1L, warn = FALSE)
   sep <- if (grepl("\t", first)) "\t" else if (grepl(",", first)) "," else ""
   tokens <- strsplit(trimws(first), if (sep == "") "[[:space:]]+" else sep)[[1]]
-  detected <- any(tolower(tokens) %in% c("sample", "sample_id", "id", "individual", "population", "pop"))
+  # Detect the header on the same normalized form the columns are later
+  # matched in, against the same synonym list, plus any explicitly configured
+  # column. A raw tolower() comparison against a shorter list missed
+  # "Sample ID"/"Sample.ID", the "individual_id" synonym accepted further
+  # down, quoted CSV headers, and a UTF-8 byte-order mark on the first token
+  # (fread() strips it; readLines() does not). Worst, it missed every custom
+  # header, so setting input.sample_column -- whose whole purpose is a
+  # non-standard header -- made "auto" conclude there was no header and then
+  # fail with "require headered metadata".
+  header_tokens <- sub("^\ufeff", "", tokens)
+  header_tokens <- normalize_metadata_name(gsub("^[\"']+|[\"']+$", "", trimws(header_tokens)))
+  known_headers <- c(
+    "sample", "sample_id", "id", "individual", "individual_id", "population", "pop",
+    normalize_metadata_name(c(sample_column, population_column))
+  )
+  detected <- any(header_tokens %in% known_headers)
   use_header <- switch(tolower(as.character(header)), auto = detected, yes = TRUE, true = TRUE,
                        no = FALSE, false = FALSE, stopf("Invalid metadata_header: %s", header))
   if (!use_header && (!is.null(sample_column) || !is.null(population_column))) {
