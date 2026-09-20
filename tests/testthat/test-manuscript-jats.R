@@ -35,3 +35,14 @@ test_that("JATS overwrite protection is explicit", {
   expect_error(write_manuscript_jats(directory), "already exists")
   expect_s3_class(write_manuscript_jats(directory, overwrite = TRUE), "PopgenVCFJATSRecord")
 })
+
+test_that("JATS output gives each paragraph of multi-paragraph text its own <p>", {
+  manuscript <- new_manuscript(
+    new_popgenvcf_project("jats-paragraphs"), title = "Paragraphs",
+    abstract = c("p < 0.05 & q > 0.1", "Second paragraph.")
+  )
+  directory <- tempfile("jats-paragraphs-"); dir.create(directory)
+  write_manuscript_jats(manuscript, directory)
+  xml <- xml2::read_xml(list.files(directory, pattern = "[.]xml$", recursive = TRUE, full.names = TRUE)[[1L]])
+  expect_identical(xml2::xml_text(xml2::xml_find_all(xml, "//abstract/p")), c("p < 0.05 & q > 0.1", "Second paragraph."))
+})

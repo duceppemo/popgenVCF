@@ -14,7 +14,14 @@ jats_id <- function(prefix, value) {
   paste0(prefix, "-", value)
 }
 
-jats_paragraph <- function(x) paste0("<p>", jats_xml_escape(x), "</p>")
+# One <p> per blank-line-separated paragraph, returned as a single string so
+# the inline call sites (<abstract>, <caption>) keep working unchanged.
+jats_paragraph <- function(x) {
+  paragraphs <- trimws(strsplit(paste(as.character(x), collapse = "\n\n"), "\n[[:space:]]*\n")[[1L]])
+  paragraphs <- paragraphs[nzchar(paragraphs)]
+  if (!length(paragraphs)) paragraphs <- ""
+  paste0("<p>", jats_xml_escape(paragraphs), "</p>", collapse = "")
+}
 
 jats_section <- function(id, title, text) {
   c(paste0('<sec id="', jats_id("sec", id), '">'),

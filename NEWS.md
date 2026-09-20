@@ -11,7 +11,8 @@
   rest of an abstract, section, significance/novelty statement or declaration
   was dropped silently, and a two-paragraph declaration crashed
   `validate_journal_submission()`. Paragraphs are now joined with a blank
-  line, and declarations are normalized when the manuscript is built.
+  line, declarations are normalized when the manuscript is built, and the
+  JATS writer gives each paragraph its own `<p>`.
 - **Fourth code pass, increment 14 (submission companions):** every row of
   `companions-manifest.tsv` carried `role = NA`; the role lookup was keyed by
   role and indexed by file name. Roles are now recorded.
