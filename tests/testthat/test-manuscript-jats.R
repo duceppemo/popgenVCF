@@ -43,6 +43,8 @@ test_that("JATS output gives each paragraph of multi-paragraph text its own <p>"
   )
   directory <- tempfile("jats-paragraphs-"); dir.create(directory)
   write_manuscript_jats(manuscript, directory)
-  xml <- xml2::read_xml(list.files(directory, pattern = "[.]xml$", recursive = TRUE, full.names = TRUE)[[1L]])
-  expect_identical(xml2::xml_text(xml2::xml_find_all(xml, "//abstract/p")), c("p < 0.05 & q > 0.1", "Second paragraph."))
+  xml <- paste(readLines(list.files(directory, pattern = "[.]xml$", recursive = TRUE, full.names = TRUE)[[1L]], warn = FALSE), collapse = "\n")
+  expect_true(grepl(
+    "<abstract><p>p &lt; 0.05 &amp; q &gt; 0.1</p><p>Second paragraph.</p></abstract>", xml, fixed = TRUE
+  ))
 })
