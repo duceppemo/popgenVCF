@@ -69,9 +69,26 @@ test_that("golden stores round-trip and detect corruption", {
   expect_error(verify_golden_store(path), "checksum mismatch")
 })
 
-test_that("missing entries and outputs are reported as skipped", {
+test_that("a gating golden that cannot be compared fails the gate", {
+  # Both cases used to be "skipped" with an overall "passed": a module that
+  # silently stopped producing its output went straight through.
   store <- new_golden_store(list(new_golden_entry(new_golden_spec("x"), 1)))
   result <- compare_golden_outputs(list(other = 1), store, ids = c("x", "missing"))
-  expect_equal(result$comparisons$status, c("skipped", "skipped"))
+  expect_equal(result$comparisons$status, c("failed", "error"))
+  expect_equal(result$comparisons$passed, c(FALSE, FALSE))
+  expect_equal(result$comparisons$message, c("observed output not supplied", "golden entry not found"))
+  expect_equal(result$status, "failed")
+  expect_equal(compare_golden_outputs(list(other = 1), store)$status, "failed")
+  expect_equal(compare_golden_outputs(list(other = 1), store, ids = "missing")$status, "failed")
+})
+
+test_that("only a diagnostic golden may be skipped without failing the gate", {
+  store <- new_golden_store(list(
+    new_golden_entry(new_golden_spec("gate"), 1),
+    new_golden_entry(new_golden_spec("extra", role = "diagnostic"), 2)
+  ))
+  result <- compare_golden_outputs(list(gate = 1), store)
+  expect_equal(result$comparisons[id == "extra", status], "skipped")
+  expect_true(is.na(result$comparisons[id == "extra", passed]))
   expect_equal(result$status, "passed")
 })

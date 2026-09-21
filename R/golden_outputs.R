@@ -175,7 +175,9 @@ golden_compare_value <- function(spec, observed, expected) {
 #' @param observed Named list of observed canonical outputs.
 #' @param store A golden store.
 #' @param ids Optional subset of identifiers.
-#' @return A `PopgenVCFGoldenResult`.
+#' @return A `PopgenVCFGoldenResult`. Its `status` is `"failed"` when any gating
+#'   golden fails, errors, or has no observed output, or when a requested
+#'   identifier has no golden entry; only diagnostic goldens may be `"skipped"`.
 #' @export
 compare_golden_outputs <- function(observed, store, ids = names(store$entries)) {
   observed <- golden_named_list(observed, "observed")
@@ -183,15 +185,26 @@ compare_golden_outputs <- function(observed, store, ids = names(store$entries)) 
   ids <- as.character(ids)
   rows <- lapply(ids, function(id) {
     entry <- store$entries[[id]]
+    # A comparison that cannot be made is not a comparison that passed. Both
+    # cases below used to be "skipped" and left the overall status "passed",
+    # so a module that silently stopped producing its output -- or a gate
+    # list naming an identifier the store does not have -- went through the
+    # gate. A requested identifier with no golden entry is an error; a gating
+    # golden with no observed output fails. Only a diagnostic golden may
+    # still be skipped.
     if (is.null(entry)) return(data.table::data.table(
-      id = id, mode = NA_character_, role = NA_character_, status = "skipped", passed = NA,
+      id = id, mode = NA_character_, role = NA_character_, status = "error", passed = FALSE,
       max_absolute_difference = NA_real_, max_relative_difference = NA_real_,
       message = "golden entry not found"))
     validate_golden_entry(entry)
-    if (is.null(observed[[id]])) return(data.table::data.table(
-      id = id, mode = entry$spec$mode, role = entry$spec$role, status = "skipped", passed = NA,
-      max_absolute_difference = NA_real_, max_relative_difference = NA_real_,
-      message = "observed output not supplied"))
+    if (is.null(observed[[id]])) {
+      gating <- identical(entry$spec$role, "gating")
+      return(data.table::data.table(
+        id = id, mode = entry$spec$mode, role = entry$spec$role,
+        status = if (gating) "failed" else "skipped", passed = if (gating) FALSE else NA,
+        max_absolute_difference = NA_real_, max_relative_difference = NA_real_,
+        message = "observed output not supplied"))
+    }
     result <- tryCatch(golden_compare_value(entry$spec, observed[[id]], entry$value), error = identity)
     if (inherits(result, "error")) return(data.table::data.table(
       id = id, mode = entry$spec$mode, role = entry$spec$role, status = "error", passed = FALSE,
@@ -204,7 +217,8 @@ compare_golden_outputs <- function(observed, store, ids = names(store$entries)) 
       max_relative_difference = result$max_relative_difference, message = result$message)
   })
   comparisons <- data.table::rbindlist(rows, fill = TRUE)
-  gating_failed <- comparisons$role == "gating" & comparisons$status %in% c("failed", "error")
+  gating_failed <- (comparisons$role == "gating" | is.na(comparisons$role)) &
+    comparisons$status %in% c("failed", "error")
   status <- if (any(gating_failed, na.rm = TRUE)) "failed" else "passed"
   structure(list(schema_version = "1.0", status = status, comparisons = comparisons,
                  store_digest = digest::digest(store, algo = "sha256", serialize = TRUE)),

@@ -57,5 +57,5 @@ verify_golden_store(path)
   \item{overwrite}{Permit replacement of an existing directory.}
   \item{verify}{Verify SHA256 checksums while reading.}
 }
-\value{Constructors return validated S3 objects. Comparison returns a \code{PopgenVCFGoldenResult}. Table conversion returns a data table. Store writing returns the normalized path invisibly; reading returns the validated store; verification returns \code{TRUE} invisibly.}
+\value{Constructors return validated S3 objects. Comparison returns a \code{PopgenVCFGoldenResult} whose \code{status} is \code{"failed"} when any gating golden fails, errors, or has no observed output, or when a requested identifier has no golden entry; only diagnostic goldens may be \code{"skipped"}. Table conversion returns a data table. Store writing returns the normalized path invisibly; reading returns the validated store; verification returns \code{TRUE} invisibly.}
 \description{Stores canonical scientific outputs with explicit comparison semantics, tolerances, approval metadata, deterministic serialization, and SHA256 integrity verification.}
