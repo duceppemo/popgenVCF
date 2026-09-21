@@ -1,3 +1,5 @@
+# popgenVCF 1.0.16.9000 development
+
 # popgenVCF 1.0.16
 
 popgenVCF 1.0.16 is released. DOI [10.5281/zenodo.22867369](https://doi.org/10.5281/zenodo.22867369) (concept DOI [10.5281/zenodo.21747067](https://doi.org/10.5281/zenodo.21747067)), 2026-09-21. Published under the maintainer's own account via `RELEASE_TOKEN`; Zenodo's GitHub integration deposited it exactly once (no orphaned deposit).
