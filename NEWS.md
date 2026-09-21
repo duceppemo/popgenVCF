@@ -1,5 +1,17 @@
 # popgenVCF 1.0.16.9000 development
 
+- **Colour-blind-safe colours beyond 8 groups:** the `accessibility-first`
+  and `standard-color` figure styles carry 8 colours; with 9 or more
+  populations or clusters every figure fell back to `hcl.colors("Dark 3")`,
+  equal-luminance hues that are close to indistinguishable under
+  colour-vision deficiency (smallest pairwise CIELAB distance 2.1 under
+  simulated deuteranopia/protanopia at 12 colours). 9-12 groups now use the
+  12-colour CARTO "Safe" palette (smallest distance >= 10.8 through 11
+  colours, 5.8 at 12); above 12 a warning says colour alone cannot separate
+  the groups. The publication ancestry barplot and K-selection plot, which
+  used `"Dark 3"` at every K, now follow the same palettes. Figures with 8 or
+  fewer groups are unchanged, except those two ancestry plots.
+
 - **Smaller HTML report:** the HTML report base64-embeds every gallery
   figure, and figures are written at `output.dpi` (600 by default) -- far more
   pixels than a browser displays. PNG figures wider than 1600px are now

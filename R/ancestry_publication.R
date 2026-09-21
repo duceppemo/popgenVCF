@@ -71,7 +71,7 @@ write_ancestry_publication_artifacts <- function(
   data.table::setorderv(source, order_cols, rep(1L, length(order_cols)), na.last = TRUE)
   source[, sample_order := seq_len(.N)]
 
-  if (is.null(palette)) palette <- grDevices::hcl.colors(k_value, "Dark 3")
+  if (is.null(palette)) palette <- cluster_palette(k_value)
   if (length(palette) < k_value) stop("palette must contain at least K colours", call. = FALSE)
   palette <- unname(palette[seq_len(k_value)])
 
@@ -248,7 +248,7 @@ plot_ancestry_k_selection <- function(x) {
   yr <- range(c(tab$mean, tab$lower, tab$upper), finite = TRUE)
   graphics::plot(range(tab$k), yr, type = "n", xlab = "K", ylab = "Fit metric",
     main = sprintf("Ancestry model selection; recommended K=%d", x$overall_k))
-  cols <- grDevices::hcl.colors(length(backends), "Dark 3")
+  cols <- expand_figure_palette("accessibility-first", length(backends), "colours")
   for (i in seq_along(backends)) {
     z <- tab[backend == backends[i]][order(k)]
     graphics::segments(z$k, z$lower, z$k, z$upper, col = cols[i])

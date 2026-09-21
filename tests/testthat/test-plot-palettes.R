@@ -247,3 +247,29 @@ test_that("ancestry palettes are deterministic and configured explicitly", {
     "Ancestry component"
   )
 })
+
+test_that("colour styles extend to a colour-blind-safe palette, not equal-luminance hues, beyond their own 8 colours", {
+  extended <- popgenVCF:::extended_colour_blind_safe_palette()
+  expect_length(extended, 12L)
+  expect_identical(anyDuplicated(extended), 0L)
+  for (style in c("accessibility-first", "standard-color")) {
+    own <- popgenVCF:::figure_style_profile(style)$colours
+    expect_identical(popgenVCF:::expand_figure_palette(style, 8L), own)
+    expect_identical(popgenVCF:::expand_figure_palette(style, 9L), extended[1:9])
+    expect_identical(popgenVCF:::expand_figure_palette(style, 12L, "fills"), extended)
+  }
+  expect_identical(
+    unname(popgenVCF:::population_palette(sprintf("pop_%02d", 1:10))), extended[1:10]
+  )
+  # Grayscale keeps its own luminance ramp.
+  expect_false(any(popgenVCF:::expand_figure_palette("grayscale-safe", 9L) %in% extended))
+})
+
+test_that("more groups than any colour-blind-safe palette can separate still get distinct colours, with a warning", {
+  messages <- testthat::capture_output(
+    palette <- popgenVCF:::expand_figure_palette("accessibility-first", 13L)
+  )
+  expect_length(palette, 13L)
+  expect_identical(anyDuplicated(palette), 0L)
+  expect_match(messages, "colour-vision deficiency for 13 groups")
+})

@@ -23,6 +23,8 @@ output:
 
 `accessibility-first` is the default. PCA and IBS ordinations encode populations with both colour and point shape. DAPC uses population colour and cluster shape. Ancestry and membership bars receive an explicit deterministic fill scale instead of ggplot2's session-dependent default palette. Population colour tables written with the results use the selected profile.
 
+The colour profiles carry 8 colours. With 9 to 12 groups, figures switch to the 12-colour CARTO "Safe" palette, which stays distinguishable under simulated deuteranopia, protanopia, and tritanopia (its twelfth colour, a grey, is the weakest). Above 12 groups no categorical palette remains colour-blind safe; popgenVCF warns and the figure should rely on labels, shapes, or facets.
+
 The grayscale mode should be inspected carefully when a figure contains many groups. There is a finite number of gray levels that remain distinguishable in print; popgenVCF warns when the requested palette exceeds that practical capacity.
 
 ## Binding and validation
