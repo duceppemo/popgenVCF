@@ -79,8 +79,13 @@ new_publication_fst_output <- function(spec, pairwise, global_fst = NULL,
   if (anyNA(p1) || anyNA(p2) || any(!nzchar(p1)) || any(!nzchar(p2)) || any(p1 == p2)) {
     stop("Population pairs must be non-empty, distinct values.", call. = FALSE)
   }
-  canonical1 <- pmin(p1, p2)
-  canonical2 <- pmax(p1, p2)
+  # Oriented by C-locale rank, not pmin()/pmax(): those collate by the
+  # session locale, so "S-2"/"S1" were oriented one way under C and the other
+  # under en_US and the output fingerprint followed.
+  rank <- match(c(p1, p2), sort(unique(c(p1, p2))))
+  swap <- rank[seq_along(p1)] > rank[length(p1) + seq_along(p2)]
+  canonical1 <- ifelse(swap, p2, p1)
+  canonical2 <- ifelse(swap, p1, p2)
   pairwise[[spec$population1_column]] <- canonical1
   pairwise[[spec$population2_column]] <- canonical2
   pairwise[[spec$estimate_column]] <- as.numeric(pairwise[[spec$estimate_column]])

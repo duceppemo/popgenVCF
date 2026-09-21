@@ -6,6 +6,18 @@
   - **`diversity.R` -- one tiny population erased everyone's allelic richness.** Rarefaction goes down to the smallest population's gene-copy count for every population, so a single singleton population rarefied the whole table to 2 copies, where richness is just 1 + He (every population ~1.28 instead of ~1.84-1.93 on the quickstart data). Populations under 5 samples are now left out of the rarefaction and get `NA`, with a pipeline notice; if fewer than two populations reach 5 samples, all are kept as before. Separately, the "hierfstat is not installed" warning was also emitted when allelic richness had simply been switched off in the config.
   - **`population_assignment.R`**: the only member of a singleton population got no assignment at all. Setting it aside for the leave-one-out step empties its own population, and that emptied population then failed the "usable in every population" locus test at every locus, leaving no likelihood under any population. The emptied population is now dropped as a candidate, the sample is assigned among the rest, and its `mismatch` is `NA` rather than counted as a suspected migrant.
 
+- **Fourth code pass, increment 17 (locale independence):** base `sort()` and
+  `order()` collate strings by the session's `LC_COLLATE`, so everything the
+  package calls canonical -- record fingerprints, "must be sorted" validators,
+  manifests, the orientation of population pairs -- depended on the machine's
+  locale (`"S-2"` sorts before `"S1"` under `C`, after it under `en_US`).
+  Inside the package both now order character data in C-locale, matching
+  data.table, which already did most of the pipeline's ordering that way; the
+  publication Fst output orients pairs the same way instead of with
+  `pmin()`/`pmax()`. A test-suite run with collation forced to `en_US` showed
+  no behavioural dependence on the old order. Visible effect: where a table or
+  figure was ordered by base R, names now sort upper-case first
+  (`"Pop_b"` before `"pop_a"`), as data.table-ordered outputs always have.
 - **Fourth code pass, increment 16 (project integrity):**
   `validate_popgenvcf_project()` compared only the results digests; the
   parameters, modules, artifacts and reports digests were recorded and never
