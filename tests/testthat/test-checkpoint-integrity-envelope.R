@@ -86,7 +86,7 @@ test_that("inner payload mutation fails after a valid file checksum", {
 
   envelope <- readRDS(path)
   envelope$payload$completed <- character()
-  saveRDS(envelope, path, version = 3, compress = "xz")
+  saveRDS(envelope, path, version = 3, compress = "gzip")
   rewrite_checkpoint_sidecar(path)
 
   expect_error(
@@ -102,7 +102,7 @@ test_that("unsupported future checkpoint envelopes fail closed", {
 
   envelope <- readRDS(path)
   envelope$schema$version <- envelope$schema$version + 1L
-  saveRDS(envelope, path, version = 3, compress = "xz")
+  saveRDS(envelope, path, version = 3, compress = "gzip")
   rewrite_checkpoint_sidecar(path)
 
   expect_error(
@@ -114,7 +114,7 @@ test_that("unsupported future checkpoint envelopes fail closed", {
 test_that("legacy unwrapped checkpoints require migration", {
   fixture <- checkpoint_envelope_fixture()
   path <- tempfile(fileext = ".rds")
-  saveRDS(fixture$checkpoint, path, version = 3, compress = "xz")
+  saveRDS(fixture$checkpoint, path, version = 3, compress = "gzip")
   rewrite_checkpoint_sidecar(path)
 
   expect_error(

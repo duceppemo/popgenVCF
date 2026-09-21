@@ -39,7 +39,7 @@ required <- c(
 )
 optional <- c(
   "clue", "covr", "hierfstat", "LEA", "knitr",
-  "pkgdown", "svglite", "testthat"
+  "pkgdown", "png", "svglite", "testthat"
 )
 check <- function(packages, type) {
   for (package in packages) {

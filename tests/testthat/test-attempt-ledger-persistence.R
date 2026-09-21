@@ -74,14 +74,14 @@ test_that("attempt ledger readers fail closed", {
   write_attempt_ledger(ledger, path, overwrite = TRUE)
   envelope <- readRDS(path)
   envelope$payload$attempt[[1]] <- 9L
-  saveRDS(envelope, path, version = 3, compress = "xz")
+  saveRDS(envelope, path, version = 3, compress = "gzip")
   writeLines(
     paste(attempt_ledger_sidecar_digest(path), basename(path)),
     paste0(path, ".sha256")
   )
   expect_error(read_attempt_ledger(path), "runtime integrity digest mismatch")
 
-  saveRDS(ledger, path, version = 3, compress = "xz")
+  saveRDS(ledger, path, version = 3, compress = "gzip")
   writeLines(
     paste(attempt_ledger_sidecar_digest(path), basename(path)),
     paste0(path, ".sha256")

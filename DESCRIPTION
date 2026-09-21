@@ -66,6 +66,7 @@ Suggests:
     phangorn,
     pkgdown,
     pkgload,
+    png,
     plotly,
     ragg,
     svglite,

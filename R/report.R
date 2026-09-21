@@ -8,7 +8,8 @@ report_figure_caption <- function(stem) {
 }
 
 report_figure_inventory <- function(results_rds, target = c("html", "pdf"),
-                                     max_pdf_figure_bytes = 2 * 1024^2) {
+                                     max_pdf_figure_bytes = 2 * 1024^2,
+                                     max_svg_figure_bytes = 2 * 1024^2) {
   target <- match.arg(target)
   results_rds <- normalizePath(results_rds, mustWork = TRUE)
   figure_dir <- file.path(dirname(results_rds), "figures")
@@ -66,6 +67,13 @@ report_figure_inventory <- function(results_rds, target = c("html", "pdf"),
   if (identical(target, "pdf")) {
     oversized_pdf <- format == "pdf" & file.size(files) > max_pdf_figure_bytes
     preference[oversized_pdf] <- length(preferred_formats) + 1L
+  } else {
+    # Same problem, HTML side: an SVG also carries one element per plotted
+    # point and is embedded verbatim, and unlike a PNG it cannot be
+    # downsampled (downsample_report_html_figures() below), so an oversized
+    # one yields to its raster sibling.
+    oversized_svg <- format == "svg" & file.size(files) > max_svg_figure_bytes
+    preference[oversized_svg] <- length(preferred_formats) + 1L
   }
   inventory <- data.frame(
     stem = stem,
@@ -82,6 +90,92 @@ report_figure_inventory <- function(results_rds, target = c("html", "pdf"),
   inventory$preference <- NULL
   rownames(inventory) <- NULL
   inventory
+}
+
+# Pixel width of a PNG, read from its IHDR chunk (bytes 17-20, big-endian)
+# so an already-small figure is never decoded just to find that out.
+report_png_width <- function(path) {
+  header <- readBin(path, "raw", n = 24L)
+  if (length(header) < 24L ||
+      !identical(header[1:8], as.raw(c(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)))) {
+    return(NA_real_)
+  }
+  sum(as.numeric(header[17:20]) * 256^(3:0))
+}
+
+report_downsample_png <- function(path, out_dir, max_width_px) {
+  width <- report_png_width(path)
+  if (!is.finite(width) || width <= max_width_px) return(path)
+  # native = TRUE: a packed-integer raster, 8x smaller in memory than the
+  # default numeric array (a 10x5in figure at 600 DPI is ~576MB as doubles).
+  image <- png::readPNG(path, native = TRUE)
+  out_width <- as.integer(max_width_px)
+  out_height <- max(1L, as.integer(round(nrow(image) * out_width / ncol(image))))
+  out <- file.path(out_dir, basename(path))
+  previous_device <- grDevices::dev.cur()
+  if (requireNamespace("ragg", quietly = TRUE)) {
+    ragg::agg_png(out, width = out_width, height = out_height, units = "px", background = "white")
+  } else {
+    grDevices::png(out, width = out_width, height = out_height, units = "px", bg = "white")
+  }
+  device <- grDevices::dev.cur()
+  tryCatch({
+    grid::grid.newpage()
+    grid::grid.raster(
+      image, width = grid::unit(1, "npc"), height = grid::unit(1, "npc"),
+      interpolate = TRUE
+    )
+  }, finally = {
+    grDevices::dev.off(device)
+    if (previous_device > 1L && previous_device %in% grDevices::dev.list()) {
+      grDevices::dev.set(previous_device)
+    }
+  })
+  if (!file.exists(out) || file.size(out) <= 0 || file.size(out) >= file.size(path)) return(path)
+  out
+}
+
+# The HTML report base64-embeds every gallery figure (self_contained = TRUE),
+# and save_plot() writes PNGs at output.dpi (600 by default) -- print
+# resolution, several times more pixels than a browser ever displays in the
+# report's fixed-width column, so dozens of figures add up to a report too
+# large to open or email. PNG figures wider than `max_width_px` are resampled
+# into `out_dir` (same basename, so the gallery's file-name caption still
+# matches the original) and the inventory is pointed at those copies; the
+# full-resolution originals stay untouched in figures/. 1600px covers the
+# report column at 2x (high-DPI) scaling. Any failure keeps the original.
+downsample_report_html_figures <- function(figures, out_dir, max_width_px = 1600L) {
+  is_png <- figures$format == "png"
+  if (!any(is_png)) return(figures)
+  if (!requireNamespace("png", quietly = TRUE)) {
+    log_msg(
+      "png package not installed; HTML report figures were not downsampled and the report may be large",
+      level = "WARNING"
+    )
+    return(figures)
+  }
+  dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+  before <- sum(file.size(figures$path[is_png]))
+  for (i in which(is_png)) {
+    figures$path[[i]] <- tryCatch(
+      report_downsample_png(figures$path[[i]], out_dir, max_width_px),
+      error = function(e) {
+        log_msg(sprintf(
+          "Could not downsample %s for the HTML report (%s); embedding the original",
+          basename(figures$path[[i]]), conditionMessage(e)
+        ), level = "WARNING")
+        figures$path[[i]]
+      }
+    )
+  }
+  after <- sum(file.size(figures$path[is_png]))
+  if (after < before) {
+    log_msg(sprintf(
+      "Downsampled HTML report figures from %.1f MB to %.1f MB",
+      before / 1024^2, after / 1024^2
+    ))
+  }
+  figures
 }
 
 report_latex_engine <- function() {
@@ -266,6 +360,11 @@ render_standard_report_format <- function(template, results_rds, output_dir,
                                           title, author, format,
                                           latex_engine = NULL) {
   figures <- report_figure_inventory(results_rds, target = format)
+  if (identical(format, "html")) {
+    figure_dir <- tempfile("popgenvcf-report-figures-")
+    on.exit(unlink(figure_dir, recursive = TRUE), add = TRUE)
+    figures <- downsample_report_html_figures(figures, figure_dir)
+  }
   output_file <- paste0("population_genomics_report.", format)
   # Render from a private copy of the template, never in place. LaTeX writes
   # its .aux/.toc/.log beside the input document regardless of

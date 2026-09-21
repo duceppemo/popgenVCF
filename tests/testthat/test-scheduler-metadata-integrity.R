@@ -55,7 +55,7 @@ test_that("scheduler metadata mutation and incompatible formats fail closed", {
   write_scheduler_metadata(scheduler_metadata_fixture(), path)
   envelope <- readRDS(path)
   envelope$payload$batch[[1]] <- 9L
-  saveRDS(envelope, path, version = 3, compress = "xz")
+  saveRDS(envelope, path, version = 3, compress = "gzip")
   rewrite_scheduler_metadata_sidecar(path)
   expect_error(read_scheduler_metadata(path), "runtime integrity digest mismatch")
 
@@ -63,7 +63,7 @@ test_that("scheduler metadata mutation and incompatible formats fail closed", {
   write_scheduler_metadata(scheduler_metadata_fixture(), future)
   envelope <- readRDS(future)
   envelope$schema$version <- envelope$schema$version + 1L
-  saveRDS(envelope, future, version = 3, compress = "xz")
+  saveRDS(envelope, future, version = 3, compress = "gzip")
   rewrite_scheduler_metadata_sidecar(future)
   expect_error(read_scheduler_metadata(future), "unsupported future runtime schema")
 })

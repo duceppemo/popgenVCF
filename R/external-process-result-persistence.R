@@ -110,7 +110,7 @@ write_external_process_result <- function(result, path, overwrite = FALSE) {
   envelope <- new_runtime_integrity_envelope("process_result", result)
   tmp <- tempfile("process-result-", tmpdir = dirname(path), fileext = ".rds")
   on.exit(unlink(tmp), add = TRUE)
-  saveRDS(envelope, tmp, version = 3, compress = "xz")
+  saveRDS(envelope, tmp, version = 3, compress = "gzip")
   checksum <- external_process_result_sidecar_digest(tmp)
   if (!file.rename(tmp, path)) {
     stop("unable to install external process result", call. = FALSE)

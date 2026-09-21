@@ -1,5 +1,19 @@
 # popgenVCF 1.0.16.9000 development
 
+- **Smaller HTML report:** the HTML report base64-embeds every gallery
+  figure, and figures are written at `output.dpi` (600 by default) -- far more
+  pixels than a browser displays. PNG figures wider than 1600px are now
+  resampled to that width for the HTML report only (the originals in
+  `figures/` and the PDF report are untouched), and an SVG over 2MB yields to
+  its PNG sibling, as an oversized PDF already did in the PDF report. Uses the
+  `png` package (new in `Suggests`); without it the report still renders, at
+  full size, with a warning.
+- **gzip instead of xz for saved R objects:** `analysis_results.rds` and the
+  checkpoint/ledger/workspace persistence files are now written with
+  `compress = "gzip"` -- much faster to write and read at a modest size cost.
+  Files written by earlier versions still load (`readRDS()` detects the
+  compression itself).
+
 # popgenVCF 1.0.16
 
 popgenVCF 1.0.16 is released. DOI [10.5281/zenodo.22867369](https://doi.org/10.5281/zenodo.22867369) (concept DOI [10.5281/zenodo.21747067](https://doi.org/10.5281/zenodo.21747067)), 2026-09-21. Published under the maintainer's own account via `RELEASE_TOKEN`; Zenodo's GitHub integration deposited it exactly once (no orphaned deposit).

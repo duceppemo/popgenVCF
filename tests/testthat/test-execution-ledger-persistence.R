@@ -87,7 +87,7 @@ test_that("payload mutation fails after a valid file checksum", {
   write_execution_ledger(execution_ledger_fixture(), path)
   envelope <- readRDS(path)
   envelope$payload$status[[1]] <- "failed"
-  saveRDS(envelope, path, version = 3, compress = "xz")
+  saveRDS(envelope, path, version = 3, compress = "gzip")
   rewrite_execution_ledger_sidecar(path)
 
   expect_error(read_execution_ledger(path), "runtime integrity digest mismatch")
@@ -99,12 +99,12 @@ test_that("future and legacy execution ledger formats fail closed", {
   write_execution_ledger(ledger, future)
   envelope <- readRDS(future)
   envelope$schema$version <- envelope$schema$version + 1L
-  saveRDS(envelope, future, version = 3, compress = "xz")
+  saveRDS(envelope, future, version = 3, compress = "gzip")
   rewrite_execution_ledger_sidecar(future)
   expect_error(read_execution_ledger(future), "unsupported future runtime schema")
 
   legacy <- tempfile(fileext = ".rds")
-  saveRDS(ledger, legacy, version = 3, compress = "xz")
+  saveRDS(ledger, legacy, version = 3, compress = "gzip")
   rewrite_execution_ledger_sidecar(legacy)
   expect_error(read_execution_ledger(legacy), "requires explicit migration")
 })

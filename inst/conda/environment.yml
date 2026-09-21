@@ -36,6 +36,7 @@ dependencies:
   - r-pcadapt
   - r-phangorn
   - r-pkgdown
+  - r-png
   - r-ragg
   - r-remotes
   - r-svglite

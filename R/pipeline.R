@@ -238,7 +238,7 @@ finalize_pipeline_analysis <- function(analysis, registry, cfg, dirs) {
   analysis$completed_at <- Sys.time()
   validate_analysis(analysis)
   results_rds <- file.path(dirs$root, "analysis_results.rds")
-  saveRDS(analysis, results_rds, compress = "xz")
+  saveRDS(analysis, results_rds, compress = "gzip")
   write_manifest(cfg, dirs, analysis, analysis$timings)
   write_tsv(summary(analysis), file.path(dirs$root, "analysis_summary.tsv"))
   utils::capture.output(utils::sessionInfo(), file = file.path(dirs$root, "sessionInfo.txt"))

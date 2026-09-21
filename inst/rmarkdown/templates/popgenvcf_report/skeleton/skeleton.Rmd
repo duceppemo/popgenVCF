@@ -839,9 +839,10 @@ report_table_section(
 # Figure gallery
 
 The gallery contains one version of every analysis figure. The HTML report
-prefers browser-friendly SVG or PNG files. The PDF report prefers the compact
-vector PDF source for each figure. Original files remain available in the
-sibling `figures/` directory.
+prefers browser-friendly SVG or PNG files, with large PNGs downsampled to
+screen resolution. The PDF report prefers the compact vector PDF source for
+each figure. Original full-resolution files remain available in the sibling
+`figures/` directory.
 
 ```{r figure-gallery, results='asis'}
 figure_family_catalog <- report_figure_family_catalog()

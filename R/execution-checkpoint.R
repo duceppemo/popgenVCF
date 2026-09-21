@@ -204,7 +204,7 @@ write_execution_checkpoint <- function(checkpoint, path, overwrite = FALSE) {
   dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
   tmp <- tempfile("execution-checkpoint-", tmpdir = dirname(path), fileext = ".rds")
   on.exit(unlink(tmp), add = TRUE)
-  saveRDS(envelope, tmp, version = 3, compress = "xz")
+  saveRDS(envelope, tmp, version = 3, compress = "gzip")
   checksum <- digest::digest(file = tmp, algo = "sha256")
   if (!file.rename(tmp, path)) stop("unable to install execution checkpoint", call. = FALSE)
   writeLines(paste(checksum, basename(path)), checksum_path, useBytes = TRUE)

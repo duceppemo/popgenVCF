@@ -96,7 +96,7 @@ write_scheduler_metadata <- function(metadata, path, overwrite = FALSE) {
   envelope <- new_runtime_integrity_envelope("scheduler_metadata", metadata)
   tmp <- tempfile("scheduler-metadata-", tmpdir = dirname(path), fileext = ".rds")
   on.exit(unlink(tmp), add = TRUE)
-  saveRDS(envelope, tmp, version = 3, compress = "xz")
+  saveRDS(envelope, tmp, version = 3, compress = "gzip")
   checksum <- scheduler_metadata_sidecar_digest(tmp)
   if (!file.rename(tmp, path)) stop("unable to install scheduler metadata", call. = FALSE)
   writeLines(paste(checksum, basename(path)), sidecar, useBytes = TRUE)

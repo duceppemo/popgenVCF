@@ -101,7 +101,7 @@ test_that("workspace readers fail closed", {
   write_external_process_workspace(workspace, path, overwrite = TRUE)
   envelope <- readRDS(path)
   envelope$payload$identifier <- digest::digest("mutated", algo = "sha256")
-  saveRDS(envelope, path, version = 3, compress = "xz")
+  saveRDS(envelope, path, version = 3, compress = "gzip")
   writeLines(
     paste(external_process_workspace_sidecar_digest(path), basename(path)),
     paste0(path, ".sha256")
@@ -111,7 +111,7 @@ test_that("workspace readers fail closed", {
     "runtime integrity digest mismatch"
   )
 
-  saveRDS(workspace, path, version = 3, compress = "xz")
+  saveRDS(workspace, path, version = 3, compress = "gzip")
   writeLines(
     paste(external_process_workspace_sidecar_digest(path), basename(path)),
     paste0(path, ".sha256")

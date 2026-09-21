@@ -733,3 +733,75 @@ test_that("HTML reports show the bottleneck mode-shift table, including a withhe
   html <- paste(readLines(rendered[["html"]], warn = FALSE), collapse = "\n")
   expect_false(grepl("Bottleneck mode-shift\\s+screen", html))
 })
+
+test_that("HTML report figures wider than the display cap are downsampled into a scratch copy, leaving the originals untouched", {
+  skip_if_not_installed("png")
+  figure_dir <- tempfile("report-figures-")
+  out_dir <- tempfile("report-figures-out-")
+  dir.create(figure_dir)
+  write_png <- function(name, width, height) {
+    path <- file.path(figure_dir, name)
+    grDevices::png(path, width = width, height = height)
+    graphics::plot(1:10, 1:10)
+    grDevices::dev.off()
+    path
+  }
+  large <- write_png("07_PCA_PC1_PC2.png", 3000, 1500)
+  small <- write_png("08_PCA_scree.png", 400, 300)
+  large_size <- file.size(large)
+  figures <- data.frame(
+    stem = c("07_PCA_PC1_PC2", "08_PCA_scree", "09_vector"),
+    caption = c("a", "b", "c"),
+    path = c(large, small, file.path(figure_dir, "09_vector.svg")),
+    format = c("png", "png", "svg"),
+    stringsAsFactors = FALSE
+  )
+  devices_before <- grDevices::dev.list()
+
+  result <- popgenVCF:::downsample_report_html_figures(figures, out_dir, max_width_px = 1000L)
+
+  expect_identical(grDevices::dev.list(), devices_before)
+  expect_identical(result$path[2:3], figures$path[2:3])
+  expect_identical(dirname(result$path[[1L]]), out_dir)
+  expect_identical(basename(result$path[[1L]]), basename(large))
+  expect_equal(dim(png::readPNG(result$path[[1L]]))[1:2], c(500L, 1000L))
+  expect_lt(file.size(result$path[[1L]]), large_size)
+  expect_identical(file.size(large), large_size)
+})
+
+test_that("an unreadable PNG is embedded as-is instead of failing the HTML report", {
+  skip_if_not_installed("png")
+  figure_dir <- tempfile("report-figures-")
+  dir.create(figure_dir)
+  broken <- file.path(figure_dir, "07_broken.png")
+  # A valid signature and IHDR claiming 5000px, then nothing decodable.
+  writeBin(c(
+    as.raw(c(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13)),
+    charToRaw("IHDR"), as.raw(c(0, 0, 0x13, 0x88, 0, 0, 0x13, 0x88))
+  ), broken)
+  figures <- data.frame(
+    stem = "07_broken", caption = "a", path = broken, format = "png",
+    stringsAsFactors = FALSE
+  )
+  result <- suppressMessages(
+    popgenVCF:::downsample_report_html_figures(figures, tempfile("out-"))
+  )
+  expect_identical(result$path, broken)
+})
+
+test_that("an oversized SVG yields to its PNG sibling in the HTML report inventory", {
+  root <- tempfile("standard-report-")
+  dir.create(file.path(root, "figures"), recursive = TRUE)
+  results <- file.path(root, "analysis_results.rds")
+  saveRDS(minimal_standard_report_result(), results)
+  writeLines("<svg xmlns='http://www.w3.org/2000/svg'/>", file.path(root, "figures", "07_PCA_PC1_PC2.svg"))
+  grDevices::png(file.path(root, "figures", "07_PCA_PC1_PC2.png"), width = 320, height = 240)
+  graphics::plot(1:2, 1:2)
+  grDevices::dev.off()
+
+  expect_identical(popgenVCF:::report_figure_inventory(results)$format, "svg")
+  expect_identical(
+    popgenVCF:::report_figure_inventory(results, max_svg_figure_bytes = 10)$format,
+    "png"
+  )
+})

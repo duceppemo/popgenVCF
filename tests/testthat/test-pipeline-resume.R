@@ -269,7 +269,7 @@ test_that("run_pipeline_resume refuses to compare against a checkpoint with no r
   legacy$config_fingerprint <- NULL
   legacy$checkpoint_digest <- popgenVCF:::checkpoint_payload_digest(legacy)
   envelope <- popgenVCF:::new_runtime_integrity_envelope("checkpoint", legacy)
-  saveRDS(envelope, fx$checkpoint_path, version = 3, compress = "xz")
+  saveRDS(envelope, fx$checkpoint_path, version = 3, compress = "gzip")
   writeLines(
     paste(digest::digest(file = fx$checkpoint_path, algo = "sha256"), basename(fx$checkpoint_path)),
     paste0(fx$checkpoint_path, ".sha256")

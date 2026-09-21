@@ -79,7 +79,7 @@ test_that("external process result readers fail closed", {
   write_external_process_result(result, path, overwrite = TRUE)
   envelope <- readRDS(path)
   envelope$payload$status <- "nonzero_exit"
-  saveRDS(envelope, path, version = 3, compress = "xz")
+  saveRDS(envelope, path, version = 3, compress = "gzip")
   writeLines(
     paste(external_process_result_sidecar_digest(path), basename(path)),
     paste0(path, ".sha256")
@@ -89,7 +89,7 @@ test_that("external process result readers fail closed", {
     "runtime integrity digest mismatch"
   )
 
-  saveRDS(result, path, version = 3, compress = "xz")
+  saveRDS(result, path, version = 3, compress = "gzip")
   writeLines(
     paste(external_process_result_sidecar_digest(path), basename(path)),
     paste0(path, ".sha256")
