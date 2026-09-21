@@ -1,4 +1,4 @@
-# popgenVCF 1.0.15.9000 development
+# popgenVCF 1.0.16 development
 
 - **Fourth code pass, increment 2 (a full run with deliberately awkward metadata: a singleton population, a 2-sample population, partly missing coordinates under custom column names, aliases). All 22 modules completed; two results were wrong:**
 
